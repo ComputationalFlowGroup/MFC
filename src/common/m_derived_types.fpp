@@ -235,7 +235,14 @@ module m_derived_types
         real(kind(0d0)) :: M_v     !< Bubble constants (see Preston (2007), Ando (2010))
         real(kind(0d0)) :: mu_v    !< Bubble constants (see Preston (2007), Ando (2010))
         real(kind(0d0)) :: k_v     !< Bubble constants (see Preston (2007), Ando (2010))
-        real(kind(0d0)) :: G
+        real(kind(0d0)) :: G       !< Shear modulus
+        real(kind(0d0)) , dimension(10) :: plasticity ! sufficient for johnson-cook model
+        real(kind(0d0)) :: mg_K
+        real(kind(0d0)) :: mg_Kp
+        real(kind(0d0)) , dimension(4) :: mg_c
+        real(kind(0d0)) , dimension(4) :: mg_a 
+        real(kind(0d0)) , dimension(2) :: mg_b
+        real(kind(0d0)) , dimension(3) :: mg_g
     end type physical_parameters
 
     !> Derived type annexing the flow probe location
