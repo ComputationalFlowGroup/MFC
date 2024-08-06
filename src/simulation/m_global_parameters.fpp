@@ -112,7 +112,6 @@ module m_global_parameters
     #:else
         integer :: num_dims       !< Number of spatial dimensions
     #:endif
-    logical :: adv_alphan     !< Advection of the last volume fraction
     logical :: mpp_lim        !< Mixture physical parameters (MPP) limits
     integer :: time_stepper   !< Time-stepper algorithm
     logical :: prim_vars_wrt
@@ -141,6 +140,7 @@ module m_global_parameters
     logical :: weno_avg       ! Average left/right cell-boundary states
     logical :: weno_Re_flux   !< WENO reconstruct velocity gradients for viscous stress tensor
     integer :: riemann_solver !< Riemann solver algorithm
+    integer :: low_Mach       !< Low Mach number fix to HLLC Riemann solver
     integer :: wave_speeds    !< Wave speeds estimation method
     integer :: avg_state      !< Average state evaluation method
     logical :: alt_soundspeed !< Alternate mixture sound speed
@@ -169,7 +169,7 @@ module m_global_parameters
         !$acc declare create(num_dims, weno_polyn, weno_order, num_fluids, wenojs, mapped_weno, wenoz, teno)
     #:endif
 
-    !$acc declare create(mpp_lim, model_eqns, mixture_err, alt_soundspeed, avg_state, mp_weno, weno_eps, teno_CT, hypoelasticity, hyperelasticity, elasticity)
+    !$acc declare create(mpp_lim, model_eqns, mixture_err, alt_soundspeed, avg_state, mp_weno, weno_eps, teno_CT, hypoelasticity, hyperelasticity, elasticity, low_Mach)
 
     logical :: relax          !< activate phase change
     integer :: relax_model    !< Relaxation model
@@ -504,7 +504,6 @@ contains
 
         ! Simulation algorithm parameters
         model_eqns = dflt_int
-        adv_alphan = .false.
         mpp_lim = .false.
         time_stepper = dflt_int
         weno_eps = dflt_real
@@ -513,6 +512,7 @@ contains
         weno_avg = .false.
         weno_Re_flux = .false.
         riemann_solver = dflt_int
+        low_Mach = 0
         wave_speeds = dflt_int
         avg_state = dflt_int
         alt_soundspeed = .false.
@@ -881,11 +881,11 @@ contains
                 sys_size = internalEnergies_idx%end
 
                 if (hypoelasticity .or. hyperelasticity) then
-                  elasticity = .true.
-                  stress_idx%beg = sys_size + 1
-                  stress_idx%end = sys_size + (num_dims*(num_dims + 1))/2
-                  ! number of stresses is 1 in 1D, 3 in 2D, 6 in 3D
-                  sys_size = stress_idx%end
+                    elasticity = .true.
+                    stress_idx%beg = sys_size + 1
+                    stress_idx%end = sys_size + (num_dims*(num_dims + 1))/2
+                    ! number of stresses is 1 in 1D, 3 in 2D, 6 in 3D
+                    sys_size = stress_idx%end
                 end if
 
                 if (hyperelasticity) then
@@ -1041,11 +1041,11 @@ contains
             buff_size = weno_polyn + 2
         end if
 
-        if (elasticity) then 
-          fd_order = 4
-          fd_number = max(1, fd_order/2)
-          !buff_size = buff_size + fd_number
-        end if 
+        if (elasticity) then
+            fd_order = 4
+            fd_number = max(1, fd_order/2)
+            !buff_size = buff_size + fd_number
+        end if
 
         ! Configuring Coordinate Direction Indexes =========================
         if (bubbles) then
@@ -1076,7 +1076,7 @@ contains
         if (p > 0) then
             startz = -buff_size
         end if
- 
+
         !$acc update device(fd_order,fd_number)
         !$acc update device(startx, starty, startz)
 
@@ -1107,7 +1107,7 @@ contains
         !$acc update device(m, n, p)
 
         !$acc update device(alt_soundspeed, acoustic_source, num_source)
-        !$acc update device(dt, sys_size, buff_size, pref, rhoref, gamma_idx, pi_inf_idx, E_idx, alf_idx, stress_idx, mpp_lim, bubbles, hypoelasticity, alt_soundspeed, avg_state, num_fluids, model_eqns, num_dims, mixture_err, grid_geometry, cyl_coord, mp_weno, weno_eps, teno_CT, hyperelasticity, elasticity, xi_idx)
+        !$acc update device(dt, sys_size, buff_size, pref, rhoref, gamma_idx, pi_inf_idx, E_idx, alf_idx, stress_idx, mpp_lim, bubbles, hypoelasticity, alt_soundspeed, avg_state, num_fluids, model_eqns, num_dims, mixture_err, grid_geometry, cyl_coord, mp_weno, weno_eps, teno_CT, hyperelasticity, elasticity, xi_idx, low_Mach)
 
         #:if not MFC_CASE_OPTIMIZATION
             !$acc update device(wenojs, mapped_weno, wenoz, teno)

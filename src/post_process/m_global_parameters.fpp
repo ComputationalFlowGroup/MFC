@@ -88,7 +88,6 @@ module m_global_parameters
     integer :: num_fluids      !< Number of different fluids present in the flow
     logical :: relax           !< phase change
     integer :: relax_model     !< Phase change relaxation model
-    logical :: adv_alphan      !< Advection of the last volume fraction
     logical :: mpp_lim         !< Maximum volume fraction limiter
     integer :: sys_size        !< Number of unknowns in the system of equations
     integer :: weno_order      !< Order of accuracy for the WENO reconstruction
@@ -289,7 +288,6 @@ contains
         ! Simulation algorithm parameters
         model_eqns = dflt_int
         num_fluids = dflt_int
-        adv_alphan = .false.
         weno_order = dflt_int
         mixture_err = .false.
         alt_soundspeed = .false.
@@ -537,18 +535,17 @@ contains
             E_idx = mom_idx%end + 1
             adv_idx%beg = E_idx + 1
             adv_idx%end = E_idx + num_fluids
-            if (adv_alphan .neqv. .true.) adv_idx%end = adv_idx%end - 1
             internalEnergies_idx%beg = adv_idx%end + 1
             internalEnergies_idx%end = adv_idx%end + num_fluids
             sys_size = internalEnergies_idx%end
             alf_idx = 1 ! dummy, cannot actually have a void fraction
 
             if (hypoelasticity .or. hyperelasticity) then
-              elasticity = .true.
-              stress_idx%beg = sys_size + 1
-              stress_idx%end = sys_size + (num_dims*(num_dims + 1))/2
-              ! number of stresses is 1 in 1D, 3 in 2D, 6 in 3D
-              sys_size = stress_idx%end
+                elasticity = .true.
+                stress_idx%beg = sys_size + 1
+                stress_idx%end = sys_size + (num_dims*(num_dims + 1))/2
+                ! number of stresses is 1 in 1D, 3 in 2D, 6 in 3D
+                sys_size = stress_idx%end
             end if
 
             if (hyperelasticity) then

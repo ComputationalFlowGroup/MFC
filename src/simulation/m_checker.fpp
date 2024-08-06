@@ -31,6 +31,7 @@ contains
         call s_check_inputs_model_eqns
         if (acoustic_source) call s_check_inputs_acoustic_src
         if (hypoelasticity) call s_check_inputs_hypoelasticity
+        if (hyperelasticity) call s_check_inputs_hyperelasticity
         if (bubbles) call s_check_inputs_bubbles
         if (adap_dt) call s_check_inputs_adapt_dt
         if (alt_soundspeed) call s_check_inputs_alt_soundspeed
@@ -130,6 +131,14 @@ contains
         elseif (riemann_solver /= 3 .and. avg_state == dflt_int) then
             call s_mpi_abort('avg_state must be set if '// &
                              'riemann_solver != 3. Exiting ...')
+        elseif (all(low_Mach /= (/0, 1, 2/))) then
+            call s_mpi_abort('low_Mach must be 0, 1 or 2. Exiting ...')
+        elseif (riemann_solver /= 2 .and. low_Mach /= 0) then
+            call s_mpi_abort('low_Mach = 1 or 2 '// &
+                             'requires riemann_solver = 2. Exiting ...')
+        elseif (low_Mach /= 0 .and. model_eqns /= 2) then
+            call s_mpi_abort('low_Mach = 1 or 2 requires '// &
+                             'model_eqns = 2. Exiting ...')
         end if
     end subroutine s_check_inputs_riemann_solver
 
@@ -360,13 +369,21 @@ contains
 
     !> Checks constraints on hypoelasticity parameters
     subroutine s_check_inputs_hypoelasticity
-        if (riemann_solver == 3) then
+        if (riemann_solver /= 1) then
             call s_mpi_abort('hypoelasticity requires HLL '// &
-                             '(riemann_solver = 1) or HLLC '// &
+                             '(riemann_solver = 1) Riemann solver. '// &
+                             'Exiting ...')
+        end if
+    end subroutine s_check_inputs_hypoelasticity
+
+    !> Checks constraints on hyperelasticity parameters
+    subroutine s_check_inputs_hyperelasticity
+        if (riemann_solver /= 2) then
+            call s_mpi_abort('hyperelasticity requires HLLC '// &
                              '(riemann_solver = 2) Riemann solver. '// &
                              'Exiting ...')
         end if
-    end subroutine
+    end subroutine s_check_inputs_hyperelasticity
 
     !> Checks constraints on bubble parameters
     subroutine s_check_inputs_bubbles

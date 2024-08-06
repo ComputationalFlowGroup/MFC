@@ -794,7 +794,7 @@ contains
         !print *, "I got here c"
 
         call nvtxStartRange("RHS-ELASTIC")
-          if (hyperelasticity) call s_hyperelastic_rmt_stress_update(q_cons_qp%vf,q_prim_qp%vf)
+        if (hyperelasticity) call s_hyperelastic_rmt_stress_update(q_cons_qp%vf, q_prim_qp%vf)
         call nvtxEndRange
 
         if (t_step == t_step_stop) return
@@ -1035,7 +1035,7 @@ contains
         end if
         call cpu_time(t_finish)
         if (t_step >= 4) then
-            time_avg = (abs(t_finish - t_start)/((ix%end - ix%beg)*(iy%end - iy%beg)*(iz%end - iz%beg)) + (t_step - 4)*time_avg)/(t_step - 3)
+            time_avg = (abs(t_finish - t_start) + (t_step - 4)*time_avg)/(t_step - 3)
         else
             time_avg = 0d0
         end if

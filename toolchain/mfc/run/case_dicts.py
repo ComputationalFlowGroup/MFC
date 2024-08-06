@@ -32,7 +32,6 @@ COMMON = {
     'm': ParamType.INT,
     'mpp_lim': ParamType.LOG,
     'R0ref': ParamType.REAL,
-    'adv_alphan': ParamType.LOG,
     'num_fluids': ParamType.INT,
     'model_eqns': ParamType.INT,
     'nb': ParamType.REAL,
@@ -111,7 +110,7 @@ for f_id in range(1, 10+1):
                       "mu_v", "k_v", "G", "cv", "qv", "qvp" ]:
         PRE_PROCESS[f"fluid_pp({f_id})%{real_attr}"] = ParamType.REAL
 
-for p_id in range(1, 10+4):
+for p_id in range(1, 10+1):
     for attribute, ty in [("geometry", ParamType.INT), ("smoothen", ParamType.LOG),
                       ("smooth_patch_id", ParamType.INT), ("hcid", ParamType.INT)]:
         PRE_PROCESS[f"patch_icpp({p_id})%{attribute}"] = ty
@@ -209,6 +208,7 @@ SIMULATION.update({
     'adap_dt': ParamType.LOG,
     'ib': ParamType.LOG,
     'num_ibs': ParamType.INT,
+    'low_Mach': ParamType.INT,
 })
 
 # NOTE: Not currently present
