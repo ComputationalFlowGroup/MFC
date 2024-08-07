@@ -1142,7 +1142,7 @@ contains
                         end if
 
                         if (j == 0 .and. k == 0 .and. l == 0) print *, 'In convert, nbub:', nbub
-                          do i = bub_idx%beg, bub_idx%end{:
+                          do i = bub_idx%beg, bub_idx%end
                             q_cons_vf(i)%sf(j, k, l) = q_prim_vf(i)%sf(j, k, l)*nbub
                           end do
                         end if
