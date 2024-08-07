@@ -237,8 +237,8 @@ module m_derived_types
         real(kind(0d0)) :: k_v     !< Bubble constants (see Preston (2007), Ando (2010))
         real(kind(0d0)) :: G       !< Shear modulus
         real(kind(0d0)) , dimension(10) :: plasticity ! sufficient for johnson-cook model
-        real(kind(0d0)) :: mg_K
-        real(kind(0d0)) :: mg_Kp
+        real(kind(0d0)) :: mg_K    !< Bulk modulus at ambient for cold curve (see Malhotra (2022))     
+        real(kind(0d0)) :: mg_Kp   !< Tangent of bulk modulus wrt pressure (see Malhotra (2022)) for Birch-Murnaghan EOS
         real(kind(0d0)) , dimension(4) :: mg_c
         real(kind(0d0)) , dimension(4) :: mg_a 
         real(kind(0d0)) , dimension(2) :: mg_b
