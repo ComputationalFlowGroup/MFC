@@ -20,6 +20,7 @@ class ParamType(Enum):
 COMMON = {
     'hypoelasticity': ParamType.LOG,
     'hyperelasticity': ParamType.LOG,
+    'plasticity': ParamType.LOG,
     'cyl_coord': ParamType.LOG,
     'pref': ParamType.REAL,
     'p': ParamType.INT,

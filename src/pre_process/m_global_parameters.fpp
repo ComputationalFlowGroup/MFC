@@ -83,8 +83,7 @@ module m_global_parameters
     integer :: weno_order      !< Order of accuracy for the WENO reconstruction
     logical :: hypoelasticity  !< activate hypoelasticity
     logical :: hyperelasticity !< activate hyperelasticity
-    logical :: plasticity_JC   !< activate johnson-cook plasticity 
-    logical :: mie_gruneisen   !< activate Mie-Gruneisen EOS 
+    logical :: plasticity      !< activate johnson-cook plasticity 
     logical :: elasticity      !< elasticity modeling, true for hyper or hypo
     integer :: b_size          !< Number of components in the b tensor
     integer :: tensor_size     !< Number of components in the nonsymmetric tensor
@@ -225,6 +224,7 @@ module m_global_parameters
     integer :: bubxb, bubxe
     integer :: strxb, strxe
     integer :: xibeg, xiend
+    integer :: plasidx
     !> @}
 
     integer, allocatable, dimension(:, :, :) :: logic_grid
@@ -290,6 +290,7 @@ contains
         hyperelasticity = .false.
         elasticity = .false.
         pre_stress = .false.
+        plasticity = .false.
 
         bc_x%beg = dflt_int; bc_x%end = dflt_int
         bc_y%beg = dflt_int; bc_y%end = dflt_int
@@ -720,6 +721,33 @@ contains
                 end if
 
             end if
+            ! Volume Fraction Model (5-equation model) + MG EoS =====================
+        else if (model_eqns == 5) then
+
+            ! Annotating structure of the state and flux vectors belonging
+            ! to the system of equations defined by the selected number of
+            ! spatial dimensions and the volume fraction model
+
+            cont_idx%beg = 1
+            cont_idx%end = num_fluids
+            mom_idx%beg = cont_idx%end + 1
+            mom_idx%end = cont_idx%end + num_dims
+            E_idx = mom_idx%end + 1
+            adv_idx%beg = E_idx + 1
+            adv_idx%end = E_idx + num_fluids
+            sys_size = adv_idx%end
+
+            if (hypoelasticity) then
+                elasticity = .true.
+                stress_idx%beg = sys_size + 1
+                stress_idx%end = sys_size + (num_dims*(num_dims + 1))/2
+                ! number of stresses is 1 in 1D, 3 in 2D, 6 in 3D
+                sys_size = stress_idx%end
+            end if
+
+            plasidx = stress_idx%end + 1
+            sys_size = plasidx
+
         end if
 
         momxb = mom_idx%beg

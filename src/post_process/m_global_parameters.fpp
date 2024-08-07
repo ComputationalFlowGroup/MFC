@@ -96,8 +96,7 @@ module m_global_parameters
     logical :: hypoelasticity  !< Turn hypoelasticity on
     logical :: hyperelasticity !< Turn hyperelasticity on
     logical :: elasticity      !< elasticity modeling, true for hyper or hypo
-    integer :: b_size          !< Number of components in the b tensor
-    integer :: tensor_size     !< Number of components in the nonsymmetric tensor
+    logical :: plasticity 
     !> @}
 
     !> @name Annotations of the structure, i.e. the organization, of the state vectors
@@ -114,6 +113,8 @@ module m_global_parameters
     integer :: pi_inf_idx                          !< Index of liquid stiffness func. eqn.
     type(int_bounds_info) :: stress_idx            !< Indices of elastic stresses
     type(int_bounds_info) :: xi_idx                !< Indexes of first and last reference map eqns.
+    integer :: b_size          !< Number of components in the b tensor
+    integer :: tensor_size     !< Number of components in the nonsymmetric tensor
     integer :: c_idx                               !< Index of color function
     !> @}
 
@@ -262,6 +263,7 @@ module m_global_parameters
     integer :: bubxb, bubxe
     integer :: strxb, strxe
     integer :: xibeg, xiend
+    integer :: plasidx
     !> @}
 
 contains
@@ -617,6 +619,31 @@ contains
                     pref = 1.d0
                 end if
             end if
+
+        else if (model_eqns == 5) then
+              ! Annotating structure of the state and flux vectors belonging
+              ! to the system of equations defined by the selected number of
+              ! spatial dimensions and the volume fraction model
+
+              cont_idx%beg = 1
+              cont_idx%end = num_fluids
+              mom_idx%beg = cont_idx%end + 1
+              mom_idx%end = cont_idx%end + num_dims
+              E_idx = mom_idx%end + 1
+              adv_idx%beg = E_idx + 1
+              adv_idx%end = E_idx + num_fluids
+              sys_size = adv_idx%end
+
+              if (hypoelasticity) then
+                elasticity = .true.
+                stress_idx%beg = sys_size + 1
+                stress_idx%end = sys_size + (num_dims*(num_dims + 1))/2
+                ! number of stresses is 1 in 1D, 3 in 2D, 6 in 3D
+                sys_size = stress_idx%end
+              end if
+
+              plasidx = stress_idx%end + 1
+              sys_size = plasidx
         end if
 
         momxb = mom_idx%beg

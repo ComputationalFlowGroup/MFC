@@ -150,6 +150,7 @@ module m_global_parameters
     logical :: hyperelasticity !< hyperelasticity modeling
     integer :: hyper_model     !< hyperelasticity solver algorithm
     logical :: elasticity      !< elasticity modeling, true for hyper or hypo
+    logical :: plasticity
     logical :: cu_tensor
 
     logical :: bodyForces
@@ -445,15 +446,17 @@ module m_global_parameters
     integer :: bubxb, bubxe
     integer :: strxb, strxe
     integer :: xibeg, xiend
+    integer :: plasidx
 !$acc declare create(momxb, momxe, advxb, advxe, contxb, contxe, intxb, intxe, bubxb, bubxe, strxb, strxe)
 !$acc declare create(xibeg,xiend)
+!$acc declare create(plasidx)
 
 #ifdef CRAY_ACC_WAR
-    @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), dimension(:), gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps)
-    !$acc declare link(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps)
+    @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), dimension(:), gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps, rho0)
+    !$acc declare link(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps, rho0)
 #else
-    real(kind(0d0)), allocatable, dimension(:) :: gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps
-    !$acc declare create(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps)
+    real(kind(0d0)), allocatable, dimension(:) :: gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps, rho0
+    !$acc declare create(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps, rho0)
 #endif
 
     real(kind(0d0)) :: mytime       !< Current simulation time
@@ -528,6 +531,7 @@ contains
         hypoelasticity = .false.
         hyperelasticity = .false.
         elasticity = .false.
+        plasticity = .false.
         hyper_model = dflt_int
         weno_flat = .true.
         riemann_flat = .true.
@@ -851,6 +855,7 @@ contains
                 end if
 
                 if (hyperelasticity) then
+                    plasticity = .false.
                     ! number of entries in the symmetric btensor plus the jacobian
                     b_size = (num_dims*(num_dims + 1))/2 + 1
                     ! storing the jacobian in the last entry
@@ -957,6 +962,31 @@ contains
                         pref = 1.d0
                     end if
                 end if
+            else if (model_eqns == 5) then
+              ! Annotating structure of the state and flux vectors belonging
+              ! to the system of equations defined by the selected number of
+              ! spatial dimensions and the volume fraction model
+
+              cont_idx%beg = 1
+              cont_idx%end = num_fluids
+              mom_idx%beg = cont_idx%end + 1
+              mom_idx%end = cont_idx%end + num_dims
+              E_idx = mom_idx%end + 1
+              adv_idx%beg = E_idx + 1
+              adv_idx%end = E_idx + num_fluids
+              sys_size = adv_idx%end
+
+              if (hypoelasticity) then
+                elasticity = .true.
+                stress_idx%beg = sys_size + 1
+                stress_idx%end = sys_size + (num_dims*(num_dims + 1))/2
+                ! number of stresses is 1 in 1D, 3 in 2D, 6 in 3D
+                sys_size = stress_idx%end
+              end if
+
+              plasidx = stress_idx%end + 1
+              sys_size = plasidx
+
             end if
 
             ! Determining the number of fluids for which the shear and the
@@ -1103,11 +1133,11 @@ contains
         xibeg = xi_idx%beg
         xiend = xi_idx%end
 
-        !$acc update device(momxb, momxe, advxb, advxe, contxb, contxe, bubxb, bubxe, intxb, intxe, sys_size, buff_size, E_idx, alf_idx, n_idx, adv_n, adap_dt, pi_fac, strxb, strxe, b_size, xibeg, xiend, tensor_size)
+        !$acc update device(momxb, momxe, advxb, advxe, contxb, contxe, bubxb, bubxe, intxb, intxe, sys_size, buff_size, E_idx, alf_idx, n_idx, adv_n, adap_dt, pi_fac, strxb, strxe, plasidx, b_size, xibeg, xiend, tensor_size)
         !$acc update device(m, n, p)
 
         !$acc update device(alt_soundspeed, acoustic_source, num_source)
-        !$acc update device(dt, sys_size, buff_size, pref, rhoref, gamma_idx, pi_inf_idx, E_idx, alf_idx, stress_idx, mpp_lim, bubbles, hypoelasticity, alt_soundspeed, avg_state, num_fluids, model_eqns, num_dims, mixture_err, grid_geometry, cyl_coord, mp_weno, weno_eps, teno_CT, hyperelasticity, elasticity, xi_idx, low_Mach)
+        !$acc update device(dt, sys_size, buff_size, pref, rhoref, gamma_idx, pi_inf_idx, E_idx, alf_idx, stress_idx, mpp_lim, bubbles, hypoelasticity, alt_soundspeed, avg_state, num_fluids, model_eqns, num_dims, mixture_err, grid_geometry, cyl_coord, mp_weno, weno_eps, teno_CT, hyperelasticity, elasticity, plasticity, xi_idx, low_Mach)
 
         #:if not MFC_CASE_OPTIMIZATION
             !$acc update device(wenojs, mapped_weno, wenoz, teno)

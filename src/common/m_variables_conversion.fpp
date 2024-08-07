@@ -38,9 +38,7 @@ module m_variables_conversion
               s_convert_species_to_mixture_variables, &
               s_convert_species_to_mixture_variables_acc, &
               s_convert_conservative_to_primitive_variables, &
-              s_convert_conservative_to_primitive_variables_MG, &
               s_convert_primitive_to_conservative_variables, &
-              s_convert_primitive_to_conservative_variables_MG, &
               s_convert_primitive_to_flux_variables, &
               s_compute_pressure, &
               s_finalize_variables_conversion_module
@@ -84,8 +82,8 @@ module m_variables_conversion
 
     !! In simulation, gammas, pi_infs, and qvs are already declared in m_global_variables
 #ifndef MFC_SIMULATION
-    real(kind(0d0)), allocatable, public, dimension(:) :: gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps
-    !$acc declare create(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps)
+    real(kind(0d0)), allocatable, public, dimension(:) :: gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps, rho0
+    !$acc declare create(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps, rho0)
 #endif
 
 #ifdef CRAY_ACC_WAR
@@ -124,7 +122,7 @@ contains
         !! @param qv fluid reference energy
         !! @param pres Pressure to calculate
         !! @param stress Shear Stress
-        !! @param mom Momentum 
+        !! @param mom Momentum
     subroutine s_compute_pressure(energy, alf, dyn_p, pi_inf, gamma, rho, qv, pres, stress, mom, G)
         !$acc routine seq
 
@@ -172,7 +170,7 @@ contains
         end if
 
     end subroutine s_compute_pressure
-      
+
     !>  This subroutine is designed for the gamma/pi_inf model
         !!      and provided a set of either conservative or primitive
         !!      variables, transfers the density, specific heat ratio
@@ -627,20 +625,22 @@ contains
         @:ALLOCATE_GLOBAL(gammas (1:num_fluids))
         @:ALLOCATE_GLOBAL(gs_min (1:num_fluids))
         @:ALLOCATE_GLOBAL(pi_infs(1:num_fluids))
-        @:ALLOCATE_GLOBAL(ps_inf(1:num_fluids))
+        @:ALLOCATE_GLOBAL(ps_inf (1:num_fluids))
         @:ALLOCATE_GLOBAL(cvs    (1:num_fluids))
         @:ALLOCATE_GLOBAL(qvs    (1:num_fluids))
-        @:ALLOCATE_GLOBAL(qvps    (1:num_fluids))
+        @:ALLOCATE_GLOBAL(qvps   (1:num_fluids))
         @:ALLOCATE_GLOBAL(Gs     (1:num_fluids))
+        @:ALLOCATE_GLOBAL(rho0   (1:num_fluids))
 #else
         @:ALLOCATE(gammas (1:num_fluids))
         @:ALLOCATE(gs_min (1:num_fluids))
         @:ALLOCATE(pi_infs(1:num_fluids))
-        @:ALLOCATE(ps_inf(1:num_fluids))
+        @:ALLOCATE(ps_inf (1:num_fluids))
         @:ALLOCATE(cvs    (1:num_fluids))
         @:ALLOCATE(qvs    (1:num_fluids))
-        @:ALLOCATE(qvps    (1:num_fluids))
+        @:ALLOCATE(qvps   (1:num_fluids))
         @:ALLOCATE(Gs     (1:num_fluids))
+        @:ALLOCATE(rho0   (1:num_fluids))
 #endif
 
         do i = 1, num_fluids
@@ -652,11 +652,109 @@ contains
             cvs(i) = fluid_pp(i)%cv
             qvs(i) = fluid_pp(i)%qv
             qvps(i) = fluid_pp(i)%qvp
+            rho0(i) = fluid_pp(i)%rho0
         end do
-!$acc update device(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps, Gs)
+!$acc update device(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps, Gs, rho0)
 
 #ifdef MFC_SIMULATION
 
+        if (any(Re_size > 0)) then
+            @:ALLOCATE_GLOBAL(Res(1:2, 1:maxval(Re_size)))
+            do i = 1, 2
+                do j = 1, Re_size(i)
+                    Res(i, j) = fluid_pp(Re_idx(i, j))%Re(i)
+                end do
+            end do
+
+            !$acc update device(Res, Re_idx, Re_size)
+        end if
+#endif
+
+        if (bubbles) then
+#ifdef MFC_SIMULATION
+            @:ALLOCATE_GLOBAL(bubrs(1:nb))
+#else
+            @:ALLOCATE(bubrs(1:nb))
+#endif
+
+            do i = 1, nb
+                bubrs(i) = bub_idx%rs(i)
+            end do
+            !$acc update device(bubrs)
+        end if
+
+#ifdef MFC_POST_PROCESS
+        ! Allocating the density, the specific heat ratio function and the
+        ! liquid stiffness function, respectively
+
+        ! Simulation is at least 2D
+        if (n > 0) then
+
+            ! Simulation is 3D
+            if (p > 0) then
+
+                allocate (rho_sf(-buff_size:m + buff_size, &
+                                 -buff_size:n + buff_size, &
+                                 -buff_size:p + buff_size))
+                allocate (gamma_sf(-buff_size:m + buff_size, &
+                                   -buff_size:n + buff_size, &
+                                   -buff_size:p + buff_size))
+                allocate (pi_inf_sf(-buff_size:m + buff_size, &
+                                    -buff_size:n + buff_size, &
+                                    -buff_size:p + buff_size))
+                allocate (qv_sf(-buff_size:m + buff_size, &
+                                -buff_size:n + buff_size, &
+                                -buff_size:p + buff_size))
+
+                ! Simulation is 2D
+            else
+
+                allocate (rho_sf(-buff_size:m + buff_size, &
+                                 -buff_size:n + buff_size, &
+                                 0:0))
+                allocate (gamma_sf(-buff_size:m + buff_size, &
+                                   -buff_size:n + buff_size, &
+                                   0:0))
+                allocate (pi_inf_sf(-buff_size:m + buff_size, &
+                                    -buff_size:n + buff_size, &
+                                    0:0))
+                allocate (qv_sf(-buff_size:m + buff_size, &
+                                -buff_size:n + buff_size, &
+                                0:0))
+            end if
+
+            ! Simulation is 1D
+        else
+
+            allocate (rho_sf(-buff_size:m + buff_size, &
+                             0:0, &
+                             0:0))
+            allocate (gamma_sf(-buff_size:m + buff_size, &
+                               0:0, &
+                               0:0))
+            allocate (pi_inf_sf(-buff_size:m + buff_size, &
+                                0:0, &
+                                0:0))
+            allocate (qv_sf(-buff_size:m + buff_size, &
+                            0:0, &
+                            0:0))
+
+        end if
+#endif
+
+        if (model_eqns == 1) then        ! Gamma/pi_inf model
+            s_convert_to_mixture_variables => &
+                s_convert_mixture_to_mixture_variables
+
+        else if (bubbles) then
+            s_convert_to_mixture_variables => &
+                s_convert_species_to_mixture_variables_bubbles
+
+        else
+            ! Volume fraction model
+            s_convert_to_mixture_variables => &
+                s_convert_species_to_mixture_variables
+        end if
     end subroutine s_initialize_variables_conversion_module
 
     !Initialize mv at the quadrature nodes based on the initialized moments and sigma
@@ -932,211 +1030,7 @@ contains
 
         !print *, 'I got here AA'
 
-    subroutine s_convert_conservative_to_primitive_variables_MG(qK_cons_vf, &
-                                                             qK_prim_vf, &
-                                                             gm_alphaK_vf, &
-                                                             ix, iy, iz)
-                                                    
-
-
-        type(scalar_field), dimension(sys_size), intent(in) :: qK_cons_vf
-        type(scalar_field), dimension(sys_size), intent(inout) :: qK_prim_vf
-        type(scalar_field), &
-            allocatable, optional, dimension(:), &
-            intent(in) :: gm_alphaK_vf
-
-        type(int_bounds_info), optional, intent(in) :: ix, iy, iz
-
-        real(kind(0d0)), dimension(num_fluids) :: alpha_K, alpha_rho_K
-        real(kind(0d0)), dimension(2) :: Re_K
-        real(kind(0d0)) :: rho_K, gamma_K, pi_inf_K, qv_K, dyn_pres_K
-
-        #:if MFC_CASE_OPTIMIZATION
-#ifndef MFC_SIMULATION
-            real(kind(0d0)), dimension(:), allocatable :: nRtmp
-#else
-            real(kind(0d0)), dimension(nb) :: nRtmp
-#endif
-        #:else
-            real(kind(0d0)), dimension(:), allocatable :: nRtmp
-        #:endif
-
-        real(kind(0d0)) :: vftmp, nR3, nbub_sc, R3tmp
-
-        real(kind(0d0)) :: G_K
-
-        real(kind(0d0)) :: pres
-
-        integer :: i, j, k, l, q !< Generic loop iterators
-
-        real(kind(0d0)) :: ntmp
-
-        #:if MFC_CASE_OPTIMIZATION
-#ifndef MFC_SIMULATION
-            if (bubbles) then
-                allocate (nRtmp(nb))
-            else
-                allocate (nRtmp(0))
-            end if
-#endif
-        #:else
-            if (bubbles) then
-                allocate (nRtmp(nb))
-            else
-                allocate (nRtmp(0))
-            end if
-        #:endif
-
-        !$acc parallel loop collapse(3) gang vector default(present) private(alpha_K, alpha_rho_K, Re_K, nRtmp, rho_K, gamma_K, pi_inf_K, qv_K, dyn_pres_K, R3tmp, G_K)
-        do l = izb, ize
-            do k = iyb, iye
-                do j = ixb, ixe
-                    dyn_pres_K = 0d0
-
-                    !$acc loop seq
-                    do i = 1, num_fluids
-                        alpha_rho_K(i) = qK_cons_vf(i)%sf(j, k, l)
-                        alpha_K(i) = qK_cons_vf(advxb + i - 1)%sf(j, k, l)
-                    end do
-
-                    !$acc loop seq
-                    do i = 1, contxe
-                        qK_prim_vf(i)%sf(j, k, l) = qK_cons_vf(i)%sf(j, k, l)
-                    end do
-
-                    if (model_eqns /= 4) then
-#ifdef MFC_SIMULATION
-                        ! If in simulation, use acc mixture subroutines
-                        if (elasticity) then
-                            call s_convert_species_to_mixture_variables_acc(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, &
-                                                                            alpha_rho_K, Re_K, j, k, l, G_K, Gs)
-                                                                   
-                        else if (bubbles) then
-                            call s_convert_species_to_mixture_variables_bubbles_acc(rho_K, gamma_K, pi_inf_K, qv_K, &
-                                                                                    alpha_K, alpha_rho_K, Re_K, j, k, l)
-                        else
-                            call s_convert_species_to_mixture_variables_acc(rho_K, gamma_K, pi_inf_K, qv_K, &
-                                                                            alpha_K, alpha_rho_K, Re_K, j, k, l)
-                        end if
-#else
-                        ! If pre-processing, use non acc mixture subroutines
-                        if (elasticity) then
-                            call s_convert_to_mixture_variables(qK_cons_vf, j, k, l, &
-                                                                rho_K, gamma_K, pi_inf_K, qv_K, Re_K, G_K, fluid_pp(:)%G)
-                        else
-                            call s_convert_to_mixture_variables(qK_cons_vf, j, k, l, &
-                                                                rho_K, gamma_K, pi_inf_K, qv_K)
-                        end if
-#endif
-                    end if
-
-#ifdef MFC_SIMULATION
-                    rho_K = max(rho_K, sgm_eps)
-#endif
-
-                    !$acc loop seq
-                    do i = momxb, momxe
-                        if (model_eqns /= 4) then
-                            qK_prim_vf(i)%sf(j, k, l) = qK_cons_vf(i)%sf(j, k, l) &
-                                                        /rho_K
-                            dyn_pres_K = dyn_pres_K + 5d-1*qK_cons_vf(i)%sf(j, k, l) &
-                                         *qK_prim_vf(i)%sf(j, k, l)
-                        else
-                            qK_prim_vf(i)%sf(j, k, l) = qK_cons_vf(i)%sf(j, k, l) &
-                                                        /qK_cons_vf(1)%sf(j, k, l)
-                        end if
-                    end do
-
-                    call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
-                                            qK_cons_vf(alf_idx)%sf(j, k, l), &
-                                            dyn_pres_K, pi_inf_K, gamma_K, rho_K, qv_K, pres)
-
-                    qK_prim_vf(E_idx)%sf(j, k, l) = pres
-
-                    if (bubbles) then
-                        !$acc loop seq
-                        do i = 1, nb
-                            nRtmp(i) = qK_cons_vf(bubrs(i))%sf(j, k, l)
-                        end do
-
-                        vftmp = qK_cons_vf(alf_idx)%sf(j, k, l)
-
-                        if (qbmm) then
-                            !Get nb (constant across all R0 bins)
-                            nbub_sc = qK_cons_vf(bubxb)%sf(j, k, l)
-
-                            !Convert cons to prim
-                            !$acc loop seq
-                            do i = bubxb, bubxe
-                                qK_prim_vf(i)%sf(j, k, l) = qK_cons_vf(i)%sf(j, k, l)/nbub_sc
-                            end do
-                            !Need to keep track of nb in the primitive variable list (converted back to true value before output)
-#ifdef MFC_SIMULATION
-                            qK_prim_vf(bubxb)%sf(j, k, l) = qK_cons_vf(bubxb)%sf(j, k, l)
-#endif
-
-                        else
-                            if (adv_n) then
-                                qK_prim_vf(n_idx)%sf(j, k, l) = qK_cons_vf(n_idx)%sf(j, k, l)
-                                nbub_sc = qK_prim_vf(n_idx)%sf(j, k, l)
-                            else
-                                call s_comp_n_from_cons(vftmp, nRtmp, nbub_sc, weight)
-                            end if
-
-                            !$acc loop seq
-                            do i = bubxb, bubxe
-                                qK_prim_vf(i)%sf(j, k, l) = qK_cons_vf(i)%sf(j, k, l)/nbub_sc
-                            end do
-                        end if
-                    end if
-
-                    if (hypoelasticity) then
-                        !$acc loop seq
-                        do i = strxb, strxe
-                            qK_prim_vf(i)%sf(j, k, l) = qK_cons_vf(i)%sf(j, k, l) &
-                                                        /rho_K
-                            ! subtracting elastic contribution for pressure calculation
-                            if (G_K > verysmall) then !TODO: check if stable for >0
-                                qK_prim_vf(E_idx)%sf(j, k, l) = qK_prim_vf(E_idx)%sf(j, k, l) - &
-                                                                ((qK_prim_vf(i)%sf(j, k, l)**2d0)/(4d0*G_K))/gamma_K
-                                ! extra terms in 2 and 3D
-                                if ((i == strxb + 1) .or. &
-                                    (i == strxb + 3) .or. &
-                                    (i == strxb + 4)) then
-                                    qK_prim_vf(E_idx)%sf(j, k, l) = qK_prim_vf(E_idx)%sf(j, k, l) - &
-                                                                    ((qK_prim_vf(i)%sf(j, k, l)**2d0)/(4d0*G_K))/gamma_K
-                                end if
-                            end if
-                        end do
-                    end if
-
-                    if (hyperelasticity) then
-                        !$acc loop seq
-                        do i = strxb, strxe
-                            qK_prim_vf(i)%sf(j, k, l) = qK_cons_vf(i)%sf(j, k, l)/rho_K
-                        end do
-                        !$acc loop seq
-                        do i = xibeg, xiend
-                            qK_prim_vf(i)%sf(j, k, l) = qK_cons_vf(i)%sf(j, k, l)/rho_K
-                        end do
-                    end if
-
-                    !$acc loop seq
-                    do i = advxb, advxe
-                        qK_prim_vf(i)%sf(j, k, l) = qK_cons_vf(i)%sf(j, k, l)
-                    end do
-
-                    if (.not. f_is_default(sigma)) then
-                        qK_prim_vf(c_idx)%sf(j, k, l) = qK_cons_vf(c_idx)%sf(j, k, l)
-                    end if
-
-                end do
-            end do
-        end do
-        !$acc end parallel loop
-
-        !print *, 'I got here AA'
-    end subroutine s_convert_conservative_to_primitive_variables_MG! ---------
+    end subroutine s_convert_conservative_to_primitive_variables ! ---------
 
     !>  The following procedure handles the conversion between
         !!      the primitive variables and the conservative variables.
@@ -1176,7 +1070,7 @@ contains
                     ! Obtaining the density, specific heat ratio function
                     ! and the liquid stiffness function, respectively
                     call s_convert_to_mixture_variables(q_prim_vf, j, k, l, &
-                                                        rho, gamma, pi_inf, qv, Re_K, G, fluid_pp(:)%G)
+                          rho, gamma, pi_inf, qv, Re_K, G, fluid_pp(:)%G)
 
                     ! Transferring the continuity equation(s) variable(s)
                     do i = 1, contxe
@@ -1199,8 +1093,13 @@ contains
                                    q_prim_vf(i)%sf(j, k, l)/2d0
                     end do
 
+                    if ( plasticity ) then ! creating additional mixture sums outside of those called above
+                     ! TODO SRIJAN HOMEWORK
+                     
+                    end if
+
                     ! Computing the energy from the pressure
-                    if ((model_eqns /= 4) .and. (bubbles .neqv. .true.)) then
+                    if ((model_eqns /= 4) .and. (model_eqns /= 5) .and. (bubbles .neqv. .true.)) then
                         ! E = Gamma*P + \rho u u /2 + \pi_inf + (\alpha\rho qv)
                         q_cons_vf(E_idx)%sf(j, k, l) = &
                             gamma*q_prim_vf(E_idx)%sf(j, k, l) + dyn_pres + pi_inf &
@@ -1210,9 +1109,15 @@ contains
                         q_cons_vf(E_idx)%sf(j, k, l) = dyn_pres + &
                                                        (1.d0 - q_prim_vf(alf_idx)%sf(j, k, l))* &
                                                        (gamma*q_prim_vf(E_idx)%sf(j, k, l) + pi_inf)
+                    else if (model_eqns == 5) then
+                    ! TODO SRIJAN HOMEWORK
+                        q_cons_vf(E_idx)%sf(j, k, l) = & 
+                          0d0
+                      ! mg_K => pi_inf
+                      ! mg_Kp => qv
                     else
                         !Tait EOS, no conserved energy variable
-                        q_cons_vf(E_idx)%sf(j, k, l) = 0.
+                        q_cons_vf(E_idx)%sf(j, k, l) = 0.d0
                     end if
 
                     ! Computing the internal energies from the pressure and continuities
@@ -1252,16 +1157,17 @@ contains
                         end if
 
                         if (j == 0 .and. k == 0 .and. l == 0) print *, 'In convert, nbub:', nbub
-                          do i = bub_idx%beg, bub_idx%end
+
+                        do i = bub_idx%beg, bub_idx%end
                             q_cons_vf(i)%sf(j, k, l) = q_prim_vf(i)%sf(j, k, l)*nbub
-                          end do
-                        end if
+                        end do
+                    end if
 
                     if (hypoelasticity) then
                         do i = strxb, strxe
                             q_cons_vf(i)%sf(j, k, l) = rho*q_prim_vf(i)%sf(j, k, l)
                             ! adding elastic contribution
-                            if (G > verysmall) then
+                            if (G > verysmall .and. .not. plasticity) then
                                 q_cons_vf(E_idx)%sf(j, k, l) = q_cons_vf(E_idx)%sf(j, k, l) + &
                                                                (q_prim_vf(i)%sf(j, k, l)**2d0)/(4d0*G)
                                 ! extra terms in 2 and 3D
@@ -1273,8 +1179,11 @@ contains
                                 end if
                             end if
                         end do
+                        if ( plasticity ) then 
+                          q_cons_vf(plasidx)%sf(j, k, l) = rho*q_prim_vf(plasidx)%sf(j, k, l)                  
+                        end if 
                     end if
-
+   
                     ! using \rho xi as the conservative formulation stated in Kamrin et al. JFM 2022
                     if (hyperelasticity) then
                         ! adding the elastic contribution
@@ -1303,164 +1212,6 @@ contains
         end if
 #endif
     end subroutine s_convert_primitive_to_conservative_variables
-
-    subroutine s_convert_primitive_to_conservative_variables_MG(q_prim_vf, &
-                                                             q_cons_vf)
-
-        type(scalar_field), dimension(sys_size), intent(in) :: q_prim_vf
-        type(scalar_field), dimension(sys_size), intent(inout) :: q_cons_vf
-
-        ! Density, specific heat ratio function, liquid stiffness function
-        ! and dynamic pressure, as defined in the incompressible flow sense,
-        ! respectively
-        real(kind(0d0)) :: rho
-        real(kind(0d0)) :: gamma
-        real(kind(0d0)) :: pi_inf
-        real(kind(0d0)) :: qv
-        real(kind(0d0)) :: dyn_pres
-        real(kind(0d0)) :: nbub, R3, vftmp, R3tmp
-        real(kind(0d0)), dimension(nb) :: Rtmp
-        real(kind(0d0)) :: G = 0d0
-        real(kind(0d0)), dimension(2) :: Re_K
-
-        integer :: i, j, k, l, q !< Generic loop iterators
-
-#ifndef MFC_SIMULATION
-        ! Converting the primitive variables to the conservative variables
-        do l = 0, p
-            do k = 0, n
-                do j = 0, m
-
-                    ! Obtaining the density, specific heat ratio function
-                    ! and the liquid stiffness function, respectively
-                    call s_convert_to_mixture_variables(q_prim_vf, j, k, l, &
-                                                        rho, gamma, pi_inf, qv, Re_K, G, fluid_pp(:)%G)
-
-                    ! Transferring the continuity equation(s) variable(s)
-                    do i = 1, contxe
-                        q_cons_vf(i)%sf(j, k, l) = q_prim_vf(i)%sf(j, k, l)
-                    end do
-
-                    ! Transferring the advection equation(s) variable(s)
-                    do i = adv_idx%beg, adv_idx%end
-                        q_cons_vf(i)%sf(j, k, l) = q_prim_vf(i)%sf(j, k, l)
-                    end do
-
-                    ! Zeroing out the dynamic pressure since it is computed
-                    ! iteratively by cycling through the velocity equations
-                    dyn_pres = 0d0
-
-                    ! Computing momenta and dynamic pressure from velocity
-                    do i = momxb, momxe
-                        q_cons_vf(i)%sf(j, k, l) = rho*q_prim_vf(i)%sf(j, k, l)
-                        dyn_pres = dyn_pres + q_cons_vf(i)%sf(j, k, l)* &
-                                   q_prim_vf(i)%sf(j, k, l)/2d0
-                    end do
-
-                    ! Computing the energy from the pressure
-                    if ((model_eqns /= 4) .and. (bubbles .neqv. .true.)) then
-                        ! E = Gamma*P + \rho u u /2 + \pi_inf + (\alpha\rho qv)
-                        q_cons_vf(E_idx)%sf(j, k, l) = &
-                            gamma*q_prim_vf(E_idx)%sf(j, k, l) + dyn_pres + pi_inf &
-                            + qv
-                    else if ((model_eqns /= 4) .and. (bubbles)) then
-                        ! \tilde{E} = dyn_pres + (1-\alf)(\Gamma p_l + \Pi_inf)
-                        q_cons_vf(E_idx)%sf(j, k, l) = dyn_pres + &
-                                                       (1.d0 - q_prim_vf(alf_idx)%sf(j, k, l))* &
-                                                       (gamma*q_prim_vf(E_idx)%sf(j, k, l) + pi_inf)
-                    else
-                        !Tait EOS, no conserved energy variable
-                        q_cons_vf(E_idx)%sf(j, k, l) = 0.
-                    end if
-
-                    ! Computing the internal energies from the pressure and continuities
-                    if (model_eqns == 3) then
-                        do i = 1, num_fluids
-                            ! internal energy calculation for each of the fluids
-                            q_cons_vf(i + internalEnergies_idx%beg - 1)%sf(j, k, l) = &
-                                q_cons_vf(i + adv_idx%beg - 1)%sf(j, k, l)* &
-                                (fluid_pp(i)%gamma*q_prim_vf(E_idx)%sf(j, k, l) + &
-                                 fluid_pp(i)%pi_inf) + &
-                                q_cons_vf(i + cont_idx%beg - 1)%sf(j, k, l)*fluid_pp(i)%qv
-                        end do
-                    end if
-
-                    if (bubbles) then
-                        ! From prim: Compute nbub = (3/4pi) * \alpha / \bar{R^3}
-                        do i = 1, nb
-                            Rtmp(i) = q_prim_vf(bub_idx%rs(i))%sf(j, k, l)
-                        end do
-
-                        if (.not. qbmm) then
-                            if (adv_n) then
-                                q_cons_vf(n_idx)%sf(j, k, l) = q_prim_vf(n_idx)%sf(j, k, l)
-                                nbub = q_prim_vf(n_idx)%sf(j, k, l)
-                            else
-                                call s_comp_n_from_prim(q_prim_vf(alf_idx)%sf(j, k, l), Rtmp, nbub, weight)
-                            end if
-                        else
-                            !Initialize R3 averaging over R0 and R directions
-                            R3tmp = 0d0
-                            do i = 1, nb
-                                R3tmp = R3tmp + weight(i)*0.5d0*(Rtmp(i) + sigR)**3d0
-                                R3tmp = R3tmp + weight(i)*0.5d0*(Rtmp(i) - sigR)**3d0
-                            end do
-                            !Initialize nb
-                            nbub = 3d0*q_prim_vf(alf_idx)%sf(j, k, l)/(4d0*pi*R3tmp)
-                        end if
-
-                        if (j == 0 .and. k == 0 .and. l == 0) print *, 'In convert, nbub:', nbub
-                          do i = bub_idx%beg, bub_idx%end
-                            q_cons_vf(i)%sf(j, k, l) = q_prim_vf(i)%sf(j, k, l)*nbub
-                          end do
-                        end if
-
-                    if (hypoelasticity) then
-                        do i = strxb, strxe
-                            q_cons_vf(i)%sf(j, k, l) = rho*q_prim_vf(i)%sf(j, k, l)
-                            ! adding elastic contribution
-                            if (G > verysmall) then
-                                q_cons_vf(E_idx)%sf(j, k, l) = q_cons_vf(E_idx)%sf(j, k, l) + &
-                                                               (q_prim_vf(i)%sf(j, k, l)**2d0)/(4d0*G)
-                                ! extra terms in 2 and 3D
-                                if ((i == stress_idx%beg + 1) .or. &
-                                    (i == stress_idx%beg + 3) .or. &
-                                    (i == stress_idx%beg + 4)) then
-                                    q_cons_vf(E_idx)%sf(j, k, l) = q_cons_vf(E_idx)%sf(j, k, l) + &
-                                                                   (q_prim_vf(i)%sf(j, k, l)**2d0)/(4d0*G)
-                                end if
-                            end if
-                        end do
-                    end if
-
-                    ! using \rho xi as the conservative formulation stated in Kamrin et al. JFM 2022
-                    if (hyperelasticity) then
-                        ! adding the elastic contribution
-                        ! Multiply \tau to \rho \tau
-                        do i = strxb, strxe
-                            q_cons_vf(i)%sf(j, k, l) = rho*q_prim_vf(i)%sf(j, k, l)
-                        end do
-                        ! Multiply \xi to \rho \xi
-                        do i = xibeg, xiend
-                            q_cons_vf(i)%sf(j, k, l) = rho*q_prim_vf(i)%sf(j, k, l)
-                        end do
-                    end if
-
-                    if (.not. f_is_default(sigma)) then
-                        q_cons_vf(c_idx)%sf(j, k, l) = q_prim_vf(c_idx)%sf(j, k, l)
-                    end if
-
-                end do
-            end do
-        end do
-#else
-        if (proc_rank == 0) then
-            call s_mpi_abort('Conversion from primitive to '// &
-                             'conservative variables not '// &
-                             'implemented. Exiting ...')
-        end if
-#endif
-    end subroutine s_convert_primitive_to_conservative_variables_MG
 
     !>  The following subroutine handles the conversion between
         !!      the primitive variables and the Eulerian flux variables.
