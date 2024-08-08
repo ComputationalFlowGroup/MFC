@@ -936,9 +936,12 @@ contains
 
             ! RHS additions for hypoelasticity
             call nvtxStartRange("RHS_Hypoelasticity")
-            if (hypoelasticity) call s_compute_hypoelastic_rhs(id, &
+            if (hypoelasticity .and. .not. plasticity) call s_compute_hypoelastic_rhs(id, &
                                                                q_prim_qp%vf, &
                                                                rhs_vf)
+            if (hypoelasticity .and. plasticity) call s_compute_hypoelastic_plastic_rhs(id, &
+                                                                q_prim_qp%vf, &
+                                                                rhs_vf)
             call nvtxEndRange
             !print *, "I got here f"
 
