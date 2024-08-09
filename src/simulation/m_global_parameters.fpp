@@ -574,6 +574,9 @@ contains
             fluid_pp(i)%mu_v = dflt_real
             fluid_pp(i)%k_v = dflt_real
             fluid_pp(i)%G = 0d0
+            fluid_pp(i)%rho0 = dflt_real
+            fluid_pp(i)%ein_cv(:) = 0d0 
+            fluid_pp(i)%jcook(:) = 0d0
         end do
 
         ! Tait EOS

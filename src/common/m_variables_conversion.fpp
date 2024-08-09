@@ -1163,7 +1163,7 @@ contains
                                                               gamma_rho_squared_denominator
                         end do
                         ! adding the dynamic pressure to the total energy
-                        q_cons_vf(E_idx)%sf(j, k, l) = q_cons_vf(E_idx)%sf(j, k, l) + dyn_press
+                        q_cons_vf(E_idx)%sf(j, k, l) = q_cons_vf(E_idx)%sf(j, k, l) + dyn_pres
                                   
                     else
                         !Tait EOS, no conserved energy variable

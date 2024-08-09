@@ -240,6 +240,9 @@ module m_derived_types
         ! mg_K => pi_inf !< Bulk modulus at ambient for cold curve (see Malhotra (2022))     
         ! mg_Kp => qv    !< Tangent of bulk modulus wrt pressure (see Malhotra (2022)) for Birch-Murnaghan EOS
         real(kind(0d0)), dimension(2) :: ein_cv  !<Parameter for einstein model for calculating the specific heat 
+        real(kind(0d0)), dimension(2) :: mg_a
+        real(kind(0d0)), dimension(2) :: mg_b
+        real(kind(0d0)), dimension(10) :: jcook
     end type physical_parameters
 
     !> Derived type annexing the flow probe location
