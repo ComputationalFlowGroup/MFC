@@ -59,7 +59,7 @@ module m_variables_conversion
         !!  @param pi_inf Liquid stiffness function
         !!  @param qv Fluid reference energy
         subroutine s_convert_xxxxx_to_mixture_variables(q_vf, i, j, k, &
-                                                        rho, gamma, pi_inf, qv, Re_K, G_K, G)
+                                                        rho, gamma, pi_inf, qv, Re_K, G_K, G, jcook_K, jcook)
 
             ! Importing the derived type scalar_field from m_derived_types.f90
             ! and global variable sys_size, from m_global_variables.f90, as
@@ -72,6 +72,8 @@ module m_variables_conversion
             real(kind(0d0)), optional, dimension(2), intent(out) :: Re_K
             real(kind(0d0)), optional, intent(out) :: G_K
             real(kind(0d0)), optional, dimension(num_fluids), intent(in) :: G
+            real(kind(0d0)), optional, dimension(10), intent(out) :: jcook_K
+            real(kind(0d0)), optional, dimension(10), intent(in) :: jcook
 
         end subroutine s_convert_xxxxx_to_mixture_variables
 
@@ -185,7 +187,7 @@ contains
         !! @param pi_inf liquid stiffness
         !! @param qv fluid reference energy
     subroutine s_convert_mixture_to_mixture_variables(q_vf, i, j, k, &
-                                                      rho, gamma, pi_inf, qv, Re_K, G_K, G)
+                                                      rho, gamma, pi_inf, qv, Re_K, G_K, G, jcook_K, jcook)
 
         type(scalar_field), dimension(sys_size), intent(in) :: q_vf
         integer, intent(in) :: i, j, k
@@ -199,6 +201,8 @@ contains
 
         real(kind(0d0)), optional, intent(out) :: G_K
         real(kind(0d0)), optional, dimension(num_fluids), intent(in) :: G
+        real(kind(0d0)), optional, dimension(10), intent(out) :: jcook_K
+        real(kind(0d0)), optional, dimension(10), intent(in) :: jcook
 
         ! Transferring the density, the specific heat ratio function and the
         ! liquid stiffness function, respectively
@@ -232,7 +236,7 @@ contains
         !! @param pi_inf liquid stiffness
         !! @param qv fluid reference energy
     subroutine s_convert_species_to_mixture_variables_bubbles(q_vf, j, k, l, &
-                                                              rho, gamma, pi_inf, qv, Re_K, G_K, G)
+                                                              rho, gamma, pi_inf, qv, Re_K, G_K, G, jcook_K, jcook)
 
         type(scalar_field), dimension(sys_size), intent(in) :: q_vf
 
@@ -246,6 +250,8 @@ contains
         real(kind(0d0)), optional, dimension(2), intent(out) :: Re_K
         real(kind(0d0)), optional, intent(out) :: G_K
         real(kind(0d0)), optional, dimension(num_fluids), intent(in) :: G
+        real(kind(0d0)), optional, dimension(10), intent(out) :: jcook_K
+        real(kind(0d0)), optional, dimension(10), intent(in) :: jcook
 
         integer :: i, q
         real(kind(0d0)), dimension(num_fluids) :: alpha_rho_K, alpha_K
