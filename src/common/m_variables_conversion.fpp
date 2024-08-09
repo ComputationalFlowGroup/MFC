@@ -940,6 +940,11 @@ contains
                         end if
                     end do
 
+                    ! TODO SRIJAN PRECOMPUTE THE MIXTURE RULES HERE FOR
+                    ! PRESSURE CALCULATION
+                
+
+
                     call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
                                             qK_cons_vf(alf_idx)%sf(j, k, l), &
                                             dyn_pres_K, pi_inf_K, gamma_K, rho_K, qv_K, pres)
