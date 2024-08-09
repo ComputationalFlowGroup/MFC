@@ -39,6 +39,7 @@ contains
         if (adv_n) call s_check_inputs_adv_n
         if (hypoelasticity) call s_check_inputs_hypoelasticity
         if (hyperelasticity) call s_check_inputs_hyperelasticity
+        if (plasticity) call s_check_inputs_plasticity
         call s_check_inputs_phase_change
         call s_check_inputs_ibm
 #endif
@@ -194,6 +195,20 @@ contains
                              '6-equation model (model_eqns = 3). Exiting ...')
         end if
     end subroutine s_check_inputs_hyperelasticity
+
+ !> Checks constraints on the plasticity parameters.
+        !! Called by s_check_inputs_common for pre-processing and simulation
+    subroutine s_check_inputs_plasticity
+        if ((plasticity) .and. .not. (hypoelasticity)) then
+            call s_mpi_abort('plasticity requires '// &
+                             'hypoelasticity to be true. Exiting ...')
+        end if
+        if (model_eqns /= 5) then
+            call s_mpi_abort('hyperelasticity requires '// &
+                             '6-equation model with mie-gruniesen EOS ' // &
+                             '(model_eqns = 5). Exiting ...')
+        end if
+    end subroutine s_check_inputs_plasticity
 
     !> Checks constraints on the phase change parameters.
         !! Called by s_check_inputs_common for pre-processing and simulation
