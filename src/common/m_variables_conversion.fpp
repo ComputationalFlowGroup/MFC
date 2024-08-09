@@ -356,7 +356,7 @@ contains
         !! @param pi_inf liquid stiffness
         !! @param qv fluid reference energy
     subroutine s_convert_species_to_mixture_variables(q_vf, k, l, r, rho, &
-                                                      gamma, pi_inf, qv, Re_K, G_K, G)
+                                                      gamma, pi_inf, qv, Re_K, G_K, G, jcook_K, jcook)
 
         type(scalar_field), dimension(sys_size), intent(in) :: q_vf
 
@@ -371,6 +371,8 @@ contains
             !! Partial densities and volume fractions
         real(kind(0d0)), optional, intent(out) :: G_K
         real(kind(0d0)), optional, dimension(num_fluids), intent(in) :: G
+        real(kind(0d0)), optional, dimension(10), intent(out) :: jcook_K
+        real(kind(0d0)), optional, dimension(10), intent(in) :: jcook
 
         real(kind(0d0)), dimension(num_fluids) :: alpha_rho_K, alpha_K !<
 
@@ -444,7 +446,7 @@ contains
     subroutine s_convert_species_to_mixture_variables_acc(rho_K, &
                                                           gamma_K, pi_inf_K, qv_K, &
                                                           alpha_K, alpha_rho_K, Re_K, k, l, r, &
-                                                          G_K, G)
+                                                          G_K, G, jcook_K, jcook)
 #ifdef CRAY_ACC_WAR
         !DIR$ INLINEALWAYS s_convert_species_to_mixture_variables_acc
 #else
@@ -459,6 +461,8 @@ contains
 
         real(kind(0d0)), optional, intent(out) :: G_K
         real(kind(0d0)), optional, dimension(num_fluids), intent(in) :: G
+        real(kind(0d0)), optional, dimension(10), intent(out) :: jcook_K
+        real(kind(0d0)), optional, dimension(10), intent(in) :: jcook
 
         integer, intent(in) :: k, l, r
 
