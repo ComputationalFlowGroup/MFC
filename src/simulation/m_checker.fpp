@@ -32,6 +32,7 @@ contains
         if (acoustic_source) call s_check_inputs_acoustic_src
         if (hypoelasticity) call s_check_inputs_hypoelasticity
         if (hyperelasticity) call s_check_inputs_hyperelasticity
+        if (plasticity) call s_check_inputs_plasticity
         if (bubbles) call s_check_inputs_bubbles
         if (adap_dt) call s_check_inputs_adapt_dt
         if (alt_soundspeed) call s_check_inputs_alt_soundspeed
@@ -384,6 +385,32 @@ contains
                              'Exiting ...')
         end if
     end subroutine s_check_inputs_hyperelasticity
+
+    !> Checks constraints on hyperelasticity parameters
+    subroutine s_check_inputs_plasticity
+        character(len=5) :: iStr, jStr
+        integer :: i, j
+
+        if (riemann_solver /= 2) then
+            call s_mpi_abort('hyperelasticity requires HLLC '// &
+                             '(riemann_solver = 2) Riemann solver. '// &
+                             'Exiting ...')
+        end if
+        do i = 1, num_fluids
+            call s_int_to_str(i, iStr)
+          do j = 1, 10 ! TODO, NO HARDCODING!
+            call s_int_to_str(j, jStr)
+            if (.not. f_is_default(fluid_pp(i)%jcook(j)) &
+                .and. &
+                fluid_pp(i)%jcook(j) <= 0d0) then
+                call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
+                                 'jcook('//trim(jStr)//') must be & 
+                                 positive and present. Exiting ...')
+            end if
+          end do
+        end do 
+
+    end subroutine s_check_inputs_plasticity
 
     !> Checks constraints on bubble parameters
     subroutine s_check_inputs_bubbles

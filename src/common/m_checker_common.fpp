@@ -50,6 +50,7 @@ contains
         call s_check_inputs_weno
         call s_check_inputs_bc
         call s_check_inputs_stiffened_eos
+        if (plasticity) call s_check_inputs_mie_gruneisen_eos
         call s_check_inputs_surface_tension
         call s_check_inputs_moving_bc
 
@@ -204,9 +205,9 @@ contains
                              'hypoelasticity to be true. Exiting ...')
         end if
         if (model_eqns /= 5) then
-            call s_mpi_abort('hyperelasticity requires '// &
-                             '6-equation model with mie-gruniesen EOS ' // &
-                             '(model_eqns = 5). Exiting ...')
+            call s_mpi_abort('plasticity requires '// &
+                             'model_eqns = 5 with mie-gruniesen EOS. ' // &
+                             'Exiting ...')
         end if
     end subroutine s_check_inputs_plasticity
 
@@ -458,6 +459,53 @@ contains
             end if
         end do
     end subroutine s_check_inputs_stiffened_eos
+
+    !> Checks constraints on the stiffened equation of state fluids parameters.
+        !! Called by s_check_inputs_common for all three stages
+    subroutine s_check_inputs_mie_gruneisen_eos
+        character(len=5) :: iStr !< for int to string conversion
+        integer :: i, j
+
+        do i = 1, num_fluids
+            call s_int_to_str(i, iStr)
+            if (.not. f_is_default(fluid_pp(i)%gamma) &
+                .and. &
+                fluid_pp(i)%gamma <= 0d0) then
+                call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
+                                 'gamma must be positive. Exiting ...')
+            elseif (.not. f_is_default(fluid_pp(i)%pi_inf) &
+                    .and. &
+                    fluid_pp(i)%pi_inf < 0d0) then
+                call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
+                                 'pi_inf must be non-negative. Exiting ...')
+            elseif (.not. f_is_default(fluid_pp(i)%rho0) &
+                    .and. &
+                    fluid_pp(i)%rho0 < 0d0) then
+                call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
+                                 'rho0 must be non-negative. Exiting ...')
+            elseif (.not. f_is_default(fluid_pp(i)%qv) &
+                    .and. &
+                    fluid_pp(i)%qv < 0d0) then
+                call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
+                                 'qv must be non-negative. Exiting ...')
+            end if 
+            do j = 1, 2
+              if (fluid_pp(i)%ein_cv(j) < 0d0) then
+                call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
+                                 'ein_cv must be positive. Exiting ...')
+              end if
+            end do           
+            if (fluid_pp(i)%mg_a(1) .ge. 0d0 .and. fluid_pp(i)%mg_a(2) .ge. 0d0 & 
+                .and. fluid_pp(i)%mg_a(1) + fluid_pp(i)%mg_a(2) /= 1d0 ) then
+                call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
+                                 'mg_a must be positive. Exiting ...')
+            elseif (fluid_pp(i)%mg_b(1) .ge. 0d0 .and. fluid_pp(i)%mg_b(2) .ge. 0d0 & 
+                .and. fluid_pp(i)%mg_b(1) + fluid_pp(i)%mg_b(2) /= 1d0 ) then
+                call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
+                                 'mg_b must be positive. Exiting ...')
+            end if
+        end do
+    end subroutine s_check_inputs_mie_gruneisen_eos
 
     !> Checks constraints on the surface tension parameters.
         !! Called by s_check_inputs_common for all three stages
