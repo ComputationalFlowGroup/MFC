@@ -39,6 +39,8 @@ module m_rhs
 
     use m_hypoelastic
 
+    use m_hypoplastic
+
     use m_hyperelastic
 
     use m_acoustic_src
@@ -939,7 +941,7 @@ contains
             if (hypoelasticity .and. .not. plasticity) call s_compute_hypoelastic_rhs(id, &
                                                                q_prim_qp%vf, &
                                                                rhs_vf)
-            if (hypoelasticity .and. plasticity) call s_compute_hypoelastic_plastic_rhs(id, &
+            if (hypoelasticity .and. plasticity) call s_compute_hypoplastic_rhs(id, &
                                                                 q_prim_qp%vf, &
                                                                 rhs_vf)
             call nvtxEndRange
