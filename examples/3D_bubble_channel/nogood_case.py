@@ -3,8 +3,8 @@ import math, json
 
 ## 1 FOR BACKGROUND, 2 FOR BUBBLE, 3 FOR GEL
 # Pressure [Pa]
-p01 = 5E6
-p02 = 3550
+p01 = 101325.
+p02 = 101325
 p03 = p01
 
 # Temperature [K]
@@ -90,22 +90,25 @@ qvpwa = 0.0E0
 # density
 rho0wa1 = (p01 + pia)/((gamwa-1)*cva*T01)
 rho0wa2 = (p02 + pia)/((gamwa-1)*cva*T02)
+rho0wa3 = (p03 + pia)/((gamwa-1)*cva*T03)
 
 # Speed of sound
 c_a1 = math.sqrt( gamwa * ( p01 + pia ) / rho0wa1 )
 c_a2 = math.sqrt( gamwa * ( p02 + pia ) / rho0wa2 )
+c_a3 = math.sqrt( gamwa * ( p03 + pia ) / rho0wa3 )
 
 ### 3% polyacrylamide gel ###
+
 # gamma
-gamwg = 2.35
+gamwg = gamwl #2.35
 # pi infty
-pig = 1.0E+09
+pig = piwl #1.1754E+09
 # qv
-qvwg = -1167000
+qvwg = qvwl #0.0E0
 # qv'
-qvpwg = 0.0E0
+qvpwg = qvpwl #0.0E0
 # cv
-cvg = 1816
+cvg = cvwl
 # cp
 cpg = gamwg*cvg
 
@@ -131,77 +134,81 @@ Ms = math.sqrt( ( gamwa + 1. ) / ( 2. * gamwa ) * ( p02Op01 - 1. ) * ( p02 / ( p
 ss = Ms * c_a1
 
 ### volume fractions for each of the patches ###
-C0 = 0.5 # vapor concentration for IMR
+C0 = 0.25 # vapor concentration for IMR
 
 # patch 1: liquid water
-liq_wv = 1.00E-15
-liq_wg = 0.
-liq_wa = 1.00E-15
+liq_wg = 0
+liq_wa = 0*1.00E-15
+liq_wv = 1.00E-9
 liq_wl = 1.00E00 - liq_wv - liq_wa - liq_wg
 # water vapor
-vap_wl = 1.00E-15
+vap_wl = 1.00E-9
 vap_wv = 1 / ( ( 1 - C0 ) / C0 * rho0wv2 / rho0wa2 + 1 )
-vap_wg = 0.
-vap_wa = 1.00E-15
+vap_wa = 0*1.00E-15
+vap_wg = 0
 vap_tot = vap_wl + vap_wv + vap_wa + vap_wg
-# bub
-bub_wl = 1.00E-15
-bub_wv = vap_tot
-bub_wg = 0.
-bub_wa = 1.00E00 - bub_wl - bub_wv - bub_wg
+# air
+air_wl = 1.00E-15
+air_wv = vap_tot
+air_wg = 0
+air_wa = 0*(1.00E00 - air_wl - air_wv - air_wg)
+# bubble
+bub_wl = 1.0E-9
+bub_wv = 1.0-bub_wl
+bub_wg = 0
+bub_wa = 0*(1 - bub_wl - bub_wv - bub_wg)
 # gel
-gel_wv = 0.
-gel_wl = 0.
-gel_wa = 0.
+gel_wl = 0
+gel_wv = 0
+gel_wa = 0
 gel_wg = 1.00E00 - gel_wl - gel_wv - gel_wa
+
+## Elasticity
+Gl = 0
+Gv = 0
+Ga = 0
+Gg = 0.57E+03
 
 ## SIMULATION PARAMETERS
 
 # CFL
-cfl = 0.50
 
 # Bubble Initial Radius
-R0 = 230.4E-06
+R0 = 50E-06
 
 # number of elements
-Nx0 = 400
-Nx = 399
-Ny = 199
-Nz = 199
+Nx = 249 #404 #249
+Ny = 124 #179 #124
+Nz = 124 #179 #124
+Nx0 = Nx
 
-lref = 921.6E-6
 # domain boundaries
+lref = 2*R0
 xb = -lref
 xe = lref
 
 yb = 0.00
-ye = lref
+ye = 2*lref
 
 zb = 0.00
-ze = lref
+ze = 2*lref
 
 lenx = ( xe - xb )
 leny = ( ye - yb )
 lenz = ( ze - zb )
 
-xcenl = (xb + xe)/2.0
-ycenl = (yb + ye)/2.0 
-zcenl = (zb + ze)/2.0
+xcenl = 0. 
+ycenl = leny/2.
+zcenl = lenz/2.
 
 #xdist = 6.51E-10 #2.17E-5
 #sod = xdist/R0
-sod = -2.17
-xcenb = sod*R0 
+sod = 0
+xcenb = sod*R0 #neg for bub in liq; pos bub in gel 
 ycenb = 0.00
 zcenb = 0.00
 
-xbg = 0
-xeg = xe
-
-lenxg = (xeg - xbg)
-lenyg = leny
-lenzg = lenz
-xceng = (xbg + xeg)/2.0
+xceng = xe / 2.
 yceng = ycenl
 zceng = zcenl
 
@@ -210,10 +217,14 @@ dx = ( xe - xb ) / Nx
 dy = ( ye - yb ) / Ny
 dz = ( ze - zb ) / Nz
 #print(dx)
-# time step
+PPBR_x = R0 / dx
+PPBR_y = R0 / dy
+PPBR_z = R0 / dz
+#print(PPBR_x)
+#print(PPBR_y)
 
 # save frequency = SF + 1 (because the initial state, 0.dat, is also saved)
-SF = 60
+SF = 100
 
 # Critical time-step
 tc = 0.915 * R0 * math.sqrt( rho0wl1 / p01 )
@@ -230,12 +241,13 @@ tend = 1.2 * tc
 
 # Nt = total number of steps. Ensure Nt > NtA (so the total tendA is covered)
 # Nt = AS * SF
-Nt = int(10E3 * tend // tc * Nx / Nx0 + 1)
+#Nt = int(2.5E3 * tend // tc * Nx / Nx0 + 1)
+Nt = int(1E6 * tend // tc * Nx / Nx0 + 1)
 #print(Nt)
 dt = tend / Nt
 
 AS = int( Nt//SF )
-
+tstart = 0#2184
 # Total physical time
 # tend = Nt * dt
 
@@ -254,52 +266,54 @@ print(json.dumps({
     'stretch_x'    : 'F',
     'loops_x'      : 1,
     'a_x'          : 4.0E0,
-    'x_a'          : -2.0*R0,
-    'x_b'          :  2.0*R0,
+    'x_a'          : -1.75*R0*(abs(sod)+1),
+    'x_b'          : 5*R0,
     'stretch_y'    : 'F',
-    'loops_y'      : 1,
+    'loops_y'      : 2,
     'a_y'          : 4.0E0,
-    'y_a'          : -2.0*R0,
-    'y_b'          :  2.0*R0,
+    'y_a'          : -2*R0*abs(sod),
+    'y_b'          :  2*R0*abs(sod),
     'stretch_z'    : 'F',
-    'loops_z'      : 1,
+    'loops_z'      : 2,
     'a_z'          : 4.0E0,
-    'z_a'          : -2.0*R0,
-    'z_b'          : 2.0*R0,
+    'z_a'          : -2*R0*abs(sod),
+    'z_b'          :  2*R0*abs(sod),
     'cyl_coord'    : 'F',
     'm'            : Nx,        
     'n'            : Ny,        
     'p'            : Nz,         
     'dt'           : dt,        
-    't_step_start' : 0,       
+    't_step_start' : tstart,       
     't_step_stop'  : Nt,      
-    't_step_save'  : AS,        
+    't_step_save'  : 1,        
     # ==========================================================
     # Simulation Algorithm Parameters ==========================
-    'num_patches'  : 3,        
+    'num_patches'  : 2,        
     'model_eqns'   : 3,        
-    'num_fluids'   : 4,        
-    'adv_alphan'   : 'T',      
+    'num_fluids'   : 2,       
+    #'alt_soundspeed' : 'T',
+    #'hypoelasticity' : 'F', 
+    #'hyperelasticity' : 'F',      
     'mpp_lim'      : 'T',      
     'mixture_err'  : 'T',      
-    'relax'        : 'T',  
-    'relax_model'  : 6,        
-    'palpha_eps'   : 1.0E-6,   
-    'ptgalpha_eps' : 1.0E-2,   
+    #'relax'        : 'T',  
+    #'relax_model'  : 6,        
+    #'palpha_eps'   : 1.0E-6,   
+    #'ptgalpha_eps' : 1.0E-2,   
     'time_stepper' : 3,        
-    'weno_order'   : 3,        
+    'weno_order'   : 5,        
     'weno_eps'     : 1.0E-16,
     'weno_Re_flux' : 'F',  
     'weno_avg'     : 'F',  
-    'mapped_weno'  : 'T',      
+    'mapped_weno'  : 'F',      
     'null_weights' : 'F',      
-    'mp_weno'      : 'F',      
+    'mp_weno'      : 'T',      
     'riemann_solver' : 2,   
     'wave_speeds'  : 1,        
     'avg_state'    : 2,        
-    'bc_x%beg'     : -6, #-2,
-    'bc_x%end'     : -6,       
-    'bc_y%beg'     : -2,       
+    'bc_x%beg'     : -16, #-2,
+    'bc_x%end'     : -16,       
+    'bc_y%beg'     : -2,           
     'bc_y%end'     : -6,
     'bc_z%beg'     : -2,
     'bc_z%end'     : -6,
@@ -309,28 +323,30 @@ print(json.dumps({
     'precision'    : 2,        
     'prim_vars_wrt':'T',       
     'parallel_io'  :'T',       
+    'probe_wrt'    :'T',
+    'fd_order'     : 1,
+    'num_probes'   : 1,
+    'probe(1)%x'   : 0., 		       
+    'probe(1)%y'   : 0., 	    	       
+    'probe(1)%z'   : 0., 	    	       
     # ==========================================================
     # Patch 1: High pressured water ============================
     # Specify the cubic water background grid geometry
     'patch_icpp(1)%geometry'       : 9,
-    'patch_icpp(1)%x_centroid'     : xcenl,
-    'patch_icpp(1)%y_centroid'     : ycenl,
-    'patch_icpp(1)%z_centroid'     : zcenl,
-    'patch_icpp(1)%length_x'       : lenx,
-    'patch_icpp(1)%length_y'       : leny,
-    'patch_icpp(1)%length_z'       : lenz,
+    'patch_icpp(1)%x_centroid'     : 20*xcenl,
+    'patch_icpp(1)%y_centroid'     : 20*ycenl,
+    'patch_icpp(1)%z_centroid'     : 20*zcenl,
+    'patch_icpp(1)%length_x'       : 20*lenx,
+    'patch_icpp(1)%length_y'       : 20*leny,
+    'patch_icpp(1)%length_z'       : 20*lenz,
     'patch_icpp(1)%vel(1)'         : 0.0E+00,
     'patch_icpp(1)%vel(2)'         : 0.0E+00,
     'patch_icpp(1)%vel(3)'         : 0.0E+00,
     'patch_icpp(1)%pres'           : p01,  	
     'patch_icpp(1)%alpha_rho(1)'   : liq_wl * rho0wl1,           	
     'patch_icpp(1)%alpha_rho(2)'   : liq_wv * rho0wv1,            
-    'patch_icpp(1)%alpha_rho(3)'   : liq_wa * rho0wa1,
-    'patch_icpp(1)%alpha_rho(4)'   : liq_wg * rho0wg1,            
     'patch_icpp(1)%alpha(1)'       : liq_wl,   	
     'patch_icpp(1)%alpha(2)'       : liq_wv,   	
-    'patch_icpp(1)%alpha(3)'       : liq_wa,
-    'patch_icpp(1)%alpha(4)'       : liq_wg,   	
     # ==========================================================
     # Patch 2: (Vapor) Bubble ==================================
     'patch_icpp(2)%geometry'       : 8,     	
@@ -338,41 +354,18 @@ print(json.dumps({
     'patch_icpp(2)%y_centroid'     : ycenb,
     'patch_icpp(2)%z_centroid'     : zcenb,
     'patch_icpp(2)%radius'         : R0,
+    'patch_icpp(2)%smoothen'       : 'T',
+    'patch_icpp(2)%smooth_patch_id': 1,
+    'patch_icpp(2)%smooth_coeff'   : 0.5E+00,
     'patch_icpp(2)%vel(1)'         : 0.0E+00,
     'patch_icpp(2)%vel(2)'         : 0.0E+00,
     'patch_icpp(2)%vel(3)'         : 0.0E+00,
     'patch_icpp(2)%pres'           : p02,    	
-    'patch_icpp(2)%alpha_rho(1)'   : bub_wl * rho0wl2,           	
-    'patch_icpp(2)%alpha_rho(2)'   : bub_wv * rho0wv2,           	
-    'patch_icpp(2)%alpha_rho(3)'   : bub_wa * rho0wa2,           
-    'patch_icpp(2)%alpha_rho(4)'   : bub_wg * rho0wg2,
+    'patch_icpp(2)%alpha_rho(1)'   : bub_wl*rho0wl2,           	
+    'patch_icpp(2)%alpha_rho(2)'   : bub_wv*rho0wv2,           	
     'patch_icpp(2)%alpha(1)'       : bub_wl,   	
     'patch_icpp(2)%alpha(2)'       : bub_wv,   	
-    'patch_icpp(2)%alpha(3)'       : bub_wa,
-    'patch_icpp(2)%alpha(4)'       : bub_wg,
     'patch_icpp(2)%alter_patch(1)' : 'T',
-    # ==========================================================
-    # Patch 3: Gel Object ======================================
-    'patch_icpp(3)%geometry'       : 9,     	
-    'patch_icpp(3)%x_centroid'     : xceng,
-    'patch_icpp(3)%y_centroid'     : yceng,
-    'patch_icpp(3)%z_centroid'     : zceng,
-    'patch_icpp(3)%length_x'       : lenxg,
-    'patch_icpp(3)%length_y'       : lenyg,
-    'patch_icpp(3)%length_z'       : lenzg,
-    'patch_icpp(3)%vel(1)'         : 0.0E+00,
-    'patch_icpp(3)%vel(2)'         : 0.0E+00,
-    'patch_icpp(3)%vel(3)'         : 0.0E+00,
-    'patch_icpp(3)%pres'           : p03,    	
-    'patch_icpp(3)%alpha_rho(1)'   : gel_wl * rho0wl2,           	
-    'patch_icpp(3)%alpha_rho(2)'   : gel_wv * rho0wv2,           	
-    'patch_icpp(3)%alpha_rho(3)'   : gel_wa * rho0wa2,
-    'patch_icpp(3)%alpha_rho(4)'   : gel_wg * rho0wg2,           	
-    'patch_icpp(3)%alpha(1)'       : gel_wl,   	
-    'patch_icpp(3)%alpha(2)'       : gel_wv,   	
-    'patch_icpp(3)%alpha(3)'       : gel_wa,
-    'patch_icpp(3)%alpha(4)'       : gel_wg,	
-    'patch_icpp(3)%alter_patch(1)' : 'T',
     # ==========================================================
     # Fluids Physical Parameters ===============================
     'fluid_pp(1)%gamma'            : 1.0E+00 / ( gamwl - 1 ),       
@@ -380,20 +373,12 @@ print(json.dumps({
     'fluid_pp(1)%cv'          	   : cvwl,          
     'fluid_pp(1)%qv'        	   : qvwl,	
     'fluid_pp(1)%qvp'          	   : qvpwl,         
+    #'fluid_pp(1)%G'                : Gl,
     'fluid_pp(2)%gamma'            : 1.0E+00 / ( gamwv - 1 ),       
     'fluid_pp(2)%pi_inf'           : gamwv * piwv / ( gamwv - 1 ),  
     'fluid_pp(2)%cv'          	   : cvwv,          
     'fluid_pp(2)%qv'        	   : qvwv,  	
-    'fluid_pp(2)%qvp'          	   : qvpwv,			
-    'fluid_pp(3)%gamma'            : 1.0E+00 / ( gamwa - 1 ),       
-    'fluid_pp(3)%pi_inf'           : gamwa * pia / ( gamwa - 1 ),  
-    'fluid_pp(3)%cv'          	   : cva,          
-    'fluid_pp(3)%qv'        	   : qvwa,  	
-    'fluid_pp(3)%qvp'          	   : qvpwa,
-    'fluid_pp(4)%gamma'            : 1.0E+00 / ( gamwg - 1),
-    'fluid_pp(4)%pi_inf'           : gamwg * pig / ( gamwg - 1),
-    'fluid_pp(4)%cv'               : cvg,
-    'fluid_pp(4)%qv'               : qvwg,
-    'fluid_pp(4)%qvp'              : qvpwg,			
+    'fluid_pp(2)%qvp'          	   : qvpwv,
+    #'fluid_pp(2)%G'                : Gv,			
     # ==========================================================
 }))
