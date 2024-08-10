@@ -1,11 +1,11 @@
 !>
-!! @file m_hypoelastic.f90
-!! @brief Contains module m_hypoelastic
+!! @file m_hypoplastic.f90
+!! @brief Contains module m_hypoplastic
 
 #:include 'macros.fpp'
 
-!> @brief This module is used to compute source terms for hypoelastic model
-module m_hypoelastic
+!> @brief This module is used to compute source terms for hypoplastic model
+module m_hypoplastic
 
     ! Dependencies =============================================================
 
@@ -21,9 +21,9 @@ module m_hypoelastic
 
     implicit none
 
-    private; public :: s_initialize_hypoelastic_module, &
- s_finalize_hypoelastic_module, &
- s_compute_hypoelastic_rhs
+    private; public :: s_initialize_hypoplastic_module, &
+ s_finalize_hypoplastic_module, &
+ s_compute_hypoplastic_rhs
 
 #ifdef CRAY_ACC_WAR
     @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), dimension(:), Gs)
@@ -60,7 +60,7 @@ module m_hypoelastic
 
 contains
 
-    subroutine s_initialize_hypoelastic_module
+    subroutine s_initialize_hypoplastic_module
 
         integer :: i, k, r
 
@@ -103,14 +103,14 @@ contains
             !$acc update device(fd_coeff_z)
         end if
 
-    end subroutine s_initialize_hypoelastic_module
+    end subroutine s_initialize_hypoplastic_module
 
     !>  The purpose of this procedure is to compute the source terms
         !!      that are needed for the elastic stress equations
         !!  @param idir Dimension splitting index
         !!  @param q_prim_vf Primitive variables
         !!  @param rhs_vf rhs variables
-    subroutine s_compute_hypoelastic_rhs(idir, q_prim_vf, rhs_vf)
+    subroutine s_compute_hypoplastic_rhs(idir, q_prim_vf, rhs_vf)
 
         integer, intent(in) :: idir
         type(scalar_field), dimension(sys_size), intent(in) :: q_prim_vf
@@ -355,9 +355,9 @@ contains
             end do
         end if
 
-    end subroutine s_compute_hypoelastic_rhs
+    end subroutine s_compute_hypoplastic_rhs
 
-    subroutine s_finalize_hypoelastic_module() ! --------------------
+    subroutine s_finalize_hypoplastic_module() ! --------------------
 
         @:DEALLOCATE_GLOBAL(Gs)
         @:DEALLOCATE_GLOBAL(rho_K_field, G_K_field)
@@ -372,6 +372,6 @@ contains
             end if
         end if
 
-    end subroutine s_finalize_hypoelastic_module
+    end subroutine s_finalize_hypoplastic_module
 
-end module m_hypoelastic
+end module m_hypoplastic
