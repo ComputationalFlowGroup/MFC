@@ -83,7 +83,7 @@ module m_global_parameters
     integer :: weno_order      !< Order of accuracy for the WENO reconstruction
     logical :: hypoelasticity  !< activate hypoelasticity
     logical :: hyperelasticity !< activate hyperelasticity
-    logical :: plasticity      !< activate johnson-cook plasticity 
+    logical :: hypoplasticity      !< activate johnson-cook hypoplasticity 
     logical :: elasticity      !< elasticity modeling, true for hyper or hypo
     integer :: b_size          !< Number of components in the b tensor
     integer :: tensor_size     !< Number of components in the nonsymmetric tensor
@@ -290,7 +290,7 @@ contains
         hyperelasticity = .false.
         elasticity = .false.
         pre_stress = .false.
-        plasticity = .false.
+        hypoplasticity = .false.
 
         bc_x%beg = dflt_int; bc_x%end = dflt_int
         bc_y%beg = dflt_int; bc_y%end = dflt_int
@@ -606,6 +606,7 @@ contains
 
             if (hypoelasticity .or. hyperelasticity) then
                 elasticity = .true.
+                hypoplasticity = .false.
                 stress_idx%beg = sys_size + 1
                 stress_idx%end = sys_size + (num_dims*(num_dims + 1))/2
                 ! number of stresses is 1 in 1D, 3 in 2D, 6 in 3D
@@ -742,7 +743,7 @@ contains
             adv_idx%end = E_idx + num_fluids
             sys_size = adv_idx%end
 
-            if (hypoelasticity) then
+            if (hypoplasticity) then
                 elasticity = .true.
                 stress_idx%beg = sys_size + 1
                 stress_idx%end = sys_size + (num_dims*(num_dims + 1))/2

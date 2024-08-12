@@ -32,7 +32,7 @@ contains
         if (acoustic_source) call s_check_inputs_acoustic_src
         if (hypoelasticity) call s_check_inputs_hypoelasticity
         if (hyperelasticity) call s_check_inputs_hyperelasticity
-        if (plasticity) call s_check_inputs_plasticity
+        if (hypoplasticity) call s_check_inputs_hypoplasticity
         if (bubbles) call s_check_inputs_bubbles
         if (adap_dt) call s_check_inputs_adapt_dt
         if (alt_soundspeed) call s_check_inputs_alt_soundspeed
@@ -387,7 +387,7 @@ contains
     end subroutine s_check_inputs_hyperelasticity
 
     !> Checks constraints on hyperelasticity parameters
-    subroutine s_check_inputs_plasticity
+    subroutine s_check_inputs_hypoplasticity
         character(len=5) :: iStr, jStr
         integer :: i, j
 
@@ -410,7 +410,7 @@ contains
           end do
         end do 
 
-    end subroutine s_check_inputs_plasticity
+    end subroutine s_check_inputs_hypoplasticity
 
     !> Checks constraints on bubble parameters
     subroutine s_check_inputs_bubbles

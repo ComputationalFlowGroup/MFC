@@ -150,7 +150,7 @@ contains
             pres = (energy - dyn_p - pi_inf - qv)/gamma
         else if ((model_eqns /= 4 .and. model_eqns /=5) .and. bubbles) then
             pres = ((energy - dyn_p)/(1.d0 - alf) - pi_inf - qv)/gamma
-        else if (model_eqns .EQ. 5 .and. (hypoelasticity .eqv. .true.) .and. (plasticity .eqv. .true.)) then
+        else if (model_eqns .EQ. 5 .and. (hypoelasticity .eqv. .true.) .and. (hypoplasticity .eqv. .true.)) then
             rho_mix_MG =sum(alpha_rho_K)/&
                         sum(fluid_pp(:)%gamma*(fluid_pp(:)%mg_a*alpha_K*fluid_pp(:)%rho0+&
                         fluid_pp(:)%mg_b*alpha_rho_K))
@@ -1054,7 +1054,7 @@ contains
                                 end if
                             end if
                         end do 
-                        if (plasticity) then
+                        if (hypoplasticity) then
                             call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
                                             0d0, dyn_pres_K, 0d0, 0d0, rho_K, 0d0, &
 					    pres, 0d0, 0d0, 0d0, alpha_rho_K, alpha_K)
@@ -1283,7 +1283,7 @@ contains
                     if (hypoelasticity) then
                         do i = strxb, strxe
                             ! adding elastic contribution
-                            if (G > verysmall .and. .not. plasticity) then
+                            if (G > verysmall .and. .not. hypoplasticity) then
                                 q_cons_vf(E_idx)%sf(j, k, l) = q_cons_vf(E_idx)%sf(j, k, l) + &
                                                                (q_prim_vf(i)%sf(j, k, l)**2d0)/(4d0*G)
                                 ! extra terms in 2 and 3D
@@ -1295,7 +1295,7 @@ contains
                                 end if
                             end if
                         end do
-                        if ( plasticity ) then 
+                        if ( hypoplasticity ) then 
                           q_cons_vf(plasidx)%sf(j, k, l) = rho*q_prim_vf(plasidx)%sf(j, k, l)                  
                         end if 
                     end if

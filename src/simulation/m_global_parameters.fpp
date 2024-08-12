@@ -150,7 +150,7 @@ module m_global_parameters
     logical :: hyperelasticity !< hyperelasticity modeling
     integer :: hyper_model     !< hyperelasticity solver algorithm
     logical :: elasticity      !< elasticity modeling, true for hyper or hypo
-    logical :: plasticity
+    logical :: hypoplasticity
     logical :: cu_tensor
 
     logical :: bodyForces
@@ -531,7 +531,7 @@ contains
         hypoelasticity = .false.
         hyperelasticity = .false.
         elasticity = .false.
-        plasticity = .false.
+        hypoplasticity = .false.
         hyper_model = dflt_int
         weno_flat = .true.
         riemann_flat = .true.
@@ -853,6 +853,7 @@ contains
 
                 if (hypoelasticity .or. hyperelasticity) then
                     elasticity = .true.
+                    hypoplasticity = .false.
                     stress_idx%beg = sys_size + 1
                     stress_idx%end = sys_size + (num_dims*(num_dims + 1))/2
                     ! number of distinct stresses is 1 in 1D, 3 in 2D, 6 in 3D
@@ -860,7 +861,6 @@ contains
                 end if
 
                 if (hyperelasticity) then
-                    plasticity = .false.
                     ! number of entries in the symmetric btensor plus the jacobian
                     b_size = (num_dims*(num_dims + 1))/2 + 1
                     ! storing the jacobian in the last entry
@@ -892,6 +892,7 @@ contains
 
                 if (hypoelasticity .or. hyperelasticity) then
                     elasticity = .true.
+                    hypoplasticity = .false.
                     stress_idx%beg = sys_size + 1
                     stress_idx%end = sys_size + (num_dims*(num_dims + 1))/2
                     ! number of stresses is 1 in 1D, 3 in 2D, 6 in 3D
@@ -981,7 +982,7 @@ contains
               adv_idx%end = E_idx + num_fluids
               sys_size = adv_idx%end
 
-              if (hypoelasticity) then
+              if (hypoplasticity) then
                 elasticity = .true.
                 stress_idx%beg = sys_size + 1
                 stress_idx%end = sys_size + (num_dims*(num_dims + 1))/2
@@ -1142,7 +1143,7 @@ contains
         !$acc update device(m, n, p)
 
         !$acc update device(alt_soundspeed, acoustic_source, num_source)
-        !$acc update device(dt, sys_size, buff_size, pref, rhoref, gamma_idx, pi_inf_idx, E_idx, alf_idx, stress_idx, mpp_lim, bubbles, hypoelasticity, alt_soundspeed, avg_state, num_fluids, model_eqns, num_dims, mixture_err, grid_geometry, cyl_coord, mp_weno, weno_eps, teno_CT, hyperelasticity, hyper_model, elasticity, xi_idx, low_Mach, plasticity)
+        !$acc update device(dt, sys_size, buff_size, pref, rhoref, gamma_idx, pi_inf_idx, E_idx, alf_idx, stress_idx, mpp_lim, bubbles, hypoelasticity, alt_soundspeed, avg_state, num_fluids, model_eqns, num_dims, mixture_err, grid_geometry, cyl_coord, mp_weno, weno_eps, teno_CT, hyperelasticity, hyper_model, elasticity, xi_idx, low_Mach, hypoplasticity)
 
         #:if not MFC_CASE_OPTIMIZATION
             !$acc update device(wenojs, mapped_weno, wenoz, teno)

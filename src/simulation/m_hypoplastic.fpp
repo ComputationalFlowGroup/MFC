@@ -27,9 +27,9 @@ module m_hypoplastic
     @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), dimension(:), Gs)
     !$acc declare link(Gs)
 
-    @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), dimension(:, :, :), du_dx, du_dy, du_dz)
-    @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), dimension(:, :, :), dv_dx, dv_dy, dv_dz)
-    !$acc declare link(du_dx,du_dy,du_dz,dv_dx,dv_dy,dv_dzz)
+    @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), dimension(:, :, :), du_dx, du_dy)
+    @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), dimension(:, :, :), dv_dx, dv_dy)
+    !$acc declare link(du_dx,du_dy,dv_dx,dv_dy)
 
     @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), dimension(:, :, :), rho_K_field, G_K_field)
     !$acc declare link(rho_K_field, G_K_field)
@@ -41,9 +41,9 @@ module m_hypoplastic
     real(kind(0d0)), allocatable, dimension(:) :: Gs
     !$acc declare create(Gs)
 
-    real(kind(0d0)), allocatable, dimension(:, :, :) :: du_dx, du_dy, du_dz
-    real(kind(0d0)), allocatable, dimension(:, :, :) :: dv_dx, dv_dy, dv_dz
-    !$acc declare create(du_dx,du_dy,du_dz,dv_dx,dv_dy,dv_dz)
+    real(kind(0d0)), allocatable, dimension(:, :, :) :: du_dx, du_dy
+    real(kind(0d0)), allocatable, dimension(:, :, :) :: dv_dx, dv_dy
+    !$acc declare create(du_dx,du_dy,dv_dx,dv_dy)
 
     real(kind(0d0)), allocatable, dimension(:, :, :) :: rho_K_field, G_K_field
     !$acc declare create(rho_K_field, G_K_field)

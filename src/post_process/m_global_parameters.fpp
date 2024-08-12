@@ -96,7 +96,7 @@ module m_global_parameters
     logical :: hypoelasticity  !< Turn hypoelasticity on
     logical :: hyperelasticity !< Turn hyperelasticity on
     logical :: elasticity      !< elasticity modeling, true for hyper or hypo
-    logical :: plasticity 
+    logical :: hypoplasticity 
     !> @}
 
     !> @name Annotations of the structure, i.e. the organization, of the state vectors
@@ -549,6 +549,7 @@ contains
 
             if (hypoelasticity .or. hyperelasticity) then
                 elasticity = .true.
+                hypoplasticity = .false.
                 stress_idx%beg = sys_size + 1
                 stress_idx%end = sys_size + (num_dims*(num_dims + 1))/2
                 ! number of stresses is 1 in 1D, 3 in 2D, 6 in 3D
@@ -639,7 +640,7 @@ contains
               adv_idx%end = E_idx + num_fluids
               sys_size = adv_idx%end
 
-              if (hypoelasticity) then
+              if (hypoplasticity) then
                 elasticity = .true.
                 stress_idx%beg = sys_size + 1
                 stress_idx%end = sys_size + (num_dims*(num_dims + 1))/2
