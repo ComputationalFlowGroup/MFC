@@ -13,8 +13,11 @@
         real(kind(0d0)), optional, dimension(num_fluids), intent(IN) :: G, alpha_rho_K
         real(kind(0d0)), intent(OUT) :: c
         real(kind(0d0)) :: blkmod1, blkmod2
-        real(kind(0d0)) :: log_rho_mix_ratio, deno_gamma_rho_sq 
-        real(kind(0d0)) :: phi_mix, theta_E
+        real(kind(0d0)) :: log_rho_mix_ratio, deno_rho_sq, phi_mix, theta_E, rho0_mix 
+       
+
+        !Local variables used for computation only
+       
 
         integer :: q
 
@@ -48,21 +51,31 @@
             end if
 
         elseif (model_eqns == 5) then
-
-            log_rho_mix_ratio = log(rho/sum(adv*fluid_pp(:)%rho0))
-            deno_gamma_rho_sq = sum(fluid_pp(:)%gamma*(fluid_pp(:)%mg_a*adv*&
-                                fluid_pp(:)%rho0*fluid_pp(:)%rho0+fluid_pp(:)%mg_b*&
-                                alpha_rho_K(:)*fluid_pp(:)%rho0))
-            phi_mix = exp(sum(adv*fluid_pp(:)%gamma-&
-                        adv*fluid_pp(:)%gamma*fluid_pp(:)%rho0)/rho)
-            theta_E = sum(adv*fluid_pp(:)%ein_cv(2))
-           
+            log_rho_mix_ratio = log(rho/sum(adv(:)*fluid_pp(:)%rho0))
+            deno_rho_sq = sum(fluid_pp(:)%mg_a*adv(:)*&
+                                fluid_pp(:)%rho0**2+fluid_pp(:)%mg_b*&
+                                alpha_rho_K(:)*fluid_pp(:)%rho0)
+            phi_mix = exp(sum(adv(:)*fluid_pp(:)%gamma-&
+                       adv(:)*fluid_pp(:)%gamma*fluid_pp(:)%rho0/rho))
+            theta_E = sum(adv(:)*fluid_pp(:)%ein_cv(2))
+            rho0_mix = sum(adv(:)*fluid_pp(:)%rho0)
             c = sum(alpha_rho_K(:)*fluid_pp(:)%pi_inf/fluid_pp(:)%rho0)&
                    +log_rho_mix_ratio*sum(alpha_rho_K(:)*fluid_pp(:)%pi_inf*(fluid_pp(:)%qv-1.d0)/fluid_pp(:)%rho0)&
-                   +(log_rho_mix_ratio**2)*sum(alpha_rho_K(:)*fluid_pp(:)%pi_inf*0.5d0*(fluid_pp(:)%qv-2)/fluid_pp(:)%rho0) &
-                   +pres*(sum(alpha_rho_K(:)*fluid_pp(:)%mg_b))/sum(alpha_rho_K(:)*fluid_pp(:)%mg_a*fluid_pp(:)%rho0)
-            c = 1d0
+                   +(log_rho_mix_ratio**2)*sum(alpha_rho_K(:)*fluid_pp(:)%pi_inf*0.5d0*(fluid_pp(:)%qv-2.d0)/fluid_pp(:)%rho0)&
+                   +pres*sum(alpha_rho_K(:)*fluid_pp(:)%mg_b)/sum(adv(:)*fluid_pp(:)%mg_a*fluid_pp(:)%rho0+fluid_pp(:)%mg_b*alpha_rho_K(:))&
+                   -log_rho_mix_ratio*sum((alpha_rho_K(:)**2)*fluid_pp(:)%mg_b*fluid_pp(:)%pi_inf)/deno_rho_sq&
+                   -(log_rho_mix_ratio**2)*sum((alpha_rho_K(:)**2)*fluid_mg(:)%mg_b*fluid_pp(:)%pi_inf*0.5d0*(fluid_pp(:)%qv-2.d0))/deno_rho_sq&
+                   +pres*(sum(fluid_pp(:)%gamma*fluid_pp(:)%mg_a*adv(:)*fluid_pp(:)%rho0)/rho0_mix+sum(fluid_pp(:)%mg_b*fluid_pp(:)%gamma*adv(:)))&
+                   -log_rho_mix_ratio*(fluid_pp(:)%gamma*adv(:)*fluid_pp(:)%mg_a*fluid_pp(:)%pi_inf&
+                   +sum(fluid_pp(:)%gamma*alpha_rho_K(:)*fluid_pp(:)%mg_b*fluid_pp(:)%pi_inf)/rho0_mix)&
+                   -(log_rho_mix_ratio**2)*(sum(fluid_pp(:)%gamma*adv(:)*fluid_pp(:)%mg_a*fluid_pp(:)%pi_inf*0.5d0*(fluid_pp(:)%qv-2.d0))&
+                   +sum(fluid_pp(:)%gamma*alpha_rho_K(:)*fluid_pp(:)%mg_b*fluid_pp(:)%pi_inf*0.5d0*(fluid_pp(:)%qv-2.d0))/rho0_mix)&
+                   +(phi_mix**2)*(exp(phi_mix*theta_E)/(exp(phi_mix*theta_E)-1)**2)*(sum(adv(:)*fluid_pp(:)%gamma*fluid_pp(:)%mg_a*&
+                   (fluid_pp(:)%rho0**2)*fluid_pp(:)%ein_cv(1)*fluid_pp(:)%ein_cv(2))&
+                   +sum(adv(:)*fluid_pp(:)%gamma*fluid_pp(:)%mg_b*fluid_pp(:)%rho0*fluid_pp(:)%ein_cv(1)*fluid_pp(:)%ein_cv(2)**2))
+            c = c/rho
         else 
+            
             c = ((H - 5d-1*vel_sum)/gamma)
         end if
 
