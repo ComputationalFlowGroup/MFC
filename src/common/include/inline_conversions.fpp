@@ -47,22 +47,22 @@
 
         elseif (model_eqns == 5) then
 
-            rho_mix_MG =sum(alpha_rho_K)/&
-                        sum(fluid_pp(:)%gamma*(fluid_pp(:)%mg_a*alpha_K*fluid_pp(:)%rho0+&
-                        fluid_pp(:)%mg_b*alpha_rho_K))
-            log_rho_mix_ratio = log(rho/sum(alpha_K*fluid_pp(:)%rho0))
-            deno_gamma_rho_sq = sum(fluid_pp(:)%gamma*(fluid_pp(:)%mg_a*alpha_K*&
-                                fluid_pp(:)%rho0*fluid_pp(:)%rho0+fluid_pp(:)%mg_b*&
-                                alpha_rho_K*fluid_pp(:)%rho0))
-            phi_mix = exp(sum(alpha_K*fluid_pp(:)%gamma-&
-                        alpha_K*fluid_pp(:)%gamma*fluid_pp(:)%rho0))
-            theta_E = sum(alpha_K*fluid_pp(:)%ein_cv(2))
+            !rho_mix_MG =sum(alpha_rho_K)/&
+            !            sum(fluid_pp(:)%gamma*(fluid_pp(:)%mg_a*alpha_K*fluid_pp(:)%rho0+&
+            !            fluid_pp(:)%mg_b*alpha_rho_K))
+            !log_rho_mix_ratio = log(rho/sum(alpha_K*fluid_pp(:)%rho0))
+            !deno_gamma_rho_sq = sum(fluid_pp(:)%gamma*(fluid_pp(:)%mg_a*alpha_K*&
+            !                    fluid_pp(:)%rho0*fluid_pp(:)%rho0+fluid_pp(:)%mg_b*&
+            !                    alpha_rho_K*fluid_pp(:)%rho0))
+            !phi_mix = exp(sum(alpha_K*fluid_pp(:)%gamma-&
+            !            alpha_K*fluid_pp(:)%gamma*fluid_pp(:)%rho0))
+            !theta_E = sum(alpha_K*fluid_pp(:)%ein_cv(2))
            
-            c = sum(alpha_rho_K*fluid_pp(:)%pi_inf/fluid_pp(:)%rho0)&
-                   +
-log_rho_mix_ratio*sum(alpha_rho_K*fluid_pp(:)%pi_inf*(fluid_pp(:)%qv-1.d0)/fluid_pp(:)%rho0)+&
-          (log_rho_mix_ratio**2)*sum(alpha_rho_K*fluid_pp(:)%pi_inf*0.5d0*(fluid_pp(:)%qv-2)/fluid_pp(:)%rho0+&
-          pres*(sum(alpha_rho_K*fluid_pp(:)%mg_b))/sum(alpha_rho_K*fluid_pp(:)%mg_a*fluid_pp(:)%rho0)
+            !c = sum(alpha_rho_K*fluid_pp(:)%pi_inf/fluid_pp(:)%rho0)&
+            !       +
+!log_rho_mix_ratio*sum(alpha_rho_K*fluid_pp(:)%pi_inf*(fluid_pp(:)%qv-1.d0)/fluid_pp(:)%rho0)+&
+!          (log_rho_mix_ratio**2)*sum(alpha_rho_K*fluid_pp(:)%pi_inf*0.5d0*(fluid_pp(:)%qv-2)/fluid_pp(:)%rho0+&
+!          pres*(sum(alpha_rho_K*fluid_pp(:)%mg_b))/sum(alpha_rho_K*fluid_pp(:)%mg_a*fluid_pp(:)%rho0)
         else 
             c = ((H - 5d-1*vel_sum)/gamma)
         end if
