@@ -135,10 +135,9 @@ contains
         real(kind(0d0)), intent(out) :: pres
         real(kind(0d0)), intent(in), optional :: stress, mom, G
         real(kind(0d0)), dimension(num_fluids), intent(in), optional :: alpha_K, alpha_rho_K
-      
+    
 
         real(kind(0d0)) :: E_e
-        ! Temporary local variables
         real(kind(0d0)) :: log_rho_mix_ratio, rho_mix_MG, phi_mix, theta_E, deno_gamma_rho_sq
         integer :: s !< Generic loop iterator
 
@@ -150,30 +149,29 @@ contains
             pres = (energy - dyn_p - pi_inf - qv)/gamma
         else if ((model_eqns /= 4 .and. model_eqns /=5) .and. bubbles) then
             pres = ((energy - dyn_p)/(1.d0 - alf) - pi_inf - qv)/gamma
-        else if (model_eqns .EQ. 5 .and. (hypoelasticity .eqv. .true.) .and. (hypoplasticity .eqv. .true.)) then
-            rho_mix_MG =sum(alpha_rho_K)/&
-                        sum(fluid_pp(:)%gamma*(fluid_pp(:)%mg_a*alpha_K*fluid_pp(:)%rho0+&
-                        fluid_pp(:)%mg_b*alpha_rho_K))
-            log_rho_mix_ratio = log(rho/sum(alpha_K*fluid_pp(:)%rho0))
-            deno_gamma_rho_sq = sum(fluid_pp(:)%gamma*(fluid_pp(:)%mg_a*alpha_K*&
+        else if (model_eqns .eq. 5) then
+            rho_mix_MG =sum(alpha_rho_K(:))/&
+                        sum(fluid_pp(:)%gamma*(fluid_pp(:)%mg_a*alpha_K(:)*fluid_pp(:)%rho0+&
+                        fluid_pp(:)%mg_b*alpha_rho_K(:)))
+            log_rho_mix_ratio = log(rho/sum(alpha_K(:)*fluid_pp(:)%rho0))
+            deno_gamma_rho_sq = sum(fluid_pp(:)%gamma*(fluid_pp(:)%mg_a*alpha_K(:)*&
                                 fluid_pp(:)%rho0*fluid_pp(:)%rho0+fluid_pp(:)%mg_b*&
-                                alpha_rho_K*fluid_pp(:)%rho0))
-            phi_mix = exp(sum(alpha_K*fluid_pp(:)%gamma-&
-                        alpha_K*fluid_pp(:)%gamma*fluid_pp(:)%rho0))
-            theta_E = sum(alpha_K*fluid_pp(:)%ein_cv(2))
+                                alpha_rho_K(:)*fluid_pp(:)%rho0))
+            phi_mix = exp(sum(alpha_K(:)*fluid_pp(:)%gamma-&
+                        alpha_K(:)*fluid_pp(:)%gamma*fluid_pp(:)%rho0))
+            theta_E = sum(alpha_K(:)*fluid_pp(:)%ein_cv(2))
             pres = energy - dyn_p -&
                    0.5d0*(log_rho_mix_ratio**2)*&
-                   sum(fluid_pp(:)%pi_inf*alpha_rho_K/fluid_pp(:)%rho0)-&
-                   0.5d0*(log_rho_mix_ratio**3)*sum(fluid_pp(:)%pi_inf*alpha_rho_K*&
+                   sum(fluid_pp(:)%pi_inf*alpha_rho_K(:)/fluid_pp(:)%rho0)-&
+                   0.5d0*(log_rho_mix_ratio**3)*sum(fluid_pp(:)%pi_inf*alpha_rho_K(:)*&
                    (fluid_pp(:)%qv-2)/(3*fluid_pp(:)%rho0))-&
-                   phi_mix*exp(phi_mix*theta_E)*sum(alpha_rho_K*fluid_pp(:)%ein_cv(1)*fluid_pp(:)%ein_cv(2))/&
+                   phi_mix*exp(phi_mix*theta_E)*sum(alpha_rho_K(:)*fluid_pp(:)%ein_cv(1)*fluid_pp(:)%ein_cv(2))/&
                    (exp(phi_mix*theta_E)-1)+&
-                   log(exp(phi_mix*theta_E)-1)*sum(alpha_rho_K*fluid_pp(:)%ein_cv(1))+&
-                   log_rho_mix_ratio*sum(alpha_rho_K*alpha_rho_K*fluid_pp(:)%pi_inf)/deno_gamma_rho_sq +&
-                   (log_rho_mix_ratio**2)*sum(alpha_rho_K*alpha_rho_K*fluid_pp(:)%pi_inf*0.5d0*(fluid_pp(:)%qv-2))/&
+                   log(exp(phi_mix*theta_E)-1)*sum(alpha_rho_K(:)*fluid_pp(:)%ein_cv(1))+&
+                   log_rho_mix_ratio*sum(alpha_rho_K(:)*alpha_rho_K(:)*fluid_pp(:)%pi_inf)/deno_gamma_rho_sq +&
+                   (log_rho_mix_ratio**2)*sum(alpha_rho_K(:)*alpha_rho_K(:)*fluid_pp(:)%pi_inf*0.5d0*(fluid_pp(:)%qv-2))/&
                    deno_gamma_rho_sq
             pres = pres/rho_mix_MG
-
         else
             pres = (pref + pi_inf)* &
                    (energy/ &
@@ -982,9 +980,9 @@ contains
                     ! TODO SRIJAN PRECOMPUTE THE MIXTURE RULES HERE FOR
                     ! PRESSURE CALCULATION
                     !if (model_eqns/= 5) then 
-                            call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
-                                            qK_cons_vf(alf_idx)%sf(j, k, l), &
-                                            dyn_pres_K, pi_inf_K, gamma_K, rho_K, qv_K, pres)
+                        call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
+                                                qK_cons_vf(alf_idx)%sf(j, k, l), &
+                                                dyn_pres_K, pi_inf_K, gamma_K, rho_K, qv_K, pres)
                     !else    
                     !        call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
                     !                        0d0, dyn_pres_K, 0d0, 0d0, rho_K, 0d0, & 
@@ -1055,14 +1053,13 @@ contains
                             end if
                         end do 
                         if (hypoplasticity) then
-                            call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
-                                            0d0, dyn_pres_K, 0d0, 0d0, rho_K, 0d0, &
-					    pres, 0d0, 0d0, 0d0, alpha_rho_K, alpha_K)
-			 
+                            !call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
+                            !                0d0, dyn_pres_K, 0d0, 0d0, rho_K, 0d0, &
+                            !               pres, 0d0, 0d0, 0d0, alpha_rho_K, alpha_K)
+ 
                             qK_prim_vf(E_idx)%sf(j, k, l) = pres
                                                              
-                            qK_prim_vf(plasidx)%sf(j, k, l)=qK_cons_vf(plasidx)%sf(j, k, l)&
-								/rho_K
+                            qK_prim_vf(plasidx)%sf(j, k, l)=qK_cons_vf(plasidx)%sf(j, k, l)/rho_K
                         end if
                     end if
 
