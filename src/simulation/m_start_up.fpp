@@ -48,6 +48,8 @@ module m_start_up
                                 !! from the conservative and primitive variables
     use m_hypoelastic
 
+    use m_hypoplastic
+
     use m_hyperelastic
 
     use m_phase_change          !< Phase-change module
@@ -1318,6 +1320,7 @@ contains
 
         if (hypoelasticity) call s_initialize_hypoelastic_module()
         if (hyperelasticity) call s_initialize_hyperelastic_module()
+        if (hypoplasticity) call s_initialize_hypoplastic_module()
 
     end subroutine s_initialize_modules
 
@@ -1434,6 +1437,7 @@ contains
         call s_finalize_time_steppers_module()
         if (hypoelasticity) call s_finalize_hypoelastic_module() 
         if (hyperelasticity) call s_finalize_hyperelastic_module() 
+        if (hypoplasticity) call s_finalize_hypoplastic_module() 
         call s_finalize_derived_variables_module()
         call s_finalize_data_output_module()
         call s_finalize_rhs_module()
