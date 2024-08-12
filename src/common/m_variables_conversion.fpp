@@ -243,14 +243,14 @@ contains
            theta_E = sum(alpha_K(:)*fluid_pp(:)%ein_cv(2))
            num_term1 = energy - dyn_p -&
                    0.5d0*(log_rho_mix_ratio**2)*&
-                   sum(fluid_pp(:)%pi_inf*alpha_rho_K(:)/fluid_pp(:)%rho0)-&
-                   0.5d0*(log_rho_mix_ratio**3)*sum(fluid_pp(:)%pi_inf*alpha_rho_K(:)*&
-                   (fluid_pp(:)%qv-2d0)/(3d0*fluid_pp(:)%rho0))-&
-                   phi_mix*exp(phi_mix*theta_E)*sum(alpha_rho_K(:)*fluid_pp(:)%ein_cv(1)*fluid_pp(:)%ein_cv(2))/&
-                   (exp(phi_mix*theta_E)-1d0)+&
-                   log(exp(phi_mix*theta_E)-1d0)*sum(alpha_rho_K(:)*fluid_pp(:)%ein_cv(1)
+                   sum(fluid_pp(:)%pi_inf*alpha_rho_K(:)/fluid_pp(:)%rho0) - &
+                   0.5d0*(log_rho_mix_ratio**3)*sum(fluid_pp(:)%pi_inf*alpha_rho_K(:)* &
+                   (fluid_pp(:)%qv-2d0)/(3d0*fluid_pp(:)%rho0)) - &
+                   phi_mix*exp(phi_mix*theta_E)*sum(alpha_rho_K(:)*fluid_pp(:)%ein_cv(1)*fluid_pp(:)%ein_cv(2)) / &
+                   (exp(phi_mix*theta_E)-1d0) + &
+                   log(exp(phi_mix*theta_E)-1d0)*sum(alpha_rho_K(:)*fluid_pp(:)%ein_cv(1))
 	     denom_term1 = phi_mix*sum(alpha_rho_K(:)*fluid_pp(:)%ein_cv(1)*fluid_pp(:)%ein_cv(2))
-	     denom_term2 = exp(phi_mix*sum(alpha_K(:)*fluid_pp(:)%ein_cv(2)) - 1d0
+	     denom_term2 = exp(phi_mix*sum(alpha_K(:)*fluid_pp(:)%ein_cv(2))) - 1d0
 	     denom = num_term1 / denom_term1 + 1d0 / denom_term2
 	     temp = phi_mix*sum(alpha_K(:)*fluid_pp(:)%ein_cv(2)*log(1d0 + 1d0 / denom))
 	end if
