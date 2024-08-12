@@ -97,7 +97,7 @@ contains
         real(kind(0d0)) :: rho_K, G_K
 	real(kind(0d0)), dimension(num_dims**2) :: atensor, tensora, devdtensor
 
-        integer :: i, k, l, p, r !< Loop variables
+        integer :: i, k, l, p, q, r !< Loop variables
         integer :: ndirs  !< Number of coordinate directions
 	
         ! compute velocity gradients and rho_K and G_K        
