@@ -494,8 +494,8 @@ contains
                 call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
                                  'ein_cv must be positive. Exiting ...')
               end if
-            end do           
-        end do
+          end do           
+       end do
     end subroutine s_check_inputs_mie_gruneisen_eos
 
     !> Checks constraints on the surface tension parameters.
