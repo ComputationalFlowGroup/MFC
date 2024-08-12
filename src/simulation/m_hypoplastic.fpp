@@ -167,9 +167,9 @@ contains
 	     devdtensor(4) = dv_dy(k, l, q) - (1d0/3d0)*(du_dx(k, l, q) + dv_dy(k, l, q))
              ! STEP 3: Compute the equivalent plastic strain rate, d^p 
              ! STEP 3.1 : Compute mixture pressure and temperature
-             ! call s_compute_pressure(args) <- computed by Srijan
+	     call s_compute_pressure(energy, alf, dyn_p, pi_inf, gamma, rho, qv, pres, stress, mom, G, alpha_K, alpha_rho_K)
              ! call s_compute_temperature(arg) <- computes only theta (of the mixture)
-
+	     call s_compute_temperature()
              ! STEP 3.2 : Compute theta_m, theta_hat, and sigma_bar
              ! compute theta_m from equation 4.10
              ! compute theta_hat from equation 4.9
