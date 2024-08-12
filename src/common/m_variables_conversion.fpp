@@ -125,7 +125,8 @@ contains
         !! @param pres Pressure to calculate
         !! @param stress Shear Stress
         !! @param mom Momentum
-    subroutine s_compute_pressure(energy, alf, dyn_p, pi_inf, gamma, rho, qv, pres, stress, mom, G)
+    subroutine s_compute_pressure(energy, alf, dyn_p, pi_inf, gamma, &
+        rho, qv, pres, stress, mom, G, alpha_K, alpha_rho_K)
         !$acc routine seq
 
         real(kind(0d0)), intent(in) :: energy, alf
@@ -133,18 +134,46 @@ contains
         real(kind(0d0)), intent(in) :: pi_inf, gamma, rho, qv
         real(kind(0d0)), intent(out) :: pres
         real(kind(0d0)), intent(in), optional :: stress, mom, G
+        real(kind(0d0)), dimension(num_fluids), intent(in), optional :: alpha_K, alpha_rho_K
+      
 
         real(kind(0d0)) :: E_e
-
+        ! Temporary local variables
+        real(kind(0d0)) :: log_rho_mix_ratio, rho_mix_MG, phi_mix, theta_E, deno_gamma_rho_sq
         integer :: s !< Generic loop iterator
 
         ! Depending on model_eqns and bubbles, the appropriate procedure
         ! for computing pressure is targeted by the procedure pointer
+        ! model_eqns = 5 corresponds to the Mie-Gruneisen EOS
 
-        if ((model_eqns /= 4) .and. (bubbles .neqv. .true.)) then
+        if ((model_eqns /= 4 .and. model_eqns /=5) .and. (bubbles .neqv. .true.)) then
             pres = (energy - dyn_p - pi_inf - qv)/gamma
-        else if ((model_eqns /= 4) .and. bubbles) then
+        else if ((model_eqns /= 4 .and. model_eqns /=5) .and. bubbles) then
             pres = ((energy - dyn_p)/(1.d0 - alf) - pi_inf - qv)/gamma
+        else if (model_eqns .EQ. 5 .and. (hypoelasticity .eqv. .true.) .and. (plasticity .eqv. .true.)) then
+            rho_mix_MG =sum(alpha_rho_K)/&
+                        sum(fluid_pp(:)%gamma*(fluid_pp(:)%mg_a*alpha_K*fluid_pp(:)%rho0+&
+                        fluid_pp(:)%mg_b*alpha_rho_K))
+            log_rho_mix_ratio = log(rho/sum(alpha_K*fluid_pp(:)%rho0))
+            deno_gamma_rho_sq = sum(fluid_pp(:)%gamma*(fluid_pp(:)%mg_a*alpha_K*&
+                                fluid_pp(:)%rho0*fluid_pp(:)%rho0+fluid_pp(:)%mg_b*&
+                                alpha_rho_K*fluid_pp(:)%rho0))
+            phi_mix = exp(sum(alpha_K*fluid_pp(:)%gamma-&
+                        alpha_K*fluid_pp(:)%gamma*fluid_pp(:)%rho0))
+            theta_E = sum(alpha_K*fluid_pp(:)%ein_cv(2))
+            pres = energy - dyn_p -&
+                   0.5d0*(log_rho_mix_ratio**2)*&
+                   sum(fluid_pp(:)%pi_inf*alpha_rho_K/fluid_pp(:)%rho0)-&
+                   0.5d0*(log_rho_mix_ratio**3)*sum(fluid_pp(:)%pi_inf*alpha_rho_K*&
+                   (fluid_pp(:)%qv-2)/(3*fluid_pp(:)%rho0))-&
+                   phi_mix*exp(phi_mix*theta_E)*sum(alpha_rho_K*fluid_pp(:)%ein_cv(1)*fluid_pp(:)%ein_cv(2))/&
+                   (exp(phi_mix*theta_E)-1)+&
+                   log(exp(phi_mix*theta_E)-1)*sum(alpha_rho_K*fluid_pp(:)%ein_cv(1))+&
+                   log_rho_mix_ratio*sum(alpha_rho_K*alpha_rho_K*fluid_pp(:)%pi_inf)/deno_gamma_rho_sq +&
+                   (log_rho_mix_ratio**2)*sum(alpha_rho_K*alpha_rho_K*fluid_pp(:)%pi_inf*0.5d0*(fluid_pp(:)%qv-2))/&
+                   deno_gamma_rho_sq
+            pres = pres/rho_mix_MG
+
         else
             pres = (pref + pi_inf)* &
                    (energy/ &
@@ -952,12 +981,16 @@ contains
 
                     ! TODO SRIJAN PRECOMPUTE THE MIXTURE RULES HERE FOR
                     ! PRESSURE CALCULATION
-                
-
-
-                    call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
+                    !if (model_eqns/= 5) then 
+                            call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
                                             qK_cons_vf(alf_idx)%sf(j, k, l), &
                                             dyn_pres_K, pi_inf_K, gamma_K, rho_K, qv_K, pres)
+                    !else    
+                    !        call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
+                    !                        0d0, dyn_pres_K, 0d0, 0d0, rho_K, 0d0, & 
+                    !                        pres, 0d0, 0d0, 0d0, alpha_rho_K, alpha_K) 
+                    !end if   
+                        
 
                     qK_prim_vf(E_idx)%sf(j, k, l) = pres
 
@@ -998,11 +1031,16 @@ contains
                         end if
                     end if
 
+                    if (elasticity) then 
+                        !$acc loop seq
+                        do i = strxb, strxe
+                            qK_prim_vf(i)%sf(j, k, l) = qK_cons_vf(i)%sf(j, k, l)/rho_K
+                        end do
+                    end if
+
                     if (hypoelasticity) then
                         !$acc loop seq
                         do i = strxb, strxe
-                            qK_prim_vf(i)%sf(j, k, l) = qK_cons_vf(i)%sf(j, k, l) &
-                                                        /rho_K
                             ! subtracting elastic contribution for pressure calculation
                             if (G_K > verysmall) then !TODO: check if stable for >0
                                 qK_prim_vf(E_idx)%sf(j, k, l) = qK_prim_vf(E_idx)%sf(j, k, l) - &
@@ -1015,14 +1053,20 @@ contains
                                                                     ((qK_prim_vf(i)%sf(j, k, l)**2d0)/(4d0*G_K))/gamma_K
                                 end if
                             end if
-                        end do
+                        end do 
+                        if (plasticity) then
+                            call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
+                                            0d0, dyn_pres_K, 0d0, 0d0, rho_K, 0d0, &
+					    pres, 0d0, 0d0, 0d0, alpha_rho_K, alpha_K)
+			 
+                            qK_prim_vf(E_idx)%sf(j, k, l) = pres
+                                                             
+                            qK_prim_vf(plasidx)%sf(j, k, l)=qK_cons_vf(plasidx)%sf(j, k, l)&
+								/rho_K
+                        end if
                     end if
 
                     if (hyperelasticity) then
-                        !$acc loop seq
-                        do i = strxb, strxe
-                            qK_prim_vf(i)%sf(j, k, l) = qK_cons_vf(i)%sf(j, k, l)/rho_K
-                        end do
                         !$acc loop seq
                         do i = xibeg, xiend
                             qK_prim_vf(i)%sf(j, k, l) = qK_cons_vf(i)%sf(j, k, l)/rho_K
@@ -1035,6 +1079,7 @@ contains
                     end do
 
                     if (.not. f_is_default(sigma)) then
+
                         qK_prim_vf(c_idx)%sf(j, k, l) = qK_cons_vf(c_idx)%sf(j, k, l)
                     end if
 
@@ -1078,7 +1123,7 @@ contains
         !!Parameters to make stiffened gas eos of air and Mie-Gruneisen
         !consistent with each 
         real(kind(0d0)) :: rho0, rho0_K
-        real(kind(0d0)) :: gamma_K, alpha_K, Kt_K, Ktp_K, a_cv_K, rho_K_ratio
+        real(kind(0d0)) :: gamma_K, alpha_K, Kt_K, Ktp_K, a_cv_K, rho_K_ratio, mg_a_K, mg_b_K
         !local variables for computing energy corresponding to
         !Mie-Gruneisen EOS
         real(kind(0d0)) :: rho_mix_ratio, rho_mix_MG, phi_mix
@@ -1086,7 +1131,7 @@ contains
         real(kind(0d0)) :: gamma_rho_squared_denominator
         real(kind(0d0)), dimension(num_fluids) :: alpha_rho_K
         !Parameters for einstein model 
-        real(kind(0d0)), dimension(2) :: mg_a_K, mg_b_K, theta_E_K
+        real(kind(0d0)), dimension(2) :: theta_E_K
 
 
 
@@ -1149,16 +1194,15 @@ contains
                           theta_E_k(i)   = fluid_pp(i)%ein_cv(2)
                           rho0           = rho0 + rho0_K*alpha_K
                           gamma_K        = fluid_pp(i)%gamma 
-                          mg_a_K(1)      = fluid_pp(i)%mg_a(1)
-                          mg_a_K(2)      = fluid_pp(i)%mg_a(2)
-                          mg_b_K(1)      = fluid_pp(i)%mg_b(1)
-                          mg_b_K(2)      = fluid_pp(i)%mg_b(2)
+                          mg_a_K         = fluid_pp(i)%mg_a
+                          mg_b_K         = fluid_pp(i)%mg_b
+     
                           rho_mix_MG_denominator= rho_mix_MG_denominator +& 
-                            gamma_K*(mg_a_K(i)*alpha_K*rho0_K + mg_b_K(i)*alpha_rho_K(i))
+                            gamma_K*(mg_a_K*alpha_K*rho0_K + mg_b_K*alpha_rho_K(i))
                           zeta_mix = zeta_mix + alpha_K*gamma_K - (alpha_K*gamma_K*rho0_K)/rho
                           theta_E = theta_E + alpha_K*theta_E_K(i)
-                          gamma_rho_squared_denominator =gamma_rho_squared_denominator + gamma_K*(mg_a_K(i)*alpha_K*rho0_K**2+&
-                                 mg_b_K(i)*alpha_rho_K(i)*rho0_K)
+                          gamma_rho_squared_denominator =gamma_rho_squared_denominator + gamma_K*(mg_a_K*alpha_K*rho0_K**2+&
+                                 mg_b_K*alpha_rho_K(i)*rho0_K)
                         end do  
                         rho_mix_ratio = rho/rho0
                         rho_mix_MG = rho/rho_mix_MG_denominator
@@ -1228,9 +1272,16 @@ contains
                         end do
                     end if
 
-                    if (hypoelasticity) then
+                    if (elasticity) then 
+                        ! adding the elastic contribution
+                        ! Multiply \tau to \rho \tau
                         do i = strxb, strxe
                             q_cons_vf(i)%sf(j, k, l) = rho*q_prim_vf(i)%sf(j, k, l)
+                        end do
+                    end if
+
+                    if (hypoelasticity) then
+                        do i = strxb, strxe
                             ! adding elastic contribution
                             if (G > verysmall .and. .not. plasticity) then
                                 q_cons_vf(E_idx)%sf(j, k, l) = q_cons_vf(E_idx)%sf(j, k, l) + &
@@ -1251,11 +1302,6 @@ contains
    
                     ! using \rho xi as the conservative formulation stated in Kamrin et al. JFM 2022
                     if (hyperelasticity) then
-                        ! adding the elastic contribution
-                        ! Multiply \tau to \rho \tau
-                        do i = strxb, strxe
-                            q_cons_vf(i)%sf(j, k, l) = rho*q_prim_vf(i)%sf(j, k, l)
-                        end do
                         ! Multiply \xi to \rho \xi
                         do i = xibeg, xiend
                             q_cons_vf(i)%sf(j, k, l) = rho*q_prim_vf(i)%sf(j, k, l)
