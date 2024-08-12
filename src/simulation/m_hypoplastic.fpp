@@ -95,9 +95,9 @@ contains
         type(scalar_field), dimension(sys_size), intent(inout) :: rhs_vf
 
         real(kind(0d0)) :: rho_K, G_K
-	real(kind(0d0)), dimension(num_dim**2) :: atensor, tensora, devdtensor
+	real(kind(0d0)), dimension(num_dims**2) :: atensor, tensora, devdtensor
 
-        integer :: i, k, l, r !< Loop variables
+        integer :: i, k, l, p, r !< Loop variables
         integer :: ndirs  !< Number of coordinate directions
 	
         ! compute velocity gradients and rho_K and G_K        
@@ -142,12 +142,12 @@ contains
 	    ! Let atensor = SW, attensor = (SW)^T, tensora = attensor - atensor
 	    do l = 0, n
 		do k = 0, m
-			atensor(1) = (1d0/4d0)*((dv_dx(k, l, q)**2 - du_dy(k, l, q)**2)
+			atensor(1) = (1d0/4d0)*(dv_dx(k, l, q)**2 - du_dy(k, l, q)**2)
 			atensor(2) = (1d0/2d0)*(du_dy(k, l, q)*du_dx(k, l, q) - &
 				     dv_dx(k, l, q)*du_dx(k, l, q))
 			atensor(3) = (1d0/2d0)*(dv_dx(k, l, q)*dv_dy(k, l, q) - &
 				     du_dy(k, l, q)*dv_dy(k, l, q))
-			atensor(4) = (1d0/4d0)*((du_dy(k, l, q)**2 - dv_dx(k, l, q)**2)
+			atensor(4) = (1d0/4d0)*(du_dy(k, l, q)**2 - dv_dx(k, l, q)**2)
 		        tensora(1) = 0d0
 			tensora(2) = atensor(3) - atensor(2)
 			tensora(3) = atensor(2) - atensor(3)
