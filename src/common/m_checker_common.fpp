@@ -495,15 +495,6 @@ contains
                                  'ein_cv must be positive. Exiting ...')
               end if
             end do           
-            if (fluid_pp(i)%mg_a(1) .ge. 0d0 .and. fluid_pp(i)%mg_a(2) .ge. 0d0 & 
-                .and. fluid_pp(i)%mg_a(1) + fluid_pp(i)%mg_a(2) /= 1d0 ) then
-                call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
-                                 'mg_a must be positive. Exiting ...')
-            elseif (fluid_pp(i)%mg_b(1) .ge. 0d0 .and. fluid_pp(i)%mg_b(2) .ge. 0d0 & 
-                .and. fluid_pp(i)%mg_b(1) + fluid_pp(i)%mg_b(2) /= 1d0 ) then
-                call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
-                                 'mg_b must be positive. Exiting ...')
-            end if
         end do
     end subroutine s_check_inputs_mie_gruneisen_eos
 
