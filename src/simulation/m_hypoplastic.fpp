@@ -63,9 +63,7 @@ contains
         @:ALLOCATE_GLOBAL(Gs(1:num_fluids))
         @:ALLOCATE_GLOBAL(rho_K_field(0:m,0:n,0:p), G_K_field(0:m,0:n,0:p))
         @:ALLOCATE_GLOBAL(du_dx(0:m,0:n,0:p))
-        if (n > 0) then !2D
-            @:ALLOCATE_GLOBAL(du_dy(0:m,0:n,0:p), dv_dx(0:m,0:n,0:p), dv_dy(0:m,0:n,0:p))
-       end if
+        @:ALLOCATE_GLOBAL(du_dy(0:m,0:n,0:p), dv_dx(0:m,0:n,0:p), dv_dy(0:m,0:n,0:p))
 
         do i = 1, num_fluids
             Gs(i) = fluid_pp(i)%G
@@ -73,19 +71,16 @@ contains
         !$acc update device(Gs)
 
         @:ALLOCATE_GLOBAL(fd_coeff_x(-fd_number:fd_number, 0:m))
-        if (n > 0) then !2D
-            @:ALLOCATE_GLOBAL(fd_coeff_y(-fd_number:fd_number, 0:n))
-        end if
+        @:ALLOCATE_GLOBAL(fd_coeff_y(-fd_number:fd_number, 0:n))
    
         ! Computing centered finite difference coefficients
         call s_compute_finite_difference_coefficients(m, x_cc, fd_coeff_x, buff_size, &
                                                       fd_number, fd_order)
         !$acc update device(fd_coeff_x)
-        if (n > 0) then
-            call s_compute_finite_difference_coefficients(n, y_cc, fd_coeff_y, buff_size, &
+        call s_compute_finite_difference_coefficients(n, y_cc, fd_coeff_y, buff_size, &
                                                           fd_number, fd_order)
-            !$acc update device(fd_coeff_y)
-        end if
+        !$acc update device(fd_coeff_y)
+    
     end subroutine s_initialize_hypoplastic_module
 
     !>  The purpose of this procedure is to compute the source terms
@@ -100,27 +95,17 @@ contains
         type(scalar_field), dimension(sys_size), intent(inout) :: rhs_vf
 
         real(kind(0d0)) :: rho_K, G_K
-	real(kind(0d0)), dimension(num_dim**2) :: atensor, tensora
+	real(kind(0d0)), dimension(num_dim**2) :: atensor, tensora, devdtensor
 
         integer :: i, k, l, r !< Loop variables
         integer :: ndirs  !< Number of coordinate directions
 	
-        ndirs = 1; if (n > 0) ndirs = 2;
-
         ! compute velocity gradients and rho_K and G_K        
         !$acc parallel loop collapse(3) gang vector default(present)
                do l = 0, n
                   do k = 0, m
 			du_dx(k, l, q) = 0d0;
                         du_dy(k, l, q) = 0d0; dv_dx(k, l, q) = 0d0; dv_dy(k, l, q) = 0d0; 
-                  end do
-                end do
-                !$acc end parallel loop
-
-                !$acc parallel loop collapse(3) gang vector default(present)
-                do l = 0, n
-                   do k = 0, m
-                      !$acc loop seq
                       do r = -fd_number, fd_number
 				du_dx(k, l, q) = du_dx(k, l, q) &
 						 + q_prim_vf(momxb)%sf(k + r, l, q)*fd_coeff_x(r, k)
@@ -170,18 +155,34 @@ contains
 	        end do
 	    end do
 
-	    ! compute rhs source terms
+	    ! Compute the deviatoric part of D, symmetric part of velocity gradient
+	    do l = 0, n
+		do k = 0, m
+			! dtrace = du_dx(k, l, q) + dv_dy(k, l, q)
+			devdtensor(1) = du_dx(k, l, q) - (1d0/3d0)*(du_dx(k, l, q) + dv_dy(k, l, q))
+			devdtensor(2) = (1d0/2d0)*(du_dy(k, l, q) + dv_dx(k, l, q))
+			devdtensor(3) = devdtensor(2)
+			devdtensor(4) = dv_dy(k, l, q) - (1d0/3d0)*(du_dx(k, l, q) + dv_dy(k, l, q))
+		end do
+	    end do
+
+	    ! Compute rhs source terms
             !$acc parallel loop collapse(3) gang vector default(present)
             do l = 0, n
                do k = 0, m
-		! TODO: MISSING TERM 2 EVERYWHERE
-			rhs_vf(strxb)%sf(k, l, q) = rhs_vf(strxb)%sf(k, l, q) + rho_K_field(k, l ,q)*tensora(1) 
+		! TODO: MISSING LAST TERM EVERYWHERE
+			rhs_vf(strxb + 0)%sf(k, l, q) = rhs_vf(strxb)%sf(k, l, q) + rho_K_field(k, l ,q)*tensora(1) + & 
+						        2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(1))
                        
-                        rhs_vf(strxb + 1)%sf(k, l, q) = rhs_vf(strxb + 1)%sf(k, l, q) + rho_K_field(k, l, q)* tensora(2)
+                        rhs_vf(strxb + 1)%sf(k, l, q) = rhs_vf(strxb + 1)%sf(k, l, q) + rho_K_field(k, l, q)* tensora(2) + &
+							2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(2))
+
                                                         
-                        rhs_vf(strxb + 2)%sf(k, l, q) = rhs_vf(strxb + 2)%sf(k, l, q) + rho_K_field(k, l, q)*tensora(3)
+                        rhs_vf(strxb + 2)%sf(k, l, q) = rhs_vf(strxb + 2)%sf(k, l, q) + rho_K_field(k, l, q)*tensora(3) + &
+							2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(3))
                 	
-			rhs_vf(strxb + 3)%sf(k, l, q) = rhs_vf(strxb + 3)%sf(k, l, q) + rho_K_field(k, l, q)*tensora(4)
+			rhs_vf(strxb + 3)%sf(k, l, q) = rhs_vf(strxb + 3)%sf(k, l, q) + rho_K_field(k, l, q)*tensora(4) + &
+							2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(4))
                 end do
             end do
 
@@ -193,10 +194,8 @@ contains
         @:DEALLOCATE_GLOBAL(rho_K_field, G_K_field)
         @:DEALLOCATE_GLOBAL(du_dx)
         @:DEALLOCATE_GLOBAL(fd_coeff_x)
-        if (n > 0) then
-            @:DEALLOCATE_GLOBAL(du_dy,dv_dx,dv_dy)
-            @:DEALLOCATE_GLOBAL(fd_coeff_y)
-       end if
+        @:DEALLOCATE_GLOBAL(du_dy,dv_dx,dv_dy)
+        @:DEALLOCATE_GLOBAL(fd_coeff_y)
 
     end subroutine s_finalize_hypoplastic_module
 
