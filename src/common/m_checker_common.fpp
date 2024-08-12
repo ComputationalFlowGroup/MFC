@@ -200,11 +200,7 @@ contains
  !> Checks constraints on the hypoplasticity parameters.
         !! Called by s_check_inputs_common for pre-processing and simulation
     subroutine s_check_inputs_hypoplasticity
-        if ((hypoplasticity) .and. .not. (hypoelasticity)) then
-            call s_mpi_abort('hypoplasticity requires '// &
-                             'hypoelasticity to be true. Exiting ...')
-        end if
-        if (model_eqns /= 5) then
+        if (hypoplasticity .and. model_eqns /= 5) then
             call s_mpi_abort('hypoplasticity requires '// &
                              'model_eqns = 5 with mie-gruniesen EOS. ' // &
                              'Exiting ...')
