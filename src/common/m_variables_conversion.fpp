@@ -41,6 +41,7 @@ module m_variables_conversion
               s_convert_primitive_to_conservative_variables, &
               s_convert_primitive_to_flux_variables, &
               s_compute_pressure, &
+	      s_compute_temperature, &
               s_finalize_variables_conversion_module
 
     !> Abstract interface to two subroutines designed for the transfer/conversion
@@ -125,6 +126,9 @@ contains
         !! @param pres Pressure to calculate
         !! @param stress Shear Stress
         !! @param mom Momentum
+	!! @param G shear modulus
+	!! @param alpha_K volume fraction of mixture
+	!! @param alpha_rho_K conservative volume fraction of mixture
     subroutine s_compute_pressure(energy, alf, dyn_p, pi_inf, gamma, &
         rho, qv, pres, stress, mom, G, alpha_K, alpha_rho_K)
         !$acc routine seq
@@ -151,26 +155,26 @@ contains
         else if ((model_eqns /= 4 .and. model_eqns /=5) .and. bubbles) then
             pres = ((energy - dyn_p)/(1.d0 - alf) - pi_inf - qv)/gamma
         else if (model_eqns .eq. 5) then
-            rho_mix_MG =sum(alpha_rho_K)/&
-                        sum(fluid_pp(:)%gamma*(fluid_pp(:)%mg_a*alpha_K*fluid_pp(:)%rho0+&
-                        fluid_pp(:)%mg_b*alpha_rho_K))
-            log_rho_mix_ratio = log(rho/sum(alpha_K*fluid_pp(:)%rho0))
-            deno_gamma_rho_sq = sum(fluid_pp(:)%gamma*(fluid_pp(:)%mg_a*alpha_K*&
+            rho_mix_MG =sum(alpha_rho_K(:))/&
+                        sum(fluid_pp(:)%gamma*(fluid_pp(:)%mg_a*alpha_K(:)*fluid_pp(:)%rho0+&
+                        fluid_pp(:)%mg_b*alpha_rho_K(:)))
+            log_rho_mix_ratio = log(rho/sum(alpha_K(:)*fluid_pp(:)%rho0))
+            deno_gamma_rho_sq = sum(fluid_pp(:)%gamma*(fluid_pp(:)%mg_a*alpha_K(:)*&
                                 fluid_pp(:)%rho0*fluid_pp(:)%rho0+fluid_pp(:)%mg_b*&
-                                alpha_rho_K*fluid_pp(:)%rho0))
-            phi_mix = exp(sum(alpha_K*fluid_pp(:)%gamma-&
-                        alpha_K*fluid_pp(:)%gamma*fluid_pp(:)%rho0))
-            theta_E = sum(alpha_K*fluid_pp(:)%ein_cv(2))
+                                alpha_rho_K(:)*fluid_pp(:)%rho0))
+            phi_mix = exp(sum(alpha_K(:)*fluid_pp(:)%gamma-&
+                        alpha_K(:)*fluid_pp(:)%gamma*fluid_pp(:)%rho0/rho))
+            theta_E = sum(alpha_K(:)*fluid_pp(:)%ein_cv(2))
             pres = energy - dyn_p -&
                    0.5d0*(log_rho_mix_ratio**2)*&
-                   sum(fluid_pp(:)%pi_inf*alpha_rho_K/fluid_pp(:)%rho0)-&
-                   0.5d0*(log_rho_mix_ratio**3)*sum(fluid_pp(:)%pi_inf*alpha_rho_K*&
+                   sum(fluid_pp(:)%pi_inf*alpha_rho_K(:)/fluid_pp(:)%rho0)-&
+                   0.5d0*(log_rho_mix_ratio**3)*sum(fluid_pp(:)%pi_inf*alpha_rho_K(:)*&
                    (fluid_pp(:)%qv-2)/(3*fluid_pp(:)%rho0))-&
-                   phi_mix*exp(phi_mix*theta_E)*sum(alpha_rho_K*fluid_pp(:)%ein_cv(1)*fluid_pp(:)%ein_cv(2))/&
+                   phi_mix*exp(phi_mix*theta_E)*sum(alpha_rho_K(:)*fluid_pp(:)%ein_cv(1)*fluid_pp(:)%ein_cv(2))/&
                    (exp(phi_mix*theta_E)-1)+&
-                   log(exp(phi_mix*theta_E)-1)*sum(alpha_rho_K*fluid_pp(:)%ein_cv(1))+&
-                   log_rho_mix_ratio*sum(alpha_rho_K*alpha_rho_K*fluid_pp(:)%pi_inf)/deno_gamma_rho_sq +&
-                   (log_rho_mix_ratio**2)*sum(alpha_rho_K*alpha_rho_K*fluid_pp(:)%pi_inf*0.5d0*(fluid_pp(:)%qv-2))/&
+                   log(exp(phi_mix*theta_E)-1)*sum(alpha_rho_K(:)*fluid_pp(:)%ein_cv(1))+&
+                   log_rho_mix_ratio*sum(alpha_rho_K(:)*alpha_rho_K(:)*fluid_pp(:)%pi_inf)/deno_gamma_rho_sq +&
+                   (log_rho_mix_ratio**2)*sum(alpha_rho_K(:)*alpha_rho_K(:)*fluid_pp(:)%pi_inf*0.5d0*(fluid_pp(:)%qv-2))/&
                    deno_gamma_rho_sq
             pres = pres/rho_mix_MG
         else
@@ -201,6 +205,59 @@ contains
 
     end subroutine s_compute_pressure
 
+    !>  This procedure conditionally calculates the appropriate temperature of the mixturee
+        !! @param energy Energy
+        !! @param dyn_p Dynamic Pressure
+        !! @param pi_inf Liquid Stiffness
+        !! @param gamma Specific Heat Ratio
+        !! @param rho Density
+        !! @param qv fluid reference energy
+        !! @param pres Pressure to calculate
+        !! @param stress Shear Stress
+        !! @param mom Momentum
+ 	!! @param G shear modulus
+	!! @param alpha_K volume fraction of mixture
+	!! @param alpha_rho_K conservative volume fraction of mixture
+    subroutine s_compute_temperature(energy, dyn_p, pi_inf, gamma, &
+        rho, qv, pres, stress, mom, G, alpha_K, alpha_rho_K)
+        !$acc routine seq
+
+        real(kind(0d0)), intent(in) :: energy
+        real(kind(0d0)), intent(in) :: dyn_p
+        real(kind(0d0)), intent(in) :: pi_inf, gamma, rho, qv
+        real(kind(0d0)), intent(out) :: pres
+        real(kind(0d0)), intent(in), optional :: stress, mom, G
+        real(kind(0d0)), dimension(num_fluids), intent(in), optional :: alpha_K, alpha_rho_K
+      
+        real(kind(0d0)) :: E_e
+        ! Temporary local variables
+        real(kind(0d0)) :: log_rho_mix_ratio, phi_mix, theta_E
+        real(kind(0d0)) :: num_term1, denom_term1, denom_term2, denom, temp
+        integer :: s !< Generic loop iterator
+
+        ! model_eqns = 5 corresponds to the Mie-Gruneisen EOS
+
+       if (model_eqns .eq. 5) then
+           log_rho_mix_ratio = log(rho/sum(alpha_K(:)*fluid_pp(:)%rho0))
+           phi_mix = exp(sum(alpha_K(:)*fluid_pp(:)%gamma-&
+                        alpha_K(:)*fluid_pp(:)%gamma*fluid_pp(:)%rho0/rho))
+           theta_E = sum(alpha_K(:)*fluid_pp(:)%ein_cv(2))
+           num_term1 = energy - dyn_p -&
+                   0.5d0*(log_rho_mix_ratio**2)*&
+                   sum(fluid_pp(:)%pi_inf*alpha_rho_K(:)/fluid_pp(:)%rho0)-&
+                   0.5d0*(log_rho_mix_ratio**3)*sum(fluid_pp(:)%pi_inf*alpha_rho_K(:)*&
+                   (fluid_pp(:)%qv-2d0)/(3d0*fluid_pp(:)%rho0))-&
+                   phi_mix*exp(phi_mix*theta_E)*sum(alpha_rho_K(:)*fluid_pp(:)%ein_cv(1)*fluid_pp(:)%ein_cv(2))/&
+                   (exp(phi_mix*theta_E)-1d0)+&
+                   log(exp(phi_mix*theta_E)-1d0)*sum(alpha_rho_K(:)*fluid_pp(:)%ein_cv(1)
+	     denom_term1 = phi_mix*sum(alpha_rho_K(:)*fluid_pp(:)%ein_cv(1)*fluid_pp(:)%ein_cv(2))
+	     denom_term2 = exp(phi_mix*sum(alpha_K(:)*fluid_pp(:)%ein_cv(2)) - 1d0
+	     denom = num_term1 / denom_term1 + 1d0 / denom_term2
+	     temp = phi_mix*sum(alpha_K(:)*fluid_pp(:)%ein_cv(2)*log(1d0 + 1d0 / denom))
+	end if
+    end subroutine s_compute_temperature
+
+ 
     !>  This subroutine is designed for the gamma/pi_inf model
         !!      and provided a set of either conservative or primitive
         !!      variables, transfers the density, specific heat ratio
