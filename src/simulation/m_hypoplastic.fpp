@@ -13,6 +13,8 @@ module m_hypoplastic
 
     use m_global_parameters    !< Definitions of the global parameters
 
+    use m_variables_conversion !< State variables type conversion procedures
+
     use m_helper
 
     ! ==========================================================================
@@ -140,9 +142,10 @@ contains
         end do
         !$acc end parallel loop
 
-         tensora(1) = 0d0;  tensora(4) = 0d0
-         !$acc parallel loop collapse(2) gang vector default(present)
-         do l = 0, n
+
+        tensora(1) = 0d0;  tensora(4) = 0d0
+        !$acc parallel loop collapse(2) gang vector default(present)
+        do l = 0, n
 	   do k = 0, m
              ! STEP 1 : Compute the first additional term in rhs: -rho((SW)^T - SW)
              ! Let atensor = SW, attensor = (SW)^T, tensora = attensor - atensor
@@ -160,7 +163,20 @@ contains
 	     devdtensor(2) = (1d0/2d0)*(du_dy(k, l, q) + dv_dx(k, l, q))
 	     devdtensor(3) = devdtensor(2)
 	     devdtensor(4) = dv_dy(k, l, q) - (1d0/3d0)*(du_dx(k, l, q) + dv_dy(k, l, q))
-             ! STEP 3: 
+             ! STEP 3: Compute the equivalent plastic strain rate, d^p 
+             ! STEP 3.1 : Compute mixture pressure and temperature
+             ! call s_compute_pressure(args) <- computed by Srijan
+             ! call s_compute_temperature(arg) <- computes only theta (of the mixture)
+
+             ! STEP 3.2 : Compute theta_m, theta_hat, and sigma_bar
+             ! compute theta_m from equation 4.10
+             ! compute theta_hat from equation 4.9
+             ! compute sigma_bar = sqrt(3/2) * | S | 
+
+             ! STEP 3.3 : Compute d^p and update rhs
+             ! compute d^p_JC from equation 4.7
+             ! compute d^p from equation 4.6
+             ! compute D^p using equation 4.5
 
 	     ! STEP 4: Compute rhs source terms
              ! TODO: MISSING LAST TERM EVERYWHERE
@@ -174,9 +190,12 @@ contains
                2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(3))
                 	
              rhs_vf(strxb + 3)%sf(k, l, q) = rhs_vf(strxb + 3)%sf(k, l, q) + rho_K_field(k, l, q)*tensora(4) + &
-	       2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(4))
+	       2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(4))             
+
+             rhs_vf(plasidx)%sf(k, l, q) = rhs_vf(plasidx)%sf(k, l, q) ! + somestuff
+ 
             end do
-          end do
+         end do
          !$acc end parallel loop
 
     end subroutine s_compute_hypoplastic_rhs
