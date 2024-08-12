@@ -29,14 +29,13 @@ module m_hypoplastic
 
     @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), dimension(:, :, :), du_dx, du_dy, du_dz)
     @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), dimension(:, :, :), dv_dx, dv_dy, dv_dz)
-    @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), dimension(:, :, :), dw_dx, dw_dy, dw_dz)
-    !$acc declare link(du_dx,du_dy,du_dz,dv_dx,dv_dy,dv_dz,dw_dx,dw_dy,dw_dz)
+    !$acc declare link(du_dx,du_dy,du_dz,dv_dx,dv_dy,dv_dzz)
 
     @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), dimension(:, :, :), rho_K_field, G_K_field)
     !$acc declare link(rho_K_field, G_K_field)
 
-    @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), allocatable, dimension(:, :), fd_coeff_x, fd_coeff_y, fd_coeff_z)
-    !$acc declare link(fd_coeff_x,fd_coeff_y,fd_coeff_z)
+    @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), allocatable, dimension(:, :), fd_coeff_x, fd_coeff_y)
+    !$acc declare link(fd_coeff_x,fd_coeff_y)
 
 #else
     real(kind(0d0)), allocatable, dimension(:) :: Gs
@@ -44,16 +43,13 @@ module m_hypoplastic
 
     real(kind(0d0)), allocatable, dimension(:, :, :) :: du_dx, du_dy, du_dz
     real(kind(0d0)), allocatable, dimension(:, :, :) :: dv_dx, dv_dy, dv_dz
-    real(kind(0d0)), allocatable, dimension(:, :, :) :: dw_dx, dw_dy, dw_dz
-    !$acc declare create(du_dx,du_dy,du_dz,dv_dx,dv_dy,dv_dz,dw_dx,dw_dy,dw_dz)
+    !$acc declare create(du_dx,du_dy,du_dz,dv_dx,dv_dy,dv_dz)
 
     real(kind(0d0)), allocatable, dimension(:, :, :) :: rho_K_field, G_K_field
     !$acc declare create(rho_K_field, G_K_field)
 
-    real(kind(0d0)), allocatable, dimension(:, :) :: fd_coeff_x
-    real(kind(0d0)), allocatable, dimension(:, :) :: fd_coeff_y
-    real(kind(0d0)), allocatable, dimension(:, :) :: fd_coeff_z
-    !$acc declare create(fd_coeff_x,fd_coeff_y,fd_coeff_z)
+    real(kind(0d0)), allocatable, dimension(:, :) :: fd_coeff_x, fd_coeff_y
+    !$acc declare create(fd_coeff_x,fd_coeff_y)
 #endif
 
 contains
@@ -69,11 +65,7 @@ contains
         @:ALLOCATE_GLOBAL(du_dx(0:m,0:n,0:p))
         if (n > 0) then !2D
             @:ALLOCATE_GLOBAL(du_dy(0:m,0:n,0:p), dv_dx(0:m,0:n,0:p), dv_dy(0:m,0:n,0:p))
-            if (p > 0) then !3D
-                @:ALLOCATE_GLOBAL(du_dz(0:m,0:n,0:p), dv_dz(0:m,0:n,0:p))
-                @:ALLOCATE_GLOBAL(dw_dx(0:m,0:n,0:p), dw_dy(0:m,0:n,0:p), dw_dz(0:m,0:n,0:p))
-            end if
-        end if
+       end if
 
         do i = 1, num_fluids
             Gs(i) = fluid_pp(i)%G
@@ -84,10 +76,7 @@ contains
         if (n > 0) then !2D
             @:ALLOCATE_GLOBAL(fd_coeff_y(-fd_number:fd_number, 0:n))
         end if
-        if (p > 0) then !3D
-            @:ALLOCATE_GLOBAL(fd_coeff_z(-fd_number:fd_number, 0:p))
-        end if
-
+   
         ! Computing centered finite difference coefficients
         call s_compute_finite_difference_coefficients(m, x_cc, fd_coeff_x, buff_size, &
                                                       fd_number, fd_order)
@@ -97,12 +86,6 @@ contains
                                                           fd_number, fd_order)
             !$acc update device(fd_coeff_y)
         end if
-        if (p > 0) then
-            call s_compute_finite_difference_coefficients(p, z_cc, fd_coeff_z, buff_size, &
-                                                          fd_number, fd_order)
-            !$acc update device(fd_coeff_z)
-        end if
-
     end subroutine s_initialize_hypoplastic_module
 
     !>  The purpose of this procedure is to compute the source terms
@@ -119,29 +102,26 @@ contains
         real(kind(0d0)) :: rho_K, G_K
 	real(kind(0d0)), dimension(num_dim**2) :: atensor, tensora
 
-        integer :: i, k, l, q, r !< Loop variables
+        integer :: i, k, l, r !< Loop variables
         integer :: ndirs  !< Number of coordinate directions
 	
-        ndirs = 1; if (n > 0) ndirs = 2; !if (p > 0) ndirs = 3
+        ndirs = 1; if (n > 0) ndirs = 2;
 
         ! compute velocity gradients and rho_K and G_K        
         !$acc parallel loop collapse(3) gang vector default(present)
-        	do q = 0, p
-                    do l = 0, n
-                        do k = 0, m
-			    du_dx(k, l, q) = 0d0;
-                            du_dy(k, l, q) = 0d0; dv_dx(k, l, q) = 0d0; dv_dy(k, l, q) = 0d0; 
-                        end do
-                    end do
+               do l = 0, n
+                  do k = 0, m
+			du_dx(k, l, q) = 0d0;
+                        du_dy(k, l, q) = 0d0; dv_dx(k, l, q) = 0d0; dv_dy(k, l, q) = 0d0; 
+                  end do
                 end do
                 !$acc end parallel loop
 
                 !$acc parallel loop collapse(3) gang vector default(present)
-                do q = 0, p
-                    do l = 0, n
-                        do k = 0, m
-                            !$acc loop seq
-                            do r = -fd_number, fd_number
+                do l = 0, n
+                   do k = 0, m
+                      !$acc loop seq
+                      do r = -fd_number, fd_number
 				du_dx(k, l, q) = du_dx(k, l, q) &
 						 + q_prim_vf(momxb)%sf(k + r, l, q)*fd_coeff_x(r, k)
                                 du_dy(k, l, q) = du_dy(k, l, q) &
@@ -150,37 +130,33 @@ contains
                                                  + q_prim_vf(momxb + 1)%sf(k + r, l, q)*fd_coeff_x(r, k)
                                 dv_dy(k, l, q) = dv_dy(k, l, q) &
                                                  + q_prim_vf(momxb + 1)%sf(k, l + r, q)*fd_coeff_y(r, l)
-                            end do
-                        end do
-                    end do
+                      end do
+                   end do
                 end do
                 !$acc end parallel loop
 
             !$acc parallel loop collapse(3) gang vector default(present)
-            do q = 0, p
-                do l = 0, n
-                    do k = 0, m
-                        rho_K = 0d0; G_K = 0d0
-                        do i = 1, num_fluids
-                            rho_K = rho_K + q_prim_vf(i)%sf(k, l, q) !alpha_rho_K(1)
-                            G_K = G_K + q_prim_vf(advxb - 1 + i)%sf(k, l, q)*Gs(i)  !alpha_K(1) * Gs(1)
-                        end do
-                        rho_K_field(k, l, q) = rho_K
-                        G_K_field(k, l, q) = G_K
+            do l = 0, n
+               do k = 0, m
+                  rho_K = 0d0; G_K = 0d0
+                     do i = 1, num_fluids
+                        rho_K = rho_K + q_prim_vf(i)%sf(k, l, q) !alpha_rho_K(1)
+                        G_K = G_K + q_prim_vf(advxb - 1 + i)%sf(k, l, q)*Gs(i)  !alpha_K(1) * Gs(1)
+                     end do
+                     rho_K_field(k, l, q) = rho_K
+                     G_K_field(k, l, q) = G_K
 
-                        !TODO: take this out if not needed
-                        if (G_K < verysmall) then
-                            G_K_field(k, l, q) = 0
-                        end if
-                    end do
+                     !TODO: take this out if not needed
+                     if (G_K < verysmall) then
+                         G_K_field(k, l, q) = 0
+                     end if
                 end do
             end do
 
 	    ! Compute the first additional term in rhs: -rho((SW)^T - SW)
 	    ! Let atensor = SW, attensor = (SW)^T, tensora = attensor - atensor
-	    do q = 0, p
-		do l = 0, n
-		   do k = 0, m
+	    do l = 0, n
+		do k = 0, m
 			atensor(1) = (1d0/4d0)*((dv_dx(k, l, q)**2 - du_dy(k, l, q)**2)
 			atensor(2) = (1d0/2d0)*(du_dy(k, l, q)*du_dx(k, l, q) - &
 				     dv_dx(k, l, q)*du_dx(k, l, q))
@@ -191,16 +167,14 @@ contains
 			tensora(2) = atensor(3) - atensor(2)
 			tensora(3) = atensor(2) - atensor(3)
 			tensora(4) = 0d0
-		   end do
 	        end do
 	    end do
 
 	    ! compute rhs source terms
             !$acc parallel loop collapse(3) gang vector default(present)
-            do q = 0, p
-                do l = 0, n
-                    do k = 0, m
-			! TODO: MISSING TERM 2 EVERYWHERE
+            do l = 0, n
+               do k = 0, m
+		! TODO: MISSING TERM 2 EVERYWHERE
 			rhs_vf(strxb)%sf(k, l, q) = rhs_vf(strxb)%sf(k, l, q) + rho_K_field(k, l ,q)*tensora(1) 
                        
                         rhs_vf(strxb + 1)%sf(k, l, q) = rhs_vf(strxb + 1)%sf(k, l, q) + rho_K_field(k, l, q)* tensora(2)
@@ -208,7 +182,6 @@ contains
                         rhs_vf(strxb + 2)%sf(k, l, q) = rhs_vf(strxb + 2)%sf(k, l, q) + rho_K_field(k, l, q)*tensora(3)
                 	
 			rhs_vf(strxb + 3)%sf(k, l, q) = rhs_vf(strxb + 3)%sf(k, l, q) + rho_K_field(k, l, q)*tensora(4)
-                    end do
                 end do
             end do
 
@@ -223,11 +196,7 @@ contains
         if (n > 0) then
             @:DEALLOCATE_GLOBAL(du_dy,dv_dx,dv_dy)
             @:DEALLOCATE_GLOBAL(fd_coeff_y)
-            if (p > 0) then
-                @:DEALLOCATE_GLOBAL(du_dz, dv_dz, dw_dx, dw_dy, dw_dz)
-                @:DEALLOCATE_GLOBAL(fd_coeff_z)
-            end if
-        end if
+       end if
 
     end subroutine s_finalize_hypoplastic_module
 
