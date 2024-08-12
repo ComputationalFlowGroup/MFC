@@ -13,6 +13,8 @@
         real(kind(0d0)), optional, dimension(num_fluids), intent(IN) :: G, alpha_rho_K
         real(kind(0d0)), intent(OUT) :: c
         real(kind(0d0)) :: blkmod1, blkmod2
+        real(kind(0d0)) :: log_rho_mix_ratio, deno_gamma_rho_sq 
+        real(kind(0d0)) :: phi_mix, theta_E
 
         !Local variables used for computation only
         real(kind(0d0)) :: log_rho_mix_ratio, deno_rho_sq, phi_mix, theta_E, rho0_mix
@@ -73,7 +75,8 @@
                    (fluid_pp(:)%rho0**2)*fluid_pp(:)%ein_cv(1)*fluid_pp(:)%ein_cv(2))&
                    +sum(adv(:)*fluid_pp(:)%gamma*fluid_pp(:)%mg_b*fluid_pp(:)%rho0*fluid_pp(:)%ein_cv(1)*fluid_pp(:)%ein_cv(2)**2))
             c = c/rho
-       else 
+        else 
+            
             c = ((H - 5d-1*vel_sum)/gamma)
         end if
 
