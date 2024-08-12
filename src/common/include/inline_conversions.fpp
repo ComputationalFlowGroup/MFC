@@ -1,5 +1,5 @@
 #:def s_compute_speed_of_sound()
-    subroutine s_compute_speed_of_sound(pres, rho, gamma, pi_inf, H, adv, vel_sum, c, G)
+    subroutine s_compute_speed_of_sound(pres, rho, gamma, pi_inf, H, adv, vel_sum, c, G, alpha_rho_K)
 #ifdef CRAY_ACC_WAR
         !DIR$ INLINEALWAYS s_compute_speed_of_sound
 #else
@@ -10,9 +10,11 @@
         real(kind(0d0)), intent(IN) :: H
         real(kind(0d0)), dimension(num_fluids), intent(IN) :: adv
         real(kind(0d0)), intent(IN) :: vel_sum
-        real(kind(0d0)), optional, dimension(num_fluids), intent(IN) :: G
+        real(kind(0d0)), optional, dimension(num_fluids), intent(IN) :: G, alpha_rho_K
         real(kind(0d0)), intent(OUT) :: c
         real(kind(0d0)) :: blkmod1, blkmod2
+        real(kind(0d0)) :: log_rho_mix_ratio, deno_gamma_rho_sq 
+        real(kind(0d0)) :: phi_mix, theta_E
 
         integer :: q
 
@@ -47,22 +49,19 @@
 
         elseif (model_eqns == 5) then
 
-            rho_mix_MG =sum(alpha_rho_K)/&
-                        sum(fluid_pp(:)%gamma*(fluid_pp(:)%mg_a*alpha_K*fluid_pp(:)%rho0+&
-                        fluid_pp(:)%mg_b*alpha_rho_K))
-            log_rho_mix_ratio = log(rho/sum(alpha_K*fluid_pp(:)%rho0))
-            deno_gamma_rho_sq = sum(fluid_pp(:)%gamma*(fluid_pp(:)%mg_a*alpha_K*&
+            log_rho_mix_ratio = log(rho/sum(adv*fluid_pp(:)%rho0))
+            deno_gamma_rho_sq = sum(fluid_pp(:)%gamma*(fluid_pp(:)%mg_a*adv*&
                                 fluid_pp(:)%rho0*fluid_pp(:)%rho0+fluid_pp(:)%mg_b*&
-                                alpha_rho_K*fluid_pp(:)%rho0))
-            phi_mix = exp(sum(alpha_K*fluid_pp(:)%gamma-&
-                        alpha_K*fluid_pp(:)%gamma*fluid_pp(:)%rho0))
-            theta_E = sum(alpha_K*fluid_pp(:)%ein_cv(2))
+                                alpha_rho_K(:)*fluid_pp(:)%rho0))
+            phi_mix = exp(sum(adv*fluid_pp(:)%gamma-&
+                        adv*fluid_pp(:)%gamma*fluid_pp(:)%rho0)/rho)
+            theta_E = sum(adv*fluid_pp(:)%ein_cv(2))
            
-            c = sum(alpha_rho_K*fluid_pp(:)%pi_inf/fluid_pp(:)%rho0)&
-                   +
-log_rho_mix_ratio*sum(alpha_rho_K*fluid_pp(:)%pi_inf*(fluid_pp(:)%qv-1.d0)/fluid_pp(:)%rho0)+&
-          (log_rho_mix_ratio**2)*sum(alpha_rho_K*fluid_pp(:)%pi_inf*0.5d0*(fluid_pp(:)%qv-2)/fluid_pp(:)%rho0+&
-          pres*(sum(alpha_rho_K*fluid_pp(:)%mg_b))/sum(alpha_rho_K*fluid_pp(:)%mg_a*fluid_pp(:)%rho0)
+            c = sum(alpha_rho_K(:)*fluid_pp(:)%pi_inf/fluid_pp(:)%rho0)&
+                   +log_rho_mix_ratio*sum(alpha_rho_K(:)*fluid_pp(:)%pi_inf*(fluid_pp(:)%qv-1.d0)/fluid_pp(:)%rho0)&
+                   +(log_rho_mix_ratio**2)*sum(alpha_rho_K(:)*fluid_pp(:)%pi_inf*0.5d0*(fluid_pp(:)%qv-2)/fluid_pp(:)%rho0) &
+                   +pres*(sum(alpha_rho_K(:)*fluid_pp(:)%mg_b))/sum(alpha_rho_K(:)*fluid_pp(:)%mg_a*fluid_pp(:)%rho0)
+            c = 1d0
         else 
             c = ((H - 5d-1*vel_sum)/gamma)
         end if
