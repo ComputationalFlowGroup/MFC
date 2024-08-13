@@ -103,8 +103,8 @@ contains
 
         real(kind(0d0)), dimension(10) :: jcook
         real(kind(0d0)) :: energy, alf, dyn_p, pi_inf
-        real(kind(0d0)), dimension(sys_size) ::  gamma, rho, qv, pres, stress, mom, temp
-        real(kind(0d0)), dimension(num_fluids) ::  G, alpha_K, alpha_rho_K
+        real(kind(0d0)) :: gamma, rho, qv, pres, stress, mom, temp, G
+        real(kind(0d0)), dimension(num_fluids) ::  alpha_K, alpha_rho_K
         real(kind(0d0)) :: theta_m, tempref, theta_hat, sigma_bar, dp_JC, d_p
 
 
