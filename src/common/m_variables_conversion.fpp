@@ -41,6 +41,7 @@ module m_variables_conversion
               s_convert_primitive_to_conservative_variables, &
               s_convert_primitive_to_flux_variables, &
               s_compute_pressure, &
+              s_compute_temperature, &
               s_finalize_variables_conversion_module
 
     !> Abstract interface to two subroutines designed for the transfer/conversion
@@ -82,10 +83,12 @@ module m_variables_conversion
     integer, public :: ixb, ixe, iyb, iye, izb, ize
     !$acc declare create(ixb, ixe, iyb, iye, izb, ize)
 
-    !! In simulation, gammas, pi_infs, and qvs are already declared in m_global_variables
+    ! In simulation, gammas, pi_infs, and qvs are already declared in m_global_variables
 #ifndef MFC_SIMULATION
-    real(kind(0d0)), allocatable, public, dimension(:) :: gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps, rho0
-    !$acc declare create(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps, rho0)
+    real(kind(0d0)), allocatable, public, dimension(:) :: gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps
+    !$acc declare create(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps)
+    real(kind(0d0)), allocatable, public, dimension(:) :: rho0, mg_a, mg_b, ein_cv1, ein_cv2
+    !$acc declare create(rho0, mg_a, mg_b, ein_cv1, ein_cv2)
 #endif
 
 #ifdef CRAY_ACC_WAR
@@ -125,6 +128,9 @@ contains
         !! @param pres Pressure to calculate
         !! @param stress Shear Stress
         !! @param mom Momentum
+        !! @param G shear modulus
+        !! @param alpha_K volume fraction of mixture
+        !! @param alpha_rho_K conservative volume fraction of mixture
     subroutine s_compute_pressure(energy, alf, dyn_p, pi_inf, gamma, &
         rho, qv, pres, stress, mom, G, alpha_K, alpha_rho_K)
         !$acc routine seq
@@ -135,10 +141,9 @@ contains
         real(kind(0d0)), intent(out) :: pres
         real(kind(0d0)), intent(in), optional :: stress, mom, G
         real(kind(0d0)), dimension(num_fluids), intent(in), optional :: alpha_K, alpha_rho_K
-      
+    
 
         real(kind(0d0)) :: E_e
-        ! Temporary local variables
         real(kind(0d0)) :: log_rho_mix_ratio, rho_mix_MG, phi_mix, theta_E, deno_gamma_rho_sq
         integer :: s !< Generic loop iterator
 
@@ -152,25 +157,25 @@ contains
             pres = ((energy - dyn_p)/(1.d0 - alf) - pi_inf - qv)/gamma
         else if (model_eqns .eq. 5) then
             rho_mix_MG =sum(alpha_rho_K(:))/&
-                        sum(fluid_pp(:)%gamma*(fluid_pp(:)%mg_a*alpha_K(:)*fluid_pp(:)%rho0+&
-                        fluid_pp(:)%mg_b*alpha_rho_K(:)))
-            log_rho_mix_ratio = log(rho/sum(alpha_K(:)*fluid_pp(:)%rho0))
-            deno_gamma_rho_sq = sum(fluid_pp(:)%gamma*(fluid_pp(:)%mg_a*alpha_K(:)*&
-                                fluid_pp(:)%rho0*fluid_pp(:)%rho0+fluid_pp(:)%mg_b*&
-                                alpha_rho_K(:)*fluid_pp(:)%rho0))
-            phi_mix = exp(sum(alpha_K(:)*fluid_pp(:)%gamma-&
-                        alpha_K(:)*fluid_pp(:)%gamma*fluid_pp(:)%rho0))
-            theta_E = sum(alpha_K(:)*fluid_pp(:)%ein_cv(2))
+                        sum(gammas(:)*(mg_a(:)*alpha_K(:)*rho0(:)+&
+                        mg_b(:)*alpha_rho_K(:)))
+            log_rho_mix_ratio = log(rho/sum(alpha_K(:)*rho0(:)))
+            deno_gamma_rho_sq = sum(gammas(:)*(mg_a(:)*alpha_K(:)*&
+                                rho0(:)*rho0(:)+mg_b(:)*&
+                                alpha_rho_K(:)*rho0(:)))
+            phi_mix = exp(sum(alpha_K(:)*gammas(:)-&
+                        alpha_K(:)*gammas(:)*rho0(:)/rho))
+            theta_E = sum(alpha_K(:)*ein_cv2(:))
             pres = energy - dyn_p -&
                    0.5d0*(log_rho_mix_ratio**2)*&
-                   sum(fluid_pp(:)%pi_inf*alpha_rho_K/fluid_pp(:)%rho0)-&
-                   0.5d0*(log_rho_mix_ratio**3)*sum(fluid_pp(:)%pi_inf*alpha_rho_K*&
-                   (fluid_pp(:)%qv-2)/(3*fluid_pp(:)%rho0))-&
-                   phi_mix*exp(phi_mix*theta_E)*sum(alpha_rho_K*fluid_pp(:)%ein_cv(1)*fluid_pp(:)%ein_cv(2))/&
+                   sum(pi_infs(:)*alpha_rho_K(:)/rho0(:))-&
+                   0.5d0*(log_rho_mix_ratio**3)*sum(pi_infs(:)*alpha_rho_K(:)*&
+                   (qvs(:)-2)/(3*rho0(:)))-&
+                   phi_mix*exp(phi_mix*theta_E)*sum(alpha_rho_K(:)*ein_cv1(:)*ein_cv2(:))/&
                    (exp(phi_mix*theta_E)-1)+&
-                   log(exp(phi_mix*theta_E)-1)*sum(alpha_rho_K*fluid_pp(:)%ein_cv(1))+&
-                   log_rho_mix_ratio*sum(alpha_rho_K*alpha_rho_K*fluid_pp(:)%pi_inf)/deno_gamma_rho_sq +&
-                   (log_rho_mix_ratio**2)*sum(alpha_rho_K*alpha_rho_K*fluid_pp(:)%pi_inf*0.5d0*(fluid_pp(:)%qv-2))/&
+                   log(exp(phi_mix*theta_E)-1)*sum(alpha_rho_K(:)*ein_cv1(:))+&
+                   log_rho_mix_ratio*sum(alpha_rho_K(:)*alpha_rho_K(:)*pi_infs(:))/deno_gamma_rho_sq +&
+                   (log_rho_mix_ratio**2)*sum(alpha_rho_K(:)*alpha_rho_K(:)*pi_infs(:)*0.5d0*(qvs(:)-2))/&
                    deno_gamma_rho_sq
             pres = pres/rho_mix_MG
         else
@@ -201,6 +206,59 @@ contains
 
     end subroutine s_compute_pressure
 
+    !>  This procedure conditionally calculates the appropriate temperature of the mixturee
+        !! @param energy Energy
+        !! @param dyn_p Dynamic Pressure
+        !! @param pi_inf Liquid Stiffness
+        !! @param gamma Specific Heat Ratio
+        !! @param rho Density
+        !! @param qv fluid reference energy
+        !! @param pres Pressure to calculate
+        !! @param stress Shear Stress
+        !! @param mom Momentum
+        !! @param G shear modulus
+        !! @param alpha_K volume fraction of mixture
+        !! @param alpha_rho_K conservative volume fraction of mixture
+    subroutine s_compute_temperature(energy, dyn_p, pi_inf, gamma, &
+        rho, qv, pres, stress, mom, G, alpha_K, alpha_rho_K)
+        !$acc routine seq
+
+        real(kind(0d0)), intent(in) :: energy
+        real(kind(0d0)), intent(in) :: dyn_p
+        real(kind(0d0)), intent(in) :: pi_inf, gamma, rho, qv
+        real(kind(0d0)), intent(out) :: pres
+        real(kind(0d0)), intent(in), optional :: stress, mom, G
+        real(kind(0d0)), dimension(num_fluids), intent(in), optional :: alpha_K, alpha_rho_K
+      
+        real(kind(0d0)) :: E_e
+        ! Temporary local variables
+        real(kind(0d0)) :: log_rho_mix_ratio, phi_mix, theta_E
+        real(kind(0d0)) :: num_term1, denom_term1, denom_term2, denom, temp
+        integer :: s !< Generic loop iterator
+
+        ! model_eqns = 5 corresponds to the Mie-Gruneisen EOS
+
+       !if (model_eqns .eq. 5) then
+       !    log_rho_mix_ratio = log(rho/sum(alpha_K(:)*rho0(:)))
+       !    phi_mix = exp(sum(alpha_K(:)*gammas(:)-&
+       !                 alpha_K(:)*gammas(:)*rho0(:)/rho))
+       !    theta_E = sum(alpha_K(:)*ein_cv2(:))
+       !    num_term1 = energy - dyn_p -&
+       !            0.5d0*(log_rho_mix_ratio**2)*&
+       !            sum(pi_inf(:)*alpha_rho_K(:)/rho0(:))-&
+       !            0.5d0*(log_rho_mix_ratio**3)*sum(pi_inf(:)*alpha_rho_K(:)*&
+       !            (qvs(:)-2d0)/(3d0*rho0(:)))-&
+       !            phi_mix*exp(phi_mix*theta_E)*sum(alpha_rho_K(:)*ein_cv1(:)*ein_cv2(:))/&
+       !            (exp(phi_mix*theta_E)-1d0)+&
+       !            log(exp(phi_mix*theta_E)-1d0)*sum(alpha_rho_K(:)*ein_cv1(:)
+       !      denom_term1 = phi_mix*sum(alpha_rho_K(:)*ein_cv1(:)*ein_cv2(:))
+       !      denom_term2 = exp(phi_mix*sum(alpha_K(:)*ein_cv2(:)) - 1d0
+       !      denom = num_term1 / denom_term1 + 1d0 / denom_term2
+       !      temp = phi_mix*sum(alpha_K(:)*ein_cv2(:)*log(1d0 + 1d0 / denom))
+       !end if
+    end subroutine s_compute_temperature
+
+ 
     !>  This subroutine is designed for the gamma/pi_inf model
         !!      and provided a set of either conservative or primitive
         !!      variables, transfers the density, specific heat ratio
@@ -669,6 +727,10 @@ contains
         @:ALLOCATE_GLOBAL(qvps   (1:num_fluids))
         @:ALLOCATE_GLOBAL(Gs     (1:num_fluids))
         @:ALLOCATE_GLOBAL(rho0   (1:num_fluids))
+        @:ALLOCATE_GLOBAL(mg_a   (1:num_fluids))
+        @:ALLOCATE_GLOBAL(mg_b   (1:num_fluids))
+        @:ALLOCATE_GLOBAL(ein_cv1(1:num_fluids))
+        @:ALLOCATE_GLOBAL(ein_cv2(1:num_fluids))
 #else
         @:ALLOCATE(gammas (1:num_fluids))
         @:ALLOCATE(gs_min (1:num_fluids))
@@ -679,6 +741,10 @@ contains
         @:ALLOCATE(qvps   (1:num_fluids))
         @:ALLOCATE(Gs     (1:num_fluids))
         @:ALLOCATE(rho0   (1:num_fluids))
+        @:ALLOCATE(mg_a   (1:num_fluids))
+        @:ALLOCATE(mg_b   (1:num_fluids))
+        @:ALLOCATE(ein_cv1(1:num_fluids))
+        @:ALLOCATE(ein_cv2(1:num_fluids))
 #endif
 
         do i = 1, num_fluids
@@ -690,9 +756,14 @@ contains
             cvs(i) = fluid_pp(i)%cv
             qvs(i) = fluid_pp(i)%qv
             qvps(i) = fluid_pp(i)%qvp
-            rho0(i) = fluid_pp(i)%rho0
+            rho0(i) = fluid_pp(i)%rho0  
+            mg_a(i) = fluid_pp(i)%mg_a
+            mg_b(i) = fluid_pp(i)%mg_b
+            ein_cv1(i) = fluid_pp(i)%ein_cv(1)
+            ein_cv2(i) = fluid_pp(i)%ein_cv(2)
         end do
-!$acc update device(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps, Gs, rho0)
+!$acc update device(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps, Gs)
+!$acc update device(rho0, mg_a, mg_b, ein_cv1, ein_cv2)
 
 #ifdef MFC_SIMULATION
 
@@ -981,9 +1052,9 @@ contains
                     ! TODO SRIJAN PRECOMPUTE THE MIXTURE RULES HERE FOR
                     ! PRESSURE CALCULATION
                     !if (model_eqns/= 5) then 
-                            call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
-                                            qK_cons_vf(alf_idx)%sf(j, k, l), &
-                                            dyn_pres_K, pi_inf_K, gamma_K, rho_K, qv_K, pres)
+                        call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
+                                                qK_cons_vf(alf_idx)%sf(j, k, l), &
+                                                dyn_pres_K, pi_inf_K, gamma_K, rho_K, qv_K, pres)
                     !else    
                     !        call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
                     !                        0d0, dyn_pres_K, 0d0, 0d0, rho_K, 0d0, & 
@@ -1054,14 +1125,13 @@ contains
                             end if
                         end do 
                         if (hypoplasticity) then
-                            call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
-                                            0d0, dyn_pres_K, 0d0, 0d0, rho_K, 0d0, &
-					    pres, 0d0, 0d0, 0d0, alpha_rho_K, alpha_K)
-			 
+                            !call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
+                            !                0d0, dyn_pres_K, 0d0, 0d0, rho_K, 0d0, &
+                            !               pres, 0d0, 0d0, 0d0, alpha_rho_K, alpha_K)
+ 
                             qK_prim_vf(E_idx)%sf(j, k, l) = pres
                                                              
-                            qK_prim_vf(plasidx)%sf(j, k, l)=qK_cons_vf(plasidx)%sf(j, k, l)&
-								/rho_K
+                            qK_prim_vf(plasidx)%sf(j, k, l)=qK_cons_vf(plasidx)%sf(j, k, l)/rho_K
                         end if
                     end if
 
