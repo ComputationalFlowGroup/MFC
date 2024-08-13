@@ -55,7 +55,8 @@ contains
             & 'cyl_coord','mpp_lim','hypoelasticity', 'relax',                 &
             & 'parallel_io', 'perturb_flow', 'vel_profile', 'instability_wave',&
             & 'perturb_sph', 'bubbles', 'polytropic', 'polydisperse', 'qbmm',  &
-            & 'file_per_process', 'adv_n', 'ib', 'hyperelasticity','pre_stress']
+            & 'file_per_process', 'adv_n', 'ib', 'hyperelasticity',            & 
+            & 'pre_stress', 'hypoplasticity']
             call MPI_BCAST(${VAR}$, 1, MPI_LOGICAL, 0, MPI_COMM_WORLD, ierr)
         #:endfor
         call MPI_BCAST(fluid_rho(1), num_fluids_max, MPI_LOGICAL, 0, MPI_COMM_WORLD, ierr)
@@ -111,9 +112,11 @@ contains
         ! Fluids physical parameters
         do i = 1, num_fluids_max
             #:for VAR in [ 'gamma','pi_inf','mul0','ss','pv','gamma_v','M_v',  &
-                & 'mu_v','k_v', 'G', 'cv', 'qv', 'qvp' ]
+                & 'mu_v','k_v', 'G', 'cv', 'qv', 'qvp', 'rho0', 'mg_a', 'mg_b' ]
                 call MPI_BCAST(fluid_pp(i)%${VAR}$, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
-            #:endfor
+            #:endfor            
+            call MPI_BCAST(fluid_pp(i)%ein_cv(1), 2, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+            call MPI_BCAST(fluid_pp(i)%ein_cv(2), 2, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
         end do
 #endif
 
