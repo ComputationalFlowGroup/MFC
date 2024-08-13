@@ -278,8 +278,8 @@ contains
     !> Checks constraints on model equations and number of fluids in the flow.
         !! Called by s_check_inputs_common for all three stages
     subroutine s_check_inputs_model_eqns_and_num_fluids
-        if (all(model_eqns /= (/1, 2, 3, 4/))) then
-            call s_mpi_abort('model_eqns must be 1, 2, 3, or 4. Exiting ...')
+        if (all(model_eqns /= (/1, 2, 3, 4, 5/))) then
+            call s_mpi_abort('model_eqns must be 1, 2, 3, 4, or 5. Exiting ...')
         elseif (num_fluids /= dflt_int .and. num_fluids < 1) then
             call s_mpi_abort('num_fluids must be positive. Exiting ...')
         elseif (model_eqns == 1 .and. num_fluids /= dflt_int) then

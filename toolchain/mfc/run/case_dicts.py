@@ -108,7 +108,7 @@ for f_id in range(1, 10+1):
     PRE_PROCESS[f'fluid_rho({f_id})'] = ParamType.REAL
 
     for real_attr in ["gamma", "pi_inf", "mul0", "ss", "pv", "gamma_v", "M_v",
-                      "mu_v", "k_v", "G", "cv", "qv", "qvp", "rho0" ]:
+                      "mu_v", "k_v", "G", "cv", "qv", "qvp", "rho0", "mg_a", "mg_b" ]:
         PRE_PROCESS[f"fluid_pp({f_id})%{real_attr}"] = ParamType.REAL
 
     for ein_cv_id in [1, 2]:
@@ -261,7 +261,7 @@ for probe_id in range(1,3+1):
 
 for f_id in range(1,10+1):
     for real_attr in ["gamma", "pi_inf", "mul0", "ss", "pv", "gamma_v", "M_v",
-                      "mu_v", "k_v", "G", "cv", "qv", "qvp", "rho0"]:
+                      "mu_v", "k_v", "G", "cv", "qv", "qvp", "rho0", "mg_a", "mg_b"]:
         SIMULATION[f"fluid_pp({f_id})%{real_attr}"] = ParamType.REAL
 
     for re_id in [1, 2]:
@@ -270,7 +270,7 @@ for f_id in range(1,10+1):
     for ein_cv_id in [1, 2]:
         SIMULATION[f"fluid_pp({f_id})%ein_cv({ein_cv_id})"] = ParamType.REAL
 
-    for jcook_id in range(1,10) :
+    for jcook_id in range(1,10+1) :
         SIMULATION[f"fluid_pp({f_id})%jcook({jcook_id})"] = ParamType.REAL
 
     for mono_id in range(1,4+1):
@@ -352,7 +352,7 @@ for fl_id in range(1,10+1):
         POST_PROCESS[f'{append}({fl_id})'] = ty
 
     for real_attr in ["gamma", "pi_inf", "ss", "pv", "gamma_v", "M_v", "mu_v", "k_v", "G", "mul0",
-                      "cv", "qv", "qvp", "rho0" ]:
+                      "cv", "qv", "qvp", "rho0", "mg_a", "mg_b" ]:
         POST_PROCESS[f"fluid_pp({fl_id})%{real_attr}"] = ParamType.REAL
 
     for ein_cv_id in [1, 2]:
