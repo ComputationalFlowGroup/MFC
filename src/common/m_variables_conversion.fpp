@@ -151,16 +151,16 @@ contains
         else if ((model_eqns /= 4 .and. model_eqns /=5) .and. bubbles) then
             pres = ((energy - dyn_p)/(1.d0 - alf) - pi_inf - qv)/gamma
         else if (model_eqns .eq. 5) then
-            rho_mix_MG =sum(alpha_rho_K)/&
-                        sum(fluid_pp(:)%gamma*(fluid_pp(:)%mg_a*alpha_K*fluid_pp(:)%rho0+&
-                        fluid_pp(:)%mg_b*alpha_rho_K))
-            log_rho_mix_ratio = log(rho/sum(alpha_K*fluid_pp(:)%rho0))
-            deno_gamma_rho_sq = sum(fluid_pp(:)%gamma*(fluid_pp(:)%mg_a*alpha_K*&
+            rho_mix_MG =sum(alpha_rho_K(:))/&
+                        sum(fluid_pp(:)%gamma*(fluid_pp(:)%mg_a*alpha_K(:)*fluid_pp(:)%rho0+&
+                        fluid_pp(:)%mg_b*alpha_rho_K(:)))
+            log_rho_mix_ratio = log(rho/sum(alpha_K(:)*fluid_pp(:)%rho0))
+            deno_gamma_rho_sq = sum(fluid_pp(:)%gamma*(fluid_pp(:)%mg_a*alpha_K(:)*&
                                 fluid_pp(:)%rho0*fluid_pp(:)%rho0+fluid_pp(:)%mg_b*&
-                                alpha_rho_K*fluid_pp(:)%rho0))
-            phi_mix = exp(sum(alpha_K*fluid_pp(:)%gamma-&
-                        alpha_K*fluid_pp(:)%gamma*fluid_pp(:)%rho0))
-            theta_E = sum(alpha_K*fluid_pp(:)%ein_cv(2))
+                                alpha_rho_K(:)*fluid_pp(:)%rho0))
+            phi_mix = exp(sum(alpha_K(:)*fluid_pp(:)%gamma-&
+                        alpha_K(:)*fluid_pp(:)%gamma*fluid_pp(:)%rho0))
+            theta_E = sum(alpha_K(:)*fluid_pp(:)%ein_cv(2))
             pres = energy - dyn_p -&
                    0.5d0*(log_rho_mix_ratio**2)*&
                    sum(fluid_pp(:)%pi_inf*alpha_rho_K/fluid_pp(:)%rho0)-&
