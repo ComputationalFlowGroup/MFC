@@ -238,24 +238,24 @@ contains
 
         ! model_eqns = 5 corresponds to the Mie-Gruneisen EOS
 
-       !if (model_eqns .eq. 5) then
-       !    log_rho_mix_ratio = log(rho/sum(alpha_K(:)*rho0(:)))
-       !    phi_mix = exp(sum(alpha_K(:)*gammas(:)-&
-       !                 alpha_K(:)*gammas(:)*rho0(:)/rho))
-       !    theta_E = sum(alpha_K(:)*ein_cv2(:))
-       !    num_term1 = energy - dyn_p -&
-       !            0.5d0*(log_rho_mix_ratio**2)*&
-       !            sum(pi_inf(:)*alpha_rho_K(:)/rho0(:))-&
-       !            0.5d0*(log_rho_mix_ratio**3)*sum(pi_inf(:)*alpha_rho_K(:)*&
-       !            (qvs(:)-2d0)/(3d0*rho0(:)))-&
-       !            phi_mix*exp(phi_mix*theta_E)*sum(alpha_rho_K(:)*ein_cv1(:)*ein_cv2(:))/&
-       !            (exp(phi_mix*theta_E)-1d0)+&
-       !            log(exp(phi_mix*theta_E)-1d0)*sum(alpha_rho_K(:)*ein_cv1(:)
-       !      denom_term1 = phi_mix*sum(alpha_rho_K(:)*ein_cv1(:)*ein_cv2(:))
-       !      denom_term2 = exp(phi_mix*sum(alpha_K(:)*ein_cv2(:)) - 1d0
-       !      denom = num_term1 / denom_term1 + 1d0 / denom_term2
-       !      temp = phi_mix*sum(alpha_K(:)*ein_cv2(:)*log(1d0 + 1d0 / denom))
-       !end if
+        if (model_eqns .eq. 5) then
+           log_rho_mix_ratio = log(rho/sum(alpha_K(:)*rho0(:)))
+           phi_mix = exp(sum(alpha_K(:)*gammas(:)-&
+                        alpha_K(:)*gammas(:)*rho0(:)/rho))
+           theta_E = sum(alpha_K(:)*ein_cv2(:))
+           num_term1 = energy - dyn_p -&
+                   0.5d0*(log_rho_mix_ratio**2)*&
+                   sum(pi_inf(:)*alpha_rho_K(:)/rho0(:))-&
+                   0.5d0*(log_rho_mix_ratio**3)*sum(pi_inf(:)*alpha_rho_K(:)*&
+                   (qvs(:)-2d0)/(3d0*rho0(:)))-&
+                   phi_mix*exp(phi_mix*theta_E)*sum(alpha_rho_K(:)*ein_cv1(:)*ein_cv2(:))/&
+                   (exp(phi_mix*theta_E)-1d0)+&
+                   log(exp(phi_mix*theta_E)-1d0)*sum(alpha_rho_K(:)*ein_cv1(:))
+           denom_term1 = phi_mix*sum(alpha_rho_K(:)*ein_cv1(:)*ein_cv2(:))
+           denom_term2 = exp(phi_mix*sum(alpha_K(:)*ein_cv2(:)) - 1d0
+           denom = num_term1 / denom_term1 + 1d0 / denom_term2
+           temp = phi_mix*sum(alpha_K(:)*ein_cv2(:)*log(1d0 + 1d0 / denom))
+        end if
     end subroutine s_compute_temperature
 
  
@@ -1049,19 +1049,17 @@ contains
                         end if
                     end do
 
-                    ! TODO SRIJAN PRECOMPUTE THE MIXTURE RULES HERE FOR
                     ! PRESSURE CALCULATION
-                    !if (model_eqns/= 5) then 
+                    if (model_eqns/= 5) then 
                         call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
                                                 qK_cons_vf(alf_idx)%sf(j, k, l), &
                                                 dyn_pres_K, pi_inf_K, gamma_K, rho_K, qv_K, pres)
-                    !else    
-                    !        call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
-                    !                        0d0, dyn_pres_K, 0d0, 0d0, rho_K, 0d0, & 
-                    !                        pres, 0d0, 0d0, 0d0, alpha_rho_K, alpha_K) 
-                    !end if   
-                        
-
+                    else    
+                            call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
+                                            0d0, dyn_pres_K, 0d0, 0d0, rho_K, 0d0, &
+                                           pres, 0d0, 0d0, 0d0, alpha_rho_K, alpha_K)
+                    end if   
+                       
                     qK_prim_vf(E_idx)%sf(j, k, l) = pres
 
                     if (bubbles) then
@@ -1124,15 +1122,14 @@ contains
                                 end if
                             end if
                         end do 
-                        if (hypoplasticity) then
-                            !call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
-                            !                0d0, dyn_pres_K, 0d0, 0d0, rho_K, 0d0, &
-                            !               pres, 0d0, 0d0, 0d0, alpha_rho_K, alpha_K)
- 
-                            qK_prim_vf(E_idx)%sf(j, k, l) = pres
-                                                             
-                            qK_prim_vf(plasidx)%sf(j, k, l)=qK_cons_vf(plasidx)%sf(j, k, l)/rho_K
-                        end if
+                    end if
+
+                    if (hypoplasticity) then
+                        !$acc loop seq
+                        do i = strxb, strxe
+                            qK_prim_vf(i)%sf(j, k, l) = qK_cons_vf(i)%sf(j, k, l)/rho_K
+                        end do
+                        qK_prim_vf(plasidx)%sf(j, k, l) = qK_cons_vf(plasidx)%sf(j, k, l)/rho_K
                     end if
 
                     if (hyperelasticity) then
