@@ -214,26 +214,22 @@ contains
         !! @param rho Density
         !! @param qv fluid reference energy
         !! @param pres Pressure to calculate
-        !! @param stress Shear Stress
-        !! @param mom Momentum
-        !! @param G shear modulus
         !! @param alpha_K volume fraction of mixture
         !! @param alpha_rho_K conservative volume fraction of mixture
     subroutine s_compute_temperature(energy, dyn_p, pi_inf, gamma, &
-        rho, qv, pres, stress, mom, G, alpha_K, alpha_rho_K)
+        rho, qv, temp, alpha_K, alpha_rho_K)
         !$acc routine seq
 
         real(kind(0d0)), intent(in) :: energy
         real(kind(0d0)), intent(in) :: dyn_p
         real(kind(0d0)), intent(in) :: pi_inf, gamma, rho, qv
-        real(kind(0d0)), intent(out) :: pres
-        real(kind(0d0)), intent(in), optional :: stress, mom, G
+        real(kind(0d0)), intent(out) :: temp
         real(kind(0d0)), dimension(num_fluids), intent(in), optional :: alpha_K, alpha_rho_K
       
         real(kind(0d0)) :: E_e
         ! Temporary local variables
         real(kind(0d0)) :: log_rho_mix_ratio, phi_mix, theta_E
-        real(kind(0d0)) :: num_term1, denom_term1, denom_term2, denom, temp
+        real(kind(0d0)) :: num_term1, denom_term1, denom_term2, denom
         integer :: s !< Generic loop iterator
 
         ! model_eqns = 5 corresponds to the Mie-Gruneisen EOS
@@ -245,19 +241,18 @@ contains
            theta_E = sum(alpha_K(:)*ein_cv2(:))
            num_term1 = energy - dyn_p -&
                    0.5d0*(log_rho_mix_ratio**2)*&
-                   sum(pi_inf(:)*alpha_rho_K(:)/rho0(:))-&
-                   0.5d0*(log_rho_mix_ratio**3)*sum(pi_inf(:)*alpha_rho_K(:)*&
+                   sum(pi_infs(:)*alpha_rho_K(:)/rho0(:))-&
+                   0.5d0*(log_rho_mix_ratio**3)*sum(pi_infs(:)*alpha_rho_K(:)*&
                    (qvs(:)-2d0)/(3d0*rho0(:)))-&
                    phi_mix*exp(phi_mix*theta_E)*sum(alpha_rho_K(:)*ein_cv1(:)*ein_cv2(:))/&
                    (exp(phi_mix*theta_E)-1d0)+&
                    log(exp(phi_mix*theta_E)-1d0)*sum(alpha_rho_K(:)*ein_cv1(:))
            denom_term1 = phi_mix*sum(alpha_rho_K(:)*ein_cv1(:)*ein_cv2(:))
-           denom_term2 = exp(phi_mix*sum(alpha_K(:)*ein_cv2(:)) - 1d0
+           denom_term2 = exp(phi_mix*sum(alpha_K(:)*ein_cv2(:))) - 1d0
            denom = num_term1 / denom_term1 + 1d0 / denom_term2
            temp = phi_mix*sum(alpha_K(:)*ein_cv2(:)*log(1d0 + 1d0 / denom))
         end if
     end subroutine s_compute_temperature
-
  
     !>  This subroutine is designed for the gamma/pi_inf model
         !!      and provided a set of either conservative or primitive
