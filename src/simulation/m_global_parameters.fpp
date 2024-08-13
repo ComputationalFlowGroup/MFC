@@ -452,11 +452,15 @@ module m_global_parameters
 !$acc declare create(plasidx)
 
 #ifdef CRAY_ACC_WAR
-    @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), dimension(:), gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps, rho0)
-    !$acc declare link(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps, rho0)
+    @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), dimension(:), gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps)
+    !$acc declare link(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps)
+    @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), dimension(:), rho0, mg_a, mg_b, ein_cv1, ein_cv2)
+    !$acc declare link(rho0, mg_a, mg_b, ein_cv1, ein_cv2)
 #else
-    real(kind(0d0)), allocatable, dimension(:) :: gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps, rho0
-    !$acc declare create(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps, rho0)
+    real(kind(0d0)), allocatable, dimension(:) :: gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps
+    !$acc declare create(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps)
+    real(kind(0d0)), allocatable, dimension(:) :: rho0, mg_a, mg_b, ein_cv1, ein_cv2
+    !$acc declare create(rho0, mg_a, mg_b, ein_cv1, ein_cv2)
 #endif
 
     real(kind(0d0)) :: mytime       !< Current simulation time

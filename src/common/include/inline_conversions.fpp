@@ -51,28 +51,28 @@
             end if
 
         elseif (model_eqns == 5) then
-            log_rho_mix_ratio = log(rho/sum(adv(:)*fluid_pp(:)%rho0))
-            deno_rho_sq = sum(fluid_pp(:)%mg_a*adv(:)*&
-                                fluid_pp(:)%rho0**2+fluid_pp(:)%mg_b*&
-                                alpha_rho_K(:)*fluid_pp(:)%rho0)
-            phi_mix = exp(sum(adv(:)*fluid_pp(:)%gamma-&
-                       adv(:)*fluid_pp(:)%gamma*fluid_pp(:)%rho0/rho))
-            theta_E = sum(adv(:)*fluid_pp(:)%ein_cv(2))
-            rho0_mix = sum(adv(:)*fluid_pp(:)%rho0)
-            c = sum(alpha_rho_K(:)*fluid_pp(:)%pi_inf/fluid_pp(:)%rho0)&
-                   +log_rho_mix_ratio*sum(alpha_rho_K(:)*fluid_pp(:)%pi_inf*(fluid_pp(:)%qv-1.d0)/fluid_pp(:)%rho0)&
-                   +(log_rho_mix_ratio**2)*sum(alpha_rho_K(:)*fluid_pp(:)%pi_inf*0.5d0*(fluid_pp(:)%qv-2.d0)/fluid_pp(:)%rho0) &
-                   +pres*sum(alpha_rho_K(:)*fluid_pp(:)%mg_b)/sum(adv(:)*fluid_pp(:)%mg_a*fluid_pp(:)%rho0+fluid_pp(:)%mg_b*alpha_rho_K(:)) &
-                   -log_rho_mix_ratio*sum((alpha_rho_K(:)**2)*fluid_pp(:)%mg_b*fluid_pp(:)%pi_inf)/deno_rho_sq &
-                   -(log_rho_mix_ratio**2)*sum((alpha_rho_K(:)**2)*fluid_pp(:)%mg_b*fluid_pp(:)%pi_inf*0.5d0*(fluid_pp(:)%qv-2.d0))/deno_rho_sq &
-                   +pres*(sum(fluid_pp(:)%gamma*fluid_pp(:)%mg_a*adv(:)*fluid_pp(:)%rho0)/rho0_mix+sum(fluid_pp(:)%mg_b*fluid_pp(:)%gamma*adv(:))) &
-                   -log_rho_mix_ratio*(sum(fluid_pp(:)%gamma*adv(:)*fluid_pp(:)%mg_a*fluid_pp(:)%pi_inf) &
-                   + sum(fluid_pp(:)%gamma*alpha_rho_K(:)*fluid_pp(:)%mg_b*fluid_pp(:)%pi_inf)/rho0_mix ) &
-                   -(log_rho_mix_ratio**2)*(sum(fluid_pp(:)%gamma*adv(:)*fluid_pp(:)%mg_a*fluid_pp(:)%pi_inf*0.5d0*(fluid_pp(:)%qv-2.d0)) &
-                   +sum(fluid_pp(:)%gamma*alpha_rho_K(:)*fluid_pp(:)%mg_b*fluid_pp(:)%pi_inf*0.5d0*(fluid_pp(:)%qv-2.d0))/rho0_mix) &
-                   +(phi_mix**2)*(exp(phi_mix*theta_E)/(exp(phi_mix*theta_E)-1)**2)*(sum(adv(:)*fluid_pp(:)%gamma*fluid_pp(:)%mg_a*&
-                   (fluid_pp(:)%rho0**2)*fluid_pp(:)%ein_cv(1)*fluid_pp(:)%ein_cv(2)) &
-                   +sum(adv(:)*fluid_pp(:)%gamma*fluid_pp(:)%mg_b*fluid_pp(:)%rho0*fluid_pp(:)%ein_cv(1)*fluid_pp(:)%ein_cv(2)**2))
+            log_rho_mix_ratio = log(rho/sum(adv(:)*rho0(:)))
+            deno_rho_sq = sum(mg_a(:)*adv(:)*&
+                                rho0(:)**2+mg_b(:)*&
+                                alpha_rho_K(:)*rho0(:))
+            phi_mix = exp(sum(adv(:)*gammas(:)-&
+                       adv(:)*gammas(:)*rho0(:)/rho))
+            theta_E = sum(adv(:)*ein_cv2(:))
+            rho0_mix = sum(adv(:)*rho0(:))
+            c = sum(alpha_rho_K(:)*pi_infs(:)/rho0(:))&
+                   +log_rho_mix_ratio*sum(alpha_rho_K(:)*pi_infs(:)*(qvs(:)-1.d0)/rho0(:))&
+                   +(log_rho_mix_ratio**2)*sum(alpha_rho_K(:)*pi_infs(:)*0.5d0*(qvs(:)-2.d0)/rho0(:)) &
+                   +pres*sum(alpha_rho_K(:)*mg_b(:))/sum(adv(:)*mg_a(:)*rho0(:)+mg_b(:)*alpha_rho_K(:)) &
+                   -log_rho_mix_ratio*sum((alpha_rho_K(:)**2)*mg_b(:)*pi_infs(:))/deno_rho_sq &
+                   -(log_rho_mix_ratio**2)*sum((alpha_rho_K(:)**2)*mg_b(:)*pi_infs(:)*0.5d0*(qvs(:)-2.d0))/deno_rho_sq &
+                   +pres*(sum(gammas(:)*mg_a(:)*adv(:)*rho0(:))/rho0_mix+sum(mg_b(:)*gammas(:)*adv(:))) &
+                   -log_rho_mix_ratio*(sum(gammas(:)*adv(:)*mg_a(:)*pi_infs(:)) &
+                   + sum(gammas(:)*alpha_rho_K(:)*mg_b(:)*pi_infs(:))/rho0_mix ) &
+                   -(log_rho_mix_ratio**2)*(sum(gammas(:)*adv(:)*mg_a(:)*pi_infs(:)*0.5d0*(qvs(:)-2.d0)) &
+                   +sum(gammas(:)*alpha_rho_K(:)*mg_b(:)*pi_infs(:)*0.5d0*(qvs(:)-2.d0))/rho0_mix) &
+                   +(phi_mix**2)*(exp(phi_mix*theta_E)/(exp(phi_mix*theta_E)-1)**2)*(sum(adv(:)*gammas(:)*mg_a(:)*&
+                   (rho0(:)**2)*ein_cv1(:)*ein_cv2(:)) &
+                   +sum(adv(:)*gammas(:)*mg_b(:)*rho0(:)*ein_cv1(:)*ein_cv2(:)**2))
             c = c/rho
         else           
             c = ((H - 5d-1*vel_sum)/gamma)
