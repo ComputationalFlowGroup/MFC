@@ -97,12 +97,16 @@ contains
         type(scalar_field), dimension(sys_size), intent(inout) :: rhs_vf
 
         real(kind(0d0)) :: rho_K, G_K
-        real(kind(0d0)), dimension(num_dims**2) :: atensor, tensora, devdtensor
-
+        real(kind(0d0)), dimension(num_dims**2) :: atensor, tensora, devdtensor, Dp
 
         integer :: i, k, l, p, r, q !< Loop variables
 
-        integer :: ndirs  !< Number of coordinate directions
+        real(kind(0d0)), dimension(10) :: jcook
+        real(kind(0d0)) :: energy, alf, dyn_p, pi_inf
+        real(kind(0d0)), dimension(sys_size) ::  gamma, rho, qv, pres, stress, mom, temp
+        real(kind(0d0)), dimension(num_fluids) ::  G, alpha_K, alpha_rho_K
+        real(kind(0d0)) :: theta_m, tempref, theta_hat, sigma_bar, dp_JC, d_p
+
 
         ! compute velocity gradients and rho_K and G_K        
         !$acc parallel loop collapse(2) gang vector default(present)
@@ -192,12 +196,12 @@ contains
                     (1d0 - theta_hat))) - 1d0)
              ! compute d^p from equation 4.6
              ! jcook(7) = d^p_lim
-             dp = ((1d0/dp_JC) + (1d0/jcook(7)))**(-1d0)
+             d_p = ((1d0/dp_JC) + (1d0/jcook(7)))**(-1d0)
              ! compute D^p using equation 4.5
-             Dp(1) = ((3d0*dp) / (2d0*sigma_bar)) * du_dx(k, l, q)
-             Dp(2) = ((3d0*dp) / (2d0*sigma_bar)) * (1d0/2d0)*(du_dy(k, l, q) + dv_dx(k, l, q))
+             Dp(1) = ((3d0*d_p) / (2d0*sigma_bar)) * du_dx(k, l, q)
+             Dp(2) = ((3d0*d_p) / (2d0*sigma_bar)) * (1d0/2d0)*(du_dy(k, l, q) + dv_dx(k, l, q))
              Dp(3) = Dp(2)
-             Dp(4) = ((3d0*dp) / (2d0*sigma_bar)) * dv_dy(k, l, q)
+             Dp(4) = ((3d0*d_p) / (2d0*sigma_bar)) * dv_dy(k, l, q)
 
              ! STEP 4: Compute rhs source terms
              rhs_vf(strxb + 0)%sf(k, l, q) = rhs_vf(strxb)%sf(k, l, q) + rho_K_field(k, l ,q)*tensora(1) + & 
@@ -212,7 +216,7 @@ contains
              rhs_vf(strxb + 3)%sf(k, l, q) = rhs_vf(strxb + 3)%sf(k, l, q) + rho_K_field(k, l, q)*tensora(4) + &
                2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(4) - Dp(4))             
              ! TODO: IS THIS RIGHT?
-             rhs_vf(plasidx)%sf(k, l, q) = rhs_vf(plasidx)%sf(k, l, q)*dp
+             rhs_vf(plasidx)%sf(k, l, q) = rhs_vf(plasidx)%sf(k, l, q)*d_p
             end do
          end do
          !$acc end parallel loop
