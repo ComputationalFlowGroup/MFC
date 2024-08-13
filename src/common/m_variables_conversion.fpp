@@ -755,32 +755,18 @@ contains
         @:ALLOCATE_GLOBAL(mg_b   (1:num_fluids))
         @:ALLOCATE_GLOBAL(ein_cv1(1:num_fluids))
         @:ALLOCATE_GLOBAL(ein_cv2(1:num_fluids))
-        @:ALLOCATE_GLOBAL(jcook1(1:num_fluids))          
-        @:ALLOCATE_GLOBAL(jcook2(1:num_fluids))
-        @:ALLOCATE_GLOBAL(jcook3(1:num_fluids))
-        @:ALLOCATE_GLOBAL(jcook4(1:num_fluids))
-        @:ALLOCATE_GLOBAL(jcook5(1:num_fluids))
-        @:ALLOCATE_GLOBAL(jcook6(1:num_fluids))
-        @:ALLOCATE_GLOBAL(jcook7(1:num_fluids))
-        @:ALLOCATE_GLOBAL(jcook8(1:num_fluids))
-        @:ALLOCATE_GLOBAL(jcook9(1:num_fluids))
-        @:ALLOCATE_GLOBAL(jcook10(1:num_fluids))
+        #:for VAR in range(1,11)
+          @:ALLOCATE_GLOBAL(jcook${VAR}$(1:num_fluids))          
+        #:endfor 
 #else
         @:ALLOCATE(rho0   (1:num_fluids))
         @:ALLOCATE(mg_a   (1:num_fluids))
         @:ALLOCATE(mg_b   (1:num_fluids))
         @:ALLOCATE(ein_cv1(1:num_fluids))
         @:ALLOCATE(ein_cv2(1:num_fluids))
-        @:ALLOCATE(jcook1(1:num_fluids))          
-        @:ALLOCATE(jcook2(1:num_fluids))
-        @:ALLOCATE(jcook3(1:num_fluids))
-        @:ALLOCATE(jcook4(1:num_fluids))
-        @:ALLOCATE(jcook5(1:num_fluids))
-        @:ALLOCATE(jcook6(1:num_fluids))
-        @:ALLOCATE(jcook7(1:num_fluids))
-        @:ALLOCATE(jcook8(1:num_fluids))
-        @:ALLOCATE(jcook9(1:num_fluids))
-        @:ALLOCATE(jcook10(1:num_fluids))
+        #:for VAR in range(1,11)
+          @:ALLOCATE(jcook${VAR}$(1:num_fluids))          
+        #:endfor 
 #endif
         do i = 1, num_fluids
             rho0(i) = fluid_pp(i)%rho0  
@@ -804,7 +790,6 @@ contains
                     Res(i, j) = fluid_pp(Re_idx(i, j))%Re(i)
                 end do
             end do
-
             !$acc update device(Res, Re_idx, Re_size)
         end if
 #endif
