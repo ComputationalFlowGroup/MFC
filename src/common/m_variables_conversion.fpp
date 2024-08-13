@@ -787,6 +787,40 @@ contains
             !$acc update device(bubrs)
         end if
 
+	if (hypoplasticity) then
+#ifdef MFC_SIMULATION
+            @:ALLOCATE_GLOBAL(gammas  (1:num_fluids))
+            @:ALLOCATE_GLOBAL(mg_as   (1:num_fluids))
+            @:ALLOCATE_GLOBAL(mg_bs   (1:num_fluids))
+            @:ALLOCATE_GLOBAL(pi_infs (1:num_fluids))
+            @:ALLOCATE_GLOBAL(ein_cvs (1:num_fluids))
+            @:ALLOCATE_GLOBAL(qvs     (1:num_fluids))
+            @:ALLOCATE_GLOBAL(rhos    (1:num_fluids))
+            @:ALLOCATE_GLOBAL(rho0s   (1:num_fluids))
+#else
+            @:ALLOCATE(gammas  (1:num_fluids))
+            @:ALLOCATE(mg_as   (1:num_fluids))
+            @:ALLOCATE(mg_bs   (1:num_fluids))
+            @:ALLOCATE(pi_infs (1:num_fluids))
+            @:ALLOCATE(ein_cvs (1:num_fluids))
+            @:ALLOCATE(qvs     (1:num_fluids))
+            @:ALLOCATE(rhos    (1:num_fluids))
+            @:ALLOCATE(rho0s   (1:num_fluids))
+#endif
+            do i = 1, num_fluids
+            	gammas(i) = fluid_pp(i)%gamma
+		mg_as(i) = fluid_pp(i)%mg_a
+		mg_bs(i) = fluid_pp(i)%mg_b
+            	pi_infs(i) = fluid_pp(i)%pi_inf
+		ein_cvs(i) = fluid_pp(i)%ein_cv
+            	qvs(i) = fluid_pp(i)%qv
+		rhos(i) = fluid_pp(i)%rho 
+            	rho0s(i) = fluid_pp(i)%rho0
+       	   end do
+!$acc update device(gammas, mg_as, mg_bs, pi_infs, ein_cvs, qvs, rhos, rho0s)
+
+	end if
+
 #ifdef MFC_POST_PROCESS
         ! Allocating the density, the specific heat ratio function and the
         ! liquid stiffness function, respectively
@@ -1125,7 +1159,8 @@ contains
                             !               pres, 0d0, 0d0, 0d0, alpha_rho_K, alpha_K)
  
                             qK_prim_vf(E_idx)%sf(j, k, l) = pres
-                                                             
+                       	    ! isn't this the hardening equation?
+                       	    ! doesn't this go in m_hypoplasticity?
                             qK_prim_vf(plasidx)%sf(j, k, l)=qK_cons_vf(plasidx)%sf(j, k, l)/rho_K
                         end if
                     end if
