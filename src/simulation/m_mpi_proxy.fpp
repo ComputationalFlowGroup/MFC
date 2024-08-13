@@ -270,6 +270,14 @@ contains
             call MPI_BCAST(fluid_pp(i)%ein_cv(2), 2, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
         end do
 
+        if (hypoplasticity) then 
+          do i = 1, num_fluids_max
+            #:for VAR in range(1,11)
+                call MPI_BCAST(fluid_pp(i)%jcook(${VAR}$), 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+            #:endfor
+          end do
+        end if 
+
         do i = 1, num_ibs
             #:for VAR in [ 'radius', 'length_x', 'length_y', &
                 & 'x_centroid', 'y_centroid', 'c', 'm', 'p', 't', 'theta', 'slip' ]
