@@ -1125,9 +1125,9 @@ contains
                             end if
                         end do 
                         if (hypoplasticity) then
-                            !call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
-                            !                0d0, dyn_pres_K, 0d0, 0d0, rho_K, 0d0, &
-                            !               pres, 0d0, 0d0, 0d0, alpha_rho_K, alpha_K)
+                            call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
+                                             0d0, dyn_pres_K, 0d0, 0d0, rho_K, 0d0, &
+                                             pres, 0d0, 0d0, 0d0, alpha_rho_K, alpha_K)
  
                             qK_prim_vf(E_idx)%sf(j, k, l) = pres
                                                              
