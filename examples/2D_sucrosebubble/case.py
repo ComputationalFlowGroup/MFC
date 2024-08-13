@@ -107,7 +107,7 @@ print(json.dumps({
     'patch_icpp(2)%geometry'       : 2,
     'patch_icpp(2)%x_centroid'     : 0.E+00,
     'patch_icpp(2)%y_centroid'     : 0.E+00,
-    'patch_icpp(2)%radius'         : leng,                            # was leng/5
+    'patch_icpp(2)%radius'         : leng/5,                            # was leng/5
     'patch_icpp(2)%alter_patch(1)' : 'T',
     'patch_icpp(2)%vel(1)'         : 0.,
     'patch_icpp(2)%vel(2)'         : 0.E+00,
