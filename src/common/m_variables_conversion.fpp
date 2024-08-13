@@ -721,11 +721,6 @@ contains
         @:ALLOCATE_GLOBAL(qvs    (1:num_fluids))
         @:ALLOCATE_GLOBAL(qvps   (1:num_fluids))
         @:ALLOCATE_GLOBAL(Gs     (1:num_fluids))
-        @:ALLOCATE_GLOBAL(rho0   (1:num_fluids))
-        @:ALLOCATE_GLOBAL(mg_a   (1:num_fluids))
-        @:ALLOCATE_GLOBAL(mg_b   (1:num_fluids))
-        @:ALLOCATE_GLOBAL(ein_cv1(1:num_fluids))
-        @:ALLOCATE_GLOBAL(ein_cv2(1:num_fluids))
 #else
         @:ALLOCATE(gammas (1:num_fluids))
         @:ALLOCATE(gs_min (1:num_fluids))
@@ -735,11 +730,6 @@ contains
         @:ALLOCATE(qvs    (1:num_fluids))
         @:ALLOCATE(qvps   (1:num_fluids))
         @:ALLOCATE(Gs     (1:num_fluids))
-        @:ALLOCATE(rho0   (1:num_fluids))
-        @:ALLOCATE(mg_a   (1:num_fluids))
-        @:ALLOCATE(mg_b   (1:num_fluids))
-        @:ALLOCATE(ein_cv1(1:num_fluids))
-        @:ALLOCATE(ein_cv2(1:num_fluids))
 #endif
 
         do i = 1, num_fluids
@@ -751,17 +741,34 @@ contains
             cvs(i) = fluid_pp(i)%cv
             qvs(i) = fluid_pp(i)%qv
             qvps(i) = fluid_pp(i)%qvp
+        end do
+!$acc update device(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps, Gs)
+
+        if (hypoplasticity) then 
+#ifdef MFC_SIMULATION
+        @:ALLOCATE_GLOBAL(rho0   (1:num_fluids))
+        @:ALLOCATE_GLOBAL(mg_a   (1:num_fluids))
+        @:ALLOCATE_GLOBAL(mg_b   (1:num_fluids))
+        @:ALLOCATE_GLOBAL(ein_cv1(1:num_fluids))
+        @:ALLOCATE_GLOBAL(ein_cv2(1:num_fluids))
+#else
+        @:ALLOCATE(rho0   (1:num_fluids))
+        @:ALLOCATE(mg_a   (1:num_fluids))
+        @:ALLOCATE(mg_b   (1:num_fluids))
+        @:ALLOCATE(ein_cv1(1:num_fluids))
+        @:ALLOCATE(ein_cv2(1:num_fluids))
+#endif
+        do i = 1, num_fluids
             rho0(i) = fluid_pp(i)%rho0  
             mg_a(i) = fluid_pp(i)%mg_a
             mg_b(i) = fluid_pp(i)%mg_b
             ein_cv1(i) = fluid_pp(i)%ein_cv(1)
             ein_cv2(i) = fluid_pp(i)%ein_cv(2)
         end do
-!$acc update device(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps, Gs)
 !$acc update device(rho0, mg_a, mg_b, ein_cv1, ein_cv2)
+        end if
 
 #ifdef MFC_SIMULATION
-
         if (any(Re_size > 0)) then
             @:ALLOCATE_GLOBAL(Res(1:2, 1:maxval(Re_size)))
             do i = 1, 2
