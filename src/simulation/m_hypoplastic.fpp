@@ -97,12 +97,16 @@ contains
         type(scalar_field), dimension(sys_size), intent(inout) :: rhs_vf
 
         real(kind(0d0)) :: rho_K, G_K
-        real(kind(0d0)), dimension(num_dims**2) :: atensor, tensora, devdtensor
-
+        real(kind(0d0)), dimension(num_dims**2) :: atensor, tensora, devdtensor, Dp
 
         integer :: i, k, l, p, r, q !< Loop variables
 
-        integer :: ndirs  !< Number of coordinate directions
+        real(kind(0d0)), dimension(10) :: jcook
+        real(kind(0d0)) :: energy, alf, dyn_p, pi_inf
+        real(kind(0d0)), dimension(sys_size) ::  gamma, rho, qv, pres, stress, mom, temp
+        real(kind(0d0)), dimension(num_fluids) ::  G, alpha_K, alpha_rho_K
+        real(kind(0d0)) :: theta_m, tempref, theta_hat, sigma_bar, dp_JC, d_p
+
 
         ! compute velocity gradients and rho_K and G_K        
         !$acc parallel loop collapse(2) gang vector default(present)
@@ -159,44 +163,60 @@ contains
              atensor(4) = (1d0/4d0)*(du_dy(k, l, q)**2 - dv_dx(k, l, q)**2)
              tensora(2) = atensor(3) - atensor(2)
              tensora(3) = atensor(2) - atensor(3)
+            
              ! STEP 2: Compute the deviatoric part of D, symmetric part of velocity gradient
              ! dtrace = du_dx(k, l, q) + dv_dy(k, l, q)
              devdtensor(1) = du_dx(k, l, q) - (1d0/3d0)*(du_dx(k, l, q) + dv_dy(k, l, q))
              devdtensor(2) = (1d0/2d0)*(du_dy(k, l, q) + dv_dx(k, l, q))
              devdtensor(3) = devdtensor(2)
              devdtensor(4) = dv_dy(k, l, q) - (1d0/3d0)*(du_dx(k, l, q) + dv_dy(k, l, q))
+            
              ! STEP 3: Compute the equivalent plastic strain rate, d^p 
              ! STEP 3.1 : Compute mixture pressure and temperature
-             ! call s_compute_pressure(energy, alf, dyn_p, pi_inf, gamma, rho, qv, pres, stress, mom, G, alpha_K, alpha_rho_K)
-             ! call s_compute_temperature(arg) <- computes only theta (of the mixture)
-             ! call s_compute_temperature()
+             call s_compute_pressure(energy, alf, dyn_p, pi_inf, gamma, rho, qv, pres, stress, mom, G, alpha_K, alpha_rho_K)
+             call s_compute_temperature(energy, dyn_p, pi_inf, gamma, rho, qv, temp, alpha_K, alpha_rho_K)
 
              ! STEP 3.2 : Compute theta_m, theta_hat, and sigma_bar
              ! compute theta_m from equation 4.10
+	     ! jcook(6) = theta_m0, jcook(8) = pres_init, jcook(9) = d, assuming presref = 0
+	     theta_m = jcook(6)*(1d0 + (pres/jcook(8)))**(1d0/jcook(9))
              ! compute theta_hat from equation 4.9
+             tempref = 298 ! DO NOT DO: HARDCODED REFERENCE TEMPERATURE
+             theta_hat = (temp - tempref)/(theta_m - tempref) 
+             !could alternatively compute subtract tempref in both temp subroutine and theta_m
              ! compute sigma_bar = sqrt(3/2) * | S | 
-
+             sigma_bar = sqrt(3d0/2d0) * (du_dx(k, l, q)*dv_dy(k, l, q) - &
+                         (1d0/2d0)*du_dy(k, l, q)*dv_dx(k, l, q) - &
+                         (1d0/40)*(du_dy(k, l, q)**2 * dv_dx(k, l, q)**2))
              ! STEP 3.3 : Compute d^p and update rhs
              ! compute d^p_JC from equation 4.7
+             ! d0 = 1 s^-1, jcook(4) = C, jcook(1) = A, jcook(2) = B, 
+             dp_JC = exp( (1d0/jcook(4)) * (sigma_bar / &
+                    ((jcook(1) + jcook(2)*q_prim_vf(plasidx)%sf(k, l,q)) * &
+                    (1d0 - theta_hat))) - 1d0)
              ! compute d^p from equation 4.6
+             ! jcook(7) = d^p_lim
+             d_p = ((1d0/dp_JC) + (1d0/jcook(7)))**(-1d0)
              ! compute D^p using equation 4.5
+             Dp(1) = ((3d0*d_p) / (2d0*sigma_bar)) * du_dx(k, l, q)
+             Dp(2) = ((3d0*d_p) / (2d0*sigma_bar)) * (1d0/2d0)*(du_dy(k, l, q) + dv_dx(k, l, q))
+             Dp(3) = Dp(2)
+             Dp(4) = ((3d0*d_p) / (2d0*sigma_bar)) * dv_dy(k, l, q)
 
              ! STEP 4: Compute rhs source terms
-             ! TODO: MISSING LAST TERM EVERYWHERE
              rhs_vf(strxb + 0)%sf(k, l, q) = rhs_vf(strxb)%sf(k, l, q) + rho_K_field(k, l ,q)*tensora(1) + & 
-               2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(1))
+               2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(1) - Dp(1))
                       
              rhs_vf(strxb + 1)%sf(k, l, q) = rhs_vf(strxb + 1)%sf(k, l, q) + rho_K_field(k, l, q)* tensora(2) + &
-               2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(2))
+               2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(2) - Dp(2))
                                                      
              rhs_vf(strxb + 2)%sf(k, l, q) = rhs_vf(strxb + 2)%sf(k, l, q) + rho_K_field(k, l, q)*tensora(3) + &
-               2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(3))
+               2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(3) - Dp(3))
                
              rhs_vf(strxb + 3)%sf(k, l, q) = rhs_vf(strxb + 3)%sf(k, l, q) + rho_K_field(k, l, q)*tensora(4) + &
-               2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(4))             
-
-             rhs_vf(plasidx)%sf(k, l, q) = rhs_vf(plasidx)%sf(k, l, q) ! + somestuff
- 
+               2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(4) - Dp(4))             
+             ! TODO: IS THIS RIGHT?
+             rhs_vf(plasidx)%sf(k, l, q) = rhs_vf(plasidx)%sf(k, l, q)*d_p
             end do
          end do
          !$acc end parallel loop
