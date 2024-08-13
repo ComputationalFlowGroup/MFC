@@ -242,29 +242,41 @@ contains
       
         real(kind(0d0)) :: E_e
         ! Temporary local variables
-        real(kind(0d0)) :: log_rho_mix_ratio, phi_mix, theta_E
+        real(kind(0d0)) :: log_rho_mix_ratio, rho0_mix, phi_mix, theta_E
         real(kind(0d0)) :: num_term1, denom_term1, denom_term2, denom
         integer :: s !< Generic loop iterator
 
         ! model_eqns = 5 corresponds to the Mie-Gruneisen EOS
 
         if (model_eqns .eq. 5) then
-           log_rho_mix_ratio = log(rho/sum(alpha_K(:)*rho0(:)))
-           phi_mix = exp(sum(alpha_K(:)*gammas(:)-&
-                        alpha_K(:)*gammas(:)*rho0(:)/rho))
-           theta_E = sum(alpha_K(:)*ein_cv2(:))
-           num_term1 = energy - dyn_p -&
-                   0.5d0*(log_rho_mix_ratio**2)*&
-                   sum(pi_infs(:)*alpha_rho_K(:)/rho0(:))-&
-                   0.5d0*(log_rho_mix_ratio**3)*sum(pi_infs(:)*alpha_rho_K(:)*&
-                   (qvs(:)-2d0)/(3d0*rho0(:)))-&
-                   phi_mix*exp(phi_mix*theta_E)*sum(alpha_rho_K(:)*ein_cv1(:)*ein_cv2(:))/&
+                rho0_mix    = 0.d0
+                phi_mix     = 0.d0
+                theta_E     = 0.d0
+                num_term1   = 0.d0
+                denom_term1 = 0.d0
+           do s = 1, num_fluids
+                rho0_mix = rho0_mix+alpha_K(s)*rho0(s)
+                phi_mix  = phi_mix + alpha_K(s)*gammas(s) - alpha_K(s)*gammas(s)*rho0(s)/rho          
+                theta_E  = theta_E+alpha_K(s)*ein_cv2(s)
+           end do 
+           log_rho_mix_ratio = log(rho/rho0_mix)
+           phi_mix           = exp(phi_mix)
+           num_term1         = 0.d0
+           do s = 1, num_fluids
+                num_term1 = num_term1 -0.5d0*(log_rho_mix_ratio**2)*&
+                   pi_infs(s)*alpha_rho_K(s)/rho0(s)&
+                   -0.5d0*(log_rho_mix_ratio**3)*pi_infs(s)*alpha_rho_K(s)&
+                   *(qvs(s)-2d0)/(3d0*rho0(s))&
+                   -phi_mix*exp(phi_mix*theta_E)*alpha_rho_K(s)*ein_cv1(s)*ein_cv2(s)/&
                    (exp(phi_mix*theta_E)-1d0)+&
-                   log(exp(phi_mix*theta_E)-1d0)*sum(alpha_rho_K(:)*ein_cv1(:))
-           denom_term1 = phi_mix*sum(alpha_rho_K(:)*ein_cv1(:)*ein_cv2(:))
-           denom_term2 = exp(phi_mix*sum(alpha_K(:)*ein_cv2(:))) - 1d0
+                   log(exp(phi_mix*theta_E)-1d0)*alpha_rho_K(s)*ein_cv1(s)
+           
+                   denom_term1 = denom_term1+phi_mix*alpha_rho_K(s)*ein_cv1(s)*ein_cv2(s) 
+           end do 
+           denom_term2 = exp(phi_mix*theta_E) - 1d0
+           num_term1 = num_term1 + energy - dyn_p
            denom = num_term1 / denom_term1 + 1d0 / denom_term2
-           temp = phi_mix*sum(alpha_K(:)*ein_cv2(:)*log(1d0 + 1d0 / denom))
+           temp = phi_mix*theta_E/log(1d0 + 1d0 / denom)
         end if
     end subroutine s_compute_temperature
  
@@ -293,7 +305,6 @@ contains
         real(kind(0d0)), intent(out), target :: qv
 
         real(kind(0d0)), optional, dimension(2), intent(out) :: Re_K
-
         real(kind(0d0)), optional, intent(out) :: G_K
         real(kind(0d0)), optional, dimension(num_fluids), intent(in) :: G
         real(kind(0d0)), optional, dimension(10), intent(out) :: jcook_K
