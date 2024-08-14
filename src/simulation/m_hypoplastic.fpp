@@ -103,10 +103,9 @@ contains
 
         real(kind(0d0)), dimension(10) :: jcook
         real(kind(0d0)) :: energy, alf, dyn_p, pi_inf
-        real(kind(0d0)) :: gamma, rho, qv, pres, stress, mom, temp, G
+        real(kind(0d0)) ::  gamma, rho, qv, pres, stress, mom, temp, G
         real(kind(0d0)), dimension(num_fluids) ::  alpha_K, alpha_rho_K
         real(kind(0d0)) :: theta_m, tempref, theta_hat, sigma_bar, dp_JC, d_p
-
 
         ! compute velocity gradients and rho_K and G_K        
         !$acc parallel loop collapse(2) gang vector default(present)
@@ -182,16 +181,24 @@ contains
 	     theta_m = jcook(6)*(1d0 + (pres/jcook(8)))**(1d0/jcook(9))
              ! compute theta_hat from equation 4.9
              tempref = 298 ! DO NOT DO: HARDCODED REFERENCE TEMPERATURE
-             theta_hat = (temp - tempref)/(theta_m - tempref) 
+             if (temp .lt. tempref) then
+                theta_hat = 0
+             elseif (temp .le. theta_m) then
+                theta_hat = (temp - tempref)/(theta_m - tempref)
+             else
+                theta_hat = 1
+             end if
              !could alternatively compute subtract tempref in both temp subroutine and theta_m
              ! compute sigma_bar = sqrt(3/2) * | S | 
-             sigma_bar = sqrt(3d0/2d0) * (du_dx(k, l, q)*dv_dy(k, l, q) - &
-                         (1d0/2d0)*du_dy(k, l, q)*dv_dx(k, l, q) - &
-                         (1d0/40)*(du_dy(k, l, q)**2 * dv_dx(k, l, q)**2))
+             sigma_bar = sqrt(3d0/2d0) * (du_dx(k, l, q)**2 + dv_dy(k, l, q)**2 + &
+                         (1d0/2d0)*du_dy(k, l, q)**2 + (1d0/2d0)*dv_dx(k, l, q)**2 + &
+                         du_dy(k, l, q)*dv_dx(k, l, q))**(1d0/2d0)
+
              ! STEP 3.3 : Compute d^p and update rhs
              ! compute d^p_JC from equation 4.7
-             ! d0 = 1 s^-1, jcook(4) = C, jcook(1) = A, jcook(2) = B, 
-             dp_JC = exp( (1d0/jcook(4)) * (sigma_bar / &
+             ! d0 = 1 s^-1, jcook(4) = C, jcook(1) = A, jcook(2) = B,
+             ! jcook(10) = d0 = R_tilde nondimensionally
+             dp_JC = jcook(10) * exp( (1d0/jcook(4)) * (sigma_bar / &
                     ((jcook(1) + jcook(2)*q_prim_vf(plasidx)%sf(k, l,q)) * &
                     (1d0 - theta_hat))) - 1d0)
              ! compute d^p from equation 4.6
@@ -204,7 +211,7 @@ contains
              Dp(4) = ((3d0*d_p) / (2d0*sigma_bar)) * dv_dy(k, l, q)
 
              ! STEP 4: Compute rhs source terms
-             rhs_vf(strxb + 0)%sf(k, l, q) = rhs_vf(strxb)%sf(k, l, q) + rho_K_field(k, l ,q)*tensora(1) + & 
+             rhs_vf(strxb + 0)%sf(k, l, q) = rhs_vf(strxb)%sf(k, l, q) + rho_K_field(k, l ,q)*atensor(1) + & 
                2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(1) - Dp(1))
                       
              rhs_vf(strxb + 1)%sf(k, l, q) = rhs_vf(strxb + 1)%sf(k, l, q) + rho_K_field(k, l, q)* tensora(2) + &
@@ -213,7 +220,7 @@ contains
              rhs_vf(strxb + 2)%sf(k, l, q) = rhs_vf(strxb + 2)%sf(k, l, q) + rho_K_field(k, l, q)*tensora(3) + &
                2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(3) - Dp(3))
                
-             rhs_vf(strxb + 3)%sf(k, l, q) = rhs_vf(strxb + 3)%sf(k, l, q) + rho_K_field(k, l, q)*tensora(4) + &
+             rhs_vf(strxb + 3)%sf(k, l, q) = rhs_vf(strxb + 3)%sf(k, l, q) + rho_K_field(k, l, q)*atensor(4) + &
                2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(4) - Dp(4))             
              ! TODO: IS THIS RIGHT?
              rhs_vf(plasidx)%sf(k, l, q) = rhs_vf(plasidx)%sf(k, l, q)*d_p

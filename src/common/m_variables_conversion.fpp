@@ -145,10 +145,9 @@ contains
         real(kind(0d0)), intent(out) :: pres
         real(kind(0d0)), intent(in), optional :: stress, mom, G
         real(kind(0d0)), dimension(num_fluids), intent(in), optional :: alpha_K, alpha_rho_K
-    
 
         real(kind(0d0)) :: E_e
-        real(kind(0d0)) :: log_rho_mix_ratio, rho_mix_MG, phi_mix, theta_E, deno_gamma_rho_sq
+        real(kind(0d0)) :: log_rho_mix_ratio, rho_mix_MG,phi_mix,theta_E, deno_gamma_rho_sq, term1, rho0_mix
         integer :: s !< Generic loop iterator
 
         ! Depending on model_eqns and bubbles, the appropriate procedure
@@ -159,37 +158,48 @@ contains
             pres = (energy - dyn_p - pi_inf - qv)/gamma
         else if ((model_eqns /= 4 .and. model_eqns /=5) .and. bubbles) then
             pres = ((energy - dyn_p)/(1.d0 - alf) - pi_inf - qv)/gamma
-        else if (model_eqns .eq. 5) then
-            rho_mix_MG =sum(alpha_rho_K(:))/&
-                        sum(gammas(:)*(mg_a(:)*alpha_K(:)*rho0(:)+&
-                        mg_b(:)*alpha_rho_K(:)))
-            log_rho_mix_ratio = log(rho/sum(alpha_K(:)*rho0(:)))
-            deno_gamma_rho_sq = sum(gammas(:)*(mg_a(:)*alpha_K(:)*&
-                                rho0(:)*rho0(:)+mg_b(:)*&
-                                alpha_rho_K(:)*rho0(:)))
-            phi_mix = exp(sum(alpha_K(:)*gammas(:)-&
-                        alpha_K(:)*gammas(:)*rho0(:)/rho))
-            theta_E = sum(alpha_K(:)*ein_cv2(:))
-            pres = energy - dyn_p -&
-                   0.5d0*(log_rho_mix_ratio**2)*&
-                   sum(pi_infs(:)*alpha_rho_K(:)/rho0(:))-&
-                   0.5d0*(log_rho_mix_ratio**3)*sum(pi_infs(:)*alpha_rho_K(:)*&
-                   (qvs(:)-2)/(3*rho0(:)))-&
-                   phi_mix*exp(phi_mix*theta_E)*sum(alpha_rho_K(:)*ein_cv1(:)*ein_cv2(:))/&
-                   (exp(phi_mix*theta_E)-1)+&
-                   log(exp(phi_mix*theta_E)-1)*sum(alpha_rho_K(:)*ein_cv1(:))+&
-                   log_rho_mix_ratio*sum(alpha_rho_K(:)*alpha_rho_K(:)*pi_infs(:))/deno_gamma_rho_sq +&
-                   (log_rho_mix_ratio**2)*sum(alpha_rho_K(:)*alpha_rho_K(:)*pi_infs(:)*0.5d0*(qvs(:)-2))/&
-                   deno_gamma_rho_sq
-            pres = pres/rho_mix_MG
+        else if (model_eqns == 5) then
+                term1             = 0.d0
+                rho0_mix          = 0.d0
+                deno_gamma_rho_sq = 0.d0
+                phi_mix           = 0.d0
+                theta_E           = 0.d0
+                do s = 1, num_fluids
+                         term1 = term1+ gammas(s)*(mg_a(s)*alpha_K(s)*rho0(s)+&
+                                mg_b(s)*alpha_rho_K(s))
+                         rho0_mix = rho0_mix + alpha_K(s)*rho0(s)
+                
+                         deno_gamma_rho_sq = deno_gamma_rho_sq+gammas(s)*(mg_a(s)*alpha_K(s)*&
+                                        rho0(s)*rho0(s)+mg_b(s)*alpha_rho_K(s)*rho0(s))
+                         phi_mix = phi_mix+alpha_K(s)*gammas(s)-alpha_K(s)*gammas(s)*rho0(s)/rho
+                         theta_E = theta_E+ alpha_K(s)*ein_cv2(s)
+                end do 
+                rho_mix_MG =rho/term1
+                log_rho_mix_ratio = log(rho/rho0_mix)
+                phi_mix = exp(phi_mix)
+                 pres = 0.d0
+                do s = 1, num_fluids
+                   pres = pres - 0.5d0*(log_rho_mix_ratio**2.d0)*&
+                           (pi_infs(s)*alpha_rho_K(s)/rho0(s))&
+                        -0.5d0*(log_rho_mix_ratio**3.d0)*pi_infs(s)*alpha_rho_K(s)*&
+                        (qvs(s)-2.d0)/(3*rho0(s))&
+                        -phi_mix*exp(phi_mix*theta_E)*(alpha_rho_K(s)*ein_cv1(s)*ein_cv2(s))/&
+                        (exp(phi_mix*theta_E)-1.d0)&
+                        +log(exp(phi_mix*theta_E)-1.d0)*(alpha_rho_K(s)*ein_cv1(s))&
+                        +log_rho_mix_ratio*(alpha_rho_K(s)*alpha_rho_K(s)*pi_infs(s))/deno_gamma_rho_sq &
+                        +(log_rho_mix_ratio**2.d0)*(alpha_rho_K(s)**2.d0*pi_infs(s)*0.5d0*(qvs(s)-2.d0))/&
+                        deno_gamma_rho_sq
+                end do
+                 pres = pres + energy - dyn_p     
+                 pres = pres/rho_mix_MG
         else
             pres = (pref + pi_inf)* &
                    (energy/ &
                     (rhoref*(1.d0 - alf)) &
-                    )**(1.d0/gamma + 1.d0) - pi_inf
+                    )**(1.d0/gamma + 1.d0) - pi_inf        
         end if
 
-        if (hypoelasticity .and. present(G)) then
+        if (hypoelasticity .and. present(G) .and. (hypoplasticity .neqv. .true.)) then
             ! calculate elastic contribution to Energy
             E_e = 0d0
             do s = stress_idx%beg, stress_idx%end
@@ -204,7 +214,7 @@ contains
                 end if
             end do
 
-            pres = (energy - 0.5d0*(mom**2.d0)/rho - pi_inf - qv - E_e)/gamma
+            pres = (energy - dyn_p - pi_inf - qv - E_e)/gamma
 
         end if
 
@@ -232,29 +242,40 @@ contains
       
         real(kind(0d0)) :: E_e
         ! Temporary local variables
-        real(kind(0d0)) :: log_rho_mix_ratio, phi_mix, theta_E
+        real(kind(0d0)) :: log_rho_mix_ratio, rho0_mix, phi_mix, theta_E
         real(kind(0d0)) :: num_term1, denom_term1, denom_term2, denom
         integer :: s !< Generic loop iterator
 
         ! model_eqns = 5 corresponds to the Mie-Gruneisen EOS
 
         if (model_eqns .eq. 5) then
-           log_rho_mix_ratio = log(rho/sum(alpha_K(:)*rho0(:)))
-           phi_mix = exp(sum(alpha_K(:)*gammas(:)-&
-                        alpha_K(:)*gammas(:)*rho0(:)/rho))
-           theta_E = sum(alpha_K(:)*ein_cv2(:))
-           num_term1 = energy - dyn_p -&
-                   0.5d0*(log_rho_mix_ratio**2)*&
-                   sum(pi_infs(:)*alpha_rho_K(:)/rho0(:))-&
-                   0.5d0*(log_rho_mix_ratio**3)*sum(pi_infs(:)*alpha_rho_K(:)*&
-                   (qvs(:)-2d0)/(3d0*rho0(:)))-&
-                   phi_mix*exp(phi_mix*theta_E)*sum(alpha_rho_K(:)*ein_cv1(:)*ein_cv2(:))/&
+                rho0_mix    = 0.d0
+                phi_mix     = 0.d0
+                theta_E     = 0.d0
+                num_term1   = 0.d0
+                denom_term1 = 0.d0
+           do s = 1, num_fluids
+                rho0_mix = rho0_mix+alpha_K(s)*rho0(s)
+                phi_mix  = phi_mix + alpha_K(s)*gammas(s) - alpha_K(s)*gammas(s)*rho0(s)/rho          
+                theta_E  = theta_E+alpha_K(s)*ein_cv2(s)
+           end do 
+           log_rho_mix_ratio = log(rho/rho0_mix)
+           phi_mix           = exp(phi_mix)
+           do s = 1, num_fluids
+                num_term1 = num_term1 -0.5d0*(log_rho_mix_ratio**2)*&
+                   pi_infs(s)*alpha_rho_K(s)/rho0(s)&
+                   -0.5d0*(log_rho_mix_ratio**3)*pi_infs(s)*alpha_rho_K(s)&
+                   *(qvs(s)-2d0)/(3d0*rho0(s))&
+                   -phi_mix*exp(phi_mix*theta_E)*alpha_rho_K(s)*ein_cv1(s)*ein_cv2(s)/&
                    (exp(phi_mix*theta_E)-1d0)+&
-                   log(exp(phi_mix*theta_E)-1d0)*sum(alpha_rho_K(:)*ein_cv1(:))
-           denom_term1 = phi_mix*sum(alpha_rho_K(:)*ein_cv1(:)*ein_cv2(:))
-           denom_term2 = exp(phi_mix*sum(alpha_K(:)*ein_cv2(:))) - 1d0
+                   log(exp(phi_mix*theta_E)-1d0)*alpha_rho_K(s)*ein_cv1(s)
+           
+                   denom_term1 = denom_term1+phi_mix*alpha_rho_K(s)*ein_cv1(s)*ein_cv2(s) 
+           end do 
+           denom_term2 = exp(phi_mix*theta_E) - 1d0
+           num_term1 = num_term1 + energy - dyn_p
            denom = num_term1 / denom_term1 + 1d0 / denom_term2
-           temp = phi_mix*sum(alpha_K(:)*ein_cv2(:)*log(1d0 + 1d0 / denom))
+           temp = phi_mix*theta_E/log(1d0 + 1d0 / denom) ! are you missing alpha_K here? MCB
         end if
     end subroutine s_compute_temperature
  
@@ -283,7 +304,6 @@ contains
         real(kind(0d0)), intent(out), target :: qv
 
         real(kind(0d0)), optional, dimension(2), intent(out) :: Re_K
-
         real(kind(0d0)), optional, intent(out) :: G_K
         real(kind(0d0)), optional, dimension(num_fluids), intent(in) :: G
         real(kind(0d0)), optional, dimension(10), intent(out) :: jcook_K
@@ -1136,9 +1156,8 @@ contains
                                                                     ((qK_prim_vf(i)%sf(j, k, l)**2d0)/(4d0*G_K))/gamma_K
                                 end if
                             end if
-                        end do 
-                    end if
-
+                        end do
+                    end if 
                     if (hypoplasticity) then
                         !$acc loop seq
                         do i = strxb, strxe
