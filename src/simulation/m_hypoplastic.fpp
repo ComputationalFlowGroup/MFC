@@ -181,7 +181,13 @@ contains
 	     theta_m = jcook(6)*(1d0 + (pres/jcook(8)))**(1d0/jcook(9))
              ! compute theta_hat from equation 4.9
              tempref = 298 ! DO NOT DO: HARDCODED REFERENCE TEMPERATURE
-             theta_hat = (temp - tempref)/(theta_m - tempref) 
+             if (temp .lt. tempref) then
+                theta_hat = 0
+             elseif (temp .le. theta_m) then
+                theta_hat = (temp - tempref)/(theta_m - tempref)
+             else
+                theta_hat = 1
+             end if
              !could alternatively compute subtract tempref in both temp subroutine and theta_m
              ! compute sigma_bar = sqrt(3/2) * | S | 
              sigma_bar = sqrt(3d0/2d0) * (du_dx(k, l, q)**2 + dv_dy(k, l, q)**2 + &
