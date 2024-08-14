@@ -261,7 +261,6 @@ contains
            end do 
            log_rho_mix_ratio = log(rho/rho0_mix)
            phi_mix           = exp(phi_mix)
-           num_term1         = 0.d0
            do s = 1, num_fluids
                 num_term1 = num_term1 -0.5d0*(log_rho_mix_ratio**2)*&
                    pi_infs(s)*alpha_rho_K(s)/rho0(s)&
@@ -276,7 +275,7 @@ contains
            denom_term2 = exp(phi_mix*theta_E) - 1d0
            num_term1 = num_term1 + energy - dyn_p
            denom = num_term1 / denom_term1 + 1d0 / denom_term2
-           temp = phi_mix*theta_E/log(1d0 + 1d0 / denom)
+           temp = phi_mix*theta_E/log(1d0 + 1d0 / denom) ! are you missing alpha_K here? MCB
         end if
     end subroutine s_compute_temperature
  
