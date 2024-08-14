@@ -1070,7 +1070,7 @@ contains
                                                 qK_cons_vf(alf_idx)%sf(j, k, l), &
                                                 dyn_pres_K, pi_inf_K, gamma_K, rho_K, qv_K, pres)
                     else    
-                            call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
+                        call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
                                             0d0, dyn_pres_K, 0d0, 0d0, rho_K, 0d0, &
                                            pres, 0d0, 0d0, 0d0, alpha_rho_K, alpha_K)
                     end if   
@@ -1262,7 +1262,6 @@ contains
                                                        (1.d0 - q_prim_vf(alf_idx)%sf(j, k, l))* &
                                                        (gamma*q_prim_vf(E_idx)%sf(j, k, l) + pi_inf)
                     else if (model_eqns == 5) then
-                    ! TODO SRIJAN HOMEWORK
                         rho0 = 0.d0 
                         rho_mix_MG_denominator = 0.d0
                         zeta_mix = 0.d0
@@ -1289,18 +1288,18 @@ contains
                         rho_mix_MG = rho/rho_mix_MG_denominator
                         phi_mix = DEXP(zeta_mix)
                         do i = 1, num_fluids
-                         Kt_K  = fluid_pp(i)%pi_inf
-                         Ktp_K = fluid_pp(i)%qv
-                         a_cv_K = fluid_pp(i)%ein_cv(1)
-                         rho_K_ratio = alpha_rho_K(i)/fluid_pp(i)%rho0
-                         q_cons_vf(E_idx)%sf(j, k, l)=q_cons_vf(E_idx)%sf(j, k, l)+&
-                           0.5d0*((log(rho_mix_ratio))**2)*rho_K_ratio*Kt_K+&
-                           0.5d0*((log(rho_mix_ratio))**3)*rho_K_ratio*Kt_K*(Ktp_K-2)/3.d0+&
-                           phi_mix*(DEXP(phi_mix*theta_E)/(DEXP(phi_mix*theta_E)-1))*alpha_rho_K(i)*a_cv_K*theta_E_K(i)-&
-                           log(DEXP(phi_mix*theta_E)-1)*alpha_rho_K(i)*a_cv_K+q_prim_vf(E_idx)%sf(j, k, l)*rho_mix_MG -&
-                           log(rho_mix_ratio)*(alpha_rho_K(i)**2)*Kt_K/gamma_rho_squared_denominator-&
-                           ((log(rho_mix_ratio))**2)*(alpha_rho_K(i)**2)*Kt_K*0.5d0*(Ktp_K-2)/&
-                                                              gamma_rho_squared_denominator
+                          Kt_K  = fluid_pp(i)%pi_inf
+                          Ktp_K = fluid_pp(i)%qv
+                          a_cv_K = fluid_pp(i)%ein_cv(1)
+                          rho_K_ratio = alpha_rho_K(i)/fluid_pp(i)%rho0
+                          q_cons_vf(E_idx)%sf(j, k, l)=q_cons_vf(E_idx)%sf(j, k, l)+&
+                          0.5d0*((log(rho_mix_ratio))**2)*rho_K_ratio*Kt_K+&
+                          0.5d0*((log(rho_mix_ratio))**3)*rho_K_ratio*Kt_K*(Ktp_K-2)/3.d0+&
+                          phi_mix*(DEXP(phi_mix*theta_E)/(DEXP(phi_mix*theta_E)-1))*alpha_rho_K(i)*a_cv_K*theta_E_K(i)-&
+                          log(DEXP(phi_mix*theta_E)-1)*alpha_rho_K(i)*a_cv_K+q_prim_vf(E_idx)%sf(j, k, l)*rho_mix_MG -&
+                          log(rho_mix_ratio)*(alpha_rho_K(i)**2)*Kt_K/gamma_rho_squared_denominator-&
+                          ((log(rho_mix_ratio))**2)*(alpha_rho_K(i)**2)*Kt_K*0.5d0*(Ktp_K-2)/&
+                                 gamma_rho_squared_denominator
                         end do
                         ! adding the dynamic pressure to the total energy
                         q_cons_vf(E_idx)%sf(j, k, l) = q_cons_vf(E_idx)%sf(j, k, l) + dyn_pres

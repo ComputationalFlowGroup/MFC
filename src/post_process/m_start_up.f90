@@ -213,7 +213,7 @@ contains
         end if
 
         ! Adding the partial densities to the formatted database file ----------
-        if ((model_eqns == 2) .or. (model_eqns == 3) .or. (model_eqns == 4)) then
+        if ((model_eqns .ge. 2) .and. (model_eqns .le. 5)) then
             do i = 1, num_fluids
                 if (alpha_rho_wrt(i) .or. (cons_vars_wrt .or. prim_vars_wrt)) then
 
