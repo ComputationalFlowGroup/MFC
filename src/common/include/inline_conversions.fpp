@@ -13,13 +13,13 @@
         real(kind(0d0)), optional, dimension(num_fluids), intent(IN) :: G, alpha_rho_K
         real(kind(0d0)), intent(OUT) :: c
         real(kind(0d0)) :: blkmod1, blkmod2
-        real(kind(0d0)) :: log_rho_mix_ratio, deno_rho_sq, phi_mix, theta_E, rho0_mix 
+        real(kind(0d0)) :: log_rho_mix_ratio, deno_rho_sq, phi_mix, theta_E, rho0_mix, term1, term2, term3 
        
 
         !Local variables used for computation only
        
 
-        integer :: q
+        integer :: q, r
 
         if (alt_soundspeed) then
             blkmod1 = ((gammas(1) + 1d0)*pres + &
@@ -51,28 +51,45 @@
             end if
 
         elseif (model_eqns == 5) then
-            log_rho_mix_ratio = log(rho/sum(adv(:)*rho0(:)))
-            deno_rho_sq = sum(mg_a(:)*adv(:)*&
-                                rho0(:)**2+mg_b(:)*&
-                                alpha_rho_K(:)*rho0(:))
-            phi_mix = exp(sum(adv(:)*gammas(:)-&
-                       adv(:)*gammas(:)*rho0(:)/rho))
-            theta_E = sum(adv(:)*ein_cv2(:))
-            rho0_mix = sum(adv(:)*rho0(:))
-            c = sum(alpha_rho_K(:)*pi_infs(:)/rho0(:))&
-                   +log_rho_mix_ratio*sum(alpha_rho_K(:)*pi_infs(:)*(qvs(:)-1.d0)/rho0(:))&
-                   +(log_rho_mix_ratio**2)*sum(alpha_rho_K(:)*pi_infs(:)*0.5d0*(qvs(:)-2.d0)/rho0(:)) &
-                   +pres*sum(alpha_rho_K(:)*mg_b(:))/sum(adv(:)*mg_a(:)*rho0(:)+mg_b(:)*alpha_rho_K(:)) &
-                   -log_rho_mix_ratio*sum((alpha_rho_K(:)**2)*mg_b(:)*pi_infs(:))/deno_rho_sq &
-                   -(log_rho_mix_ratio**2)*sum((alpha_rho_K(:)**2)*mg_b(:)*pi_infs(:)*0.5d0*(qvs(:)-2.d0))/deno_rho_sq &
-                   +pres*(sum(gammas(:)*mg_a(:)*adv(:)*rho0(:))/rho0_mix+sum(mg_b(:)*gammas(:)*adv(:))) &
-                   -log_rho_mix_ratio*(sum(gammas(:)*adv(:)*mg_a(:)*pi_infs(:)) &
-                   + sum(gammas(:)*alpha_rho_K(:)*mg_b(:)*pi_infs(:))/rho0_mix ) &
-                   -(log_rho_mix_ratio**2)*(sum(gammas(:)*adv(:)*mg_a(:)*pi_infs(:)*0.5d0*(qvs(:)-2.d0)) &
-                   +sum(gammas(:)*alpha_rho_K(:)*mg_b(:)*pi_infs(:)*0.5d0*(qvs(:)-2.d0))/rho0_mix) &
-                   +(phi_mix**2)*(exp(phi_mix*theta_E)/(exp(phi_mix*theta_E)-1)**2)*(sum(adv(:)*gammas(:)*mg_a(:)*&
-                   (rho0(:)**2)*ein_cv1(:)*ein_cv2(:)) &
-                   +sum(adv(:)*gammas(:)*mg_b(:)*rho0(:)*ein_cv1(:)*ein_cv2(:)**2))
+            deno_rho_sq = 0.d0
+            phi_mix     = 0.d0
+            theta_E     = 0.d0
+            rho0_mix    = 0.d0
+            term1       = 0.d0
+            rho0_mix    = 0.d0
+            term2       = 0.d0
+            term3       = 0.d0
+            do r = 1, num_fluids
+                rho0_mix    = rho0_mix + adv(r)*rho0(r)
+                deno_rho_sq = deno_rho_sq+mg_a(r)*adv(r)*&
+                                rho0(r)**2+mg_b(r)*&
+                                alpha_rho_K(r)*rho0(r)
+                phi_mix     = phi_mix+adv(r)*gammas(r)-&
+                                adv(r)*gammas(r)*rho0(r)/rho
+                theta_E     = theta_E+adv(r)*ein_cv2(r)
+                rho0_mix    = rho0_mix+adv(r)*rho0(r)
+                term1       = term1 +adv(r)*mg_a(r)*rho0(r)+mg_b(r)*alpha_rho_K(r)
+                term2       = term2 +adv(r)*gammas(r)*mg_a(r)*&
+                                (rho0(r)**2.d0)*ein_cv1(r)*ein_cv2(r)**2.d0
+                term3       = term3+adv(r)*gammas(r)*mg_b(r)*rho0(r)*ein_cv1(r)*ein_cv2(r)**2.d0
+            end do
+                log_rho_mix_ratio = log(rho/rho0_mix)
+                phi_mix = exp(phi_mix)
+                c = 0.d0
+            do r = 1,num_fluids     
+                c = c  +alpha_rho_K(r)*pi_infs(r)/rho0(r)&
+                   +log_rho_mix_ratio*(alpha_rho_K(r)*pi_infs(r)*(qvs(r)-1.d0)/rho0(r))&
+                   +(log_rho_mix_ratio**2.d0)*(alpha_rho_K(r)*pi_infs(r)*0.5d0*(qvs(r)-2.d0)/rho0(r)) &
+                   +pres*(alpha_rho_K(r)*mg_b(r))/term1 &
+                   -log_rho_mix_ratio*alpha_rho_K(r)**2.d0*mg_b(r)*pi_infs(r)/deno_rho_sq &
+                   -(log_rho_mix_ratio**2.d0)*(alpha_rho_K(r)**2.d0)*mg_b(r)*pi_infs(r)*0.5d0*(qvs(r)-2.d0)/deno_rho_sq &
+                   +pres*(gammas(r)*mg_a(r)*adv(r)*rho0(r)/rho0_mix+mg_b(r)*gammas(r)*adv(r)) &
+                   -log_rho_mix_ratio*(gammas(r)*adv(r)*mg_a(r)*pi_infs(r) &
+                   + gammas(r)*alpha_rho_K(r)*mg_b(r)*pi_infs(r)/rho0_mix ) &
+                   -(log_rho_mix_ratio**2.d0)*(gammas(r)*adv(r)*mg_a(r)*pi_infs(r)*0.5d0*(qvs(r)-2.d0) &
+                   +gammas(r)*alpha_rho_K(r)*mg_b(r)*pi_infs(r)*0.5d0*(qvs(r)-2.d0)/rho0_mix) &
+                   +(phi_mix**2.d0)*(exp(phi_mix*theta_E)/(exp(phi_mix*theta_E)-1.d0)**2.d0)*(term2+term3)
+            end do
             c = c/rho
         else           
             c = ((H - 5d-1*vel_sum)/gamma)

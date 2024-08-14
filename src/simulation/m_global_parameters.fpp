@@ -456,11 +456,18 @@ module m_global_parameters
     !$acc declare link(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps)
     @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), dimension(:), rho0, mg_a, mg_b, ein_cv1, ein_cv2)
     !$acc declare link(rho0, mg_a, mg_b, ein_cv1, ein_cv2)
+    @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), dimension(:), jcook1,jcook2,jcook3,jcook4,jcook5,jcook6,jcook7,jcook8,jcook9,jcook10)
+    !$acc declare link(jcook1,jcook2,jcook3,jcook4,jcook5,jcook6,jcook7,jcook8,jcook9,jcook10)
 #else
     real(kind(0d0)), allocatable, dimension(:) :: gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps
     !$acc declare create(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps)
     real(kind(0d0)), allocatable, dimension(:) :: rho0, mg_a, mg_b, ein_cv1, ein_cv2
     !$acc declare create(rho0, mg_a, mg_b, ein_cv1, ein_cv2)
+    #:for VAR in range(1,11)
+      real(kind(0d0)), allocatable, public, dimension(:) :: jcook${VAR}$
+    #:endfor
+    !$acc declare create(jcook1,jcook2,jcook3,jcook4,jcook5,jcook6,jcook7,jcook8,jcook9,jcook10)
+
 #endif
 
     real(kind(0d0)) :: mytime       !< Current simulation time
@@ -581,7 +588,7 @@ contains
             fluid_pp(i)%rho0 = dflt_real
             fluid_pp(i)%mg_a = dflt_real
             fluid_pp(i)%mg_b = dflt_real
-            fluid_pp(i)%ein_cv(:) = dflt_real
+            fluid_pp(i)%ein_cv(:) = 0d0
             fluid_pp(i)%jcook(:) = dflt_real
         end do
 
