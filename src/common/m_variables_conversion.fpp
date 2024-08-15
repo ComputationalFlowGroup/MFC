@@ -185,12 +185,13 @@ contains
                         +log(exp(phi_mix*theta_E)-1.d0)*(alpha_rho_K(s)*ein_cv1(s)) &
                         +log_rho_mix_ratio*(alpha_rho_K(s)*alpha_rho_K(s)*pi_infs(s))/deno_gamma_rho_sq &
                         +(log_rho_mix_ratio**2.d0)*(alpha_rho_K(s)**2.d0*pi_infs(s)*0.5d0*(qvs(s)-2.d0))/deno_gamma_rho_sq
-                   pres_sg = (energy - pi_inf(s))/gamma
+                   pres_sg = (energy - pi_inf(s))*gammas(s)
                    pres = pres + mg_a(s)*pres_mg + mg_b(s)*pres_sg
                 end do
                 pres = pres + energy - dyn_p     
                 pres = pres/rho_mix_MG
                 print *, 'pressure ::', pres
+
         else
             pres = (pref + pi_inf)* &
                    (energy/ &
