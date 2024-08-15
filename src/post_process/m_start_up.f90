@@ -337,11 +337,22 @@ contains
                            -offset_x%beg:m + offset_x%end, &
                            -offset_y%beg:n + offset_y%end, &
                            -offset_z%beg:p + offset_z%end)
-                    write (varname, '(A,I0)') 'xi', i
+                    write (varname, '(A,I0)') 'xi_rmt', i
                     call s_write_variable_to_formatted_database_file(varname, t_step)
                 end if
                 varname(:) = ' '
             end do
+        end if
+        if (hypoplasticity) then
+            if (prim_vars_wrt) then
+               q_sf = q_prim_vf(plasidx)%sf( &
+                      -offset_x%beg:m + offset_x%end, &
+                      -offset_y%beg:n + offset_y%end, &
+                      -offset_z%beg:p + offset_z%end)
+               write (varname, '(A,I0)') 'xi_p', i
+               call s_write_variable_to_formatted_database_file(varname, t_step)
+            end if
+            varname(:) = ' '
         end if
 
         ! ----------------------------------------------------------------------
