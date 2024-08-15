@@ -146,7 +146,7 @@ contains
         real(kind(0d0)), intent(in), optional :: stress, mom, G
         real(kind(0d0)), dimension(num_fluids), intent(in), optional :: alpha_K, alpha_rho_K
 
-        real(kind(0d0)) :: E_e
+        real(kind(0d0)) :: E_e, pres_mg, pres_sg
         real(kind(0d0)) :: log_rho_mix_ratio, rho_mix_MG,phi_mix,theta_E, deno_gamma_rho_sq, term1, rho0_mix
         integer :: s !< Generic loop iterator
 
@@ -177,21 +177,20 @@ contains
                 rho_mix_MG =rho/term1
                 log_rho_mix_ratio = log(rho/rho0_mix)
                 phi_mix = exp(phi_mix)
-                 pres = 0.d0
+                pres = 0.d0
                 do s = 1, num_fluids
-                   pres = pres - 0.5d0*(log_rho_mix_ratio**2.d0)*&
-                           (pi_infs(s)*alpha_rho_K(s)/rho0(s))&
-                        -0.5d0*(log_rho_mix_ratio**3.d0)*pi_infs(s)*alpha_rho_K(s)*&
-                        (qvs(s)-2.d0)/(3*rho0(s))&
-                        -phi_mix*exp(phi_mix*theta_E)*(alpha_rho_K(s)*ein_cv1(s)*ein_cv2(s))/&
-                        (exp(phi_mix*theta_E)-1.d0)&
-                        +log(exp(phi_mix*theta_E)-1.d0)*(alpha_rho_K(s)*ein_cv1(s))&
+                   pres_mg = - 0.5d0*(log_rho_mix_ratio**2.d0)*(pi_infs(s)*alpha_rho_K(s)/rho0(s)) &
+                        -0.5d0*(log_rho_mix_ratio**3.d0)*pi_infs(s)*alpha_rho_K(s)*(qvs(s)-2.d0)/(3*rho0(s)) &
+                        -phi_mix*exp(phi_mix*theta_E)*(alpha_rho_K(s)*ein_cv1(s)*ein_cv2(s))/(exp(phi_mix*theta_E)-1.d0) &
+                        +log(exp(phi_mix*theta_E)-1.d0)*(alpha_rho_K(s)*ein_cv1(s)) &
                         +log_rho_mix_ratio*(alpha_rho_K(s)*alpha_rho_K(s)*pi_infs(s))/deno_gamma_rho_sq &
-                        +(log_rho_mix_ratio**2.d0)*(alpha_rho_K(s)**2.d0*pi_infs(s)*0.5d0*(qvs(s)-2.d0))/&
-                        deno_gamma_rho_sq
+                        +(log_rho_mix_ratio**2.d0)*(alpha_rho_K(s)**2.d0*pi_infs(s)*0.5d0*(qvs(s)-2.d0))/deno_gamma_rho_sq
+                   pres_sg = (energy - pi_inf(s))/gamma
+                   pres = pres + mg_a(s)*pres_mg + mg_b(s)*pres_sg
                 end do
-                 pres = pres + energy - dyn_p     
-                 pres = pres/rho_mix_MG
+                pres = pres + energy - dyn_p     
+                pres = pres/rho_mix_MG
+                print *, 'pressure ::', pres
         else
             pres = (pref + pi_inf)* &
                    (energy/ &
@@ -1029,6 +1028,7 @@ contains
         do l = izb, ize
             do k = iyb, iye
                 do j = ixb, ixe
+                    print *,'j :: ',j,', k :: ',k,', l :: ',l
                     dyn_pres_K = 0d0
 
                     !$acc loop seq
@@ -1228,7 +1228,7 @@ contains
         !Mie-Gruneisen EOS
         real(kind(0d0)) :: rho_mix_ratio, rho_mix_MG, phi_mix
         real(kind(0d0)) :: zeta_mix, rho_mix_MG_denominator, theta_E
-        real(kind(0d0)) :: gamma_rho_squared_denominator
+        real(kind(0d0)) :: gamma_rho_squared_denominator, E_mg, E_sg, pres_bar
         real(kind(0d0)), dimension(num_fluids) :: alpha_rho_K
         !Parameters for einstein model 
         real(kind(0d0)), dimension(2) :: theta_E_K
@@ -1242,7 +1242,6 @@ contains
         do l = 0, p
             do k = 0, n
                 do j = 0, m
-
                     ! Obtaining the density, specific heat ratio function
                     ! and the liquid stiffness function, respectively
                     call s_convert_to_mixture_variables(q_prim_vf, j, k, l, &
@@ -1305,20 +1304,25 @@ contains
                         end do  
                         rho_mix_ratio = rho/rho0
                         rho_mix_MG = rho/rho_mix_MG_denominator
-                        phi_mix = DEXP(zeta_mix)
+                        phi_mix = DEXP(zeta_mix)                        
+                        pres_bar = q_prim_vf(E_idx)%sf(j, k, l)*rho_mix_MG 
                         do i = 1, num_fluids
                           Kt_K  = fluid_pp(i)%pi_inf
                           Ktp_K = fluid_pp(i)%qv
                           a_cv_K = fluid_pp(i)%ein_cv(1)
                           rho_K_ratio = alpha_rho_K(i)/fluid_pp(i)%rho0
-                          q_cons_vf(E_idx)%sf(j, k, l)=q_cons_vf(E_idx)%sf(j, k, l)+&
-                          0.5d0*((log(rho_mix_ratio))**2)*rho_K_ratio*Kt_K+&
-                          0.5d0*((log(rho_mix_ratio))**3)*rho_K_ratio*Kt_K*(Ktp_K-2)/3.d0+&
-                          phi_mix*(DEXP(phi_mix*theta_E)/(DEXP(phi_mix*theta_E)-1))*alpha_rho_K(i)*a_cv_K*theta_E_K(i)-&
-                          log(DEXP(phi_mix*theta_E)-1)*alpha_rho_K(i)*a_cv_K+q_prim_vf(E_idx)%sf(j, k, l)*rho_mix_MG -&
-                          log(rho_mix_ratio)*(alpha_rho_K(i)**2)*Kt_K/gamma_rho_squared_denominator-&
+
+                          E_mg =  0.5d0*((log(rho_mix_ratio))**2)*rho_K_ratio*Kt_K &
+                          +0.5d0*((log(rho_mix_ratio))**3)*rho_K_ratio*Kt_K*(Ktp_K-2)/3.d0 &
+                          +phi_mix*(DEXP(phi_mix*theta_E)/(DEXP(phi_mix*theta_E)-1))*alpha_rho_K(i)*a_cv_K*theta_E_K(i) &
+                          -log(DEXP(phi_mix*theta_E)-1)*alpha_rho_K(i)*a_cv_K &
+                          -log(rho_mix_ratio)*(alpha_rho_K(i)**2)*Kt_K/gamma_rho_squared_denominator-&
                           ((log(rho_mix_ratio))**2)*(alpha_rho_K(i)**2)*Kt_K*0.5d0*(Ktp_K-2)/&
                                  gamma_rho_squared_denominator
+
+                          E_sg = gamma*q_prim_vf(E_idx)%sf(j, k, l) + dyn_pres + pi_inf + qv
+
+                          q_cons_vf(E_idx)%sf(j,k,l) = q_cons_vf(E_idx)%sf(j, k, l) + mg_a(i)*(pres_bar + E_mg) + mg_b(i)*E_sg
                         end do
                         ! adding the dynamic pressure to the total energy
                         q_cons_vf(E_idx)%sf(j, k, l) = q_cons_vf(E_idx)%sf(j, k, l) + dyn_pres
@@ -1394,11 +1398,12 @@ contains
                                 end if
                             end if
                         end do
-                        if ( hypoplasticity ) then 
-                          q_cons_vf(plasidx)%sf(j, k, l) = rho*q_prim_vf(plasidx)%sf(j, k, l)                  
-                        end if 
                     end if
-   
+
+                    if ( hypoplasticity ) then 
+                      q_cons_vf(plasidx)%sf(j, k, l) = rho*q_prim_vf(plasidx)%sf(j, k, l)                  
+                    end if 
+  
                     ! using \rho xi as the conservative formulation stated in Kamrin et al. JFM 2022
                     if (hyperelasticity) then
                         ! Multiply \xi to \rho \xi
