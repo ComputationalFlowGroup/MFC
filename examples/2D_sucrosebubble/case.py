@@ -80,7 +80,7 @@ print(json.dumps({
     'patch_icpp(1)%length_y'       : leng,
     'patch_icpp(1)%vel(1)'         : vel,
     'patch_icpp(1)%vel(2)'         : 0.E+00,
-    'patch_icpp(1)%pres'           : 8.9088E-9,
+    'patch_icpp(1)%pres'           : 1E+0,#8.9088E-9,
     'patch_icpp(1)%alpha_rho(1)'   : 1.E0,
     'patch_icpp(1)%alpha_rho(2)'   : 0.E+00,
     'patch_icpp(1)%alpha(1)'       : 1.E+00,
@@ -111,7 +111,7 @@ print(json.dumps({
     'patch_icpp(2)%alter_patch(1)' : 'T',
     'patch_icpp(2)%vel(1)'         : 0.,
     'patch_icpp(2)%vel(2)'         : 0.E+00,
-    'patch_icpp(2)%pres'           : 8.9088E-9,
+    'patch_icpp(2)%pres'           : 1E0,#8.9088E-9,
     'patch_icpp(2)%alpha_rho(1)'   : 0.E+00,
     'patch_icpp(2)%alpha_rho(2)'   : 9.82E-7,
     'patch_icpp(2)%alpha(1)'       : 0.E+00,
@@ -121,8 +121,8 @@ print(json.dumps({
     # Fluids Physical Parameters ===============================================
     'fluid_pp(1)%gamma'            : 1.09E0,                           # 1.E+00/(1.4E+00-1.E+00),
     'fluid_pp(1)%pi_inf'           : 0.9556E0,                         # isothermal bulk modulus
-    'fluid_pp(2)%gamma'            : 1.4E0,                            # 1.E+00/(1.6666E+00-1.E+00),
-    'fluid_pp(2)%pi_inf'           : 6.747E-6,                         # 0.0
+    'fluid_pp(2)%gamma'            : 0.4E0,                            # 1.E+00/(1.6666E+00-1.E+00),
+    'fluid_pp(2)%pi_inf'           : 0*6.747E-6,                         # 0.0
     'fluid_pp(1)%qv'               : 3.75E0,                           # K'_theta0 for sucrose
     'fluid_pp(2)%qv'               : 2.0E0,                            #    
     'fluid_pp(1)%G'                : 0.5733E0,                         # Shear modulus
