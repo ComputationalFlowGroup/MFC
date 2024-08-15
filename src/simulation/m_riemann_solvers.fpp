@@ -2078,8 +2078,6 @@ contains
                         do k = is2%beg, is2%end
                             do j = is1%beg, is1%end
 
-                                !idx1 = 1; if (dir_idx(1) == 2) idx1 = 2; if (dir_idx(1) == 3) idx1 = 3
-
                                 !$acc loop seq
                                 do i = 1, num_fluids
                                     alpha_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, E_idx + i)
@@ -2155,37 +2153,7 @@ contains
                                 E_L = gamma_L*pres_L + pi_inf_L + 5d-1*rho_L*vel_L_rms + qv_L
                                 E_R = gamma_R*pres_R + pi_inf_R + 5d-1*rho_R*vel_R_rms + qv_R
 
-                                ! ENERGY ADJUSTMENTS FOR HYPOELASTIC ENERGY
-                                if (hypoelasticity) then
-                                    !$acc loop seq
-                                    do i = 1, strxe - strxb + 1
-                                        tau_e_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, strxb - 1 + i)
-                                        tau_e_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, strxb - 1 + i)
-                                    end do
-                                    G_L = 0d0
-                                    G_R = 0d0
-                                    !$acc loop seq
-                                    do i = 1, num_fluids
-                                        G_L = G_L + alpha_L(i)*Gs(i)
-                                        G_R = G_R + alpha_R(i)*Gs(i)
-                                    end do
-                                    !$acc loop seq
-                                    do i = 1, strxe - strxb + 1
-                                        ! Elastic contribution to energy if G large enough
-                                        if ((G_L > verysmall) .and. (G_R > verysmall)) then
-                                            E_L = E_L + (tau_e_L(i)*tau_e_L(i))/(4d0*G_L)
-                                            E_R = E_R + (tau_e_R(i)*tau_e_R(i))/(4d0*G_R)
-                                            ! Additional terms in 2D and 3D
-                                            if ((i == 2) .or. (i == 4) .or. (i == 5)) then
-                                                E_L = E_L + (tau_e_L(i)*tau_e_L(i))/(4d0*G_L)
-                                                E_R = E_R + (tau_e_R(i)*tau_e_R(i))/(4d0*G_R)
-                                            end if
-                                        end if
-                                    end do
-                                end if
-
-                                H_L = (E_L + pres_L)/rho_L
-                                H_R = (E_R + pres_R)/rho_R
+                                H_L = 0d0; H_R = 0d0 
 
                                 @:compute_average_state()
 
@@ -2200,16 +2168,8 @@ contains
                                 call s_compute_speed_of_sound(pres_R, rho_avg, gamma_avg, pi_inf_R, H_avg, alpha_R, &
                                                               vel_avg_rms, c_avg)
 
-                                if (any(Re_size > 0)) then
-                                    !$acc loop seq
-                                    do i = 1, 2
-                                        Re_avg_rs${XYZ}$_vf(j, k, l, i) = 2d0/(1d0/Re_L(i) + 1d0/Re_R(i))
-                                    end do
-                                end if
-
-                                if (low_Mach == 2) then
-                                    @:compute_low_Mach_correction()
-                                end if
+                                !TODO SRIJAN ADD PRINT STATEMENTS FOR
+                                !BOTH LEFT, RIGHT, and AVERAGE states
 
                                 if (wave_speeds == 1) then
                                     if (elasticity) then
@@ -2369,12 +2329,7 @@ contains
 
                                 flux_src_rs${XYZ}$_vf(j, k, l, advxb) = vel_src_rs${XYZ}$_vf(j, k, l, idx1)
 
-                                ! SURFACE TENSION FLUX. need to check
-                                if (.not. f_is_default(sigma)) then
-                                    flux_rs${XYZ}$_vf(j, k, l, c_idx) = &
-                                        (xi_M*qL_prim_rs${XYZ}$_vf(j, k, l, c_idx) + &
-                                         xi_P*qR_prim_rs${XYZ}$_vf(j + 1, k, l, c_idx))*s_S
-                                end if
+                                !TODO SRIJAN ADD FLUX FOR HARDENING TERM
 
                             end do
                         end do
