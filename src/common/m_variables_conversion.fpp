@@ -178,7 +178,6 @@ contains
                 log_rho_mix_ratio = dlog(rho/rho0_mix)
                 phi_mix = dexp(phi_mix)
                 pres = 0.d0
-                !pres_sg = (energy - pi_inf)*gamma
                 do s = 1, num_fluids
                    pres_mg = - 0.5d0*(log_rho_mix_ratio**2.d0)*(pi_infs(s)*alpha_rho_K(s)/rho0(s)) &
                         -0.5d0*(log_rho_mix_ratio**3.d0)*pi_infs(s)*alpha_rho_K(s)*(qvs(s)-2.d0)/(3*rho0(s)) &
@@ -190,9 +189,6 @@ contains
                 end do
                 pres = pres + energy - dyn_p     
                 pres = pres/rho_mix_MG
-                !print *, 'post, energy :: ', energy
-                print *, 'post, pressure ::', pres
-                !print *, 'post, rho ::', rho
         else
             pres = (pref + pi_inf)* &
                    (energy/ &
@@ -1030,7 +1026,6 @@ contains
         do l = izb, ize
             do k = iyb, iye
                 do j = ixb, ixe
-                    print *,'j :: ',j,', k :: ',k,', l :: ',l
                     dyn_pres_K = 0d0
 
                     !$acc loop seq
@@ -1191,8 +1186,6 @@ contains
         end do
         !$acc end parallel loop
 
-        !print *, 'I got here AA'
-
     end subroutine s_convert_conservative_to_primitive_variables ! ---------
 
     !>  The following procedure handles the conversion between
@@ -1245,7 +1238,7 @@ contains
         do l = 0, p
             do k = 0, n
                 do j = 0, m
-                    print *, 'j :: ',j,', k :: ',k,', l :: ',l
+
                     ! Obtaining the density, specific heat ratio function
                     ! and the liquid stiffness function, respectively
                     call s_convert_to_mixture_variables(q_prim_vf, j, k, l, &
@@ -1310,7 +1303,6 @@ contains
                         rho_mix_MG = rho/rho_mix_MG_denominator
                         phi_mix = DEXP(zeta_mix)                        
                         pres_bar = q_prim_vf(E_idx)%sf(j, k, l)*rho_mix_MG 
-                        !E_sg = pres_bar/gamma + pi_inf 
                         q_cons_vf(E_idx)%sf(j,k,l) = 0d0
                         do i = 1, num_fluids
                           Kt_K  = fluid_pp(i)%pi_inf
@@ -1330,8 +1322,6 @@ contains
                         end do
                         ! adding the dynamic pressure to the total energy
                         q_cons_vf(E_idx)%sf(j, k, l) = q_cons_vf(E_idx)%sf(j, k, l) + pres_bar + dyn_pres
-                        print *,'after pre_process, E :: ', q_cons_vf(E_idx)%sf(j, k, l)
-       
                     else
                         !Tait EOS, no conserved energy variable
                         q_cons_vf(E_idx)%sf(j, k, l) = 0.d0
