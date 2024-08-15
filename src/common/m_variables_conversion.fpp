@@ -263,9 +263,9 @@ contains
                    pi_infs(s)*alpha_rho_K(s)/rho0(s)&
                    -0.5d0*(log_rho_mix_ratio**3)*pi_infs(s)*alpha_rho_K(s)&
                    *(qvs(s)-2d0)/(3d0*rho0(s))&
-                   -phi_mix*exp(phi_mix*theta_E)*alpha_rho_K(s)*ein_cv1(s)*ein_cv2(s)/&
-                   (exp(phi_mix*theta_E)-1d0)+&
-                   log(exp(phi_mix*theta_E)-1d0)*alpha_rho_K(s)*ein_cv1(s)
+                   -mg_a(s)*phi_mix*exp(phi_mix*theta_E)*alpha_rho_K(s)*ein_cv1(s)*ein_cv2(s)/&
+                   (exp(phi_mix*theta_E)-1d0)&
+                   +mg_a(s)*log(exp(phi_mix*theta_E)-1d0)*alpha_rho_K(s)*ein_cv1(s)
            
                    denom_term1 = denom_term1+phi_mix*alpha_rho_K(s)*ein_cv1(s)*ein_cv2(s) 
            end do 
