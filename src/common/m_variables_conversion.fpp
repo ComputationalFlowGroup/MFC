@@ -175,22 +175,24 @@ contains
                          theta_E = theta_E+ alpha_K(s)*ein_cv2(s)
                 end do 
                 rho_mix_MG =rho/term1
-                log_rho_mix_ratio = log(rho/rho0_mix)
-                phi_mix = exp(phi_mix)
+                log_rho_mix_ratio = dlog(rho/rho0_mix)
+                phi_mix = dexp(phi_mix)
                 pres = 0.d0
+                !pres_sg = (energy - pi_inf)*gamma
                 do s = 1, num_fluids
                    pres_mg = - 0.5d0*(log_rho_mix_ratio**2.d0)*(pi_infs(s)*alpha_rho_K(s)/rho0(s)) &
                         -0.5d0*(log_rho_mix_ratio**3.d0)*pi_infs(s)*alpha_rho_K(s)*(qvs(s)-2.d0)/(3*rho0(s)) &
-                        -phi_mix*exp(phi_mix*theta_E)*(alpha_rho_K(s)*ein_cv1(s)*ein_cv2(s))/(exp(phi_mix*theta_E)-1.d0) &
-                        +log(exp(phi_mix*theta_E)-1.d0)*(alpha_rho_K(s)*ein_cv1(s)) &
+                        -mg_a(s)*phi_mix*dexp(phi_mix*theta_E)*(alpha_rho_K(s)*ein_cv1(s)*ein_cv2(s))/(dexp(phi_mix*theta_E)-1.d0) &
+                        +mg_a(s)*dlog(dexp(phi_mix*theta_E)-1.d0)*(alpha_rho_K(s)*ein_cv1(s)) &
                         +log_rho_mix_ratio*(alpha_rho_K(s)*alpha_rho_K(s)*pi_infs(s))/deno_gamma_rho_sq &
                         +(log_rho_mix_ratio**2.d0)*(alpha_rho_K(s)**2.d0*pi_infs(s)*0.5d0*(qvs(s)-2.d0))/deno_gamma_rho_sq
-                   pres_sg = (energy - pi_inf(s))/gamma
-                   pres = pres + mg_a(s)*pres_mg + mg_b(s)*pres_sg
+                   pres = pres + pres_mg 
                 end do
                 pres = pres + energy - dyn_p     
                 pres = pres/rho_mix_MG
-                print *, 'pressure ::', pres
+                !print *, 'post, energy :: ', energy
+                print *, 'post, pressure ::', pres
+                !print *, 'post, rho ::', rho
         else
             pres = (pref + pi_inf)* &
                    (energy/ &
@@ -1091,8 +1093,9 @@ contains
                                                 dyn_pres_K, pi_inf_K, gamma_K, rho_K, qv_K, pres)
                     else    
                         call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
-                                            0d0, dyn_pres_K, 0d0, 0d0, rho_K, 0d0, &
-                                           pres, 0d0, 0d0, 0d0, alpha_rho_K, alpha_K)
+                                           qK_cons_vf(alf_idx)%sf(j, k, l), dyn_pres_K, & 
+                                           pi_inf_K, gamma_K, rho_K, qv_K, &
+                                           pres, 0d0, 0d0, 0d0, alpha_K, alpha_rho_K)
                     end if   
                        
                     qK_prim_vf(E_idx)%sf(j, k, l) = pres
@@ -1242,6 +1245,7 @@ contains
         do l = 0, p
             do k = 0, n
                 do j = 0, m
+                    print *, 'j :: ',j,', k :: ',k,', l :: ',l
                     ! Obtaining the density, specific heat ratio function
                     ! and the liquid stiffness function, respectively
                     call s_convert_to_mixture_variables(q_prim_vf, j, k, l, &
@@ -1306,27 +1310,28 @@ contains
                         rho_mix_MG = rho/rho_mix_MG_denominator
                         phi_mix = DEXP(zeta_mix)                        
                         pres_bar = q_prim_vf(E_idx)%sf(j, k, l)*rho_mix_MG 
+                        !E_sg = pres_bar/gamma + pi_inf 
+                        q_cons_vf(E_idx)%sf(j,k,l) = 0d0
                         do i = 1, num_fluids
                           Kt_K  = fluid_pp(i)%pi_inf
                           Ktp_K = fluid_pp(i)%qv
                           a_cv_K = fluid_pp(i)%ein_cv(1)
                           rho_K_ratio = alpha_rho_K(i)/fluid_pp(i)%rho0
 
-                          E_mg =  0.5d0*((log(rho_mix_ratio))**2)*rho_K_ratio*Kt_K &
-                          +0.5d0*((log(rho_mix_ratio))**3)*rho_K_ratio*Kt_K*(Ktp_K-2)/3.d0 &
-                          +phi_mix*(DEXP(phi_mix*theta_E)/(DEXP(phi_mix*theta_E)-1))*alpha_rho_K(i)*a_cv_K*theta_E_K(i) &
-                          -log(DEXP(phi_mix*theta_E)-1)*alpha_rho_K(i)*a_cv_K &
-                          -log(rho_mix_ratio)*(alpha_rho_K(i)**2)*Kt_K/gamma_rho_squared_denominator-&
-                          ((log(rho_mix_ratio))**2)*(alpha_rho_K(i)**2)*Kt_K*0.5d0*(Ktp_K-2)/&
+                          E_mg =  0.5d0*((dlog(rho_mix_ratio))**2)*rho_K_ratio*Kt_K &
+                          +0.5d0*((dlog(rho_mix_ratio))**3)*rho_K_ratio*Kt_K*(Ktp_K-2)/3.d0 &
+                          +mg_a(i)*phi_mix*(DEXP(phi_mix*theta_E)/(DEXP(phi_mix*theta_E)-1))*alpha_rho_K(i)*a_cv_K*theta_E_K(i) &
+                          -mg_a(i)*dlog(DEXP(phi_mix*theta_E)-1)*alpha_rho_K(i)*a_cv_K &
+                          -dlog(rho_mix_ratio)*(alpha_rho_K(i)**2)*Kt_K/gamma_rho_squared_denominator-&
+                          ((dlog(rho_mix_ratio))**2)*(alpha_rho_K(i)**2)*Kt_K*0.5d0*(Ktp_K-2)/&
                                  gamma_rho_squared_denominator
 
-                          E_sg = gamma*q_prim_vf(E_idx)%sf(j, k, l) + dyn_pres + pi_inf + qv
-
-                          q_cons_vf(E_idx)%sf(j,k,l) = q_cons_vf(E_idx)%sf(j, k, l) + mg_a(i)*(pres_bar + E_mg) + mg_b(i)*E_sg
+                          q_cons_vf(E_idx)%sf(j,k,l) = q_cons_vf(E_idx)%sf(j, k, l) +  E_mg
                         end do
                         ! adding the dynamic pressure to the total energy
-                        q_cons_vf(E_idx)%sf(j, k, l) = q_cons_vf(E_idx)%sf(j, k, l) + dyn_pres
-                                  
+                        q_cons_vf(E_idx)%sf(j, k, l) = q_cons_vf(E_idx)%sf(j, k, l) + pres_bar + dyn_pres
+                        print *,'after pre_process, E :: ', q_cons_vf(E_idx)%sf(j, k, l)
+       
                     else
                         !Tait EOS, no conserved energy variable
                         q_cons_vf(E_idx)%sf(j, k, l) = 0.d0
