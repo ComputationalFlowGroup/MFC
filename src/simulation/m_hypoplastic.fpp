@@ -177,8 +177,8 @@ contains
 
              ! STEP 3.2 : Compute theta_m, theta_hat, and sigma_bar
              ! compute theta_m from equation 4.10
-	     ! jcook(6) = theta_m0, jcook(8) = pres_init, jcook(9) = d, assuming presref = 0
-	     theta_m = jcook(6)*(1d0 + (pres/jcook(8)))**(1d0/jcook(9))
+             ! jcook(6) = theta_m0, jcook(8) = pres_init, jcook(9) = d, assuming presref = 0
+             theta_m = jcook(6)*(1d0 + (pres/jcook(8)))**(1d0/jcook(9))
              ! compute theta_hat from equation 4.9
              tempref = 298 ! DO NOT DO: HARDCODED REFERENCE TEMPERATURE
              if (temp .lt. tempref) then
@@ -222,8 +222,9 @@ contains
                
              rhs_vf(strxb + 3)%sf(k, l, q) = rhs_vf(strxb + 3)%sf(k, l, q) + rho_K_field(k, l, q)*atensor(4) + &
                2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(4) - Dp(4))             
-             ! TODO: IS THIS RIGHT?
-             rhs_vf(plasidx)%sf(k, l, q) = rhs_vf(plasidx)%sf(k, l, q)*d_p
+
+             ! STEP 5: Compute hardening rhs term
+             rhs_vf(plasidx)%sf(k, l, q) = rhs_vf(plasidx)%sf(k, l, q) + rho_K_field(k, l, q)*d_p
             end do
          end do
          !$acc end parallel loop
