@@ -128,9 +128,9 @@ print(json.dumps({
     'fluid_pp(1)%G'                : 0.5733E0,                         # Shear modulus
     'fluid_pp(2)%G'                : 1.0E-9,                           # Shear modulus of air taken to be a very small value
     'fluid_pp(1)%ein_cv(1)'        : 0.094646469E0,                    # Can be replaced with fluid_pp(:)%cv at some point
-    'fluid_pp(2)%ein_cv(1)'        : 0.0225900068E0,                   # 
+    'fluid_pp(2)%ein_cv(1)'        : 0.026937087111210E0,                   # 
     'fluid_pp(1)%ein_cv(2)'        : 3.775E0,                          # Can be replaced with a scalar theta_E at some point
-    'fluid_pp(2)%ein_cv(2)'        : 75E0/298E0, #0.335E0,
+    'fluid_pp(2)%ein_cv(2)'        : 100E0/298E0, #0.335E0,
     'fluid_pp(1)%mg_a'             : 1.E0,                             #a_mg
     'fluid_pp(1)%mg_b'             : 0.E0,                             #b_mg
     'fluid_pp(2)%mg_a'             : 0.E0,                             #a_mg
