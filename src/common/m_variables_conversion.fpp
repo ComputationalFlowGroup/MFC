@@ -195,6 +195,7 @@ contains
                     (rhoref*(1.d0 - alf)) &
                     )**(1.d0/gamma + 1.d0) - pi_inf        
         end if
+        print *, 'pressure ::', pres
 
         if (hypoelasticity .and. present(G)) then
             ! calculate elastic contribution to Energy
@@ -212,7 +213,6 @@ contains
             end do
 
             pres = (energy - dyn_p - pi_inf - qv - E_e)/gamma
-            print *, 'pressure ::', pres
         end if
 
     end subroutine s_compute_pressure
@@ -240,24 +240,23 @@ contains
         real(kind(0d0)) :: E_e
         ! Temporary local variables
         real(kind(0d0)) :: log_rho_mix_ratio, rho0_mix, phi_mix, theta_E
-        real(kind(0d0)) :: num_term1, denom_term1, denom_term2, denom
+        real(kind(0d0)) :: num_term1, denom_term1, denom_term2, denom, foo
         integer :: s !< Generic loop iterator
 
         ! model_eqns = 5 corresponds to the Mie-Gruneisen EOS
 
         if (model_eqns .eq. 5) then
-                print *, 'I got here - can compute temp'
                 rho0_mix    = 0.d0
                 phi_mix     = 0.d0
                 theta_E     = 0.d0
                 num_term1   = 0.d0
                 denom_term1 = 0.d0
+                foo         = 0.d0
                 temp        = 0.d0
-                print *, 'before temp ::', temp
            do s = 1, num_fluids
-                rho0_mix = rho0_mix+alpha_K(s)*rho0(s)
-                phi_mix  = phi_mix + alpha_K(s)*gammas(s) - alpha_K(s)*gammas(s)*rho0(s)/rho          
-                theta_E  = theta_E+alpha_K(s)*ein_cv2(s)
+                rho0_mix = rho0_mix + alpha_K(s)*rho0(s)
+                phi_mix  = phi_mix + mg_a(s)*alpha_K(s)*gammas(s) - mg_a(s)*alpha_K(s)*gammas(s)*rho0(s)/rho
+                theta_E  = theta_E + alpha_K(s)*ein_cv2(s)
            end do 
            log_rho_mix_ratio = dlog(rho/rho0_mix)
            phi_mix           = dexp(phi_mix)
@@ -269,13 +268,14 @@ contains
                    -mg_a(s)*phi_mix*dexp(phi_mix*theta_E)*alpha_rho_K(s)*ein_cv1(s)*ein_cv2(s)/&
                    (dexp(phi_mix*theta_E)-1d0)&
                    +mg_a(s)*dlog(dexp(phi_mix*theta_E)-1d0)*alpha_rho_K(s)*ein_cv1(s)
-           
-                   denom_term1 = denom_term1+phi_mix*alpha_rho_K(s)*ein_cv1(s)*ein_cv2(s) 
+                denom_term1 = denom_term1 + phi_mix*alpha_rho_K(s)*ein_cv1(s)*ein_cv2(s)
+                foo = foo + (1d0 / denom_term2)*mg_a(s)*alpha_K(s)
+                print *, 'num_term1 ::', num_term1, 'denom_term1 ::',denom_term1, 'foo ::', foo
            end do 
            denom_term2 = dexp(phi_mix*theta_E) - 1d0
            num_term1 = num_term1 + energy - dyn_p
-           denom = num_term1 / denom_term1 + 1d0 / denom_term2
-           temp = phi_mix*theta_E/dlog(1d0 + 1d0 / denom) ! are you missing alpha_K here? MCB
+           denom = (num_term1 / denom_term1) + foo !(1d0 / denom_term2)*mg_b(s)  
+           temp = (phi_mix*theta_E)/dlog(1d0 + 1d0 / denom)
 	   print *, 'temp :: ', temp
         end if
     end subroutine s_compute_temperature
@@ -1008,7 +1008,7 @@ contains
 
         integer :: i, j, k, l, q !< Generic loop iterators
 
-        real(kind(0d0)) :: ntmp
+        real(kind(0d0)) :: ntmp, temp
 
         #:if MFC_CASE_OPTIMIZATION
 #ifndef MFC_SIMULATION
@@ -1095,6 +1095,10 @@ contains
                                            qK_cons_vf(alf_idx)%sf(j, k, l), dyn_pres_K, & 
                                            pi_inf_K, gamma_K, rho_K, qv_K, &
                                            pres, 0d0, 0d0, 0d0, alpha_K, alpha_rho_K)
+                        print *, 'j ::', j, 'k ::', k, 'l ::', l
+                        call s_compute_temperature( &
+                                    qK_cons_vf(E_idx)%sf(j, k, l), &
+				    dyn_pres_K, pi_inf_K, gamma_K, rho_K, qv_K, temp, alpha_K, alpha_rho_K)
                     end if   
                        
                     qK_prim_vf(E_idx)%sf(j, k, l) = pres
