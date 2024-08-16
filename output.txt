@@ -1,6 +1,6 @@
 mfc: OK > (venv) Entered the Python 3.11.0 virtual environment (>= 3.8).
 
-      .=++*:          -+*+=.        | mcarcana@node1317.oscar.ccv.brown.edu [Linux]
+      .=++*:          -+*+=.        | mcarcana@node1754.oscar.ccv.brown.edu [Linux]
      :+   -*-        ==   =* .      | ---------------------------------------------
    :*+      ==      ++    .+-       | 
   :*##-.....:*+   .#%+++=--+=:::.   | --jobs 1
@@ -29,6 +29,10 @@ mfc: OK > (venv) Entered the Python 3.11.0 virtual environment (>= 3.8).
    Writing a (new) custom case.fpp file.
  $ cmake --build /oscar/home/mcarcana/MFC/build/staging/f3387f1277 --target pre_process --parallel 1 --config Release
 
+[  2%] Preprocessing (Fypp) m_data_output.fpp
+Scanning dependencies of target pre_process
+[  4%] Building Fortran object CMakeFiles/pre_process.dir/fypp/pre_process/m_data_output.fpp.f90.o
+[  7%] Linking Fortran executable pre_process
 [100%] Built target pre_process
 
  $ cmake --install /oscar/home/mcarcana/MFC/build/staging/f3387f1277
@@ -54,7 +58,7 @@ mfc: OK > (venv) Entered the Python 3.11.0 virtual environment (>= 3.8).
 +-----------------------------------------------------------------------------------------------------------+ 
 | MFC case # test1 @ /oscar/home/mcarcana/MFC/examples/2D_sucrosebubble/case.py:                            |
 +-----------------------------------------------------------------------------------------------------------+ 
-| * Start-time     12:02:05                            * Start-date     12:02:05                            |
+| * Start-time     13:47:09                            * Start-date     13:47:09                            |
 | * Partition      batch                               * Walltime       01:00:00                            |
 | * Account        N/A                                 * Nodes          1                                   |
 | * Job Name       test1                               * Engine         interactive                         |
@@ -96,18 +100,18 @@ mfc: OK > :) Running pre_process:
  Pre-processing a 300x100x0 case on 1 rank(s)
  Processing patch           1
  Processing patch           2
- Elapsed Time   2.9057000000000013E-002
+ Elapsed Time   2.7014000000000010E-002
 
 +-----------------------------------------------------------------------------------------------------------+ 
 | Finished test1:                                                                                           |
 | * Total-time:    2s                                  * Exit Code:     0                                   |
-| * End-time:      12:02:07                            * End-date:      12:02:07                            |
+| * End-time:      13:47:11                            * End-date:      13:47:11                            |
 +-----------------------------------------------------------------------------------------------------------+ 
 
 mfc: (venv) Exiting the Python virtual environment.
 mfc: OK > (venv) Entered the Python 3.11.0 virtual environment (>= 3.8).
 
-      .=++*:          -+*+=.        | mcarcana@node1317.oscar.ccv.brown.edu [Linux]
+      .=++*:          -+*+=.        | mcarcana@node1754.oscar.ccv.brown.edu [Linux]
      :+   -*-        ==   =* .      | ---------------------------------------------
    :*+      ==      ++    .+-       | 
   :*##-.....:*+   .#%+++=--+=:::.   | --jobs 1
@@ -161,7 +165,7 @@ mfc: OK > (venv) Entered the Python 3.11.0 virtual environment (>= 3.8).
 +-----------------------------------------------------------------------------------------------------------+ 
 | MFC case # test1 @ /oscar/home/mcarcana/MFC/examples/2D_sucrosebubble/case.py:                            |
 +-----------------------------------------------------------------------------------------------------------+ 
-| * Start-time     12:02:10                            * Start-date     12:02:10                            |
+| * Start-time     13:47:14                            * Start-date     13:47:14                            |
 | * Partition      batch                               * Walltime       01:00:00                            |
 | * Account        N/A                                 * Nodes          1                                   |
 | * Job Name       test1                               * Engine         interactive                         |

@@ -212,12 +212,12 @@ contains
             end do
 
             pres = (energy - dyn_p - pi_inf - qv - E_e)/gamma
-
+            print *, 'pressure ::', pres
         end if
 
     end subroutine s_compute_pressure
 
-    !>  This procedure conditionally calculates the appropriate temperature of the mixturee
+    !>  This procedure conditionally calculates the appropriate temperature of the mixture
         !! @param energy Energy
         !! @param dyn_p Dynamic Pressure
         !! @param pi_inf Liquid Stiffness
@@ -259,23 +259,23 @@ contains
                 phi_mix  = phi_mix + alpha_K(s)*gammas(s) - alpha_K(s)*gammas(s)*rho0(s)/rho          
                 theta_E  = theta_E+alpha_K(s)*ein_cv2(s)
            end do 
-           log_rho_mix_ratio = log(rho/rho0_mix)
-           phi_mix           = exp(phi_mix)
+           log_rho_mix_ratio = dlog(rho/rho0_mix)
+           phi_mix           = dexp(phi_mix)
            do s = 1, num_fluids
                 num_term1 = num_term1 -0.5d0*(log_rho_mix_ratio**2)*&
                    pi_infs(s)*alpha_rho_K(s)/rho0(s)&
                    -0.5d0*(log_rho_mix_ratio**3)*pi_infs(s)*alpha_rho_K(s)&
                    *(qvs(s)-2d0)/(3d0*rho0(s))&
-                   -mg_a(s)*phi_mix*exp(phi_mix*theta_E)*alpha_rho_K(s)*ein_cv1(s)*ein_cv2(s)/&
-                   (exp(phi_mix*theta_E)-1d0)&
-                   +mg_a(s)*log(exp(phi_mix*theta_E)-1d0)*alpha_rho_K(s)*ein_cv1(s)
+                   -mg_a(s)*phi_mix*dexp(phi_mix*theta_E)*alpha_rho_K(s)*ein_cv1(s)*ein_cv2(s)/&
+                   (dexp(phi_mix*theta_E)-1d0)&
+                   +mg_a(s)*dlog(dexp(phi_mix*theta_E)-1d0)*alpha_rho_K(s)*ein_cv1(s)
            
                    denom_term1 = denom_term1+phi_mix*alpha_rho_K(s)*ein_cv1(s)*ein_cv2(s) 
            end do 
-           denom_term2 = exp(phi_mix*theta_E) - 1d0
+           denom_term2 = dexp(phi_mix*theta_E) - 1d0
            num_term1 = num_term1 + energy - dyn_p
            denom = num_term1 / denom_term1 + 1d0 / denom_term2
-           temp = phi_mix*theta_E/log(1d0 + 1d0 / denom) ! are you missing alpha_K here? MCB
+           temp = phi_mix*theta_E/dlog(1d0 + 1d0 / denom) ! are you missing alpha_K here? MCB
 	   print *, 'temp :: ', temp
         end if
     end subroutine s_compute_temperature

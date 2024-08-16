@@ -108,7 +108,7 @@ contains
         real(kind(0d0)) :: rho                          !< Temporary density
         real(kind(0d0)) :: pres                         !< Temporary pressure
         real(kind(0d0)) :: temp                         !< Temporary temp
-        real(kind(0d0)), dimension(1)  :: alpha_K, alpha_rho_K         !< Temporary params needed
+        real(kind(0d0)), dimension(num_fluids)  :: alpha_K, alpha_rho_K         !< Temporary params needed
 
         !real(kind(0d0)) :: nR3
         !real(kind(0d0)) :: ntmp
