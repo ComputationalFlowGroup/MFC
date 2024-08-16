@@ -113,7 +113,7 @@ print(json.dumps({
     'patch_icpp(2)%vel(2)'         : 0.E+00,
     'patch_icpp(2)%pres'           : 8.9088E-9,
     'patch_icpp(2)%alpha_rho(1)'   : 0.E+00,
-    'patch_icpp(2)%alpha_rho(2)'   : 9.82E-7,
+    'patch_icpp(2)%alpha_rho(2)'   : 9.82454806E-7,
     'patch_icpp(2)%alpha(1)'       : 0.E+00,
     'patch_icpp(2)%alpha(2)'       : 1.E+00,
     # ==========================================================================
@@ -127,10 +127,10 @@ print(json.dumps({
     'fluid_pp(2)%qv'               : 2.0E0,                            #    
     'fluid_pp(1)%G'                : 0.5733E0,                         # Shear modulus
     'fluid_pp(2)%G'                : 1.0E-9,                           # Shear modulus of air taken to be a very small value
-    'fluid_pp(1)%ein_cv(1)'        : 0.094647E0,                       # Can be replaced with fluid_pp(:)%cv at some point
-    'fluid_pp(2)%ein_cv(1)'        : 0.0226E0,                         # 
+    'fluid_pp(1)%ein_cv(1)'        : 0.094646469E0,                    # Can be replaced with fluid_pp(:)%cv at some point
+    'fluid_pp(2)%ein_cv(1)'        : 0.0225900068E0,                   # 
     'fluid_pp(1)%ein_cv(2)'        : 3.775E0,                          # Can be replaced with a scalar theta_E at some point
-    'fluid_pp(2)%ein_cv(2)'        : 0.335E0,
+    'fluid_pp(2)%ein_cv(2)'        : 100E0/298E0, #0.335E0,
     'fluid_pp(1)%mg_a'             : 1.E0,                             #a_mg
     'fluid_pp(1)%mg_b'             : 0.E0,                             #b_mg
     'fluid_pp(2)%mg_a'             : 0.E0,                             #a_mg
