@@ -1000,7 +1000,7 @@ contains
 
         real(kind(0d0)) :: G_K
 
-        real(kind(0d0)) :: pres
+        real(kind(0d0)) :: pres, temp
 
         integer :: i, j, k, l, q !< Generic loop iterators
 
@@ -1088,9 +1088,16 @@ contains
                                                 dyn_pres_K, pi_inf_K, gamma_K, rho_K, qv_K, pres)
                     else    
                         call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
-                                           qK_cons_vf(alf_idx)%sf(j, k, l), dyn_pres_K, & 
-                                           pi_inf_K, gamma_K, rho_K, qv_K, &
-                                           pres, 0d0, 0d0, 0d0, alpha_K, alpha_rho_K)
+                                                qK_cons_vf(alf_idx)%sf(j, k, l), dyn_pres_K, & 
+                                                pi_inf_K, gamma_K, rho_K, qv_K, &
+                                                pres, 0d0, 0d0, 0d0, alpha_K, alpha_rho_K)
+#ifdef MFC_POST_PROCESS                        
+                        call s_compute_temperature(qK_cons_vf(E_idx)%sf(j,k,l), & 
+                                                   dyn_pres_K, pi_inf_K, & 
+                                                   gamma_K, rho_K, qv_K, & 
+                                                   temp, alpha_K, alpha_rho_K)
+                        qK_prim_vf(plasidx+1)%sf(j,k,l) = temp
+#endif
                     end if   
                        
                     qK_prim_vf(E_idx)%sf(j, k, l) = pres

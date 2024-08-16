@@ -646,10 +646,11 @@ contains
                 stress_idx%end = sys_size + (num_dims*(num_dims + 1))/2
                 ! number of stresses is 1 in 1D, 3 in 2D, 6 in 3D
                 sys_size = stress_idx%end
+                plasidx = stress_idx%end + 1
+                ! storing additional entry for temperature in cons to prim
+                sys_size = plasidx + 1
               end if
 
-              plasidx = stress_idx%end + 1
-              sys_size = plasidx
         end if
 
         momxb = mom_idx%beg

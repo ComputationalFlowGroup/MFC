@@ -288,6 +288,20 @@ contains
         end do
         ! ----------------------------------------------------------------------
 
+        ! Adding the temperature to the formatted database file -------------------
+        if (model_eqns == 5 .and. prim_vars_wrt) then
+           q_sf = q_prim_vf(plasidx+1)%sf( &
+                  -offset_x%beg:m + offset_x%end, &
+                  -offset_y%beg:n + offset_y%end, &
+                  -offset_z%beg:p + offset_z%end)
+
+           write (varname, '(A)') 'temp'
+           call s_write_variable_to_formatted_database_file(varname, t_step)
+
+           varname(:) = ' '
+        end if
+        ! ----------------------------------------------------------------------
+
         ! Adding the flux limiter function to the formatted database file
         do i = 1, E_idx - mom_idx%beg
             if (flux_wrt(i)) then
