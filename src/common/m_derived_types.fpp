@@ -242,7 +242,7 @@ module m_derived_types
         real(kind(0d0)), dimension(2) :: ein_cv  !<Parameter for einstein model for calculating the specific heat 
         real(kind(0d0)) :: mg_a
         real(kind(0d0)) :: mg_b
-        real(kind(0d0)), dimension(10) :: jcook
+        real(kind(0d0)), dimension(11) :: jcook
     end type physical_parameters
 
     !> Derived type annexing the flow probe location

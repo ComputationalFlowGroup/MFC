@@ -101,20 +101,20 @@ contains
 
         integer :: i, k, l, p, r, q !< Loop variables
 
-        real(kind(0d0)), dimension(10) :: jcook
         real(kind(0d0)) :: energy, alf, dyn_p, pi_inf
         real(kind(0d0)) ::  gamma, rho, qv, pres, stress, mom, temp, G
         real(kind(0d0)), dimension(num_fluids) ::  alpha_K, alpha_rho_K
         real(kind(0d0)) :: theta_m, tempref, theta_hat, sigma_bar, dp_JC, d_p
 
         ! compute velocity gradients and rho_K and G_K        
+        du_dx(:, :, :) = 0d0
+        du_dy(:, :, :) = 0d0
+        dv_dx(:, :, :) = 0d0
+        dv_dy(:, :, :) = 0d0
+
         !$acc parallel loop collapse(2) gang vector default(present)
         do l = 0, n
           do k = 0, m
-            du_dx(k, l, q) = 0d0
-            du_dy(k, l, q) = 0d0
-            dv_dx(k, l, q) = 0d0
-            dv_dy(k, l, q) = 0d0
             do r = -fd_number, fd_number
                du_dx(k, l, q) = du_dx(k, l, q) &
                + q_prim_vf(momxb)%sf(k + r, l, q)*fd_coeff_x(r, k)
@@ -147,7 +147,6 @@ contains
         end do
         !$acc end parallel loop
 
-
         tensora(1) = 0d0;  tensora(4) = 0d0
         !$acc parallel loop collapse(2) gang vector default(present)
         do l = 0, n
@@ -172,15 +171,17 @@ contains
             
              ! STEP 3: Compute the equivalent plastic strain rate, d^p 
              ! STEP 3.1 : Compute mixture pressure and temperature
-             call s_compute_pressure(energy, alf, dyn_p, pi_inf, gamma, rho, qv, pres, stress, mom, G, alpha_K, alpha_rho_K)
-             call s_compute_temperature(energy, dyn_p, pi_inf, gamma, rho, qv, temp, alpha_K, alpha_rho_K)
+             call s_compute_pressure(energy, alf, dyn_p, pi_inf, gamma,rho, qv, & 
+                                     pres, stress, mom, G, alpha_K, alpha_rho_K)
+             call s_compute_temperature(energy, dyn_p, pi_inf, gamma, rho, qv, & 
+                                        temp, alpha_K, alpha_rho_K)
 
              ! STEP 3.2 : Compute theta_m, theta_hat, and sigma_bar
              ! compute theta_m from equation 4.10
              ! jcook(6) = theta_m0, jcook(8) = pres_init, jcook(9) = d, assuming presref = 0
              theta_m = jcook(6)*(1d0 + (pres/jcook(8)))**(1d0/jcook(9))
              ! compute theta_hat from equation 4.9
-             tempref = 298 ! DO NOT DO: HARDCODED REFERENCE TEMPERATURE
+             tempref = jcook(11)
              if (temp .lt. tempref) then
                 theta_hat = 0
              elseif (temp .le. theta_m) then
@@ -190,7 +191,7 @@ contains
              end if
              !could alternatively compute subtract tempref in both temp subroutine and theta_m
              ! compute sigma_bar = sqrt(3/2) * | S | 
-             sigma_bar = sqrt(3d0/2d0) * (du_dx(k, l, q)**2 + dv_dy(k, l, q)**2 + &
+             sigma_bar = dsqrt(3d0/2d0) * (du_dx(k, l, q)**2 + dv_dy(k, l, q)**2 + &
                          (1d0/2d0)*du_dy(k, l, q)**2 + (1d0/2d0)*dv_dx(k, l, q)**2 + &
                          du_dy(k, l, q)*dv_dx(k, l, q))**(1d0/2d0)
 
@@ -198,7 +199,7 @@ contains
              ! compute d^p_JC from equation 4.7
              ! d0 = 1 s^-1, jcook(4) = C, jcook(1) = A, jcook(2) = B,
              ! jcook(10) = d0 = R_tilde nondimensionally
-             dp_JC = jcook(10) * exp( (1d0/jcook(4)) * (sigma_bar / &
+             dp_JC = jcook(10) * dexp( (1d0/jcook(4)) * (sigma_bar / &
                     ((jcook(1) + jcook(2)*q_prim_vf(plasidx)%sf(k, l,q)) * &
                     (1d0 - theta_hat))) - 1d0)
              ! compute d^p from equation 4.6

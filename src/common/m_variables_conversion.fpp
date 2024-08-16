@@ -92,7 +92,7 @@ module m_variables_conversion
     #:for VAR in range(1,11)
       real(kind(0d0)), allocatable, public, dimension(:) :: jcook${VAR}$
     #:endfor
-    !$acc declare create(jcook1,jcook2,jcook3,jcook4,jcook5,jcook6,jcook7,jcook8,jcook9,jcook10)
+    !$acc declare create(jcook1,jcook2,jcook3,jcook4,jcook5,jcook6,jcook7,jcook8,jcook9,jcook10,jcook11)
 #endif
 
 #ifdef CRAY_ACC_WAR
@@ -772,7 +772,7 @@ contains
         @:ALLOCATE_GLOBAL(mg_b   (1:num_fluids))
         @:ALLOCATE_GLOBAL(ein_cv1(1:num_fluids))
         @:ALLOCATE_GLOBAL(ein_cv2(1:num_fluids))
-        #:for VAR in range(1,11)
+        #:for VAR in range(1,12)
           @:ALLOCATE_GLOBAL(jcook${VAR}$(1:num_fluids))          
         #:endfor 
 #else
@@ -781,7 +781,7 @@ contains
         @:ALLOCATE(mg_b   (1:num_fluids))
         @:ALLOCATE(ein_cv1(1:num_fluids))
         @:ALLOCATE(ein_cv2(1:num_fluids))
-        #:for VAR in range(1,11)
+        #:for VAR in range(1,12)
           @:ALLOCATE(jcook${VAR}$(1:num_fluids))          
         #:endfor 
 #endif
@@ -791,12 +791,12 @@ contains
             mg_b(i) = fluid_pp(i)%mg_b
             ein_cv1(i) = fluid_pp(i)%ein_cv(1)
             ein_cv2(i) = fluid_pp(i)%ein_cv(2)
-            #:for VAR in range(1,11)
+            #:for VAR in range(1,12)
                 jcook${VAR}$(i) = fluid_pp(i)%jcook(${VAR}$) 
             #:endfor
         end do
 !$acc update device(rho0, mg_a, mg_b, ein_cv1, ein_cv2)
-!$acc update device(jcook1,jcook2,jcook3,jcook4,jcook5,jcook6,jcook7,jcook8,jcook9,jcook10)
+!$acc update device(jcook1,jcook2,jcook3,jcook4,jcook5,jcook6,jcook7,jcook8,jcook9,jcook10,jcook11)
         end if
 
 #ifdef MFC_SIMULATION
