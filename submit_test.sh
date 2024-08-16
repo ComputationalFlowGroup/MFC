@@ -50,3 +50,7 @@
 #./mfc.sh run /scratch/bciv/mcarcanabarbosa/ctr2024/finalruns/elcom/bubliq/25wv/case.py -p batch -N 1 -n 1 -g 0 -w 01:00:00 -# test1 -t post_process -c delta
 #./mfc.sh run /scratch/bciv/mcarcanabarbosa/ctr2024/finalruns/elcom/bubliq/75wv/case.py -p batch -N 1 -n 1 -g 0 -w 01:00:00 -# test1 -t post_process -c delta
 
+./mfc.sh run ./tests/A60691E7/case.py -p batch -N 1 -n 1 -g 0 -w 01:00:00 -# test1 -t pre_process -c delta
+./mfc.sh run ./tests/A60691E7/case.py -p batch -N 1 -n 1 -g 0 -w 01:00:00 -# test1 -t simulation -c delta
+
+
