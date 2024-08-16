@@ -130,7 +130,7 @@ print(json.dumps({
     'fluid_pp(1)%ein_cv(1)'        : 0.094646469E0,                    # Can be replaced with fluid_pp(:)%cv at some point
     'fluid_pp(2)%ein_cv(1)'        : 0.0225900068E0,                   # 
     'fluid_pp(1)%ein_cv(2)'        : 3.775E0,                          # Can be replaced with a scalar theta_E at some point
-    'fluid_pp(2)%ein_cv(2)'        : 100E0/298E0, #0.335E0,
+    'fluid_pp(2)%ein_cv(2)'        : 75E0/298E0, #0.335E0,
     'fluid_pp(1)%mg_a'             : 1.E0,                             #a_mg
     'fluid_pp(1)%mg_b'             : 0.E0,                             #b_mg
     'fluid_pp(2)%mg_a'             : 0.E0,                             #a_mg
@@ -147,6 +147,7 @@ print(json.dumps({
     'fluid_pp(1)%jcook(8)'         : 0.02,                             # Parameter in Simon-Glatzel melt relation
     'fluid_pp(1)%jcook(9)'         : 3.25,                             # exponent in Simon-Glatzel melt relation
     'fluid_pp(1)%jcook(10)'        : 3.2493E-7,                        # non-dimensional strain-rate limit
+    'fluid_pp(1)%jcook(11)'        : 298,                              # Reference temperature
     'fluid_pp(2)%jcook(1)'         : 0.0334,                           # A, Static yield strength
     'fluid_pp(2)%jcook(2)'         : 0.0334,                           # B, Strain-Hardening coefficient
     'fluid_pp(2)%jcook(3)'         : 0.1,                              # n, Strain-Hardening exponent
@@ -156,7 +157,8 @@ print(json.dumps({
     'fluid_pp(2)%jcook(7)'         : 1.0E7,                            # Limiting strain-rate
     'fluid_pp(2)%jcook(8)'         : 0.02,                             # Parameter in Simon-Glatzel melt relation
     'fluid_pp(2)%jcook(9)'         : 3.25,                             # exponent in Simon-Glatzel melt relation
-    'fluid_pp(2)%jcook(10)'        : 3.2493E-7,                        # non-dimensional strain-rate limit
+    'fluid_pp(2)%jcook(10)'        : 3.2493E-7,                        # non-dimensional strain-rate limitI
+    'fluid_pp(2)%jcook(11)'        : 298,                              # Reference temperature
 }))
 
 # ==============================================================================
