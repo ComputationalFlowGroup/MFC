@@ -200,8 +200,8 @@ contains
              ! d0 = 1 s^-1, jcook(4) = C, jcook(1) = A, jcook(2) = B,
              ! jcook(10) = d0 = R_tilde nondimensionally
              dp_JC = jcook10(1) * dexp( (1d0/jcook4(1)) * (sigma_bar / &
-                    ((jcook1(1) + jcook2(1)*q_prim_vf(plasidx)%sf(k, l,q)) * &
-                    (1d0 - theta_hat))) - 1d0)
+                 ((jcook1(1) + jcook2(1)*q_prim_vf(plasidx)%sf(k, l, q))**(jcook3(1)) &
+                 *(1d0 - theta_hat**jcook5(1)))) - 1d0)
              ! compute d^p from equation 4.6
              ! jcook(7) = d^p_lim
              d_p = ((1d0/dp_JC) + (1d0/jcook7(1)))**(-1d0)
