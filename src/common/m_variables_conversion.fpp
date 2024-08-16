@@ -195,7 +195,6 @@ contains
                     (rhoref*(1.d0 - alf)) &
                     )**(1.d0/gamma + 1.d0) - pi_inf        
         end if
-        print *, 'pressure ::', pres
 
         if (hypoelasticity .and. present(G)) then
             ! calculate elastic contribution to Energy
@@ -260,7 +259,8 @@ contains
            end do 
            log_rho_mix_ratio = dlog(rho/rho0_mix)
            phi_mix           = dexp(phi_mix)
-           do s = 1, num_fluids
+           denom_term2       = dexp(phi_mix*theta_E) - 1d0
+          do s = 1, num_fluids
                 num_term1 = num_term1 -0.5d0*(log_rho_mix_ratio**2)*&
                    pi_infs(s)*alpha_rho_K(s)/rho0(s)&
                    -0.5d0*(log_rho_mix_ratio**3)*pi_infs(s)*alpha_rho_K(s)&
@@ -270,13 +270,11 @@ contains
                    +mg_a(s)*dlog(dexp(phi_mix*theta_E)-1d0)*alpha_rho_K(s)*ein_cv1(s)
                 denom_term1 = denom_term1 + phi_mix*alpha_rho_K(s)*ein_cv1(s)*ein_cv2(s)
                 foo = foo + (1d0 / denom_term2)*mg_a(s)*alpha_K(s)
-                print *, 'num_term1 ::', num_term1, 'denom_term1 ::',denom_term1, 'foo ::', foo
            end do 
-           denom_term2 = dexp(phi_mix*theta_E) - 1d0
            num_term1 = num_term1 + energy - dyn_p
            denom = (num_term1 / denom_term1) + foo !(1d0 / denom_term2)*mg_b(s)  
            temp = (phi_mix*theta_E)/dlog(1d0 + 1d0 / denom)
-	   print *, 'temp :: ', temp
+	   print *, 'temp ::', temp
         end if
     end subroutine s_compute_temperature
  
@@ -1095,7 +1093,6 @@ contains
                                            qK_cons_vf(alf_idx)%sf(j, k, l), dyn_pres_K, & 
                                            pi_inf_K, gamma_K, rho_K, qv_K, &
                                            pres, 0d0, 0d0, 0d0, alpha_K, alpha_rho_K)
-                        print *, 'j ::', j, 'k ::', k, 'l ::', l
 #ifdef MFC_POST_PROCESS                        
                         call s_compute_temperature(qK_cons_vf(E_idx)%sf(j,k,l), & 
                                                    dyn_pres_K, pi_inf_K, & 
