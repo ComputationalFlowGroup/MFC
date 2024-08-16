@@ -179,9 +179,9 @@ contains
              ! STEP 3.2 : Compute theta_m, theta_hat, and sigma_bar
              ! compute theta_m from equation 4.10
              ! jcook(6) = theta_m0, jcook(8) = pres_init, jcook(9) = d, assuming presref = 0
-             theta_m = jcook(6)*(1d0 + (pres/jcook(8)))**(1d0/jcook(9))
+             theta_m = jcook6(1)*(1d0 + (pres/jcook8(1)))**(1d0/jcook9(1))
              ! compute theta_hat from equation 4.9
-             tempref = jcook(11)
+             tempref = jcook11(1)
              if (temp .lt. tempref) then
                 theta_hat = 0
              elseif (temp .le. theta_m) then
@@ -199,12 +199,12 @@ contains
              ! compute d^p_JC from equation 4.7
              ! d0 = 1 s^-1, jcook(4) = C, jcook(1) = A, jcook(2) = B,
              ! jcook(10) = d0 = R_tilde nondimensionally
-             dp_JC = jcook(10) * dexp( (1d0/jcook(4)) * (sigma_bar / &
-                    ((jcook(1) + jcook(2)*q_prim_vf(plasidx)%sf(k, l,q)) * &
+             dp_JC = jcook10(1) * dexp( (1d0/jcook4(1)) * (sigma_bar / &
+                    ((jcook1(1) + jcook2(1)*q_prim_vf(plasidx)%sf(k, l,q)) * &
                     (1d0 - theta_hat))) - 1d0)
              ! compute d^p from equation 4.6
              ! jcook(7) = d^p_lim
-             d_p = ((1d0/dp_JC) + (1d0/jcook(7)))**(-1d0)
+             d_p = ((1d0/dp_JC) + (1d0/jcook7(1)))**(-1d0)
              ! compute D^p using equation 4.5
              Dp(1) = ((3d0*d_p) / (2d0*sigma_bar)) * du_dx(k, l, q)
              Dp(2) = ((3d0*d_p) / (2d0*sigma_bar)) * (1d0/2d0)*(du_dy(k, l, q) + dv_dx(k, l, q))

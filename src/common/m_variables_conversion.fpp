@@ -89,7 +89,7 @@ module m_variables_conversion
     !$acc declare create(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps)
     real(kind(0d0)), allocatable, public, dimension(:) :: rho0, mg_a, mg_b, ein_cv1, ein_cv2
     !$acc declare create(rho0, mg_a, mg_b, ein_cv1, ein_cv2)
-    #:for VAR in range(1,11)
+    #:for VAR in range(1,12)
       real(kind(0d0)), allocatable, public, dimension(:) :: jcook${VAR}$
     #:endfor
     !$acc declare create(jcook1,jcook2,jcook3,jcook4,jcook5,jcook6,jcook7,jcook8,jcook9,jcook10,jcook11)
@@ -1008,7 +1008,7 @@ contains
 
         integer :: i, j, k, l, q !< Generic loop iterators
 
-        real(kind(0d0)) :: ntmp, temp
+        real(kind(0d0)) :: ntmp
 
         #:if MFC_CASE_OPTIMIZATION
 #ifndef MFC_SIMULATION
