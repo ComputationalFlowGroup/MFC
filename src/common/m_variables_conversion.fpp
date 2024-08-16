@@ -246,11 +246,14 @@ contains
         ! model_eqns = 5 corresponds to the Mie-Gruneisen EOS
 
         if (model_eqns .eq. 5) then
+                print *, 'I got here - can compute temp'
                 rho0_mix    = 0.d0
                 phi_mix     = 0.d0
                 theta_E     = 0.d0
                 num_term1   = 0.d0
                 denom_term1 = 0.d0
+                temp        = 0.d0
+                print *, 'before temp ::', temp
            do s = 1, num_fluids
                 rho0_mix = rho0_mix+alpha_K(s)*rho0(s)
                 phi_mix  = phi_mix + alpha_K(s)*gammas(s) - alpha_K(s)*gammas(s)*rho0(s)/rho          
@@ -273,6 +276,7 @@ contains
            num_term1 = num_term1 + energy - dyn_p
            denom = num_term1 / denom_term1 + 1d0 / denom_term2
            temp = phi_mix*theta_E/log(1d0 + 1d0 / denom) ! are you missing alpha_K here? MCB
+	   print *, 'temp :: ', temp
         end if
     end subroutine s_compute_temperature
  

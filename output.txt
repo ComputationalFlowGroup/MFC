@@ -1,0 +1,216 @@
+mfc: OK > (venv) Entered the Python 3.11.0 virtual environment (>= 3.8).
+
+      .=++*:          -+*+=.        | mcarcana@node1317.oscar.ccv.brown.edu [Linux]
+     :+   -*-        ==   =* .      | ---------------------------------------------
+   :*+      ==      ++    .+-       | 
+  :*##-.....:*+   .#%+++=--+=:::.   | --jobs 1
+  -=-++-======#=--**+++==+*++=::-:. | --mpi --no-gpu --no-debug --no-gcov --no-unified
+ .:++=----------====+*= ==..:%..... | --targets pre_process
+  .:-=++++===--==+=-+=   +.  :=     | 
+  +#=::::::::=%=. -+:    =+   *:    | ----------------------------------------------------------
+ .*=-=*=..    :=+*+:      -...--    | $ ./mfc.sh (build, run, test, clean, count, packer) --help
+
+ Acquiring /oscar/home/mcarcana/MFC/examples/2D_sucrosebubble/case.py...
+ Acquiring /oscar/home/mcarcana/MFC/examples/2D_sucrosebubble/case.py...
+ Build | syscheck, syscheck, and pre_process | Generic Build
+
+ Generating case.fpp.
+   Writing a (new) custom case.fpp file.
+ $ cmake --build /oscar/home/mcarcana/MFC/build/staging/7e71bfa6d4 --target syscheck --parallel 1 --config Release
+
+[100%] Built target syscheck
+
+ $ cmake --install /oscar/home/mcarcana/MFC/build/staging/7e71bfa6d4
+
+-- Install configuration: "Release"
+-- Installing: /users/mcarcana/MFC/build/install/7e71bfa6d4/bin/syscheck
+
+ Generating case.fpp.
+   Writing a (new) custom case.fpp file.
+ $ cmake --build /oscar/home/mcarcana/MFC/build/staging/f3387f1277 --target pre_process --parallel 1 --config Release
+
+[100%] Built target pre_process
+
+ $ cmake --install /oscar/home/mcarcana/MFC/build/staging/f3387f1277
+
+-- Install configuration: "Release"
+-- Installing: /users/mcarcana/MFC/build/install/f3387f1277/bin/pre_process
+
+ Run
+   Using queue system Interactive.
+   Using baked-in template for oscar.
+   Generating input files for syscheck...
+    
+     Generating syscheck.inp:
+       INFO: Forwarded 0/100 parameters.
+    
+   Generating input files for pre_process...
+    
+     Generating pre_process.inp:
+       INFO: Forwarded 62/100 parameters.
+    
+   $ /bin/bash /oscar/home/mcarcana/MFC/examples/2D_sucrosebubble/test1.sh
+
++-----------------------------------------------------------------------------------------------------------+ 
+| MFC case # test1 @ /oscar/home/mcarcana/MFC/examples/2D_sucrosebubble/case.py:                            |
++-----------------------------------------------------------------------------------------------------------+ 
+| * Start-time     12:02:05                            * Start-date     12:02:05                            |
+| * Partition      batch                               * Walltime       01:00:00                            |
+| * Account        N/A                                 * Nodes          1                                   |
+| * Job Name       test1                               * Engine         interactive                         |
+| * QoS            N/A                                 * Binary         N/A                                 |
+| * Queue System   Interactive                         * Email          N/A                                 |
++-----------------------------------------------------------------------------------------------------------+ 
+
+mfc: OK > :) Loading modules:
+
+mfc: Loading modules (& env variables) for Brown Oscar on CPUs:
+mfc:  $ module load python
+mfc:  $ module load hpcx-mpi
+mfc: OK > All modules and environment variables have been loaded.
+
+mfc: OK > :) Running syscheck:
+
+ [TEST] MPI: call mpi_init(ierr)
+ [TEST] MPI: call mpi_comm_rank(MPI_COMM_WORLD, rank, ierr)
+ [TEST] MPI: call mpi_barrier(MPI_COMM_WORLD, ierr)
+ [TEST] MPI: call assert(rank >= 0)
+ [TEST] MPI: call mpi_comm_size(MPI_COMM_WORLD, nRanks, ierr)
+ [TEST] MPI: call assert(nRanks > 0 .and. rank < nRanks)
+ [SKIP] ACC: devtype = acc_get_device_type()
+ [SKIP] ACC: num_devices = acc_get_num_devices(devtype)
+ [SKIP] ACC: call assert(num_devices > 0)
+ [SKIP] ACC: call acc_set_device_num(mod(rank, nRanks), devtype)
+ [SKIP] ACC: allocate(arr(1:N))
+ [SKIP] ACC: !$acc enter data create(arr(1:N))
+ [SKIP] ACC: !$acc parallel loop
+ [SKIP] ACC: !$acc update host(arr(1:N))
+ [SKIP] ACC: !$acc exit data delete(arr)
+ [TEST] MPI: call mpi_barrier(MPI_COMM_WORLD, ierr)
+ [TEST] MPI: call mpi_finalize(ierr)
+ 
+ Syscheck: PASSED.
+
+mfc: OK > :) Running pre_process:
+
+ Pre-processing a 300x100x0 case on 1 rank(s)
+ Processing patch           1
+ Processing patch           2
+ Elapsed Time   2.9057000000000013E-002
+
++-----------------------------------------------------------------------------------------------------------+ 
+| Finished test1:                                                                                           |
+| * Total-time:    2s                                  * Exit Code:     0                                   |
+| * End-time:      12:02:07                            * End-date:      12:02:07                            |
++-----------------------------------------------------------------------------------------------------------+ 
+
+mfc: (venv) Exiting the Python virtual environment.
+mfc: OK > (venv) Entered the Python 3.11.0 virtual environment (>= 3.8).
+
+      .=++*:          -+*+=.        | mcarcana@node1317.oscar.ccv.brown.edu [Linux]
+     :+   -*-        ==   =* .      | ---------------------------------------------
+   :*+      ==      ++    .+-       | 
+  :*##-.....:*+   .#%+++=--+=:::.   | --jobs 1
+  -=-++-======#=--**+++==+*++=::-:. | --mpi --no-gpu --no-debug --no-gcov --no-unified
+ .:++=----------====+*= ==..:%..... | --targets post_process
+  .:-=++++===--==+=-+=   +.  :=     | 
+  +#=::::::::=%=. -+:    =+   *:    | ----------------------------------------------------------
+ .*=-=*=..    :=+*+:      -...--    | $ ./mfc.sh (build, run, test, clean, count, packer) --help
+
+ Acquiring /oscar/home/mcarcana/MFC/examples/2D_sucrosebubble/case.py...
+ Acquiring /oscar/home/mcarcana/MFC/examples/2D_sucrosebubble/case.py...
+ Build | syscheck, syscheck, and post_process | Generic Build
+
+ Generating case.fpp.
+   Writing a (new) custom case.fpp file.
+ $ cmake --build /oscar/home/mcarcana/MFC/build/staging/7e71bfa6d4 --target syscheck --parallel 1 --config Release
+
+[100%] Built target syscheck
+
+ $ cmake --install /oscar/home/mcarcana/MFC/build/staging/7e71bfa6d4
+
+-- Install configuration: "Release"
+-- Installing: /users/mcarcana/MFC/build/install/7e71bfa6d4/bin/syscheck
+
+ Generating case.fpp.
+   Writing a (new) custom case.fpp file.
+ $ cmake --build /oscar/home/mcarcana/MFC/build/staging/88890036a0 --target post_process --parallel 1 --config Release
+
+[100%] Built target post_process
+
+ $ cmake --install /oscar/home/mcarcana/MFC/build/staging/88890036a0
+
+-- Install configuration: "Release"
+-- Installing: /users/mcarcana/MFC/build/install/88890036a0/bin/post_process
+
+ Run
+   Using queue system Interactive.
+   Using baked-in template for oscar.
+   Generating input files for syscheck...
+    
+     Generating syscheck.inp:
+       INFO: Forwarded 0/100 parameters.
+    
+   Generating input files for post_process...
+    
+     Generating post_process.inp:
+       INFO: Forwarded 39/100 parameters.
+    
+   $ /bin/bash /oscar/home/mcarcana/MFC/examples/2D_sucrosebubble/test1.sh
+
++-----------------------------------------------------------------------------------------------------------+ 
+| MFC case # test1 @ /oscar/home/mcarcana/MFC/examples/2D_sucrosebubble/case.py:                            |
++-----------------------------------------------------------------------------------------------------------+ 
+| * Start-time     12:02:10                            * Start-date     12:02:10                            |
+| * Partition      batch                               * Walltime       01:00:00                            |
+| * Account        N/A                                 * Nodes          1                                   |
+| * Job Name       test1                               * Engine         interactive                         |
+| * QoS            N/A                                 * Binary         N/A                                 |
+| * Queue System   Interactive                         * Email          N/A                                 |
++-----------------------------------------------------------------------------------------------------------+ 
+
+mfc: OK > :) Loading modules:
+
+mfc: Loading modules (& env variables) for Brown Oscar on CPUs:
+mfc:  $ module load python
+mfc:  $ module load hpcx-mpi
+mfc: OK > All modules and environment variables have been loaded.
+
+mfc: OK > :) Running syscheck:
+
+ [TEST] MPI: call mpi_init(ierr)
+ [TEST] MPI: call mpi_comm_rank(MPI_COMM_WORLD, rank, ierr)
+ [TEST] MPI: call mpi_barrier(MPI_COMM_WORLD, ierr)
+ [TEST] MPI: call assert(rank >= 0)
+ [TEST] MPI: call mpi_comm_size(MPI_COMM_WORLD, nRanks, ierr)
+ [TEST] MPI: call assert(nRanks > 0 .and. rank < nRanks)
+ [SKIP] ACC: devtype = acc_get_device_type()
+ [SKIP] ACC: num_devices = acc_get_num_devices(devtype)
+ [SKIP] ACC: call assert(num_devices > 0)
+ [SKIP] ACC: call acc_set_device_num(mod(rank, nRanks), devtype)
+ [SKIP] ACC: allocate(arr(1:N))
+ [SKIP] ACC: !$acc enter data create(arr(1:N))
+ [SKIP] ACC: !$acc parallel loop
+ [SKIP] ACC: !$acc update host(arr(1:N))
+ [SKIP] ACC: !$acc exit data delete(arr)
+ [TEST] MPI: call mpi_barrier(MPI_COMM_WORLD, ierr)
+ [TEST] MPI: call mpi_finalize(ierr)
+ 
+ Syscheck: PASSED.
+
+mfc: OK > :) Running post_process:
+
+ Post-processing a 300x100x0 case on 1 rank(s)
+ [  0%]  Saving        1 of 21 @ t_step = 0
+ [  5%]  Saving        2 of 21 @ t_step = 2655617
+ File ./restart_data/lustre_2655617.dat is missing. Exiting...
+
+mfc: ERROR > :( /oscar/home/mcarcana/MFC/build/install/88890036a0/bin/post_process failed with exit code 1.
+
+ 
+
+Error: Submitting batch file for Interactive failed. It can be found here: /oscar/home/mcarcana/MFC/examples/2D_sucrosebubble/test1.sh. Please check the file for errors.
+
+
+mfc: ERROR > main.py finished with a 143 exit code.
+mfc: (venv) Exiting the Python virtual environment.

@@ -100,16 +100,18 @@ contains
             !! Generic string used to store the address of a particular file
 
         integer :: i, j, k, l, r !< Generic loop iterator
-        integer :: t_step
+        integer :: t_step, s
 
         real(kind(0d0)), dimension(nb) :: nRtmp         !< Temporary bubble concentration
         real(kind(0d0)) :: nbub                         !< Temporary bubble number density
         real(kind(0d0)) :: gamma, lit_gamma, pi_inf, qv !< Temporary EOS params
         real(kind(0d0)) :: rho                          !< Temporary density
         real(kind(0d0)) :: pres                         !< Temporary pressure
+        real(kind(0d0)) :: temp                         !< Temporary temp
+        real(kind(0d0)), dimension(1)  :: alpha_K, alpha_rho_K         !< Temporary params needed
 
-        real(kind(0d0)) :: nR3
-        real(kind(0d0)) :: ntmp
+        !real(kind(0d0)) :: nR3
+        !real(kind(0d0)) :: ntmp
 
         t_step = 0
 
@@ -259,6 +261,12 @@ contains
                                 q_cons_vf(alf_idx)%sf(j, 0, 0), &
                                 0.5d0*(q_cons_vf(mom_idx%beg)%sf(j, 0, 0)**2.d0)/rho, &
                                 pi_inf, gamma, rho, qv, pres)
+                            do s = 1, num_fluids 
+                               call s_compute_temperature( &
+                                    q_cons_vf(E_idx)%sf(j, 0, 0), &
+				    0.50*(q_cons_vf(mom_idx%beg)%sf(j, 0, 0)**2.d0)/rho, &
+                                    pi_inf, gamma, rho, qv, temp, alpha_K(s), alpha_rho_K(s))
+                            end do
                             write (2, FMT) x_cb(j), pres
                         else if ((i >= bub_idx%beg) .and. (i <= bub_idx%end) .and. bubbles) then
 
