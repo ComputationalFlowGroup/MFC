@@ -694,7 +694,7 @@ contains
         ! Up until now, only the inside of the exponential of the numerical
         ! Schlieren function has been evaluated and stored. Then, to finish
         ! the computation, the exponential of the inside quantity is taken.
-        q_sf = exp(q_sf)
+        q_sf = dexp(q_sf)
 
         ! ==================================================================
 
