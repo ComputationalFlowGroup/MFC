@@ -274,7 +274,6 @@ contains
            num_term1 = num_term1 + energy - dyn_p
            denom = (num_term1 / denom_term1) + foo !(1d0 / denom_term2)*mg_b(s)  
            temp = (phi_mix*theta_E)/dlog(1d0 + 1d0 / denom)
-	   print *, 'temp ::', temp
         end if
     end subroutine s_compute_temperature
  
