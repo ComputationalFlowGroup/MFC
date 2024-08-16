@@ -460,7 +460,6 @@ contains
 
         ! Elastic Shear Stress
         if (hyperelasticity) then
-
             if (pre_stress) then ! pre stressed initial condition in spatial domain
                 rcoord = sqrt((x_cc(j)**2 + y_cc(k)**2 + z_cc(l)**2))
                 theta = atan2(y_cc(k), x_cc(j))
@@ -475,13 +474,16 @@ contains
                 xi_cart(2) = y_cc(k)
                 xi_cart(3) = z_cc(l)
             end if
-
             ! assigning the reference map to the q_prim vector field
             do i = 1, num_dims
                 q_prim_vf(i + xibeg - 1)%sf(j, k, l) = eta*xi_cart(i) + &
                                                        (1d0 - eta)*orig_prim_vf(i + xibeg - 1)
             end do
+        end if
 
+        if (hypoplasticity) then
+            ! assigning the strain hardening to the q_prim vector field
+            q_prim_vf(plasidx)%sf(j, k, l) = 0d0 
         end if
 
         if (mpp_lim .and. bubbles) then
