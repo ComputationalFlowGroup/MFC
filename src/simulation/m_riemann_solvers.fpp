@@ -2073,7 +2073,7 @@ contains
                     ! 5-EQUATION MODEL WITH HLLC AND MIE-GRUNIESEN EOS
                     !$acc parallel loop collapse(3) gang vector default(present) private(vel_L, vel_R, Re_L, Re_R, &
                     !$acc rho_avg, h_avg, gamma_avg, alpha_L, alpha_R, s_L, s_R, s_S, vel_avg_rms, pcorr, zcoef, &
-                    !$acc tau_e_L, tau_e_R, vel_L_tmp, vel_R_tmp, xi_field_L, xi_field_R)
+                    !$acc alpha_rho_L, alpha_rho_R, au_e_L, tau_e_R, vel_L_tmp, vel_R_tmp, xi_field_L, xi_field_R)
                     do l = is3%beg, is3%end
                         do k = is2%beg, is2%end
                             do j = is1%beg, is1%end
@@ -2082,6 +2082,8 @@ contains
                                 do i = 1, num_fluids
                                     alpha_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, E_idx + i)
                                     alpha_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, E_idx + i)
+                                    alpha_rho_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, i)
+                                    alpha_rho_R(i) = qR_prim_rs${XYZ}$_vf(j+1, k, l, i)
                                 end do
 
                                 vel_L_rms = 0d0; vel_R_rms = 0d0
@@ -2169,6 +2171,53 @@ contains
                                                               vel_avg_rms, c_avg)
 
                                 !TODO SRIJAN ADD PRINT STATEMENTS FOR
+                        !------------------------------------------------------------------------
+                                ! rho0 = 0.d0 
+                                ! rho_mix_MG_denominator = 0.d0
+                                ! zeta_mix = 0.d0
+                                ! theta_E = 0.d0
+                                ! gamma_rho_squared_denominator = 0.d0
+                                ! do i = 1, num_fluids
+                                !        alpha_rho_K(i) = q_prim_vf(i)%sf(j , k, l)
+                                !        alpha_K        = q_prim_vf(E_idx+i)%sf(j, k, l)
+                                !        rho0_K         = fluid_pp(i)%rho0
+                                !        theta_E_k(i)   = fluid_pp(i)%ein_cv(2)
+                                !        rho0           = rho0 + rho0_K*alpha_K
+                                !        gamma_K        = fluid_pp(i)%gamma 
+                                !        mg_a_K         = fluid_pp(i)%mg_a
+                                !        mg_b_K         = fluid_pp(i)%mg_b
+     
+                                !        rho_mix_MG_denominator= rho_mix_MG_denominator +& 
+                                !        gamma_K*(mg_a_K*alpha_K*rho0_K + mg_b_K*alpha_rho_K(i))
+                                !        zeta_mix = zeta_mix + alpha_K*gamma_K - (alpha_K*gamma_K*rho0_K)/rho
+                                !        theta_E = theta_E + alpha_K*theta_E_K(i)
+                                !        gamma_rho_squared_denominator =gamma_rho_squared_denominator + gamma_K*(mg_a_K*alpha_K*rho0_K**2+&
+                                !        mg_b_K*alpha_rho_K(i)*rho0_K)
+                                ! end do  
+                                ! rho_mix_ratio = rho/rho0
+                                ! rho_mix_MG = rho/rho_mix_MG_denominator
+                                ! phi_mix = DEXP(zeta_mix)                        
+                                ! pres_bar = q_prim_vf(E_idx)%sf(j, k, l)*rho_mix_MG 
+                                ! q_cons_vf(E_idx)%sf(j,k,l) = 0d0
+                                ! do i = 1, num_fluids
+                                !          Kt_K  = fluid_pp(i)%pi_inf
+                                !          Ktp_K = fluid_pp(i)%qv
+                                !          a_cv_K = fluid_pp(i)%ein_cv(1)
+                                !          rho_K_ratio = alpha_rho_K(i)/fluid_pp(i)%rho0
+
+                                !         E_mg =  0.5d0*((dlog(rho_mix_ratio))**2)*rho_K_ratio*Kt_K &
+                                !          +0.5d0*((dlog(rho_mix_ratio))**3)*rho_K_ratio*Kt_K*(Ktp_K-2)/3.d0 &
+                                !          +mg_a(i)*phi_mix*(DEXP(phi_mix*theta_E)/(DEXP(phi_mix*theta_E)-1))*alpha_rho_K(i)*a_cv_K*theta_E_K(i) &
+                                !          -mg_a(i)*dlog(DEXP(phi_mix*theta_E)-1)*alpha_rho_K(i)*a_cv_K &
+                                !          -dlog(rho_mix_ratio)*(alpha_rho_K(i)**2)*Kt_K/gamma_rho_squared_denominator-&
+                                !          ((dlog(rho_mix_ratio))**2)*(alpha_rho_K(i)**2)*Kt_K*0.5d0*(Ktp_K-2)/&
+                                !                 gamma_rho_squared_denominator
+
+                                !          q_cons_vf(E_idx)%sf(j,k,l) = q_cons_vf(E_idx)%sf(j, k, l) +  E_mg
+                                ! end do
+                                ! adding the dynamic pressure to the total energy
+                                ! q_cons_vf(E_idx)%sf(j, k, l) = q_cons_vf(E_idx)%sf(j, k, l) + pres_bar + dyn_pres
+                        !------------------------------------------------------------------------------
                                 !BOTH LEFT, RIGHT, and AVERAGE states
 
                                 if (wave_speeds == 1) then
