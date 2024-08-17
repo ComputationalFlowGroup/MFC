@@ -1226,7 +1226,7 @@ contains
  
         !!Parameters to make stiffened gas eos of air and Mie-Gruneisen
         !consistent with each 
-        real(kind(0d0)) :: rho0, rho0_K
+        real(kind(0d0)) :: rho0_K, rho0mix
         real(kind(0d0)) :: gamma_K, alpha_K, Kt_K, Ktp_K, a_cv_K, rho_K_ratio, mg_a_K, mg_b_K
         !local variables for computing energy corresponding to
         !Mie-Gruneisen EOS
@@ -1285,7 +1285,7 @@ contains
                                                        (1.d0 - q_prim_vf(alf_idx)%sf(j, k, l))* &
                                                        (gamma*q_prim_vf(E_idx)%sf(j, k, l) + pi_inf)
                     else if (model_eqns == 5) then
-                        rho0 = 0.d0 
+                        rho0mix = 0.d0
                         rho_mix_MG_denominator = 0.d0
                         zeta_mix = 0.d0
                         theta_E = 0.d0
@@ -1293,12 +1293,12 @@ contains
                         do i = 1, num_fluids
                           alpha_rho_K(i) = q_prim_vf(i)%sf(j , k, l)
                           alpha_K        = q_prim_vf(E_idx+i)%sf(j, k, l)
-                          rho0_K         = fluid_pp(i)%rho0
-                          theta_E_k(i)   = fluid_pp(i)%ein_cv(2)
-                          rho0           = rho0 + rho0_K*alpha_K
-                          gamma_K        = fluid_pp(i)%gamma 
-                          mg_a_K         = fluid_pp(i)%mg_a
-                          mg_b_K         = fluid_pp(i)%mg_b
+                          rho0_K         = rho0(i)
+                          theta_E_k(i)   = ein_cv2(i)
+                          rho0mix        = rho0mix + rho0_K*alpha_K
+                          gamma_K        = gammas(i)
+                          mg_a_K         = mg_a(i)
+                          mg_b_K         = mg_b(i)
      
                           rho_mix_MG_denominator= rho_mix_MG_denominator +& 
                             gamma_K*(mg_a_K*alpha_K*rho0_K + mg_b_K*alpha_rho_K(i))
@@ -1307,7 +1307,7 @@ contains
                           gamma_rho_squared_denominator =gamma_rho_squared_denominator + gamma_K*(mg_a_K*alpha_K*rho0_K**2+&
                                  mg_b_K*alpha_rho_K(i)*rho0_K)
                         end do  
-                        rho_mix_ratio = rho/rho0
+                        rho_mix_ratio = rho/rho0mix
                         rho_mix_MG = rho/rho_mix_MG_denominator
                         phi_mix = DEXP(zeta_mix)                        
                         pres_bar = q_prim_vf(E_idx)%sf(j, k, l)*rho_mix_MG 

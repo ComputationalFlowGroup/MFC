@@ -270,7 +270,7 @@ for f_id in range(1,10+1):
     for ein_cv_id in [1, 2]:
         SIMULATION[f"fluid_pp({f_id})%ein_cv({ein_cv_id})"] = ParamType.REAL
 
-    for jcook_id in range(1,10+1) :
+    for jcook_id in range(1,11+1) :
         SIMULATION[f"fluid_pp({f_id})%jcook({jcook_id})"] = ParamType.REAL
 
     for mono_id in range(1,4+1):

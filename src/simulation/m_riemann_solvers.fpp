@@ -907,6 +907,7 @@ contains
         real(kind(0d0)), dimension(6) :: tau_e_L, tau_e_R
         real(kind(0d0)), dimension(num_dims) :: xi_field_L, xi_field_R
         real(kind(0d0)) :: G_L, G_R
+        real(kind(0d0)) :: xi_d_L, xi_d_R
 
         real(kind(0d0)) :: nbub_L, nbub_R
         real(kind(0d0)), dimension(nb) :: R0_L, R0_R
@@ -2073,7 +2074,7 @@ contains
                     ! 5-EQUATION MODEL WITH HLLC AND MIE-GRUNIESEN EOS
                     !$acc parallel loop collapse(3) gang vector default(present) private(vel_L, vel_R, Re_L, Re_R, &
                     !$acc rho_avg, h_avg, gamma_avg, alpha_L, alpha_R, s_L, s_R, s_S, vel_avg_rms, pcorr, zcoef, &
-                    !$acc alpha_rho_L, alpha_rho_R, au_e_L, tau_e_R, vel_L_tmp, vel_R_tmp, xi_field_L, xi_field_R)
+                    !$acc alpha_rho_L, alpha_rho_R, au_e_L, tau_e_R, vel_L_tmp, vel_R_tmp, xi_d_L, xi_d_R)
                     do l = is3%beg, is3%end
                         do k = is2%beg, is2%end
                             do j = is1%beg, is1%end
@@ -2142,14 +2143,7 @@ contains
                                 !$acc loop seq
                                 do i = 1, num_fluids
                                     rho_L = rho_L + qL_prim_rs${XYZ}$_vf(j, k, l, i)
-                                    gamma_L = gamma_L + qL_prim_rs${XYZ}$_vf(j, k, l, E_idx + i)*gammas(i)
-                                    pi_inf_L = pi_inf_L + qL_prim_rs${XYZ}$_vf(j, k, l, E_idx + i)*pi_infs(i)
-                                    qv_L = qv_L + qL_prim_rs${XYZ}$_vf(j, k, l, i)*qvs(i)
-
                                     rho_R = rho_R + qR_prim_rs${XYZ}$_vf(j + 1, k, l, i)
-                                    gamma_R = gamma_R + qR_prim_rs${XYZ}$_vf(j + 1, k, l, E_idx + i)*gammas(i)
-                                    pi_inf_R = pi_inf_R + qR_prim_rs${XYZ}$_vf(j + 1, k, l, E_idx + i)*pi_infs(i)
-                                    qv_R = qv_R + qR_prim_rs${XYZ}$_vf(j + 1, k, l, i)*qvs(i)
                                 end do
 
                                 E_L = gamma_L*pres_L + pi_inf_L + 5d-1*rho_L*vel_L_rms + qv_L
@@ -2378,7 +2372,16 @@ contains
 
                                 flux_src_rs${XYZ}$_vf(j, k, l, advxb) = vel_src_rs${XYZ}$_vf(j, k, l, idx1)
 
-                                !TODO SRIJAN ADD FLUX FOR HARDENING TERM
+                                ! ISOTROPIC HARDENING FLUX.
+                                if (hypoplasticity) then
+                                   xi_d_L = qL_prim_rs${XYZ}$_vf(j, k, l, plasidx)
+                                   xi_d_R = qR_prim_rs${XYZ}$_vf(j + 1, k, l, plasidx)
+                                   flux_rs${XYZ}$_vf(j, k, l, plasidx) = &
+                                     xi_M*(s_S/(s_L - s_S))*(s_L*rho_L*xi_d_L &
+                                                - rho_L*vel_L(idx1)*xi_d_L) + &
+                                            xi_P*(s_S/(s_R - s_S))*(s_R*rho_R*xi_d_R &
+                                                - rho_R*vel_R(idx1)*xi_d_R)
+                                end if
 
                             end do
                         end do
