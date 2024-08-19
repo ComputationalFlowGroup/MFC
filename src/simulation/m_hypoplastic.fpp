@@ -153,14 +153,20 @@ contains
           do k = 0, m
              ! STEP 1 : Compute the first additional term in rhs: -rho((SW)^T - SW)
              ! Let atensor = SW, attensor = (SW)^T, tensora = attensor - atensor
-             atensor(1) = (1d0/4d0)*(dv_dx(k, l, q)**2 - du_dy(k, l, q)**2)
-             atensor(2) = (1d0/2d0)*(du_dy(k, l, q)*du_dx(k, l, q) - &
-                  dv_dx(k, l, q)*du_dx(k, l, q))
-             atensor(3) = (1d0/2d0)*(dv_dx(k, l, q)*dv_dy(k, l, q) - &
-                  du_dy(k, l, q)*dv_dy(k, l, q))
-             atensor(4) = (1d0/4d0)*(du_dy(k, l, q)**2 - dv_dx(k, l, q)**2)
-             tensora(2) = atensor(3) - atensor(2)
-             tensora(3) = atensor(2) - atensor(3)
+             atensor(1) = q_prim_vf(strxb + 1)%sf(k, l, q)*(1d0/2d0)* &
+                          (du_dy(k, l, q) - dv_dx(k, l, q)) ! S12W21
+             atensor(2) = q_prim_vf(strxb)%sf(k, l, q)*(1d0/2d0)* &
+                          (dv_dx(k, l, q) - du_dy(k, l, q)) ! S11W12
+             atensor(3) = q_prim_vf(strxe)%sf(k, l, q)*(1d0/2d0)* &
+                          (du_dy(k, l, q) - dv_dx(k, l, q)) ! S22W21
+             atensor(4) = q_prim_vf(strxe - 1)%sf(k, l, q)*(1d0/2d0)* &
+                          (dv_dx(k, l, q) - du_dy(k, l, q)) ! S21W12
+             tensora(1) = -atensor(4) - atensor(1) ! -W12S21 - S12W21
+             tensora(2) = -((1d0/2d0)*(dv_dx(k, l, q) - du_dy(k, l, q))* & 
+                          q_prim_vf(strxe)%sf(k, l, q)) - atensor(2) ! -W12S22 - S11W12
+             tensora(3) = -((1d0/2d0)*(du_dy(k, l, q) - dv_dx(k, l, q))* &
+                          q_prim_vf(strxb)%sf(k, l ,q)) - atensor(3) ! -W21S11 - S22W21
+             tensora(4) = -atensor(1) - atensor(4) ! - W21S12 - S21W12
             
              ! STEP 2: Compute the deviatoric part of D, symmetric part of velocity gradient
              ! dtrace = du_dx(k, l, q) + dv_dy(k, l, q)
@@ -183,17 +189,17 @@ contains
              ! compute theta_hat from equation 4.9
              tempref = jcook11(1)
              if (temp .lt. tempref) then
-                theta_hat = 0
+                theta_hat = 0d0
              elseif (temp .le. theta_m) then
                 theta_hat = (temp - tempref)/(theta_m - tempref)
              else
-                theta_hat = 1
+                theta_hat = 1d0
              end if
              !could alternatively compute subtract tempref in both temp subroutine and theta_m
              ! compute sigma_bar = sqrt(3/2) * | S | 
-             sigma_bar = dsqrt(3d0/2d0) * (du_dx(k, l, q)**2 + dv_dy(k, l, q)**2 + &
-                         (1d0/2d0)*du_dy(k, l, q)**2 + (1d0/2d0)*dv_dx(k, l, q)**2 + &
-                         du_dy(k, l, q)*dv_dx(k, l, q))**(1d0/2d0)
+             sigma_bar = dsqrt(3d0/2d0) *(q_prim_vf(strxb)%sf(k, l, q)**2d0 + &
+                         2d0*q_prim_vf(strxb + 1)%sf(k, l, q)**2d0 + &
+                         q_prim_vf(strxe)%sf(k, l, q)**2d0)**(1d0/2d0)
 
              ! STEP 3.3 : Compute d^p and update rhs
              ! compute d^p_JC from equation 4.7
@@ -206,10 +212,10 @@ contains
              ! jcook(7) = d^p_lim
              d_p = ((1d0/dp_JC) + (1d0/jcook7(1)))**(-1d0)
              ! compute D^p using equation 4.5
-             Dp(1) = ((3d0*d_p) / (2d0*sigma_bar)) * du_dx(k, l, q)
-             Dp(2) = ((3d0*d_p) / (2d0*sigma_bar)) * (1d0/2d0)*(du_dy(k, l, q) + dv_dx(k, l, q))
-             Dp(3) = Dp(2)
-             Dp(4) = ((3d0*d_p) / (2d0*sigma_bar)) * dv_dy(k, l, q)
+             Dp(1) = ((3d0*d_p) / (2d0*sigma_bar)) * q_prim_vf(strxb)%sf(k, l, q)
+             Dp(2) = ((3d0*d_p) / (2d0*sigma_bar)) * q_prim_vf(strxb + 1)%sf(k, l, q)
+             Dp(3) = ((3d0*d_p) / (2d0*sigma_bar)) * q_prim_vf(strxe - 1)%sf(k, l, q)
+             Dp(4) = ((3d0*d_p) / (2d0*sigma_bar)) * q_prim_vf(strxe)%sf(k, l, q)
 
              ! STEP 4: Compute rhs source terms
              rhs_vf(strxb + 0)%sf(k, l, q) = rhs_vf(strxb)%sf(k, l, q) + rho_K_field(k, l ,q)*atensor(1) + & 
