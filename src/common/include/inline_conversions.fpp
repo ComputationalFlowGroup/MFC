@@ -90,11 +90,11 @@
                         -log_rho_mix_ratio*(gammas(r)*adv(r)*mg_a(r)*pi_infs(r) &
                         +gammas(r)*alpha_rho_K(r)*mg_b(r)*pi_infs(r)/rho0_mix ) &
                         -(log_rho_mix_ratio**2.d0)*(gammas(r)*adv(r)*mg_a(r)*pi_infs(r)*0.5d0*(qvs(r)-2.d0) &
-                        +gammas(r)*alpha_rho_K(r)*mg_b(r)*pi_infs(r)*0.5d0*(qvs(r)-2.d0)/rho0_mix) &
-                        +mg_a(r)*(phi_mix**2.d0)*(exp(phi_mix*theta_E)/(exp(phi_mix*theta_E)-1.d0)**2.d0)*(term2/rho+term3)
+                        +gammas(r)*alpha_rho_K(r)*mg_b(r)*pi_infs(r)*0.5d0*(qvs(r)-2.d0)/rho0_mix) 
             end do
+            c = c + (phi_mix**2.d0)*(exp(phi_mix*theta_E)/(exp(phi_mix*theta_E)-1.d0)**2.d0)*(term2/rho+term3)
             c = c/rho
-            !print *, 'print c before the grinder :: c :: ',c
+            !print *, 'print c before the grinder :: c :: ',sqrt(c)
         else           
             c = ((H - 5d-1*vel_sum)/gamma)
         end if
