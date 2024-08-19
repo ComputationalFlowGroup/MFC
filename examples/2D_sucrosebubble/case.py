@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 import math
 import json
 
@@ -42,7 +41,7 @@ rho_0             = 1580.5          #kg/m^3
 c_squared = (Kt0_suc/rho_0_suc)+ gamma_suc*P_0/rho_0_suc + math.pow(gamma_suc,2)*ein_cv1_suc*(math.pow(ein_cv2_suc/theta_0_suc,2))*math.exp(ein_cv2_suc/theta_0)/(math.pow(math.exp(ein_cv2_suc/theta_0_suc)-1,2))
 
 c_0 = math.sqrt(c_squared)
-
+#print(c_0)
 
 #RH jump conditions in non-dimensional form to calculate P, u_p, U_s
 tilde_P_0 = P_0/(rho_0_suc*c_0*c_0)
@@ -175,7 +174,7 @@ print(json.dumps({
     'fluid_pp(1)%mg_b'             : 0.E0,                             #b_mg
     'fluid_pp(2)%mg_a'             : 0.E0,                             #a_mg
     'fluid_pp(2)%mg_b'             : 1.E0,                             #b_mg
-    'fluid_pp(1)%rho0'             : 1.E0,                             #Non-dimensional initial density in Birch-Murnaghan cold curve
+    'fluid_pp(1)%rho0'             : 1.E0,                 #Non-dimensional initial density in Birch-Murnaghan cold curve
     'fluid_pp(2)%rho0'             : 9.82E-7,
     'fluid_pp(1)%jcook(1)'         : 0.0334,                           # A, Static yield strength
     'fluid_pp(1)%jcook(2)'         : 0.0334,                           # B, Strain-Hardening coefficient
