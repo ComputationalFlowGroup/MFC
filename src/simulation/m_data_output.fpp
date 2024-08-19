@@ -331,6 +331,7 @@ contains
                     !$acc loop seq
                     do i = 1, num_dims
                         vel_sum = vel_sum + vel(i)**2d0
+                        alpha_rho_k(i) = q_prim_vf(i)%sf(j, k, l)
                     end do
 
                     pres = q_prim_vf(E_idx)%sf(j, k, l)
@@ -346,7 +347,7 @@ contains
 
                     ! Compute mixture sound speed
                     ! TODO SRIJAN TO CODE
-                    call s_compute_speed_of_sound(pres, rho, gamma, pi_inf, H, alpha, vel_sum, c)
+                    call s_compute_speed_of_sound(pres, rho, gamma, pi_inf, H, alpha, vel_sum, c, G, alpha_rho)
 
                     if (c /= c) then
                         !print *, 'crashed at processor: ', proc_rank, ', at j :: ', j, ', k :: ', k, ' l :: ', l
@@ -1826,7 +1827,6 @@ contains
             s_convert_to_mixture_variables => &
                 s_convert_species_to_mixture_variables_bubbles
         else                            ! Volume fraction model
-            s_convert_to_mixture_variables => &
                 s_convert_species_to_mixture_variables
         end if
 
