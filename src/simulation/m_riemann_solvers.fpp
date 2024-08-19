@@ -935,7 +935,9 @@ contains
         real(kind(0d0)) :: rho0mix, rho_mix_MG_denominator, zeta_mix, &
                            theta_E, gamma_rho_squared_denominator, rho_mix_ratio,&
                            rho_mix_MG, phi_mix, pres_bar, rho_K_ratio, E_mg  
+        real(kind(0d0)) :: rho0_L, rho0_R
         real(kind(0d0)), dimension(num_fluids) :: G  !Adding this line here so that I can pass my optional argument alpha_rho_K to speed of sound subroutine
+
         integer :: i, j, k, l, q !< Generic loop iterators
         integer :: idx1, idxi
 
@@ -2105,11 +2107,13 @@ contains
                                 pres_R = qR_prim_rs${XYZ}$_vf(j + 1, k, l, E_idx)
 
                                 rho_L = 0d0
+                                rho0_L = 0d0
                                 gamma_L = 0d0
                                 pi_inf_L = 0d0
                                 qv_L = 0d0
 
                                 rho_R = 0d0
+                                rho0_R = 0d0
                                 gamma_R = 0d0
                                 pi_inf_R = 0d0
                                 qv_R = 0d0
@@ -2149,6 +2153,8 @@ contains
                                 do i = 1, num_fluids
                                     rho_L = rho_L + qL_prim_rs${XYZ}$_vf(j, k, l, i)
                                     rho_R = rho_R + qR_prim_rs${XYZ}$_vf(j + 1, k, l, i)
+                                    rho0_L = rho0_L + qL_prim_rs${XYZ}$_vf(j, k, l, E_idx + i)*rho0(i)
+                                    rho0_R = rho0_R + qR_prim_rs${XYZ}$_vf(j, k, l, E_idx + i)*rho0(i)
                                 end do
 
                                 ! ENERGY ADJUSTMENTS FOR HYPOELASTIC ENERGY
@@ -2325,17 +2331,18 @@ contains
                                     flux_ene_e = 0d0
                                     !$acc loop seq
                                     do i = 1, num_dims
-                                        idxi = dir_idx(i)
-                                        ! MOMENTUM ELASTIC FLUX.
-                                        flux_rs${XYZ}$_vf(j, k, l, contxe + idxi) = &
+                                      idxi = dir_idx(i)
+                                      ! MOMENTUM ELASTIC FLUX.
+                                      flux_rs${XYZ}$_vf(j, k, l, contxe + idxi) = &
                                             flux_rs${XYZ}$_vf(j, k, l, contxe + idxi) &
-                                            - xi_M*tau_e_L(dir_idx_tau(i)) - xi_P*tau_e_R(dir_idx_tau(i))
-                                        ! ENERGY ELASTIC FLUX.
-                                        flux_ene_e = flux_ene_e - &
-                                                     xi_M*(vel_L(idxi)*tau_e_L(dir_idx_tau(i)) + &
-                                                           s_M*(xi_L*((s_S - vel_L(i))*(tau_e_L(dir_idx_tau(i))/(s_L - vel_L(i)))))) - &
-                                                     xi_P*(vel_R(idxi)*tau_e_R(dir_idx_tau(i)) + &
-                                                           s_P*(xi_R*((s_S - vel_R(i))*(tau_e_R(dir_idx_tau(i))/(s_R - vel_R(i))))))
+                                            - xi_M*(rho_L/rho0_L)*tau_e_L(dir_idx_tau(i)) &
+                                            - xi_P*(rho_R/rho0_R)*tau_e_R(dir_idx_tau(i))
+                                      ! ENERGY ELASTIC FLUX.
+                                      flux_ene_e = flux_ene_e - &
+                                       xi_M*(vel_L(idxi)*tau_e_L(dir_idx_tau(i)) + &
+                                       s_M*(xi_L*((s_S - vel_L(i))*((rho_L/rho0_L)*tau_e_L(dir_idx_tau(i))/(s_L - vel_L(i)))))) - &
+                                       xi_P*(vel_R(idxi)*tau_e_R(dir_idx_tau(i)) + &
+                                       s_P*(xi_R*((s_S - vel_R(i))*((rho_R/rho0_R)*tau_e_R(dir_idx_tau(i))/(s_R - vel_R(i))))))
                                     end do
                                     flux_rs${XYZ}$_vf(j, k, l, E_idx) = flux_rs${XYZ}$_vf(j, k, l, E_idx) + flux_ene_e
                                 end if
