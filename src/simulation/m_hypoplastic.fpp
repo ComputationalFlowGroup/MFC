@@ -201,8 +201,8 @@ contains
                                      pres, stress, mom, G, alpha_K, alpha_rho_K)
              call s_compute_temperature(energy, dyn_p, pi_inf, gamma, rho_K, qv, & 
                                         temp, alpha_K, alpha_rho_K)
-             print *, 'temp ::', temp
-             print *, 'pressure ::', pres
+             !print *, 'temp ::', temp
+             !print *, 'pressure ::', pres
 
              ! STEP 3.2 : Compute theta_m, theta_hat, and sigma_bar
              ! compute theta_m from equation 4.10
@@ -222,7 +222,7 @@ contains
              sigma_bar = dsqrt(3d0/2d0) *(q_prim_vf(strxb)%sf(k, l, q)**2d0 + &
                          2d0*q_prim_vf(strxb + 1)%sf(k, l, q)**2d0 + &
                          q_prim_vf(strxe)%sf(k, l, q)**2d0)**(1d0/2d0)
-             print *, 'sigma_bar :: ', sigma_bar
+             !print *, 'sigma_bar :: ', sigma_bar
              ! STEP 3.3 : Compute d^p and update rhs
              ! compute d^p_JC from equation 4.7
              ! d0 = 1 s^-1, jcook(4) = C, jcook(1) = A, jcook(2) = B,
@@ -232,13 +232,20 @@ contains
                  *(1d0 - theta_hat**jcook5(1)))) - 1d0)
              ! compute d^p from equation 4.6
              ! jcook(7) = d^p_lim
-             d_p = ((1d0/dp_JC) + (1d0/jcook7(1)))**(-1d0)
-             ! compute D^p using equation 4.5
-             Dp(1) = ((3d0*d_p) / (2d0*sigma_bar)) * q_prim_vf(strxb)%sf(k, l, q)
-             Dp(2) = ((3d0*d_p) / (2d0*sigma_bar)) * q_prim_vf(strxb + 1)%sf(k, l, q)
-             Dp(3) = ((3d0*d_p) / (2d0*sigma_bar)) * q_prim_vf(strxe - 1)%sf(k, l, q)
-             Dp(4) = ((3d0*d_p) / (2d0*sigma_bar)) * q_prim_vf(strxe)%sf(k, l, q)
-             print *, 'Dp(1) ::', Dp(1), 'Dp(2) ::', Dp(2), 'Dp(3) ::', Dp(3), 'Dp(4) ::', Dp(4)
+             if (sigma_bar /= 0d0) then
+               d_p = ((1d0/dp_JC) + (1d0/jcook7(1)))**(-1d0)
+               ! compute D^p using equation 4.5
+               Dp(1) = ((3d0*d_p) / (2d0*sigma_bar)) * q_prim_vf(strxb)%sf(k, l, q)
+               Dp(2) = ((3d0*d_p) / (2d0*sigma_bar)) * q_prim_vf(strxb + 1)%sf(k, l, q)
+               Dp(3) = ((3d0*d_p) / (2d0*sigma_bar)) * q_prim_vf(strxe - 1)%sf(k, l, q)
+               Dp(4) = ((3d0*d_p) / (2d0*sigma_bar)) * q_prim_vf(strxe)%sf(k, l, q)
+             else 
+               d_p = 0d0
+               !D_p = mirelys do this
+             end if 
+
+             !print *, 'Dp(1) ::', Dp(1), 'Dp(2) ::', Dp(2), 'Dp(3) ::', Dp(3), 'Dp(4) ::', Dp(4)
+
              ! STEP 4: Compute rhs source terms
              rhs_vf(strxb + 0)%sf(k, l, q) = rhs_vf(strxb)%sf(k, l, q) + rho_K_field(k, l ,q)*atensor(1) + & 
                2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(1) - Dp(1))
