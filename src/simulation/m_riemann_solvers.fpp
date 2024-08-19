@@ -931,6 +931,11 @@ contains
         real(kind(0d0)) :: start, finish
         real(kind(0d0)) :: flux_ene_e
         real(kind(0d0)) :: zcoef, pcorr !< low Mach number correction
+        
+        real(kind(0d0)) :: rho0mix, rho_mix_MG_denominator, zeta_mix, &
+                           theta_E, gamma_rho_squared_denominator, rho_mix_ratio,&
+                           rho_mix_MG, phi_mix, pres_bar, rho_K_ratio, E_mg  
+        real(kind(0d0)), dimension(num_fluids) :: G             !Adding this line here so that I can pass my optional argument alpha_rho_K to speed of sound subroutine
         integer :: i, j, k, l, q !< Generic loop iterators
         integer :: idx1, idxi
 
@@ -2146,73 +2151,75 @@ contains
                                     rho_R = rho_R + qR_prim_rs${XYZ}$_vf(j + 1, k, l, i)
                                 end do
 
-                                E_L = gamma_L*pres_L + pi_inf_L + 5d-1*rho_L*vel_L_rms + qv_L
-                                E_R = gamma_R*pres_R + pi_inf_R + 5d-1*rho_R*vel_R_rms + qv_R
+                                !E_L = gamma_L*pres_L + pi_inf_L + 5d-1*rho_L*vel_L_rms + qv_L
+                                !E_R = gamma_R*pres_R + pi_inf_R + 5d-1*rho_R*vel_R_rms + qv_R
 
+                                ! Energy corresponding to Mie-Gruneisen EOS
+                                
+                                 
+                                #:for SIDE, SIDE_INDEX in [('L',0),('R',1)]
+                                rho0mix                       = 0.d0
+                                rho_mix_MG_denominator        = 0.d0
+                                zeta_mix                      = 0.d0
+                                theta_E                       = 0.d0
+                                gamma_rho_squared_denominator = 0.d0
+                                E_${SIDE}$                    = 0.d0
+                                do i = 1, num_fluids
+                                  rho0mix = rho0mix + rho0(i)*q${SIDE}$_prim_rs${XYZ}$_vf(j+${SIDE_INDEX}$, k, l, E_idx + i)
+                                  rho_mix_MG_denominator        = rho_mix_MG_denominator + & 
+                                                                  gammas(i)*(mg_a(i)*q${SIDE}$_prim_rs${XYZ}$_vf(j+${SIDE_INDEX}$, k, l, E_idx+i)*rho0(i) + mg_b(i)*q${SIDE}$_prim_rs${XYZ}$_vf(j+${SIDE_INDEX}$, k, l, i))
+                                  zeta_mix                      = zeta_mix + q${SIDE}$_prim_rs${XYZ}$_vf(j+${SIDE_INDEX}$, k, l, E_idx+i)*gammas(i) - &
+                                                                  (q${SIDE}$_prim_rs${XYZ}$_vf(j+${SIDE_INDEX}$, k, l, E_idx+i)*gammas(i)*rho0(i))/rho_${SIDE}$
+                                  theta_E                       = theta_E + q${SIDE}$_prim_rs${XYZ}$_vf(j+${SIDE_INDEX}$, k, l, E_idx+i)*ein_cv2(i)
+                                  gamma_rho_squared_denominator = gamma_rho_squared_denominator + gammas(i)*(mg_a(i)*q${SIDE}$_prim_rs${XYZ}$_vf(j+${SIDE_INDEX}$, k, l, i)*rho0(i)**2d0+&
+                                                                  mg_b(i)*q${SIDE}$_prim_rs${XYZ}$_vf(j+${SIDE_INDEX}$, k, l, i)*rho0(i))
+                                end do  
+                                rho_mix_ratio = rho_${SIDE}$/rho0mix
+                                rho_mix_MG    = rho_${SIDE}$/rho_mix_MG_denominator
+                                phi_mix       = DEXP(zeta_mix)                        
+                                pres_bar      = q${SIDE}$_prim_rs${XYZ}$_vf(j + ${SIDE_INDEX}$, k, l, E_idx)*rho_mix_MG 
+                                do i = 1, num_fluids
+                                  rho_K_ratio = q${SIDE}$_prim_rs${XYZ}$_vf(j + ${SIDE_INDEX}$, k, l, i)/rho0(i)
+                                  E_mg = 0.5d0*((dlog(rho_mix_ratio))**2)*rho_K_ratio*pi_infs(i) &
+                                        +0.5d0*((dlog(rho_mix_ratio))**3)*rho_K_ratio*pi_infs(i)*(qvs(i)-2.d0)/3.d0 &
+                                        +mg_a(i)*phi_mix*(DEXP(phi_mix*theta_E)/(DEXP(phi_mix*theta_E)-1.d0))*q${SIDE}$_prim_rs${XYZ}$_vf(j + ${SIDE_INDEX}$, k, l, i)*ein_cv1(i)*ein_cv2(i) &
+                                        -mg_a(i)*dlog(DEXP(phi_mix*theta_E)-1.d0)*q${SIDE}$_prim_rs${XYZ}$_vf(j + ${SIDE_INDEX}$, k, l, i)*ein_cv1(i) &
+                                        -dlog(rho_mix_ratio)*(q${SIDE}$_prim_rs${XYZ}$_vf(j + ${SIDE_INDEX}$, k, l, i)**2)*pi_infs(i)/gamma_rho_squared_denominator &
+                                        -((dlog(rho_mix_ratio))**2)*(q${SIDE}$_prim_rs${XYZ}$_vf(j + ${SIDE_INDEX}$, k, l, i)**2.d0)*pi_infs(i)*0.5d0*(qvs(i)-2.d0)/&
+                                         gamma_rho_squared_denominator
+
+                                  E_${SIDE}$ = E_${SIDE}$ +  E_mg
+                                end do
+                                ! adding the dynamic pressure and pressure contribution to the rest of
+                                ! energy terms
+                                E_${SIDE}$ = E_${SIDE}$ + pres_bar + 5d-1*rho_${SIDE}$*vel_${SIDE}$_rms
+                                #:endfor
+
+                                
+                                
                                 H_L = 0d0; H_R = 0d0 
 
                                 @:compute_average_state()
 
                                 call s_compute_speed_of_sound(pres_L, rho_L, gamma_L, pi_inf_L, H_L, alpha_L, &
-                                                              vel_L_rms, c_L)
+                                                              vel_L_rms,c_L, G, alpha_rho_L)
 
                                 call s_compute_speed_of_sound(pres_R, rho_R, gamma_R, pi_inf_R, H_R, alpha_R, &
-                                                              vel_R_rms, c_R)
+                                                              vel_R_rms,c_R, G, alpha_rho_R)
 
                                 !> The computation of c_avg does not require all the variables, and therefore the non '_avg'
                                 ! variables are placeholders to call the subroutine.
                                 call s_compute_speed_of_sound(pres_R, rho_avg, gamma_avg, pi_inf_R, H_avg, alpha_R, &
-                                                              vel_avg_rms, c_avg)
+                                                              vel_avg_rms,c_avg,G ,alpha_rho_R)
+                                !Added alpha_rho_R above instead of alpha_rho_avg because of alpha_R above instead of alpha_avg
 
                                 !TODO SRIJAN ADD PRINT STATEMENTS FOR
-                        !------------------------------------------------------------------------
-                                ! rho0 = 0.d0 
-                                ! rho_mix_MG_denominator = 0.d0
-                                ! zeta_mix = 0.d0
-                                ! theta_E = 0.d0
-                                ! gamma_rho_squared_denominator = 0.d0
-                                ! do i = 1, num_fluids
-                                !        alpha_rho_K(i) = q_prim_vf(i)%sf(j , k, l)
-                                !        alpha_K        = q_prim_vf(E_idx+i)%sf(j, k, l)
-                                !        rho0_K         = fluid_pp(i)%rho0
-                                !        theta_E_k(i)   = fluid_pp(i)%ein_cv(2)
-                                !        rho0           = rho0 + rho0_K*alpha_K
-                                !        gamma_K        = fluid_pp(i)%gamma 
-                                !        mg_a_K         = fluid_pp(i)%mg_a
-                                !        mg_b_K         = fluid_pp(i)%mg_b
-     
-                                !        rho_mix_MG_denominator= rho_mix_MG_denominator +& 
-                                !        gamma_K*(mg_a_K*alpha_K*rho0_K + mg_b_K*alpha_rho_K(i))
-                                !        zeta_mix = zeta_mix + alpha_K*gamma_K - (alpha_K*gamma_K*rho0_K)/rho
-                                !        theta_E = theta_E + alpha_K*theta_E_K(i)
-                                !        gamma_rho_squared_denominator =gamma_rho_squared_denominator + gamma_K*(mg_a_K*alpha_K*rho0_K**2+&
-                                !        mg_b_K*alpha_rho_K(i)*rho0_K)
-                                ! end do  
-                                ! rho_mix_ratio = rho/rho0
-                                ! rho_mix_MG = rho/rho_mix_MG_denominator
-                                ! phi_mix = DEXP(zeta_mix)                        
-                                ! pres_bar = q_prim_vf(E_idx)%sf(j, k, l)*rho_mix_MG 
-                                ! q_cons_vf(E_idx)%sf(j,k,l) = 0d0
-                                ! do i = 1, num_fluids
-                                !          Kt_K  = fluid_pp(i)%pi_inf
-                                !          Ktp_K = fluid_pp(i)%qv
-                                !          a_cv_K = fluid_pp(i)%ein_cv(1)
-                                !          rho_K_ratio = alpha_rho_K(i)/fluid_pp(i)%rho0
-
-                                !         E_mg =  0.5d0*((dlog(rho_mix_ratio))**2)*rho_K_ratio*Kt_K &
-                                !          +0.5d0*((dlog(rho_mix_ratio))**3)*rho_K_ratio*Kt_K*(Ktp_K-2)/3.d0 &
-                                !          +mg_a(i)*phi_mix*(DEXP(phi_mix*theta_E)/(DEXP(phi_mix*theta_E)-1))*alpha_rho_K(i)*a_cv_K*theta_E_K(i) &
-                                !          -mg_a(i)*dlog(DEXP(phi_mix*theta_E)-1)*alpha_rho_K(i)*a_cv_K &
-                                !          -dlog(rho_mix_ratio)*(alpha_rho_K(i)**2)*Kt_K/gamma_rho_squared_denominator-&
-                                !          ((dlog(rho_mix_ratio))**2)*(alpha_rho_K(i)**2)*Kt_K*0.5d0*(Ktp_K-2)/&
-                                !                 gamma_rho_squared_denominator
-
-                                !          q_cons_vf(E_idx)%sf(j,k,l) = q_cons_vf(E_idx)%sf(j, k, l) +  E_mg
-                                ! end do
-                                ! adding the dynamic pressure to the total energy
-                                ! q_cons_vf(E_idx)%sf(j, k, l) = q_cons_vf(E_idx)%sf(j, k, l) + pres_bar + dyn_pres
-                        !------------------------------------------------------------------------------
                                 !BOTH LEFT, RIGHT, and AVERAGE states
+                                print*,"E_L:",E_L
+                                print*,"E_R:",E_R
+                                print*,"c_L:",c_L
+                                print*,"c_R:",c_R
+                                print*,"c_avg:",c_avg
 
                                 if (wave_speeds == 1) then
                                     if (elasticity) then

@@ -48,9 +48,9 @@
 #./mfc.sh run ./examples/3D_bubble_channel/case.py -p gpuA100x4 -N 1 -n 4 -g 1 -w 01:00:00 -# test1 -t simulation -a bciv-delta-gpu -c delta
 #./mfc.sh run ./examples/3D_bubble_channel/case.py -p gpuA100x4 -N 1 -n 1 -g 1 -w 01:00:00 -# test1 -t post_process -a bciv-delta-gpu -c delta
 
-./mfc.sh run ./examples/2D_sucrosebubble/case.py -p batch -N 1 -n 1 -g 1 -w 01:00:00 -# test1 -t pre_process -c oscar
+./mfc.sh run ./examples/2D_sucrosebubble_shock/case.py -p batch -N 1 -n 1 -g 1 -w 01:00:00 -# test1 -t pre_process -c oscar
 #./mfc.sh run ./examples/2D_sucrosebubble/case.py -p batch -N 1 -n 8 -g 1 -w 01:00:00 -# test1 -t simulation -c oscar
-./mfc.sh run ./examples/2D_sucrosebubble/case.py -p batch -N 1 -n 1 -g 1 -w 01:00:00 -# test1 -t post_process -c oscar
+./mfc.sh run ./examples/2D_sucrosebubble_shock/case.py -p batch -N 1 -n 1 -g 1 -w 01:00:00 -# test1 -t post_process -c oscar
 
 #./mfc.sh run ./examples/2D_shockbubble/case.py -p batch -N 1 -n 8 -g 1 -w 01:00:00 -# test1 -t pre_process -c oscar
 #./mfc.sh run ./examples/2D_sucrosebubble/case.py -p batch -N 1 -n 8 -g 1 -w 01:00:00 -# test1 -t simulation -c oscar

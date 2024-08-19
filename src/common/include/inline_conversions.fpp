@@ -77,7 +77,7 @@
                 phi_mix = exp(phi_mix)
                 c = 0.d0
             do r = 1,num_fluids     
-                c = c  +alpha_rho_K(r)*pi_infs(r)/rho0(r)&
+                c = c  + alpha_rho_K(r)*pi_infs(r)/rho0(r)&
                    +log_rho_mix_ratio*(alpha_rho_K(r)*pi_infs(r)*(qvs(r)-1.d0)/rho0(r))&
                    +(log_rho_mix_ratio**2.d0)*(alpha_rho_K(r)*pi_infs(r)*0.5d0*(qvs(r)-2.d0)/rho0(r)) &
                    +pres*(alpha_rho_K(r)*mg_b(r))/term1 &

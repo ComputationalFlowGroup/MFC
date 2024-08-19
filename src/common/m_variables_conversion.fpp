@@ -1366,7 +1366,7 @@ contains
                         end do
                     end if
 
-                    if (elasticity) then 
+                    if (elasticity .and. (hypoplasticity .eqv. .false.)) then 
                         ! adding the elastic contribution
                         ! Multiply \tau to \rho \tau
                         do i = strxb, strxe
@@ -1392,7 +1392,14 @@ contains
                     end if
 
                     if ( hypoplasticity ) then 
-                      q_cons_vf(plasidx)%sf(j, k, l) = rho*q_prim_vf(plasidx)%sf(j, k, l)                  
+                      q_cons_vf(plasidx)%sf(j, k, l) = rho*q_prim_vf(plasidx)%sf(j, k, l)  
+                      !In case of hypoplasticity, the primitive stress
+                      !is (rho/rho0)*Kirchhoff stress
+                      
+                        do i = strxb, strxe
+                            q_cons_vf(i)%sf(j, k, l) = (rho0mix)*q_prim_vf(i)%sf(j, k, l)
+                        end do
+                                      
                     end if 
   
                     ! using \rho xi as the conservative formulation stated in Kamrin et al. JFM 2022
