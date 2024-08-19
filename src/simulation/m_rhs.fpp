@@ -944,9 +944,11 @@ contains
             call nvtxEndRange
 
             call nvtxStartRange("RHS_Hypoplasticity")
-            if (hypoplasticity) call s_compute_hypoplastic_rhs(id, &
-                                                               q_prim_qp%vf, &
-                                                               rhs_vf)
+            !if (hypoplasticity) call s_compute_hypoplastic_rhs(id, &
+            !                                                   q_prim_qp%vf, &
+            !                                                   rhs_vf)
+            if (hypoplasticity) call s_compute_hypoplastic_rhs(id, q_prim_qp%vf, q_cons_qp%vf, rhs_vf)
+
             call nvtxEndRange
             print *, "I got here f"
 

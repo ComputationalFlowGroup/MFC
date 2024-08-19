@@ -90,10 +90,10 @@ contains
         !!  @param idir Dimension splitting index
         !!  @param q_prim_vf Primitive variables
         !!  @param rhs_vf rhs variables
-    subroutine s_compute_hypoplastic_rhs(idir, q_prim_vf, rhs_vf)
+    subroutine s_compute_hypoplastic_rhs(idir, q_prim_vf, q_cons_vf, rhs_vf)
 
         integer, intent(in) :: idir
-        type(scalar_field), dimension(sys_size), intent(in) :: q_prim_vf
+        type(scalar_field), dimension(sys_size), intent(in) :: q_prim_vf, q_cons_vf
         type(scalar_field), dimension(sys_size), intent(inout) :: rhs_vf
 
         real(kind(0d0)) :: rho_K, G_K
@@ -132,11 +132,19 @@ contains
         !$acc parallel loop collapse(2) gang vector default(present)
         do l = 0, n
            do k = 0, m
-             rho_K = 0d0; G_K = 0d0
+             rho_K = 0d0; G_K = 0d0; rho = 0d0; gamma = 0d0; pi_inf = 0d0; qv = 0d0
              do i = 1, num_fluids
                 rho_K = rho_K + q_prim_vf(i)%sf(k, l, q) !alpha_rho_K(1)
                 G_K = G_K + q_prim_vf(advxb - 1 + i)%sf(k, l, q)*Gs(i)  !alpha_K(1) * Gs(1)
-             end do
+                
+                alpha_rho_K(i) = q_cons_vf(i)%sf(k, l, q)
+                alpha_K(i) = q_cons_vf(advxb + i - 1)%sf(k, l, q)
+                rho = rho + alpha_rho_K(i)
+                gamma = gamma + alpha_K(i)*gammas(i)
+                pi_inf = pi_inf + alpha_K(i)*pi_infs(i)
+                qv = qv + alpha_rho_K(i)*qvs(i)
+
+                end do
                 rho_K_field(k, l, q) = rho_K
                 G_K_field(k, l, q) = G_K
                 !TODO: take this out if not needed
@@ -178,9 +186,14 @@ contains
              ! STEP 3: Compute the equivalent plastic strain rate, d^p 
              ! STEP 3.1 : Compute mixtures variables for computing
              ! pressure and temperature
-             energy = q_cons_vf(E_idx)%sf(j,k,l)
+             energy = q_cons_vf(E_idx)%sf(k, l, q) !shouldn't this be qK_cons_vf(E_idx)
+             dyn_p = 0d0
 
-
+             do i = momxb, momxe
+                    q_cons_vf(i)%sf(k, l, q) = rho*q_prim_vf(i)%sf(k, l, q)
+                    dyn_p = dyn_p + q_cons_vf(i)%sf(k, l, q)* &
+                               q_prim_vf(i)%sf(k, l, q)/2d0
+             end do
 
              ! STEP 3.2 : Compute mixture pressure and temperature
 
@@ -189,7 +202,7 @@ contains
              call s_compute_temperature(energy, dyn_p, pi_inf, gamma, rho_K, qv, & 
                                         temp, alpha_K, alpha_rho_K)
              print *, 'temp ::', temp
-             print *, 'pressure ::', pressure
+             print *, 'pressure ::', pres
 
              ! STEP 3.2 : Compute theta_m, theta_hat, and sigma_bar
              ! compute theta_m from equation 4.10

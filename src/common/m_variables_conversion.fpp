@@ -9,7 +9,8 @@
 !> @brief This module consists of subroutines used in the conversion of the
 !!              conservative variables into the primitive ones and vice versa. In
 !!              addition, the module also contains the subroutines used to obtain
-!!              the mixture variables and the subroutines used to compute pressure.
+!!              the mixture variables and the subroutines used to compute
+!!              pressure and temperature.
 module m_variables_conversion
 
     ! Dependencies =============================================================
