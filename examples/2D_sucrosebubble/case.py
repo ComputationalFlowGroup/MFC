@@ -86,7 +86,7 @@ print(json.dumps({
     'hypoplasticity'               : 'T',
     'num_fluids'                   : 2,
     'mpp_lim'                      : 'T',
-    'mixture_err'                  : 'T',
+    'mixture_err'                  : 'F',
     'time_stepper'                 : 3,
     'weno_order'                   : 5,
     'weno_eps'                     : 1.E-16,

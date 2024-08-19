@@ -531,16 +531,16 @@ contains
                             @:compute_average_state()
 
                             call s_compute_speed_of_sound(pres_L, rho_L, gamma_L, pi_inf_L, H_L, alpha_L, &
-                                                          vel_L_rms, c_L, Gs)
+                                                          vel_L_rms, c_L)
 
                             call s_compute_speed_of_sound(pres_R, rho_R, gamma_R, pi_inf_R, H_R, alpha_R, &
-                                                          vel_R_rms, c_R, Gs)
+                                                          vel_R_rms, c_R)
 
                             !> The computation of c_avg does not require all the variables, and therefore the non '_avg'
                             ! variables are placeholders to call the subroutine.
 
                             call s_compute_speed_of_sound(pres_R, rho_avg, gamma_avg, pi_inf_R, H_avg, alpha_R, &
-                                                          vel_avg_rms, c_avg, Gs)
+                                                          vel_avg_rms, c_avg)
 
                             !SGR added Gs to all of the above speed of sound clacs
 
@@ -2240,19 +2240,19 @@ contains
                                 @:compute_average_state()
 
                                 call s_compute_speed_of_sound(pres_L, rho_L, gamma_L, pi_inf_L, H_L, alpha_L, &
-                                                              vel_L_rms,c_L, G, alpha_rho_L)
+                                                              vel_L_rms,c_L, alpha_rho_L)
 
                                 call s_compute_speed_of_sound(pres_R, rho_R, gamma_R, pi_inf_R, H_R, alpha_R, &
-                                                              vel_R_rms,c_R, G, alpha_rho_R)
+                                                              vel_R_rms,c_R, alpha_rho_R)
 
                                 !Added alpha_rho_R above instead of alpha_rho_avg because of alpha_R above instead of alpha_avg
 
                                 !TODO SRIJAN ADD PRINT STATEMENTS FOR
                                 !BOTH LEFT, RIGHT, and AVERAGE states
-                                !print*,"rho_L :: ",rho_L,', rho_R :: ',rho_R  
-                                !print*,"p_L :: ",pres_L,', p_R :: ',pres_R
-                                !print*,"E_L :: ",E_L,', E_R :: ',E_R
-                                !print*,"c_L :: ",c_L,', c_R :: ',c_R
+                                print*,"rho_L :: ",rho_L,', rho_R :: ',rho_R  
+                                print*,"p_L :: ",pres_L,', p_R :: ',pres_R
+                                print*,"E_L :: ",E_L,', E_R :: ',E_R
+                                print*,"c_L :: ",c_L,', c_R :: ',c_R
 
                                 if (wave_speeds == 1) then
                                         s_L = min(vel_L(dir_idx(1)) - sqrt(c_L*c_L + &

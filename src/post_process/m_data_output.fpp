@@ -1077,7 +1077,7 @@ contains
         real(kind(0d0)) :: Elk, Egk, Elp, Egint, Vb, Vl, pres_av, Et
         real(kind(0d0)) :: rho, pres, dV, tmp, gamma, pi_inf, MaxMa, MaxMa_glb, maxvel, c, Ma, H
         real(kind(0d0)), dimension(num_dims) :: vel
-        real(kind(0d0)), dimension(num_fluids) :: gammas, pi_infs, adv, alpha_rho_K, G
+        real(kind(0d0)), dimension(num_fluids) :: gammas, pi_infs, adv
         integer :: i, j, k, l, s !looping indicies
         integer :: ierr, counter, root !< number of data points extracted to fit shape to SH perturbations
 
@@ -1113,9 +1113,6 @@ contains
                         end if
                     end do
                     
-                    do s = 1, num_fluids
-                        alpha_rho_K(s)= q_prim_vf(s)%sf(i, j, k)
-                    end do 
                     do l = 1, adv_idx%end - E_idx
                         adv(l) = q_prim_vf(E_idx + l)%sf(i, j, k)
                         gamma = gamma + adv(l)*fluid_pp(l)%gamma
@@ -1127,7 +1124,7 @@ contains
 
                     call s_compute_speed_of_sound(pres, rho, &
                                                   gamma, pi_inf, &
-                                                  H, adv, 0d0, c, G, alpha_rho)
+                                                  H, adv, 0d0, c)
 
                     Ma = maxvel/c
                     if (Ma > MaxMa .and. adv(1) > 1.0d0 - 1.0d-10) then

@@ -241,10 +241,7 @@ contains
                Dp(4) = ((3d0*d_p) / (2d0*sigma_bar)) * q_prim_vf(strxe)%sf(k, l, q)
              else 
                d_p = 0d0
-               Dp(1) = 0d0
-               Dp(2) = 0d0
-               Dp(3) = 0d0
-               Dp(4) = 0d0
+               Dp(:) = 0d0
              end if 
 
              !print *, 'Dp(1) ::', Dp(1), 'Dp(2) ::', Dp(2), 'Dp(3) ::', Dp(3), 'Dp(4) ::', Dp(4)

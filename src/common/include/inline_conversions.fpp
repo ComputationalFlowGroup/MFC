@@ -1,5 +1,5 @@
 #:def s_compute_speed_of_sound()
-    subroutine s_compute_speed_of_sound(pres, rho, gamma, pi_inf, H, adv, vel_sum, c, G, alpha_rho_K)
+    subroutine s_compute_speed_of_sound(pres, rho, gamma, pi_inf, H, adv, vel_sum, c, alpha_rho_K)
 #ifdef CRAY_ACC_WAR
         !DIR$ INLINEALWAYS s_compute_speed_of_sound
 #else
@@ -10,7 +10,7 @@
         real(kind(0d0)), intent(IN) :: H
         real(kind(0d0)), dimension(num_fluids), intent(IN) :: adv
         real(kind(0d0)), intent(IN) :: vel_sum
-        real(kind(0d0)), optional, dimension(num_fluids), intent(IN) :: G, alpha_rho_K
+        real(kind(0d0)), optional, dimension(num_fluids), intent(IN) :: alpha_rho_K
         real(kind(0d0)), intent(OUT) :: c
         real(kind(0d0)) :: blkmod1, blkmod2
         real(kind(0d0)) :: log_rho_mix_ratio, deno_rho_sq, phi_mix, theta_E, rho0_mix, term1, term2, term3 

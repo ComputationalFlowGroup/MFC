@@ -312,6 +312,7 @@ contains
                         alpha_rho(i) = q_prim_vf(i)%sf(j, k, l)
                         alpha(i) = q_prim_vf(E_idx + i)%sf(j, k, l)
                     end do
+                    !print *, 'BEFORE, alpha1 ::', alpha(1), 'and alpha2 ::', alpha(2)
 
                     if (elasticity) then
                        call s_convert_species_to_mixture_variables_acc(rho, gamma, pi_inf, qv, alpha, &
@@ -321,6 +322,7 @@ contains
                     else
                         call s_convert_species_to_mixture_variables_acc(rho, gamma, pi_inf, qv, alpha, alpha_rho, Re, j, k, l)
                     end if
+                    !print *, 'AFTER, alpha1 ::', alpha(1), 'and alpha2 ::', alpha(2)
 
                     !$acc loop seq
                     do i = 1, num_dims
@@ -331,7 +333,6 @@ contains
                     !$acc loop seq
                     do i = 1, num_dims
                         vel_sum = vel_sum + vel(i)**2d0
-                        alpha_rho_k(i) = q_prim_vf(i)%sf(j, k, l)
                     end do
 
                     pres = q_prim_vf(E_idx)%sf(j, k, l)
@@ -346,15 +347,13 @@ contains
                     H = (E + pres)/rho
 
                     ! Compute mixture sound speed
-                    ! TODO SRIJAN TO CODE
-                    call s_compute_speed_of_sound(pres, rho, gamma, pi_inf, H, alpha, vel_sum, c, G, alpha_rho)
+                    call s_compute_speed_of_sound(pres, rho, gamma, pi_inf, H, alpha, vel_sum, c, alpha_rho)
 
                     if (c /= c) then
-                        !print *, 'crashed at processor: ', proc_rank, ', at j :: ', j, ', k :: ', k, ' l :: ', l
-                        print *, 'alpha1 ::', alpha(1), 'and alpha2 ::', alpha(2), ' alpha3 :: ', alpha(3)
-                        print *, 'alpha_rho1 ::', alpha_rho(1), ', alpha_rho2 ::', alpha_rho(2), ' alpha_rho3 :: ', alpha_rho(3)
+                        print *, 'I crashed at j :: ',j,', k :: ',k,', l :: ',l
+                        print *, 'alpha1 ::', alpha(1), 'and alpha2 ::', alpha(2)
+                        print *, 'alpha_rho1 ::', alpha_rho(1), ', alpha_rho2 ::', alpha_rho(2)
                         print *, 'E :: ', E, ', pres :: ', pres, ', rho :: ', rho
-                        !call s_mpi_abort('Exiting ...')
                     end if
 
                     if (grid_geometry == 3) then
@@ -492,7 +491,6 @@ contains
 
         ! Outputting global stability criteria extrema at current time-step
         if (proc_rank == 0) then
-            print *, "icfl :: ",icfl_max_glb
             if (any(Re_size > 0)) then
                 write (1, '(6X,I8,6X,F10.6,6X,F9.6,6X,F9.6,6X,F10.6)') &
                     t_step, t_step*dt, icfl_max_glb, &
@@ -1827,6 +1825,7 @@ contains
             s_convert_to_mixture_variables => &
                 s_convert_species_to_mixture_variables_bubbles
         else                            ! Volume fraction model
+            s_convert_to_mixture_variables => &
                 s_convert_species_to_mixture_variables
         end if
 
