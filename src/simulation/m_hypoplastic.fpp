@@ -241,7 +241,10 @@ contains
                Dp(4) = ((3d0*d_p) / (2d0*sigma_bar)) * q_prim_vf(strxe)%sf(k, l, q)
              else 
                d_p = 0d0
-               !D_p = mirelys do this
+               D_p(1) = 0d0
+               D_p(2) = 0d0
+               D_p(3) = 0d0
+               D_p(4) = 0d0
              end if 
 
              !print *, 'Dp(1) ::', Dp(1), 'Dp(2) ::', Dp(2), 'Dp(3) ::', Dp(3), 'Dp(4) ::', Dp(4)
