@@ -91,6 +91,7 @@
                    +(phi_mix**2.d0)*(exp(phi_mix*theta_E)/(exp(phi_mix*theta_E)-1.d0)**2.d0)*(term2+term3)
             end do
             c = c/rho
+            !print *, 'print c before the grinder :: c :: ',c
         else           
             c = ((H - 5d-1*vel_sum)/gamma)
         end if
