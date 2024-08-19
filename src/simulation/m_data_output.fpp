@@ -345,6 +345,7 @@ contains
                     H = (E + pres)/rho
 
                     ! Compute mixture sound speed
+                    ! TODO SRIJAN TO CODE
                     call s_compute_speed_of_sound(pres, rho, gamma, pi_inf, H, alpha, vel_sum, c)
 
                     if (c /= c) then

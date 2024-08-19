@@ -617,7 +617,7 @@ contains
         if (probe_wrt) then
             call s_time_step_cycling(t_step)
         end if
-
+        print *, 'I got here K'
         if (t_step == t_step_stop) return
 
         !$acc parallel loop collapse(4) gang vector default(present)
@@ -632,6 +632,7 @@ contains
                 end do
             end do
         end do
+        print *, 'I got here J'
 
         !Evolve pb and mv for non-polytropic qbmm
         if (qbmm .and. (.not. polytropic)) then
