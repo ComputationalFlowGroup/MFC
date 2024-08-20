@@ -62,5 +62,5 @@
 
 #./mfc.sh run ./examples/1D_hyper_2materials/case.py -p batch -N 1 -n 1 -g 1 -w 01:00:00 -# test1 -t pre_process -c oscar
 #./mfc.sh run ./examples/1D_hyper_2materials/case.py -p batch -N 1 -n 1 -g 1 -w 01:00:00 -# test1 -t simulation -c oscar
-./mfc.sh run ./examples/1D_hyper_2materials/case.py -p batch -N 1 -n 1 -g 1 -w 01:00:00 -# test1 -t post_process -c oscar
+#./mfc.sh run ./examples/1D_hyper_2materials/case.py -p batch -N 1 -n 1 -g 1 -w 01:00:00 -# test1 -t post_process -c oscar
 
