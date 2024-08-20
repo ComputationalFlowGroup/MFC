@@ -4,6 +4,9 @@
     real(kind(0d0)) :: r, rmax, gam, umax, p0
     real(kind(0d0)) :: rhoH, rhoL, pRef, pInt, h, lam, wl, amp, intH, intL, alph
 
+    real(kind(0d0)) :: rcoord, theta, xi_polar
+    real(kind(0d0)), dimension(num_dims) :: xi_cart
+
     eps = 1e-9
 
 #:enddef
@@ -129,6 +132,14 @@
             q_prim_vf(advxb)%sf(i, j, 0) = patch_icpp(1)%alpha(1)
             q_prim_vf(advxe)%sf(i, j, 0) = patch_icpp(1)%alpha(2)
         end if
+
+    case (207) ! 2D hyperelastic pre_stress patch
+            rcoord = sqrt((x_cc(i)**2 + y_cc(j)**2)
+            theta = atan2(y_cc(j), x_cc(i))
+            !polar coord, assuming Rmax=1
+            xi_polar = (rcoord**3 - R0ref**3 + 1d0)**(1d0/3d0)
+            xi_cart(1) = xi_polar*cos(theta)
+            xi_cart(2) = xi_polar*sin(theta)
 
     case default
         if (proc_rank == 0) then
