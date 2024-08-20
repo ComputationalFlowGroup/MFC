@@ -405,7 +405,12 @@ contains
                         !2D
                         icfl_sf(j, k, l) = dt/min(dx(j)/(abs(vel(1)) + c), &
                                                   dy(k)/(abs(vel(2)) + c))
+                        if (icfl_sf(j,k,l) /= icfl_sf(j,k,l)) then
+                            print*,'j::',j,'k::',k,'l::',l,'icfl::',icfl_sf(j,k,l)
+                            print*, 'vel(1)', vel(1), 'vel(2)',vel(2)
 
+                            call s_mpi_abort('ICFL is NaN. Exiting ...')
+                        end if
                         if (any(Re_size > 0)) then
 
                             vcfl_sf(j, k, l) = maxval(dt/Re/rho)/min(dx(j), dy(k))**2d0

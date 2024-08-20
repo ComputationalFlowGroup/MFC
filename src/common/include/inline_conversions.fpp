@@ -65,7 +65,7 @@
 
                 deno_rho_sq = deno_rho_sq+mg_a(r)*adv(r)*&
                                 rho0(r)**2.d0+mg_b(r)*&
-                                alpha_rho_K(r)*rho0(r)
+                               alpha_rho_K(r)*rho0(r)
                 phi_mix     = phi_mix+adv(r)*gammas(r)-&
                                 adv(r)*gammas(r)*rho0(r)/rho
                 theta_E     = theta_E+adv(r)*ein_cv2(r)
@@ -94,6 +94,7 @@
             end do
             c = c + (phi_mix**2.d0)*(exp(phi_mix*theta_E)/(exp(phi_mix*theta_E)-1.d0)**2.d0)*(term2/rho+term3)
             c = c/rho
+            !c = 1d0
             !print *, 'print c before the grinder :: c :: ',sqrt(c)
         else           
             c = ((H - 5d-1*vel_sum)/gamma)
