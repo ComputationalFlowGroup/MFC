@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import math
 import json
+import numpy as np
+from scipy.interpolate import interp1d
 
 #ps  = 248758.567
 gam = 1.4
@@ -31,11 +33,27 @@ c_0           = 3077.6      #m/s
 theta_0_suc   = 298         #K
 gamma_suc     = 1.09
 
+#Material parameters for air (dimensional)
+Kt0_air       = 1.013e5     #Pa
+Kt0_prime_air = 2.00        #Pa
+rho_0_air     = 1.168       #kg/m^3
+theta_0_air   = theta_0_suc 
+ein_cv1_air   = 718         #J/Kg-K
+ein_cv2_air   = 100         #K
+G_air         = 0           #for now
+gamma_air     = 0.4         #n-1
+
 #Initial condition 
-theta_0           = 298             #K
-P_0               = 133.3223684211  #Pa
+theta_0           = 310             #K
+P_0               = 1.000000000e+6  #Pa
 compression_ratio = 1.1             #rho/rho_0 in the shocked region
-rho_0             = 1580.5          #kg/m^3
+rho_suc           = 1580.5          #kg/m^3
+
+#Calculate initial density of air at theta_0 and P_0
+rho_air = np.linspace(1.168, 10)
+phi_air     = exp(gamma_air*(1-rho_0_air/rho_air))
+P_air = Kt0_air*(rho_air/rho_0_air)*math.log(rho_air/rho_0_air)+ gamma_air*rho_0_air*ein_cv1_air*ein_cv2_air*phi_air*(1/(np.exp(phi_air*ein_cv2_air/theta_0)-1)-1/(np.exp(phi_air*ein_cv2_air/theta_0_air)-1)) 
+P
 
 #Calculate bulk speed of sound at ambient (used for non-dimensionalization)
 c_squared = (Kt0_suc/rho_0_suc)+ gamma_suc*P_0/rho_0_suc + math.pow(gamma_suc,2)*ein_cv1_suc*(math.pow(ein_cv2_suc/theta_0_suc,2))*math.exp(ein_cv2_suc/theta_0)/(math.pow(math.exp(ein_cv2_suc/theta_0_suc)-1,2))
@@ -47,8 +65,8 @@ c_0 = math.sqrt(c_squared)
 tilde_P_0 = P_0/(rho_0_suc*c_0*c_0)
 tilde_rho = compression_ratio
 Kt0_tilde = Kt0_suc/(rho_0_suc*c_0*c_0)
-A_tilde   = ein_cv1_suc*theta_0/(c_0*c_0)
-theta_E_tilde = ein_cv2_suc/theta_0
+A_tilde   = ein_cv1_suc*theta_0_suc/(c_0*c_0)
+theta_E_tilde = ein_cv2_suc/theta_0_suc
 rho_0_tilde = rho_0/rho_0_suc
 phi = math.exp(gamma_suc*(1-1/tilde_rho))
 int_energy = 0.5*Kt0_tilde*pow(math.log(tilde_rho),2)*(1+(Kt0_prime_suc-2)*math.log(tilde_rho)/3)+A_tilde*(phi*theta_E_tilde*math.exp(phi*theta_E_tilde)/(math.exp(phi*theta_E_tilde)-1)-math.log(math.exp(phi*theta_E_tilde)-1))
@@ -83,12 +101,12 @@ print(json.dumps({
     'num_patches'                  : 2,             #change this to 3 for shocked state
     'model_eqns'                   : 5,
     'alt_soundspeed'               : 'F',
-    'hypoplasticity'               : 'F',
+    'hypoplasticity'               : 'T',
     'num_fluids'                   : 2,
     'mpp_lim'                      : 'T',
     'mixture_err'                  : 'F',
     'time_stepper'                 : 3,
-    'weno_order'                   : 1,
+    'weno_order'                   : 5,
     'weno_eps'                     : 1.E-16,
     'weno_Re_flux'                 : 'F',  
     'weno_avg'                     : 'F',
@@ -159,11 +177,11 @@ print(json.dumps({
 
     # Fluids Physical Parameters ===============================================
     'fluid_pp(1)%gamma'            : 1.09E0,                           # 1.E+00/(1.4E+00-1.E+00),
-    'fluid_pp(1)%pi_inf'           : Kt0_suc/(rho_0_suc*c_0*c_0),        # isothermal bulk modulus
+    'fluid_pp(1)%pi_inf'           : Kt0_suc/(rho_0_suc*c_0*c_0),      # isothermal bulk modulus
     'fluid_pp(2)%gamma'            : 0.4E0,                            # 1.E+00/(1.6666E+00-1.E+00),
-    'fluid_pp(2)%pi_inf'           : 0*6.747E-6,                         # 0.0
+    'fluid_pp(2)%pi_inf'           : tilde_P_0,                       # 0.0
     'fluid_pp(1)%qv'               : 3.75E0,                           # K'_theta0 for sucrose
-    'fluid_pp(2)%qv'               : 2.0E0,                            #    
+    'fluid_pp(2)%qv'               : 2.0E0,                            # K'_theta0 for air   
     'fluid_pp(1)%G'                : G_suc/(rho_0_suc*c_0*c_0),        # Shear modulus
     'fluid_pp(2)%G'                : 1.0E-9,                           # Shear modulus of air taken to be a very small value
     'fluid_pp(1)%ein_cv(1)'        : A_tilde,                          # Can be replaced with fluid_pp(:)%cv at some point
@@ -174,7 +192,7 @@ print(json.dumps({
     'fluid_pp(1)%mg_b'             : 0.E0,                             #b_mg
     'fluid_pp(2)%mg_a'             : 0.E0,                             #a_mg
     'fluid_pp(2)%mg_b'             : 1.E0,                             #b_mg
-    'fluid_pp(1)%rho0'             : 1.E0,                 #Non-dimensional initial density in Birch-Murnaghan cold curve
+    'fluid_pp(1)%rho0'             : 1.E0,                             #Non-dimensional initial density in Birch-Murnaghan cold curve
     'fluid_pp(2)%rho0'             : 9.82E-7,
     'fluid_pp(1)%jcook(1)'         : 0.0334,                           # A, Static yield strength
     'fluid_pp(1)%jcook(2)'         : 0.0334,                           # B, Strain-Hardening coefficient
@@ -197,7 +215,7 @@ print(json.dumps({
     'fluid_pp(2)%jcook(8)'         : 0.02,                             # Parameter in Simon-Glatzel melt relation
     'fluid_pp(2)%jcook(9)'         : 3.25,                             # exponent in Simon-Glatzel melt relation
     'fluid_pp(2)%jcook(10)'        : 3.2493E-7,                        # non-dimensional strain-rate limitI
-    'fluid_pp(2)%jcook(11)'        : 298/theta_0,                      # non-dimensionalized Reference temperature
+    'fluid_pp(2)%jcook(11)'        : 298/theta_0_suc,                  # non-dimensionalized Reference temperature
 }))
 
 # ==============================================================================

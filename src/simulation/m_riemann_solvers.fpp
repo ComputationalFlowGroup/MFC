@@ -2217,9 +2217,9 @@ contains
                                   rho_K_ratio = q${SIDE}$_prim_rs${XYZ}$_vf(j + ${SIDE_INDEX}$, k, l, i)/rho0(i)
                                   E_mg = 0.5d0*((dlog(rho_mix_ratio))**2.d0)*rho_K_ratio*pi_infs(i) &
                                         +0.5d0*((dlog(rho_mix_ratio))**3.d0)*rho_K_ratio*pi_infs(i)*(qvs(i)-2.d0)/3.d0 &
-                                        + mg_a(i)*phi_mix*(dexp(phi_mix*theta_E)/(dexp(phi_mix*theta_E)-1.d0)) & 
+                                        + phi_mix*(dexp(phi_mix*theta_E)/(dexp(phi_mix*theta_E)-1.d0)) & 
                                         * q${SIDE}$_prim_rs${XYZ}$_vf(j + ${SIDE_INDEX}$, k, l, i)*ein_cv1(i)*ein_cv2(i) &
-                                        - mg_a(i)*dlog(DEXP(phi_mix*theta_E)-1.d0)* & 
+                                        - dlog(DEXP(phi_mix*theta_E)-1.d0)* & 
                                         q${SIDE}$_prim_rs${XYZ}$_vf(j + ${SIDE_INDEX}$, k, l, i)*ein_cv1(i) &
                                         -dlog(rho_mix_ratio)*(q${SIDE}$_prim_rs${XYZ}$_vf(j + ${SIDE_INDEX}$, k, l, i)**2.d0) & 
                                         *pi_infs(i)/gamma_rho_squared_denominator &
