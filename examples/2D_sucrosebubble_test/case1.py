@@ -16,8 +16,8 @@ Ny = 100.
 Nx = Ny*3
 dx = leng/Nx
 
-time_end = 3.E-5         #5*leng/vel
-cfl = 0.01
+time_end = 3.E-4         #5*leng/vel
+cfl = 0.05
 
 dt = cfl * dx/c_l
 Nt = int(time_end/dt)
@@ -130,7 +130,7 @@ print(json.dumps({
     'num_patches'                  : 2,             #change this to 3 for shocked state
     'model_eqns'                   : 5,
     'alt_soundspeed'               : 'F',
-    'hypoplasticity'               : 'T',
+    'hypoplasticity'               : 'F',
     'num_fluids'                   : 2,
     'mpp_lim'                      : 'T',
     'mixture_err'                  : 'F',
@@ -208,11 +208,11 @@ print(json.dumps({
     'fluid_pp(1)%gamma'            : 1.09E0,                           # 1.E+00/(1.4E+00-1.E+00),
     'fluid_pp(1)%pi_inf'           : Kt0_suc/(rho_0_suc*c_0*c_0),      # isothermal bulk modulus
     'fluid_pp(2)%gamma'            : 0.4E0,                            # 1.E+00/(1.6666E+00-1.E+00),
-    'fluid_pp(2)%pi_inf'           : tilde_P_0,                       # 0.0
+    'fluid_pp(2)%pi_inf'           : Kt0_air/(rho_0_suc*c_0*c_0),                              # 0.0
     'fluid_pp(1)%qv'               : 3.75E0,                           # K'_theta0 for sucrose
     'fluid_pp(2)%qv'               : 2.0E0,                            # K'_theta0 for air
     'fluid_pp(1)%G'                : G_suc/(rho_0_suc*c_0*c_0),        # Shear modulus
-    'fluid_pp(2)%G'                : 1.0E-9,                           # Shear modulus of air taken to be a very small value
+    'fluid_pp(2)%G'                : 0.0E-9,                           # Shear modulus of air taken to be a very small value
     'fluid_pp(1)%ein_cv(1)'        : A_tilde,                          # Can be replaced with fluid_pp(:)%cv at some point
     'fluid_pp(2)%ein_cv(1)'        : 0.026937087111210E0,              #
     'fluid_pp(1)%ein_cv(2)'        : theta_E_tilde,                    # Can be replaced with a scalar theta_E at some point
@@ -221,7 +221,7 @@ print(json.dumps({
     'fluid_pp(1)%mg_b'             : 0.E0,                             #b_mg
     'fluid_pp(2)%mg_a'             : 0.E0,                             #a_mg
     'fluid_pp(2)%mg_b'             : 1.E0,                             #b_mg
-    'fluid_pp(1)%rho0'             : 1.E0,                             #Non-dimensional initial density in Birch-Murnaghan cold curve
+    'fluid_pp(1)%rho0'             : 1.E0,                         #Non-dimensional initial density in Birch-Murnaghan cold curve
     'fluid_pp(2)%rho0'             : rho_0_air/(rho_0_suc),
     'fluid_pp(1)%jcook(1)'         : 0.0334,                           # A, Static yield strength
     'fluid_pp(1)%jcook(2)'         : 0.0334,                           # B, Strain-Hardening coefficient
