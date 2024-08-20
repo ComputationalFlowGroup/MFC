@@ -56,7 +56,7 @@ contains
             & 'parallel_io', 'perturb_flow', 'vel_profile', 'instability_wave',&
             & 'perturb_sph', 'bubbles', 'polytropic', 'polydisperse', 'qbmm',  &
             & 'file_per_process', 'adv_n', 'ib', 'hyperelasticity',            & 
-            & 'pre_stress', 'hypoplasticity']
+            & 'hypoplasticity']
             call MPI_BCAST(${VAR}$, 1, MPI_LOGICAL, 0, MPI_COMM_WORLD, ierr)
         #:endfor
         call MPI_BCAST(fluid_rho(1), num_fluids_max, MPI_LOGICAL, 0, MPI_COMM_WORLD, ierr)
