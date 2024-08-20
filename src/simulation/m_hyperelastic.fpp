@@ -137,6 +137,81 @@ contains
         real(kind(0d0)) :: G
         integer :: j, k, l, i, r
 
+        !$acc parallel loop collapse(1) gang vector default(present) private(alpha_K, alpha_rho_K, & 
+        !$acc rho, gamma, pi_inf, qv, G, Re, tensora, tensorb)
+        if (l > 0) then
+          do l = 0, p
+             do k = 0, n
+                do j = 0, m 
+                   !$acc loop seq
+                   do i = 1, num_fluids
+                      alpha_rho_k(i) = q_cons_vf(i)%sf(j, k, l)
+                      alpha_k(i) = q_cons_vf(advxb + i - 1)%sf(j, k, l)
+                   end do
+                   ! If in simulation, use acc mixture subroutines
+                   call s_convert_species_to_mixture_variables_acc(rho, gamma, pi_inf, qv, alpha_k, &
+                                                                    alpha_rho_k, Re, j, k, l, G, Gs)
+                   rho = max(rho, sgm_eps)
+                   G = max(G, sgm_eps)
+                   !if ( G <= verysmall ) G_K = 0d0
+
+                   if ( G > verysmall ) then
+                      !$acc loop seq
+                      do i = 1, tensor_size
+                         tensora(i) = 0d0
+                      end do
+                      ! STEP 1: computing the grad_xi tensor using finite differences
+                      ! grad_xi definition / organization
+                      ! number for the tensor 1-2:  dxix_dxy
+                           !$acc loop seq
+                           do r = -fd_number, fd_number
+                              ! derivatives in the x-direction
+                              tensora(1) = tensora(1) + q_prim_vf(xibeg)%sf(j + r, k, l)*fd_coeff_x(r, j)
+                          end do
+                           ! STEP 2a: computing the adjoint of the grad_xi tensor for the inverse
+                           tensorb(1) = 1d0/(tensora(1)**2)
+                           ! STEP 2b: computing the determinant of the grad_xi tensor
+                           tensorb(tensor_size) = tensora(1)
+
+                           if (tensorb(tensor_size) > verysmall) then
+                              ! STEP 2c: computing the inverse of grad_xi tensor = F
+                              ! tensorb is the adjoint, tensora becomes F
+                              !$acc loop seq
+                              do i = 1, tensor_size - 1
+                                 tensora(i) = tensorb(i)/tensorb(tensor_size)
+                              end do
+
+                              ! STEP 2d: computing the J = det(F) = 1/det(\grad{\xi})
+                              tensorb(tensor_size) = 1d0/tensorb(tensor_size)
+
+                              ! STEP 3: override adjoint (tensorb) to be F transpose F
+                              ! STEP 4: update the btensor, this is consistent with Riemann solvers
+                              ! \b_xx
+                              btensor%vf(1)%sf(j, k, l) = tensorb(1)
+                              ! store the determinant at the last entry of the btensor
+                              btensor%vf(b_size)%sf(j, k, l) = tensorb(tensor_size)
+                              ! STEP 5a: updating the Cauchy stress primitive scalar field
+                              if (hyper_model == 1) then
+                                 call s_neoHookean_cauchy_solver(btensor%vf, q_prim_vf, G, j, k, l)        
+                              elseif (hyper_model == 2) then
+                                 call s_Mooney_Rivlin_cauchy_solver(btensor%vf, q_prim_vf, G, j, k, l)        
+                              end if
+                              ! STEP 5b: updating the pressure field
+                              q_prim_vf(E_idx)%sf(j, k, l) = q_prim_vf(E_idx)%sf(j, k, l) - &
+                                                             G*q_prim_vf(xiend + 1)%sf(j, k, l)/gamma
+                              ! STEP 5c: updating the Cauchy stress conservative scalar field
+                              !$acc loop seq
+                              do i = 1, b_size - 1
+                                  q_cons_vf(strxb + i - 1)%sf(j, k, l) = rho*q_prim_vf(strxb + i - 1)%sf(j, k, l)
+                              end do
+                         end if
+                     end if
+                 end do
+             end do
+          end do
+        end if
+
+
         !$acc parallel loop collapse(2) gang vector default(present) private(alpha_K, alpha_rho_K, & 
         !$acc rho, gamma, pi_inf, qv, G, Re, tensora, tensorb)
         if (n > 0) then
