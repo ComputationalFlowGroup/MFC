@@ -767,7 +767,7 @@ contains
         end do
 !$acc update device(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps, Gs)
 
-        if (hypoplasticity) then 
+        if (model_eqns == 5) then 
 #ifdef MFC_SIMULATION
         @:ALLOCATE_GLOBAL(rho0   (1:num_fluids))
         @:ALLOCATE_GLOBAL(mg_a   (1:num_fluids))
@@ -793,11 +793,16 @@ contains
             mg_b(i) = fluid_pp(i)%mg_b
             ein_cv1(i) = fluid_pp(i)%ein_cv(1)
             ein_cv2(i) = fluid_pp(i)%ein_cv(2)
+        end do
+!$acc update device(rho0, mg_a, mg_b, ein_cv1, ein_cv2)
+        end if
+ 
+        if (hypoplasticity) then    
+          do i = 1, num_fluids
             #:for VAR in range(1,12)
                 jcook${VAR}$(i) = fluid_pp(i)%jcook(${VAR}$) 
             #:endfor
-        end do
-!$acc update device(rho0, mg_a, mg_b, ein_cv1, ein_cv2)
+          end do
 !$acc update device(jcook1,jcook2,jcook3,jcook4,jcook5,jcook6,jcook7,jcook8,jcook9,jcook10,jcook11)
         end if
 
@@ -1223,7 +1228,6 @@ contains
         real(kind(0d0)), dimension(nb) :: Rtmp
         real(kind(0d0)) :: G = 0d0
         real(kind(0d0)), dimension(2) :: Re_K
-
  
         !!Parameters to make stiffened gas eos of air and Mie-Gruneisen
         !consistent with each 
@@ -1236,8 +1240,6 @@ contains
         real(kind(0d0)), dimension(num_fluids) :: alpha_rho_K
         !Parameters for einstein model 
         real(kind(0d0)), dimension(2) :: theta_E_K
-
-
 
         integer :: i, j, k, l !< Generic loop iterators      
 
@@ -1392,8 +1394,8 @@ contains
                         end do
                     end if
 
-                    if ( hypoplasticity ) then 
-                      q_cons_vf(plasidx)%sf(j, k, l) = rho*q_prim_vf(plasidx)%sf(j, k, l)                                                              
+                    if (hypoplasticity) then 
+                      q_cons_vf(plasidx)%sf(j, k, l) = rho*q_prim_vf(plasidx)%sf(j, k, l) 
                     end if 
   
                     ! using \rho xi as the conservative formulation stated in Kamrin et al. JFM 2022

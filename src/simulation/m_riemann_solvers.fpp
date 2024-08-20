@@ -2249,10 +2249,10 @@ contains
 
                                 !TODO SRIJAN ADD PRINT STATEMENTS FOR
                                 !BOTH LEFT, RIGHT, and AVERAGE states
-                                print*,"rho_L :: ",rho_L,', rho_R :: ',rho_R  
-                                print*,"p_L :: ",pres_L,', p_R :: ',pres_R
-                                print*,"E_L :: ",E_L,', E_R :: ',E_R
-                                print*,"c_L :: ",c_L,', c_R :: ',c_R
+                                !print*,"rho_L :: ",rho_L,', rho_R :: ',rho_R  
+                                !print*,"p_L :: ",pres_L,', p_R :: ',pres_R
+                                !print*,"E_L :: ",E_L,', E_R :: ',E_R
+                                !print*,"c_L :: ",c_L,', c_R :: ',c_R
 
                                 if (wave_speeds == 1) then
                                         s_L = min(vel_L(dir_idx(1)) - sqrt(c_L*c_L + &
