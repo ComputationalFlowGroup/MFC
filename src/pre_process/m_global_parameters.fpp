@@ -752,6 +752,7 @@ contains
                 plasidx = stress_idx%end + 1
                 sys_size = plasidx
             end if
+
         end if
 
         momxb = mom_idx%beg

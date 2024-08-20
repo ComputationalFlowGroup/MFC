@@ -83,7 +83,8 @@ print(json.dumps({
     'num_patches'                  : 2,             #change this to 3 for shocked state
     'model_eqns'                   : 5,
     'alt_soundspeed'               : 'F',
-    'hypoplasticity'               : 'T',
+    'hypoplasticity'               : 'F',
+    'hyperelasticity'              : 'F',
     'num_fluids'                   : 2,
     'mpp_lim'                      : 'T',
     'mixture_err'                  : 'F',
