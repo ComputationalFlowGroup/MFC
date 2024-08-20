@@ -59,15 +59,15 @@
             q_prim_vf(advxe)%sf(i, j, k) = patch_icpp(1)%alpha(2)
         end if
 
-     case (302) ! pre_stress for hyperelasticity, bubble in material
-        rcoord = sqrt((x_cc(i)**2 + y_cc(j)**2 + z_cc(k)**2))
-        theta = atan2(y_cc(j), x_cc(i))
-        phi = atan2(sqrt(x_cc(i)**2 + y_cc(j)**2), z_cc(k))
+!     case (302) ! pre_stress for hyperelasticity, bubble in material
+!        rcoord = sqrt((x_cc(i)**2 + y_cc(j)**2 + z_cc(k)**2))
+!        theta = atan2(y_cc(j), x_cc(i))
+!        phi = atan2(sqrt(x_cc(i)**2 + y_cc(j)**2), z_cc(k))
         !spherical coord, assuming Rmax=1
-        xi_sph = (rcoord**3 - R0ref**3 + 1d0)**(1d0/3d0)
-        xi_cart(1) = xi_sph*sin(phi)*cos(theta)
-        xi_cart(2) = xi_sph*sin(phi)*sin(theta)
-        xi_cart(3) = xi_sph*cos(phi)
+!        xi_sph = (rcoord**3 - R0ref**3 + 1d0)**(1d0/3d0)
+!        xi_cart(1) = xi_sph*sin(phi)*cos(theta)
+!        xi_cart(2) = xi_sph*sin(phi)*sin(theta)
+!        xi_cart(3) = xi_sph*cos(phi)
 
         ! Put your variable assignments here
     case default

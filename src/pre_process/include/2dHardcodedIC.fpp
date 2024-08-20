@@ -133,13 +133,13 @@
             q_prim_vf(advxe)%sf(i, j, 0) = patch_icpp(1)%alpha(2)
         end if
 
-    case (207) ! 2D hyperelastic pre_stress patch
-            rcoord = sqrt((x_cc(i)**2 + y_cc(j)**2)
-            theta = atan2(y_cc(j), x_cc(i))
-            !polar coord, assuming Rmax=1
-            xi_polar = (rcoord**3 - R0ref**3 + 1d0)**(1d0/3d0)
-            xi_cart(1) = xi_polar*cos(theta)
-            xi_cart(2) = xi_polar*sin(theta)
+!    case (207) ! 2D hyperelastic pre_stress patch
+!            rcoord = sqrt((x_cc(i)**2 + y_cc(j)**2)
+!            theta = atan2(y_cc(j), x_cc(i))
+!            !polar coord, assuming Rmax=1
+!            xi_polar = (rcoord**3 - R0ref**3 + 1d0)**(1d0/3d0)
+!            xi_cart(1) = xi_polar*cos(theta)
+!            xi_cart(2) = xi_polar*sin(theta)
 
     case default
         if (proc_rank == 0) then
