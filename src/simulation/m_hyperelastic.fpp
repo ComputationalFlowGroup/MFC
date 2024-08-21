@@ -125,8 +125,9 @@ contains
         !! calculate the inverse of grad_xi to obtain F, F is a nxn tensor
         !! calculate the FFtranspose to obtain the btensor, btensor is nxn tensor
         !! btensor is symmetric, save the data space
-    subroutine s_hyperelastic_rmt_stress_update(q_cons_vf, q_prim_vf)
-
+    subroutine s_hyperelastic_rmt_stress_update(idir, q_cons_vf, q_prim_vf)
+        
+        integer, intent(in) :: idir
         type(scalar_field), dimension(sys_size), intent(inout) :: q_cons_vf
         type(scalar_field), dimension(sys_size), intent(inout) :: q_prim_vf
 
@@ -137,9 +138,9 @@ contains
         real(kind(0d0)) :: G
         integer :: j, k, l, i, r
 
-        !$acc parallel loop collapse(1) gang vector default(present) private(alpha_K, alpha_rho_K, & 
+        !$acc parallel loop collapse(3) gang vector default(present) private(alpha_K, alpha_rho_K, & 
         !$acc rho, gamma, pi_inf, qv, G, Re, tensora, tensorb)
-        if (l > 0) then
+        if (idir == 1) then
           do l = 0, p
              do k = 0, n
                 do j = 0, m 
@@ -209,12 +210,10 @@ contains
                  end do
              end do
           end do
-        end if
 
-
-        !$acc parallel loop collapse(2) gang vector default(present) private(alpha_K, alpha_rho_K, & 
+        !$acc parallel loop collapse(3) gang vector default(present) private(alpha_K, alpha_rho_K, & 
         !$acc rho, gamma, pi_inf, qv, G, Re, tensora, tensorb)
-        if (n > 0) then
+        elseif (idir == 2) then
           do l = 0, p
              do k = 0, n
                 do j = 0, m 
@@ -300,12 +299,10 @@ contains
                  end do
              end do
           end do
-        end if
-
 
         !$acc parallel loop collapse(3) gang vector default(present) private(alpha_K, alpha_rho_K, &
         !$acc rho, gamma, pi_inf, qv, G, Re, tensora, tensorb)
-        if (p > 0) then
+        else
             do l = 0, p 
                 do k = 0, n 
                     do j = 0, m 

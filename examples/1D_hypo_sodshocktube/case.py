@@ -7,7 +7,7 @@ Nx      = 201
 dx      = 1./(1.*(Nx+1))
 
 Tend    = 64E-06
-Nt      = 8000
+Nt      = 4000
 mydt    = Tend/(1.*Nt)
 
 # Configuring case dictionary
@@ -27,12 +27,12 @@ print(json.dumps({
                     'dt'                           : mydt,                      
                     't_step_start'                 : 0,                         
                     't_step_stop'                  : int(Nt),
-                    't_step_save'                  : int(Nt),
+                    't_step_save'                  : int(Nt)/200,
 		    # ==========================================================
                                                                                 
                     # Simulation Algorithm Parameters ==========================
                     'num_patches'                  : 2,                        
-                    'model_eqns'                   : 3,                        
+                    'model_eqns'                   : 2,                        
                     'alt_soundspeed'               : 'F',                      
                     'num_fluids'                   : 1,                        
          		    'mpp_lim'                      : 'F',                      
@@ -45,7 +45,7 @@ print(json.dumps({
                     'mapped_weno'                  : 'F',                     
                     'null_weights'                 : 'F',                      
                     'mp_weno'                      : 'T',                      
-		            'riemann_solver'               : 2,                        
+		            'riemann_solver'               : 1,                        
                     'wave_speeds'                  : 1,                        
                     'avg_state'                    : 2,                        
                     'bc_x%beg'                     : -3,                       

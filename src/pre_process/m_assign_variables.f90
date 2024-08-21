@@ -276,7 +276,6 @@ contains
         real(kind(0d0)) :: orig_qv
         real(kind(0d0)) :: muR, muV
         real(kind(0d0)) :: R3bar
-        real(kind(0d0)) :: rcoord, theta, phi, xi_sph
         real(kind(0d0)), dimension(num_dims) :: xi_cart
 
         real(kind(0d0)), dimension(int(E_idx - mom_idx%beg)) :: vel    !< velocity

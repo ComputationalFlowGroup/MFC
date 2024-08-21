@@ -27,7 +27,7 @@ print(json.dumps({
                     'dt'                           : mydt,                      
                     't_step_start'                 : 0,                         
                     't_step_stop'                  : int(Nt),
-                    't_step_save'                  : int(Nt),
+                    't_step_save'                  : int(Nt)/200,
 		    # ==========================================================
                                                                                 
                     # Simulation Algorithm Parameters ==========================
