@@ -125,9 +125,9 @@ contains
         !! calculate the inverse of grad_xi to obtain F, F is a nxn tensor
         !! calculate the FFtranspose to obtain the btensor, btensor is nxn tensor
         !! btensor is symmetric, save the data space
-    subroutine s_hyperelastic_rmt_stress_update(idir, q_cons_vf, q_prim_vf)
+    subroutine s_hyperelastic_rmt_stress_update(num_dims, q_cons_vf, q_prim_vf)
         
-        integer, intent(in) :: idir
+        integer, intent(in) :: num_dims
         type(scalar_field), dimension(sys_size), intent(inout) :: q_cons_vf
         type(scalar_field), dimension(sys_size), intent(inout) :: q_prim_vf
 
@@ -140,7 +140,8 @@ contains
 
         !$acc parallel loop collapse(3) gang vector default(present) private(alpha_K, alpha_rho_K, & 
         !$acc rho, gamma, pi_inf, qv, G, Re, tensora, tensorb)
-        if (idir == 1) then
+        print *, 'I got here a'
+        if (num_dims == 1) then
           do l = 0, p
              do k = 0, n
                 do j = 0, m 
@@ -189,14 +190,16 @@ contains
                               ! STEP 4: update the btensor, this is consistent with Riemann solvers
                               ! \b_xx
                               btensor%vf(1)%sf(j, k, l) = tensorb(1)
+                              print *, 'I got here b. btensor ::', tensorb(1)
                               ! store the determinant at the last entry of the btensor
                               btensor%vf(b_size)%sf(j, k, l) = tensorb(tensor_size)
                               ! STEP 5a: updating the Cauchy stress primitive scalar field
                               if (hyper_model == 1) then
-                                 call s_neoHookean_cauchy_solver(btensor%vf, q_prim_vf, G, j, k, l)        
+                                 call s_neoHookean_cauchy_solver(num_dims, btensor%vf, q_prim_vf, G, j, k, l)        
                               elseif (hyper_model == 2) then
-                                 call s_Mooney_Rivlin_cauchy_solver(btensor%vf, q_prim_vf, G, j, k, l)        
+                                 call s_Mooney_Rivlin_cauchy_solver(num_dims, btensor%vf, q_prim_vf, G, j, k, l)        
                               end if
+                              print *, 'I got here c. Cauchy stress tensor.'
                               ! STEP 5b: updating the pressure field
                               q_prim_vf(E_idx)%sf(j, k, l) = q_prim_vf(E_idx)%sf(j, k, l) - &
                                                              G*q_prim_vf(xiend + 1)%sf(j, k, l)/gamma
@@ -213,7 +216,7 @@ contains
 
         !$acc parallel loop collapse(3) gang vector default(present) private(alpha_K, alpha_rho_K, & 
         !$acc rho, gamma, pi_inf, qv, G, Re, tensora, tensorb)
-        elseif (idir == 2) then
+        elseif (num_dims == 2) then
           do l = 0, p
              do k = 0, n
                 do j = 0, m 
@@ -271,6 +274,11 @@ contains
                               tensorb(4) = tensora(3)**2 + tensora(4)**2
                               tensorb(2) = tensora(1)*tensora(3) + tensora(2)*tensora(4)
                               tensorb(3) = tensorb(2) !tensora(3)*tensora(1) + tensora(4)*tensora(2)
+
+                              print *, 'I got here d. tensorb(1) ::', tensorb(1), &
+                              'tensorb(2) ::', tensorb(2), 'tensorb(3) ::', tensorb(3), &
+                              'tensorb(4) ::', tensorb(4)
+
                               ! STEP 4: update the btensor, this is consistent with Riemann solvers
                               ! \b_xx
                               btensor%vf(1)%sf(j, k, l) = tensorb(1)
@@ -282,9 +290,9 @@ contains
                               btensor%vf(b_size)%sf(j, k, l) = tensorb(tensor_size)
                               ! STEP 5a: updating the Cauchy stress primitive scalar field
                               if (hyper_model == 1) then
-                                 call s_neoHookean_cauchy_solver(btensor%vf, q_prim_vf, G, j, k, l)        
+                                 call s_neoHookean_cauchy_solver(num_dims, btensor%vf, q_prim_vf, G, j, k, l)        
                               elseif (hyper_model == 2) then
-                                 call s_Mooney_Rivlin_cauchy_solver(btensor%vf, q_prim_vf, G, j, k, l)        
+                                 call s_Mooney_Rivlin_cauchy_solver(num_dims, btensor%vf, q_prim_vf, G, j, k, l)        
                               end if
                               ! STEP 5b: updating the pressure field
                               q_prim_vf(E_idx)%sf(j, k, l) = q_prim_vf(E_idx)%sf(j, k, l) - &
@@ -394,9 +402,9 @@ contains
                               btensor%vf(b_size)%sf(j, k, l) = tensorb(tensor_size)
                               ! STEP 5a: updating the Cauchy stress primitive scalar field
                               if (hyper_model == 1) then
-                                 call s_neoHookean_cauchy_solver(btensor%vf, q_prim_vf, G, j, k, l)        
+                                 call s_neoHookean_cauchy_solver(num_dims, btensor%vf, q_prim_vf, G, j, k, l)        
                               elseif (hyper_model == 2) then
-                                 call s_Mooney_Rivlin_cauchy_solver(btensor%vf, q_prim_vf, G, j, k, l)        
+                                 call s_Mooney_Rivlin_cauchy_solver(num_dims, btensor%vf, q_prim_vf, G, j, k, l)        
                               end if
                               ! STEP 5b: updating the pressure field
                               q_prim_vf(E_idx)%sf(j, k, l) = q_prim_vf(E_idx)%sf(j, k, l) - &
@@ -423,8 +431,9 @@ contains
         !! calculate the inverse of grad_xi to obtain F, F is a nxn tensor
         !! calculate the FFtranspose to obtain the btensor, btensor is nxn tensor
         !! btensor is symmetric, save the data space
-    subroutine s_neoHookean_cauchy_solver(btensor, q_prim_vf, G, j, k, l)
+    subroutine s_neoHookean_cauchy_solver(num_dims, btensor, q_prim_vf, G, j, k, l)
         !$acc routine seq
+        integer, intent(in) :: num_dims
         type(scalar_field), dimension(sys_size), intent(inout) :: q_prim_vf
         type(scalar_field), dimension(b_size), intent(inout) :: btensor
         real(kind(0d0)), intent(in) :: G
@@ -435,7 +444,7 @@ contains
         integer :: i !< Generic loop iterators
 
         !TODO Make this 1D and 2D capable
-        if (n > 0) then
+        if (num_dims == 2) then
             ! tensor is the symmetric tensor & calculate the trace of the tensor
             trace = btensor(1)%sf(j, k, l) + btensor(3)%sf(j, k, l)
 
@@ -455,7 +464,7 @@ contains
                 0.5d0*(trace - 3.0d0)/btensor(b_size)%sf(j, k, l)
         end if
 
-        if (p > 0) then
+        if (num_dims == 3) then
             ! tensor is the symmetric tensor & calculate the trace of the tensor
             trace = btensor(1)%sf(j, k, l) + btensor(3)%sf(j, k, l) + btensor(6)%sf(j, k, l)
 
@@ -486,8 +495,9 @@ contains
         !! calculate the inverse of grad_xi to obtain F, F is a nxn tensor
         !! calculate the FFtranspose to obtain the btensor, btensor is nxn tensor
         !! btensor is symmetric, save the data space
-    subroutine s_Mooney_Rivlin_cauchy_solver(btensor, q_prim_vf, G, j, k, l)
+    subroutine s_Mooney_Rivlin_cauchy_solver(num_dims, btensor, q_prim_vf, G, j, k, l)
         !$acc routine seq
+        integer, intent(in) :: num_dims
         type(scalar_field), dimension(sys_size), intent(inout) :: q_prim_vf
         type(scalar_field), dimension(b_size), intent(inout) :: btensor
         real(kind(0d0)), intent(in) :: G
@@ -498,7 +508,7 @@ contains
         integer :: i !< Generic loop iterators
 
         !TODO Make this 1D and 2D capable
-        if (p > 0) then
+        if (num_dims == 3) then
            ! tensor is the symmetric tensor & calculate the trace of the tensor
            trace = btensor(1)%sf(j, k, l) + btensor(3)%sf(j, k, l) + btensor(6)%sf(j, k, l)
 
