@@ -140,7 +140,6 @@ contains
 
         !$acc parallel loop collapse(3) gang vector default(present) private(alpha_K, alpha_rho_K, & 
         !$acc rho, gamma, pi_inf, qv, G, Re, tensora, tensorb)
-        print *, 'I got here a'
         if (num_dims == 1) then
           do l = 0, p
              do k = 0, n
@@ -170,11 +169,11 @@ contains
                               ! derivatives in the x-direction
                               tensora(1) = tensora(1) + q_prim_vf(xibeg)%sf(j + r, k, l)*fd_coeff_x(r, j)
                           end do
-                           ! STEP 2a: computing the adjoint of the grad_xi tensor for the inverse
-                           tensorb(1) = 1d0/(tensora(1)**2)
-                           ! STEP 2b: computing the determinant of the grad_xi tensor
+                           ! STEP 2a: computing the determinant of the grad_xi tensor
                            tensorb(tensor_size) = tensora(1)
-
+                           ! STEP 2b: computing the inverse of the grad_xi tensor
+                           tensorb(1) = 1d0/(tensora(1)**2)
+         
                            if (tensorb(tensor_size) > verysmall) then
                               ! STEP 2c: computing the inverse of grad_xi tensor = F
                               ! tensorb is the adjoint, tensora becomes F
@@ -182,15 +181,9 @@ contains
                               do i = 1, tensor_size - 1
                                  tensora(i) = tensorb(i)/tensorb(tensor_size)
                               end do
-
-                              ! STEP 2d: computing the J = det(F) = 1/det(\grad{\xi})
-                              tensorb(tensor_size) = 1d0/tensorb(tensor_size)
-
-                              ! STEP 3: override adjoint (tensorb) to be F transpose F
-                              ! STEP 4: update the btensor, this is consistent with Riemann solvers
+                              ! STEP 3: update the btensor, this is consistent with Riemann solvers
                               ! \b_xx
                               btensor%vf(1)%sf(j, k, l) = tensorb(1)
-                              print *, 'I got here b. btensor ::', tensorb(1)
                               ! store the determinant at the last entry of the btensor
                               btensor%vf(b_size)%sf(j, k, l) = tensorb(tensor_size)
                               ! STEP 5a: updating the Cauchy stress primitive scalar field
@@ -199,7 +192,6 @@ contains
                               elseif (hyper_model == 2) then
                                  call s_Mooney_Rivlin_cauchy_solver(num_dims, btensor%vf, q_prim_vf, G, j, k, l)        
                               end if
-                              print *, 'I got here c. Cauchy stress tensor.'
                               ! STEP 5b: updating the pressure field
                               q_prim_vf(E_idx)%sf(j, k, l) = q_prim_vf(E_idx)%sf(j, k, l) - &
                                                              G*q_prim_vf(xiend + 1)%sf(j, k, l)/gamma
