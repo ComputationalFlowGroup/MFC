@@ -187,12 +187,20 @@ contains
                               ! store the determinant at the last entry of the btensor
                               btensor%vf(b_size)%sf(j, k, l) = tensorb(tensor_size)
                               ! STEP 5a: updating the Cauchy stress primitive scalar field
-                              if (hyper_model == 1) then
-                                 call s_neoHookean_cauchy_solver(num_dims, btensor%vf, q_prim_vf, G, j, k, l)        
-                              elseif (hyper_model == 2) then
-                                 call s_Mooney_Rivlin_cauchy_solver(num_dims, btensor%vf, q_prim_vf, G, j, k, l)        
+                              if ((hyper_model == 1) .and. (num_dims == 1)) then
+                                 call s_neoHookean_cauchy_solver_1D(btensor%vf, q_prim_vf, G, j, k, l)        
+                              elseif ((hyper_model == 1) .and. (num_dims == 2)) then
+                                 call s_neoHookean_cauchy_solver_2D(btensor%vf, q_prim_vf, G, j, k, l)
+                              elseif ((hyper_model == 1) .and. (num_dims == 3)) then
+                                 call s_neoHookean_cauchy_solver_3D(btensor%vf, q_prim_vf, G, j, k, l)
+                              elseif ((hyper_model == 2) .and. (num_dims == 1)) then
+                                 call s_Mooney_Rivlin_cauchy_solver_1D(btensor%vf, q_prim_vf, G, j, k, l)        
+                              elseif ((hyper_model == 2) .and. (num_dims == 2)) then
+                                 call s_Mooney_Rivlin_cauchy_solver_2D(btensor%vf, q_prim_vf, G, j, k, l)        
+                              elseif ((hyper_model == 2) .and. (num_dims == 3)) then
+                                 call s_Mooney_Rivlin_cauchy_solver_3D(btensor%vf, q_prim_vf, G, j, k, l)        
                               end if
-                              ! STEP 5b: updating the pressure field
+                             ! STEP 5b: updating the pressure field
                               q_prim_vf(E_idx)%sf(j, k, l) = q_prim_vf(E_idx)%sf(j, k, l) - &
                                                              G*q_prim_vf(xiend + 1)%sf(j, k, l)/gamma
                               ! STEP 5c: updating the Cauchy stress conservative scalar field
@@ -281,10 +289,18 @@ contains
                               ! store the determinant at the last entry of the btensor
                               btensor%vf(b_size)%sf(j, k, l) = tensorb(tensor_size)
                               ! STEP 5a: updating the Cauchy stress primitive scalar field
-                              if (hyper_model == 1) then
-                                 call s_neoHookean_cauchy_solver(num_dims, btensor%vf, q_prim_vf, G, j, k, l)        
-                              elseif (hyper_model == 2) then
-                                 call s_Mooney_Rivlin_cauchy_solver(num_dims, btensor%vf, q_prim_vf, G, j, k, l)        
+                              if ((hyper_model == 1) .and. (num_dims == 1)) then
+                                 call s_neoHookean_cauchy_solver_1D(btensor%vf, q_prim_vf, G, j, k, l)        
+                              elseif ((hyper_model == 1) .and. (num_dims == 2)) then
+                                 call s_neoHookean_cauchy_solver_2D(btensor%vf, q_prim_vf, G, j, k, l)
+                              elseif ((hyper_model == 1) .and. (num_dims == 3)) then
+                                 call s_neoHookean_cauchy_solver_3D(btensor%vf, q_prim_vf, G, j, k, l)
+                              elseif ((hyper_model == 2) .and. (num_dims == 1)) then
+                                 call s_Mooney_Rivlin_cauchy_solver_1D(btensor%vf, q_prim_vf, G, j, k, l)        
+                              elseif ((hyper_model == 2) .and. (num_dims == 2)) then
+                                 call s_Mooney_Rivlin_cauchy_solver_2D(btensor%vf, q_prim_vf, G, j, k, l)        
+                              elseif ((hyper_model == 2) .and. (num_dims == 3)) then
+                                 call s_Mooney_Rivlin_cauchy_solver_3D(btensor%vf, q_prim_vf, G, j, k, l)        
                               end if
                               ! STEP 5b: updating the pressure field
                               q_prim_vf(E_idx)%sf(j, k, l) = q_prim_vf(E_idx)%sf(j, k, l) - &
@@ -393,10 +409,18 @@ contains
                               ! store the determinant at the last entry of the btensor
                               btensor%vf(b_size)%sf(j, k, l) = tensorb(tensor_size)
                               ! STEP 5a: updating the Cauchy stress primitive scalar field
-                              if (hyper_model == 1) then
-                                 call s_neoHookean_cauchy_solver(num_dims, btensor%vf, q_prim_vf, G, j, k, l)        
-                              elseif (hyper_model == 2) then
-                                 call s_Mooney_Rivlin_cauchy_solver(num_dims, btensor%vf, q_prim_vf, G, j, k, l)        
+                              if ((hyper_model == 1) .and. (num_dims == 1)) then
+                                 call s_neoHookean_cauchy_solver_1D(btensor%vf, q_prim_vf, G, j, k, l)        
+                              elseif ((hyper_model == 1) .and. (num_dims == 2)) then
+                                 call s_neoHookean_cauchy_solver_2D(btensor%vf, q_prim_vf, G, j, k, l)
+                              elseif ((hyper_model == 1) .and. (num_dims == 3)) then
+                                 call s_neoHookean_cauchy_solver_3D(btensor%vf, q_prim_vf, G, j, k, l)
+                              elseif ((hyper_model == 2) .and. (num_dims == 1)) then
+                                 call s_Mooney_Rivlin_cauchy_solver_1D(btensor%vf, q_prim_vf, G, j, k, l)        
+                              elseif ((hyper_model == 2) .and. (num_dims == 2)) then
+                                 call s_Mooney_Rivlin_cauchy_solver_2D(btensor%vf, q_prim_vf, G, j, k, l)        
+                              elseif ((hyper_model == 2) .and. (num_dims == 3)) then
+                                 call s_Mooney_Rivlin_cauchy_solver_3D(btensor%vf, q_prim_vf, G, j, k, l)        
                               end if
                               ! STEP 5b: updating the pressure field
                               q_prim_vf(E_idx)%sf(j, k, l) = q_prim_vf(E_idx)%sf(j, k, l) - &
@@ -415,17 +439,17 @@ contains
         !$acc end parallel loop
     end subroutine s_hyperelastic_rmt_stress_update
 
-    !>  The following subroutine handles the calculation of the btensor.
-        !!   The calculation of the btensor takes qprimvf.
+    !>  The following subroutines handle the calculation of the btensor
+        !! for a Neo-Hookean material model.
+        !! The calculation of the btensor takes qprimvf.
         !! @param q_prim_vf Primitive variables
         !! @param btensor is the output
         !! calculate the grad_xi, grad_xi is a nxn tensor
         !! calculate the inverse of grad_xi to obtain F, F is a nxn tensor
         !! calculate the FFtranspose to obtain the btensor, btensor is nxn tensor
         !! btensor is symmetric, save the data space
-    subroutine s_neoHookean_cauchy_solver(num_dims, btensor, q_prim_vf, G, j, k, l)
+    subroutine s_neoHookean_cauchy_solver_1D(btensor, q_prim_vf, G, j, k, l)
         !$acc routine seq
-        integer, intent(in) :: num_dims
         type(scalar_field), dimension(sys_size), intent(inout) :: q_prim_vf
         type(scalar_field), dimension(b_size), intent(inout) :: btensor
         real(kind(0d0)), intent(in) :: G
@@ -435,8 +459,36 @@ contains
         real(kind(0d0)) :: f13 = 1d0/3d0
         integer :: i !< Generic loop iterators
 
-        !TODO Make this 1D and 2D capable
-        if (num_dims == 2) then
+        ! tensor is the symmetric tensor & calculate the trace of the tensor
+        trace = btensor(1)%sf(j, k, l)
+
+        ! calculate the deviatoric of the tensor
+        btensor(1)%sf(j, k, l) = btensor(1)%sf(j, k, l) - f13*trace
+
+        ! dividing by the jacobian for neo-Hookean model
+        ! setting the tensor to the stresses for riemann solver
+        !$acc loop seq
+        do i = 1, b_size - 1
+             q_prim_vf(strxb + i - 1)%sf(j, k, l) = &
+                    G*btensor(i)%sf(j, k, l)/btensor(b_size)%sf(j, k, l)
+        end do
+        ! compute the invariant without the elastic modulus
+        q_prim_vf(xiend + 1)%sf(j, k, l) = &
+                0.5d0*(trace - 3.0d0)/btensor(b_size)%sf(j, k, l)
+
+   end subroutine s_neoHookean_cauchy_solver_1D
+
+   subroutine s_neoHookean_cauchy_solver_2D(btensor, q_prim_vf, G, j, k, l)
+        !$acc routine seq
+        type(scalar_field), dimension(sys_size), intent(inout) :: q_prim_vf
+        type(scalar_field), dimension(b_size), intent(inout) :: btensor
+        real(kind(0d0)), intent(in) :: G
+        integer, intent(in) :: j, k, l
+
+        real(kind(0d0)) :: trace
+        real(kind(0d0)) :: f13 = 1d0/3d0
+        integer :: i !< Generic loop iterators
+
             ! tensor is the symmetric tensor & calculate the trace of the tensor
             trace = btensor(1)%sf(j, k, l) + btensor(3)%sf(j, k, l)
 
@@ -454,42 +506,82 @@ contains
             ! compute the invariant without the elastic modulus
             q_prim_vf(xiend + 1)%sf(j, k, l) = &
                 0.5d0*(trace - 3.0d0)/btensor(b_size)%sf(j, k, l)
-        end if
 
-        if (num_dims == 3) then
-            ! tensor is the symmetric tensor & calculate the trace of the tensor
-            trace = btensor(1)%sf(j, k, l) + btensor(3)%sf(j, k, l) + btensor(6)%sf(j, k, l)
+   end subroutine s_neoHookean_cauchy_solver_2D
 
-            ! calculate the deviatoric of the tensor
-            btensor(1)%sf(j, k, l) = btensor(1)%sf(j, k, l) - f13*trace
-            btensor(3)%sf(j, k, l) = btensor(3)%sf(j, k, l) - f13*trace
-            btensor(6)%sf(j, k, l) = btensor(6)%sf(j, k, l) - f13*trace
+   subroutine s_neoHookean_cauchy_solver_3D(btensor, q_prim_vf, G, j, k, l)
+        !$acc routine seq
+        type(scalar_field), dimension(sys_size), intent(inout) :: q_prim_vf
+        type(scalar_field), dimension(b_size), intent(inout) :: btensor
+        real(kind(0d0)), intent(in) :: G
+        integer, intent(in) :: j, k, l
 
-            ! dividing by the jacobian for neo-Hookean model
-            ! setting the tensor to the stresses for riemann solver
-            !$acc loop seq
-            do i = 1, b_size - 1
-                q_prim_vf(strxb + i - 1)%sf(j, k, l) = &
-                      G*btensor(i)%sf(j, k, l)/btensor(b_size)%sf(j, k, l)
-            end do
-            ! compute the invariant without the elastic modulus
-            q_prim_vf(xiend + 1)%sf(j, k, l) = &
-                0.5d0*(trace - 3.0d0)/btensor(b_size)%sf(j, k, l)
-        end if
+        real(kind(0d0)) :: trace
+        real(kind(0d0)) :: f13 = 1d0/3d0
+        integer :: i !< Generic loop iterators
+            
+        ! tensor is the symmetric tensor & calculate the trace of the tensor
+        trace = btensor(1)%sf(j, k, l) + btensor(3)%sf(j, k, l) + btensor(6)%sf(j, k, l)
 
-    end subroutine s_neoHookean_cauchy_solver
+        ! calculate the deviatoric of the tensor
+        btensor(1)%sf(j, k, l) = btensor(1)%sf(j, k, l) - f13*trace
+        btensor(3)%sf(j, k, l) = btensor(3)%sf(j, k, l) - f13*trace
+        btensor(6)%sf(j, k, l) = btensor(6)%sf(j, k, l) - f13*trace
 
-    !>  The following subroutine handles the calculation of the btensor.
-        !!   The calculation of the btensor takes qprimvf.
+        ! dividing by the jacobian for neo-Hookean model
+        ! setting the tensor to the stresses for riemann solver
+        !$acc loop seq
+        do i = 1, b_size - 1
+             q_prim_vf(strxb + i - 1)%sf(j, k, l) = &
+                    G*btensor(i)%sf(j, k, l)/btensor(b_size)%sf(j, k, l)
+        end do
+        ! compute the invariant without the elastic modulus
+        q_prim_vf(xiend + 1)%sf(j, k, l) = &
+              0.5d0*(trace - 3.0d0)/btensor(b_size)%sf(j, k, l)
+
+    end subroutine s_neoHookean_cauchy_solver_3D
+
+    !>  The following subroutines handle the calculation of the btensor
+        !! for a Mooney Rivlin material model.
+        !! The calculation of the btensor takes qprimvf.
         !! @param q_prim_vf Primitive variables
         !! @param btensor is the output
         !! calculate the grad_xi, grad_xi is a nxn tensor
         !! calculate the inverse of grad_xi to obtain F, F is a nxn tensor
         !! calculate the FFtranspose to obtain the btensor, btensor is nxn tensor
         !! btensor is symmetric, save the data space
-    subroutine s_Mooney_Rivlin_cauchy_solver(num_dims, btensor, q_prim_vf, G, j, k, l)
+   subroutine s_Mooney_Rivlin_cauchy_solver_1D(btensor, q_prim_vf, G, j, k, l)
         !$acc routine seq
-        integer, intent(in) :: num_dims
+        type(scalar_field), dimension(sys_size), intent(inout) :: q_prim_vf
+        type(scalar_field), dimension(b_size), intent(inout) :: btensor
+        real(kind(0d0)), intent(in) :: G
+        integer, intent(in) :: j, k, l
+
+        real(kind(0d0)) :: trace
+        real(kind(0d0)) :: f13 = 1d0/3d0
+        integer :: i !< Generic loop iterators
+
+        ! tensor is the symmetric tensor & calculate the trace of the tensor
+        trace = btensor(1)%sf(j, k, l)
+
+        ! calculate the deviatoric of the tensor
+        btensor(1)%sf(j, k, l) = btensor(1)%sf(j, k, l) - f13*trace
+
+        ! dividing by the jacobian for neo-Hookean model
+        ! setting the tensor to the stresses for riemann solver
+        !$acc loop seq
+        do i = 1, b_size - 1
+             q_prim_vf(strxb + i - 1)%sf(j, k, l) = &
+                    G*btensor(i)%sf(j, k, l)/btensor(b_size)%sf(j, k, l)
+        end do
+        ! compute the invariant without the elastic modulus
+             q_prim_vf(xiend + 1)%sf(j, k, l) = &
+                     0.5d0*(trace - 3.0d0)/btensor(b_size)%sf(j, k, l)
+
+   end subroutine s_Mooney_Rivlin_cauchy_solver_1D
+
+   subroutine s_Mooney_Rivlin_cauchy_solver_2D(btensor, q_prim_vf, G, j, k, l)
+        !$acc routine seq
         type(scalar_field), dimension(sys_size), intent(inout) :: q_prim_vf
         type(scalar_field), dimension(b_size), intent(inout) :: btensor
         real(kind(0d0)), intent(in) :: G
@@ -500,28 +592,58 @@ contains
         integer :: i !< Generic loop iterators
 
         !TODO Make this 1D and 2D capable
-        if (num_dims == 3) then
-           ! tensor is the symmetric tensor & calculate the trace of the tensor
-           trace = btensor(1)%sf(j, k, l) + btensor(3)%sf(j, k, l) + btensor(6)%sf(j, k, l)
+        ! tensor is the symmetric tensor & calculate the trace of the tensor
+        trace = btensor(1)%sf(j, k, l) + btensor(3)%sf(j, k, l)
 
-           ! calculate the deviatoric of the tensor
-           btensor(1)%sf(j, k, l) = btensor(1)%sf(j, k, l) - f13*trace
-           btensor(3)%sf(j, k, l) = btensor(3)%sf(j, k, l) - f13*trace
-           btensor(6)%sf(j, k, l) = btensor(6)%sf(j, k, l) - f13*trace
+        ! calculate the deviatoric of the tensor
+        btensor(1)%sf(j, k, l) = btensor(1)%sf(j, k, l) - f13*trace
+        btensor(3)%sf(j, k, l) = btensor(3)%sf(j, k, l) - f13*trace
 
-           ! dividing by the jacobian for neo-Hookean model
-           ! setting the tensor to the stresses for riemann solver
-           !$acc loop seq
-           do i = 1, b_size - 1
-               q_prim_vf(strxb + i - 1)%sf(j, k, l) = &
-                      G*btensor(i)%sf(j, k, l)/btensor(b_size)%sf(j, k, l)
-           end do
-           ! compute the invariant without the elastic modulus
-               q_prim_vf(xiend + 1)%sf(j, k, l) = &
+        ! dividing by the jacobian for neo-Hookean model
+        ! setting the tensor to the stresses for riemann solver
+        !$acc loop seq
+        do i = 1, b_size - 1
+             q_prim_vf(strxb + i - 1)%sf(j, k, l) = &
+                    G*btensor(i)%sf(j, k, l)/btensor(b_size)%sf(j, k, l)
+        end do
+        ! compute the invariant without the elastic modulus
+             q_prim_vf(xiend + 1)%sf(j, k, l) = &
                      0.5d0*(trace - 3.0d0)/btensor(b_size)%sf(j, k, l)
-         end if
 
-    end subroutine s_Mooney_Rivlin_cauchy_solver
+   end subroutine s_Mooney_Rivlin_cauchy_solver_2D
+
+   subroutine s_Mooney_Rivlin_cauchy_solver_3D(btensor, q_prim_vf, G, j, k, l)
+        !$acc routine seq
+        type(scalar_field), dimension(sys_size), intent(inout) :: q_prim_vf
+        type(scalar_field), dimension(b_size), intent(inout) :: btensor
+        real(kind(0d0)), intent(in) :: G
+        integer, intent(in) :: j, k, l
+
+        real(kind(0d0)) :: trace
+        real(kind(0d0)) :: f13 = 1d0/3d0
+        integer :: i !< Generic loop iterators
+
+        !TODO Make this 1D and 2D capable
+        ! tensor is the symmetric tensor & calculate the trace of the tensor
+        trace = btensor(1)%sf(j, k, l) + btensor(3)%sf(j, k, l) + btensor(6)%sf(j, k, l)
+
+        ! calculate the deviatoric of the tensor
+        btensor(1)%sf(j, k, l) = btensor(1)%sf(j, k, l) - f13*trace
+        btensor(3)%sf(j, k, l) = btensor(3)%sf(j, k, l) - f13*trace
+        btensor(6)%sf(j, k, l) = btensor(6)%sf(j, k, l) - f13*trace
+
+        ! dividing by the jacobian for neo-Hookean model
+        ! setting the tensor to the stresses for riemann solver
+        !$acc loop seq
+        do i = 1, b_size - 1
+             q_prim_vf(strxb + i - 1)%sf(j, k, l) = &
+                    G*btensor(i)%sf(j, k, l)/btensor(b_size)%sf(j, k, l)
+        end do
+        ! compute the invariant without the elastic modulus
+             q_prim_vf(xiend + 1)%sf(j, k, l) = &
+                     0.5d0*(trace - 3.0d0)/btensor(b_size)%sf(j, k, l)
+
+    end subroutine s_Mooney_Rivlin_cauchy_solver_3D
 
     subroutine s_finalize_hyperelastic_module()
 
