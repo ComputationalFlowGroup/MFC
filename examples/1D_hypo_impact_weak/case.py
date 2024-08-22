@@ -7,7 +7,7 @@ Nx      = 201
 dx      = 1./(1.*(Nx+1))
 
 Tend    = 64E-06
-Nt      = 11505
+Nt      = 4000
 mydt    = Tend/(1.*Nt)
 
 # Configuring case dictionary
@@ -19,8 +19,8 @@ print(json.dumps({
                     # Computational Domain Parameters ==========================
                     'x_domain%beg'                 : 0.E+00,                    
                     'x_domain%end'                 : 1.E+00,                    
-                    'y_domain%beg'                 : 0.E+00,
-                    'y_domain%end'                 : 0.002,
+#                    'y_domain%beg'                 : 0.E+00,
+#                    'y_domain%end'                 : 0.002,
                     'm'                            : Nx,                        
                     'n'                            : 32,                         
                     'p'                            : 0,                         
@@ -32,7 +32,7 @@ print(json.dumps({
                                                                                 
                     # Simulation Algorithm Parameters ==========================
                     'num_patches'                  : 2,                        
-                    'model_eqns'                   : 3,                        
+                    'model_eqns'                   : 2,                        
                     'alt_soundspeed'               : 'F',                      
                     'num_fluids'                   : 1,                        
          		    'mpp_lim'                      : 'F',                      
@@ -45,7 +45,7 @@ print(json.dumps({
                     'mapped_weno'                  : 'F',                     
                     'null_weights'                 : 'F',                      
                     'mp_weno'                      : 'T',                      
-		            'riemann_solver'               : 2,                        
+		            'riemann_solver'               : 1,                        
                     'wave_speeds'                  : 1,                        
                     'avg_state'                    : 2,                        
                     'bc_x%beg'                     : -3,                       
@@ -54,8 +54,8 @@ print(json.dumps({
                     'bc_y%end'                     : -3,                       
                     # ==========================================================
 
-                    # Turning on Hyperelasticity ================================
-                    'hyperelasticity'               : 'T',                      
+                    # Turning on Hypoelasticity ================================
+                    'hypoelasticity'               : 'T',                      
                     # ==========================================================
                                                                                
                     # Formatted Database Files Structure Parameters ============
@@ -66,27 +66,27 @@ print(json.dumps({
 		    # ==========================================================
                                                                                 
 		    # Patch 1 L ================================================
-                    'patch_icpp(1)%geometry'       : 3,                     
+                    'patch_icpp(1)%geometry'       : 2,                     
                     'patch_icpp(1)%x_centroid'     : 0.25,
-                    'patch_icpp(1)%y_centroid'     : 0.001,                   
+ #                   'patch_icpp(1)%y_centroid'     : 0.001,                   
                     'patch_icpp(1)%length_x'       : 0.5,                    
-                    'patch_icpp(1)%length_y'       : 0.002,
-                    'patch_icpp(1)%vel(1)'         : 0.0,  
-                    'patch_icpp(1)%vel(2)'         : 100, 
-                    'patch_icpp(1)%pres'           : 1.E+8,                    
+ #                   'patch_icpp(1)%length_y'       : 0.002,
+                    'patch_icpp(1)%vel(1)'         : 10,  
+ #                   'patch_icpp(1)%vel(2)'         : 100*0, 
+                    'patch_icpp(1)%pres'           : 1.E+5,                    
                     'patch_icpp(1)%alpha_rho(1)'   : 1000,                    
                     'patch_icpp(1)%alpha(1)'       : 1.,                
                     'patch_icpp(1)%tau_e(1)'       : 0.0,                
                     # ==========================================================
 
                     # Patch 2 R ================================================
-                    'patch_icpp(2)%geometry'       : 3,                     
+                    'patch_icpp(2)%geometry'       : 2,                     
                     'patch_icpp(2)%x_centroid'     : 0.75,                  
-                    'patch_icpp(2)%y_centroid'     : 0.001,
+#                    'patch_icpp(2)%y_centroid'     : 0.001,
                     'patch_icpp(2)%length_x'       : 0.5,  
-                    'patch_icpp(2)%length_y'       : 0.002,                 
-                    'patch_icpp(2)%vel(1)'         : 0.0, 
-                    'patch_icpp(2)%vel(2)'         : -100,                   
+#                    'patch_icpp(2)%length_y'       : 0.002,                 
+                    'patch_icpp(2)%vel(1)'         : 10, 
+#                    'patch_icpp(2)%vel(2)'         : -100*0,                   
                     'patch_icpp(2)%pres'           : 1.E+05,               
                     'patch_icpp(2)%alpha_rho(1)'   : 1000,                 
                     'patch_icpp(2)%alpha(1)'       : 1.,                

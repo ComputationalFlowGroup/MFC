@@ -1130,8 +1130,10 @@ contains
 
                                 call s_compute_speed_of_sound(pres_L, rho_L, gamma_L, pi_inf_L, H_L, alpha_L, &
                                                               vel_L_rms, c_L)
-                                call s_compute_speed_of_sound(pres_R, rho_R, gamma_R, pi_inf_R, H_R, alpha_R, &
+                                print *, 'speed of sound L', c_L
+				call s_compute_speed_of_sound(pres_R, rho_R, gamma_R, pi_inf_R, H_R, alpha_R, &
                                                               vel_R_rms, c_R)
+                                print *, 'speed of sound R', c_R
                                 !> The computation of c_avg does not require all the variables, and therefore the non '_avg'
                                 ! variables are placeholders to call the subroutine.
                                 call s_compute_speed_of_sound(pres_R, rho_avg, gamma_avg, pi_inf_R, H_avg, alpha_R, &
