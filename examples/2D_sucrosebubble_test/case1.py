@@ -16,7 +16,7 @@ Ny = 100.
 Nx = Ny*3
 dx = leng/Nx
 
-time_end = 3.E-4         #5*leng/vel
+time_end = 1.E-3         #5*leng/vel
 cfl = 0.05
 
 dt = cfl * dx/c_l
@@ -130,7 +130,7 @@ print(json.dumps({
     'num_patches'                  : 2,             #change this to 3 for shocked state
     'model_eqns'                   : 5,
     'alt_soundspeed'               : 'F',
-    'hypoplasticity'               : 'F',
+    'hypoplasticity'               : 'T',
     'num_fluids'                   : 2,
     'mpp_lim'                      : 'T',
     'mixture_err'                  : 'F',

@@ -255,22 +255,22 @@ contains
                 temp        = 0.d0
            do s = 1, num_fluids
                 rho0_mix = rho0_mix + alpha_K(s)*rho0(s)
-                phi_mix  = phi_mix + mg_a(s)*alpha_K(s)*gammas(s) - mg_a(s)*alpha_K(s)*gammas(s)*rho0(s)/rho
+                phi_mix  = phi_mix + alpha_K(s)*gammas(s) - alpha_K(s)*gammas(s)*rho0(s)/rho
                 theta_E  = theta_E + alpha_K(s)*ein_cv2(s)
            end do 
            log_rho_mix_ratio = dlog(rho/rho0_mix)
            phi_mix           = dexp(phi_mix)
            denom_term2       = dexp(phi_mix*theta_E) - 1d0
           do s = 1, num_fluids
-                num_term1 = num_term1 -0.5d0*(log_rho_mix_ratio**2)*&
+                num_term1 = num_term1 - 0.5d0*(log_rho_mix_ratio**2)*&
                    pi_infs(s)*alpha_rho_K(s)/rho0(s)&
                    -0.5d0*(log_rho_mix_ratio**3)*pi_infs(s)*alpha_rho_K(s)&
-                   *(qvs(s)-2d0)/(3d0*rho0(s))&
+                   *(qvs(s)-2.d0)/(3.d0*rho0(s))&
                    -phi_mix*dexp(phi_mix*theta_E)*alpha_rho_K(s)*ein_cv1(s)*ein_cv2(s)/&
                    (dexp(phi_mix*theta_E)-1d0)&
                    +dlog(dexp(phi_mix*theta_E)-1d0)*alpha_rho_K(s)*ein_cv1(s)
                 denom_term1 = denom_term1 + phi_mix*alpha_rho_K(s)*ein_cv1(s)*ein_cv2(s)
-                foo = foo + (1d0 / denom_term2)*mg_a(s)*alpha_K(s)
+                foo = foo + (1d0 / denom_term2)*alpha_K(s)
            end do 
            num_term1 = num_term1 + energy - dyn_p
            denom = (num_term1 / denom_term1) + foo !(1d0 / denom_term2)*mg_b(s)  
