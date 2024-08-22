@@ -187,18 +187,10 @@ contains
                               ! store the determinant at the last entry of the btensor
                               btensor%vf(b_size)%sf(j, k, l) = tensorb(tensor_size)
                               ! STEP 5a: updating the Cauchy stress primitive scalar field
-                              if ((hyper_model == 1) .and. (num_dims == 1)) then
+                              if (hyper_model == 1) then
                                  call s_neoHookean_cauchy_solver_1D(btensor%vf, q_prim_vf, G, j, k, l)        
-                              elseif ((hyper_model == 1) .and. (num_dims == 2)) then
-                                 call s_neoHookean_cauchy_solver_2D(btensor%vf, q_prim_vf, G, j, k, l)
-                              elseif ((hyper_model == 1) .and. (num_dims == 3)) then
-                                 call s_neoHookean_cauchy_solver_3D(btensor%vf, q_prim_vf, G, j, k, l)
-                              elseif ((hyper_model == 2) .and. (num_dims == 1)) then
+                              elseif (hyper_model == 2) then
                                  call s_Mooney_Rivlin_cauchy_solver_1D(btensor%vf, q_prim_vf, G, j, k, l)        
-                              elseif ((hyper_model == 2) .and. (num_dims == 2)) then
-                                 call s_Mooney_Rivlin_cauchy_solver_2D(btensor%vf, q_prim_vf, G, j, k, l)        
-                              elseif ((hyper_model == 2) .and. (num_dims == 3)) then
-                                 call s_Mooney_Rivlin_cauchy_solver_3D(btensor%vf, q_prim_vf, G, j, k, l)        
                               end if
                              ! STEP 5b: updating the pressure field
                               q_prim_vf(E_idx)%sf(j, k, l) = q_prim_vf(E_idx)%sf(j, k, l) - &
@@ -275,33 +267,25 @@ contains
                               tensorb(2) = tensora(1)*tensora(3) + tensora(2)*tensora(4)
                               tensorb(3) = tensorb(2) !tensora(3)*tensora(1) + tensora(4)*tensora(2)
 
-                              print *, 'I got here d. tensorb(1) ::', tensorb(1), &
-                              'tensorb(2) ::', tensorb(2), 'tensorb(3) ::', tensorb(3), &
-                              'tensorb(4) ::', tensorb(4)
+                              !print *, 'I got here d. tensorb(1) ::', tensorb(1), &
+                              !'tensorb(2) ::', tensorb(2), 'tensorb(3) ::', tensorb(3), &
+                              !'tensorb(4) ::', tensorb(4)
 
                               ! STEP 4: update the btensor, this is consistent with Riemann solvers
-                              ! \b_xx
-                              btensor%vf(1)%sf(j, k, l) = tensorb(1)
-                              ! \b_xy
-                              btensor%vf(2)%sf(j, k, l) = tensorb(2)
-                              ! \b_yy
-                              btensor%vf(3)%sf(j, k, l) = tensorb(4)
+!                              btensor%vf(1)%sf(j, k, l) = tensorb(1) !b_xx
+!                              btensor%vf(2)%sf(j, k, l) = tensorb(2) !b_xy
+!                              btensor%vf(3)%sf(j, k, l) = tensorb(4) !b_yy
+                              #:for BIJ, TXY in [(1,1),(2,2),(3,4)]
+                                btensor%vf(${BIJ}$)%sf(j, k, l) = tensorb(${TXY}$)
+                              #:endfor
                               ! store the determinant at the last entry of the btensor
                               btensor%vf(b_size)%sf(j, k, l) = tensorb(tensor_size)
                               ! STEP 5a: updating the Cauchy stress primitive scalar field
-                              if ((hyper_model == 1) .and. (num_dims == 1)) then
-                                 call s_neoHookean_cauchy_solver_1D(btensor%vf, q_prim_vf, G, j, k, l)        
-                              elseif ((hyper_model == 1) .and. (num_dims == 2)) then
+                            !  if (hyper_model == 1) then
                                  call s_neoHookean_cauchy_solver_2D(btensor%vf, q_prim_vf, G, j, k, l)
-                              elseif ((hyper_model == 1) .and. (num_dims == 3)) then
-                                 call s_neoHookean_cauchy_solver_3D(btensor%vf, q_prim_vf, G, j, k, l)
-                              elseif ((hyper_model == 2) .and. (num_dims == 1)) then
-                                 call s_Mooney_Rivlin_cauchy_solver_1D(btensor%vf, q_prim_vf, G, j, k, l)        
-                              elseif ((hyper_model == 2) .and. (num_dims == 2)) then
-                                 call s_Mooney_Rivlin_cauchy_solver_2D(btensor%vf, q_prim_vf, G, j, k, l)        
-                              elseif ((hyper_model == 2) .and. (num_dims == 3)) then
-                                 call s_Mooney_Rivlin_cauchy_solver_3D(btensor%vf, q_prim_vf, G, j, k, l)        
-                              end if
+                            !  elseif (hyper_model == 2) then
+                            !     call s_Mooney_Rivlin_cauchy_solver_2D(btensor%vf, q_prim_vf, G, j, k, l)        
+                            !  end if
                               ! STEP 5b: updating the pressure field
                               q_prim_vf(E_idx)%sf(j, k, l) = q_prim_vf(E_idx)%sf(j, k, l) - &
                                                              G*q_prim_vf(xiend + 1)%sf(j, k, l)/gamma
@@ -318,7 +302,7 @@ contains
 
         !$acc parallel loop collapse(3) gang vector default(present) private(alpha_K, alpha_rho_K, &
         !$acc rho, gamma, pi_inf, qv, G, Re, tensora, tensorb)
-        else
+        elseif (num_dims == 3) then
             do l = 0, p 
                 do k = 0, n 
                     do j = 0, m 
@@ -394,33 +378,22 @@ contains
                               tensorb(3) = tensora(1)*tensora(7) + tensora(2)*tensora(8) + tensora(3)*tensora(9)
                               tensorb(6) = tensora(4)*tensora(7) + tensora(5)*tensora(8) + tensora(6)*tensora(9)
                               ! STEP 4: update the btensor, this is consistent with Riemann solvers
-                              ! \b_xx
-                              btensor%vf(1)%sf(j, k, l) = tensorb(1)
-                              ! \b_xy
-                              btensor%vf(2)%sf(j, k, l) = tensorb(2)
-                              ! \b_yy
-                              btensor%vf(3)%sf(j, k, l) = tensorb(5)
-                              ! \b_xz
-                              btensor%vf(4)%sf(j, k, l) = tensorb(3)
-                              ! \b_yz
-                              btensor%vf(5)%sf(j, k, l) = tensorb(6)
-                              ! \b_zz
-                              btensor%vf(6)%sf(j, k, l) = tensorb(9)
+!                              btensor%vf(1)%sf(j, k, l) = tensorb(1) !b_xx
+!                              btensor%vf(2)%sf(j, k, l) = tensorb(2) !b_xy
+!                              btensor%vf(3)%sf(j, k, l) = tensorb(5) !b_yy
+!                              btensor%vf(4)%sf(j, k, l) = tensorb(3) !b_xz
+!                              btensor%vf(5)%sf(j, k, l) = tensorb(6) !b_yz
+!                              btensor%vf(6)%sf(j, k, l) = tensorb(9) !b_zz
+                              #:for BIJ, TXY in [(1,1),(2,2),(3,5),(4,3),(5,6),(6,9)]
+                                btensor%vf(${BIJ}$)%sf(j, k, l) = tensorb(${TXY}$)
+                              #:endfor
                               ! store the determinant at the last entry of the btensor
                               btensor%vf(b_size)%sf(j, k, l) = tensorb(tensor_size)
                               ! STEP 5a: updating the Cauchy stress primitive scalar field
-                              if ((hyper_model == 1) .and. (num_dims == 1)) then
-                                 call s_neoHookean_cauchy_solver_1D(btensor%vf, q_prim_vf, G, j, k, l)        
-                              elseif ((hyper_model == 1) .and. (num_dims == 2)) then
-                                 call s_neoHookean_cauchy_solver_2D(btensor%vf, q_prim_vf, G, j, k, l)
-                              elseif ((hyper_model == 1) .and. (num_dims == 3)) then
+                              if (hyper_model == 1) then
                                  call s_neoHookean_cauchy_solver_3D(btensor%vf, q_prim_vf, G, j, k, l)
-                              elseif ((hyper_model == 2) .and. (num_dims == 1)) then
-                                 call s_Mooney_Rivlin_cauchy_solver_1D(btensor%vf, q_prim_vf, G, j, k, l)        
-                              elseif ((hyper_model == 2) .and. (num_dims == 2)) then
-                                 call s_Mooney_Rivlin_cauchy_solver_2D(btensor%vf, q_prim_vf, G, j, k, l)        
-                              elseif ((hyper_model == 2) .and. (num_dims == 3)) then
-                                 call s_Mooney_Rivlin_cauchy_solver_3D(btensor%vf, q_prim_vf, G, j, k, l)        
+                              elseif (hyper_model == 2) then
+                                call s_Mooney_Rivlin_cauchy_solver_3D(btensor%vf, q_prim_vf, G, j, k, l)        
                               end if
                               ! STEP 5b: updating the pressure field
                               q_prim_vf(E_idx)%sf(j, k, l) = q_prim_vf(E_idx)%sf(j, k, l) - &
@@ -502,6 +475,7 @@ contains
             do i = 1, b_size - 1
                 q_prim_vf(strxb + i - 1)%sf(j, k, l) = &
                       G*btensor(i)%sf(j, k, l)/btensor(b_size)%sf(j, k, l)
+              !  print *, 'q_prim_vf(', strxb + i - 1, ', ', j, ', ', k, ', ', l, ') = ', q_prim_vf(strxb + i - 1)%sf(j, k, l)
             end do
             ! compute the invariant without the elastic modulus
             q_prim_vf(xiend + 1)%sf(j, k, l) = &
