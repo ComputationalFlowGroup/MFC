@@ -236,7 +236,7 @@ contains
             & 'polydisperse', 'qbmm', 'acoustic_source', 'probe_wrt', 'integral_wrt',   &
             & 'prim_vars_wrt', 'weno_avg', 'file_per_process', 'relax',          &
             & 'adv_n', 'adap_dt', 'ib', 'bodyForces', 'bf_x', 'bf_y', 'bf_z',    &
-            & 'hyperelasticity' ]
+            & 'hyperelasticity', 'hypoplasticity' ]
             call MPI_BCAST(${VAR}$, 1, MPI_LOGICAL, 0, MPI_COMM_WORLD, ierr)
         #:endfor
 
@@ -267,14 +267,11 @@ contains
             #:endfor
             call MPI_BCAST(fluid_pp(i)%Re(1), 2, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
             call MPI_BCAST(fluid_pp(i)%ein_cv(1), 2, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
-            call MPI_BCAST(fluid_pp(i)%ein_cv(2), 2, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
         end do
 
         if (hypoplasticity) then 
           do i = 1, num_fluids_max
-            #:for VAR in range(1,11)
-                call MPI_BCAST(fluid_pp(i)%jcook(${VAR}$), 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
-            #:endfor
+            call MPI_BCAST(fluid_pp(i)%jcook(1), 11, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
           end do
         end if 
 
