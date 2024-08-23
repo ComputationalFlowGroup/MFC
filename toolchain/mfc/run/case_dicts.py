@@ -49,7 +49,6 @@ COMMON = {
     'relax_model': ParamType.INT,
     'sigma': ParamType.REAL,
     'adv_n': ParamType.LOG,
-    'hyperelasticity': ParamType.LOG,
 }
 
 PRE_PROCESS = COMMON.copy()
