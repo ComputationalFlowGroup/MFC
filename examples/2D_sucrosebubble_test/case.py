@@ -165,7 +165,7 @@ print(json.dumps({
     'fluid_pp(1)%qv'               : 3.75E0,                           # K'_theta0 for sucrose
     'fluid_pp(2)%qv'               : 2.0E0,                            #
     'fluid_pp(1)%G'                : G_suc/(rho_0_suc*c_0*c_0),        # Shear modulus
-    'fluid_pp(2)%G'                : 0.0E-9/(rho_0_suc*c_0*c_0),       # Shear modulus of air taken to be a very small value
+    'fluid_pp(2)%G'                : 0.0,                              # Shear modulus of air taken to be a very small value
     'fluid_pp(1)%ein_cv(1)'        : A_tilde,                          # Can be replaced with fluid_pp(:)%cv at some point
     'fluid_pp(2)%ein_cv(1)'        : 0.026937087111210E0,              #
     'fluid_pp(1)%ein_cv(2)'        : theta_E_tilde,                    # Can be replaced with a scalar theta_E at some point
