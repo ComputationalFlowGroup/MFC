@@ -221,24 +221,43 @@ contains
         real(kind(0d0)), dimension(startx:, starty:, startz:, 1:, 1:), intent(inout) :: pb, mv
         integer, intent(in) :: bc_dir, bc_loc
         integer :: j, k, l, q, i
+        real(kind(0d0)) :: foo
 
         !< x-direction =========================================================
         if (bc_dir == 1) then !< x-direction
 
             if (bc_loc == -1) then !bc_x%beg
 
-                !$acc parallel loop collapse(4) gang vector default(present)
-                do i = 1, sys_size
-                    do l = 0, p
-                        do k = 0, n
-                            do j = 1, buff_size
-                                q_prim_vf(i)%sf(-j, k, l) = &
-                                    q_prim_vf(i)%sf(0, k, l)
-                            end do
+               !$acc parallel loop collapse(4) gang vector default(present) 
+               do i = 1, sys_size
+                  do l = 0, p
+                     do k = 0, n
+                        do j = 1, buff_size
+                           q_prim_vf(i)%sf(-j, k, l) = &
+                             q_prim_vf(i)%sf(0, k, l)
                         end do
-                    end do
-                end do
+                     end do
+                  end do
+               end do
 
+               !$acc parallel loop collapse(5) gang vector default(present), private(foo)
+               if (hyperelasticity) then
+                  do j = 1, buff_size
+                     do l = 0, p
+                        do k = 0, n
+                           do i = xibeg, xiend
+                              foo = 0d0
+                              do q = 1, j
+                                 foo = foo - dx(-q)
+                              end do
+                              q_prim_vf(i)%sf(-j, k, l) = &
+                                q_prim_vf(i)%sf(0, k, l) - foo
+                           end do
+                         end do
+                     end do
+                  end do
+               end if
+ 
             else !< bc_x%end
 
                 !$acc parallel loop collapse(4) gang vector default(present)
@@ -248,11 +267,28 @@ contains
                             do j = 1, buff_size
                                 q_prim_vf(i)%sf(m + j, k, l) = &
                                     q_prim_vf(i)%sf(m, k, l)
-                            end do
+                           end do
                         end do
                     end do
                 end do
 
+               !$acc parallel loop collapse(5) gang vector default(present), private(foo)
+               if (hyperelasticity) then
+                  do j = 1, buff_size
+                     do l = 0, p
+                        do k = 0, n
+                           do i = xibeg, xiend
+                              foo = 0d0
+                              do q = 1, j
+                                 foo = foo + dx(m + q)
+                               end do
+                              q_prim_vf(i)%sf(m + j, k, l) = &
+                                q_prim_vf(i)%sf(m, k, l) + foo
+                           end do
+                         end do
+                     end do
+                  end do
+               end if
             end if
 
             !< y-direction =========================================================
@@ -267,10 +303,28 @@ contains
                             do l = -buff_size, m + buff_size
                                 q_prim_vf(i)%sf(l, -j, k) = &
                                     q_prim_vf(i)%sf(l, 0, k)
-                            end do
+                           end do
                         end do
                     end do
                 end do
+
+               !$acc parallel loop collapse(5) gang vector default(present), private(foo)
+               if (hyperelasticity) then
+                  do j = 1, buff_size
+                     do l = -buff_size, m + buff_size
+                        do k = 0, p
+                           do i = xibeg, xiend
+                              foo = 0d0
+                              do q = 1, j
+                                 foo = foo - dy(-q)
+                              end do
+                              q_prim_vf(i)%sf(l, -j, k) = &
+                                q_prim_vf(i)%sf(l, 0, k) - foo
+                           end do
+                         end do
+                     end do
+                  end do
+               end if 
 
             else !< bc_y%end
 
@@ -286,6 +340,24 @@ contains
                     end do
                 end do
 
+               !$acc parallel loop collapse(5) gang vector default(present), private(foo)
+               if (hyperelasticity) then
+                  do j = 1, buff_size
+                     do l = -buff_size, m + buff_size
+                        do k = 0, p
+                           do i = xibeg, xiend
+                              foo = 0d0
+                              do q = 1, j
+                                 foo = foo + dy(n + q)
+                               end do
+                              q_prim_vf(i)%sf(l, n + j, k) = &
+                                q_prim_vf(i)%sf(l, n, k) + foo
+                           end do
+                         end do
+                     end do
+                  end do
+               end if
+ 
             end if
 
             !< z-direction =========================================================
@@ -300,12 +372,29 @@ contains
                             do k = -buff_size, m + buff_size
                                 q_prim_vf(i)%sf(k, l, -j) = &
                                     q_prim_vf(i)%sf(k, l, 0)
-                            end do
+                           end do
                         end do
                     end do
                 end do
 
-            else !< bc_z%end
+               !$acc parallel loop collapse(5) gang vector default(present), private(foo)
+               if (hyperelasticity) then
+                  do j = 1, buff_size
+                     do l = -buff_size, n + buff_size
+                        do k = -buff_size, m + buff_size
+                           do i = xibeg, xiend
+                              foo = 0d0
+                              do q = 1, j
+                                 foo = foo - dx(-q)
+                              end do
+                              q_prim_vf(i)%sf(k, l, -j) = &
+                                q_prim_vf(i)%sf(k, l, 0) - foo
+                           end do
+                         end do
+                     end do
+                  end do
+               end if
+             else !< bc_z%end
 
                 !$acc parallel loop collapse(4) gang vector default(present)
                 do i = 1, sys_size
@@ -314,11 +403,29 @@ contains
                             do k = -buff_size, m + buff_size
                                 q_prim_vf(i)%sf(k, l, p + j) = &
                                     q_prim_vf(i)%sf(k, l, p)
-                            end do
+                           end do
                         end do
                     end do
                 end do
 
+               !$acc parallel loop collapse(5) gang vector default(present), private(foo)
+               if (hyperelasticity) then
+                  do j = 1, buff_size
+                     do l = -buff_size, n + buff_size
+                        do k = -buff_size, m + buff_size
+                           do i = xibeg, xiend
+                              foo = 0d0
+                              do q = 1, j
+                                 foo = foo + dz(p + q)
+                               end do
+                              q_prim_vf(i)%sf(k, l, p + j) = &
+                                q_prim_vf(i)%sf(k, l, p) + foo
+                           end do
+                         end do
+                     end do
+                  end do
+               end if
+ 
             end if
 
         end if
