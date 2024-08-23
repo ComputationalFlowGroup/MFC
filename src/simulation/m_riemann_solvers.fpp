@@ -1064,9 +1064,6 @@ contains
                                 H_L = (E_L + pres_L)/rho_L
                                 H_R = (E_R + pres_R)/rho_R
 
-                                !print *, 'j :: ',j,', k :: ',k,', energy L ', E_L,', pres L ',pres_L
-                                !print *, 'j :: ',j,', k :: ',k,', energy R ', E_R,', pres R ',pres_R
-
                                 ! ENERGY ADJUSTMENTS FOR HYPOELASTIC ENERGY
                                 if (hypoelasticity) then
                                     !$acc loop seq
@@ -1128,8 +1125,6 @@ contains
                                                               vel_L_rms, c_L)
 				call s_compute_speed_of_sound(pres_R, rho_R, gamma_R, pi_inf_R, H_R, alpha_R, &
                                                               vel_R_rms, c_R)
-
-                                !print *, 'j :: ',j,', speed of sound L',c_L,', speed of sound R',c_R
 
                                 !> The computation of c_avg does not require all the variables, and therefore the non '_avg'
                                 ! variables are placeholders to call the subroutine.
