@@ -206,8 +206,8 @@ contains
                  ! compute D^p using equation 4.5
                  Dp(1) = 1.5d0*(d_p / sigma_bar) * q_prim_vf(strxb)%sf(k, l, q)
                  Dp(2) = 1.5d0*(d_p / sigma_bar) * q_prim_vf(strxb + 1)%sf(k, l, q)
-                 Dp(3) = 1.5d0*(d_p / sigma_bar) * q_prim_vf(strxe - 1)%sf(k, l, q)
-                 Dp(4) = 1.5d0*(d_p / sigma_bar) * q_prim_vf(strxe)%sf(k, l, q)
+                 !Dp(3) = 1.5d0*(d_p / sigma_bar) * q_prim_vf(strxe - 1)%sf(k, l, q)
+                 Dp(3) = 1.5d0*(d_p / sigma_bar) * q_prim_vf(strxe)%sf(k, l, q)
                else 
                  d_p = 0d0
                  Dp(:) = 0d0
@@ -218,9 +218,9 @@ contains
                  2d0*rho_K*G_K*(devdtensor(1) - Dp(1))
                rhs_vf(strxb + 1)%sf(k, l, q) = rhs_vf(strxb + 1)%sf(k, l, q) + rho_K*tensora(2) + &
                  2d0*rho_K*G_K*(devdtensor(2) - Dp(2))                                                   
-               rhs_vf(strxb + 2)%sf(k, l, q) = rhs_vf(strxb + 2)%sf(k, l, q) + rho_K*tensora(3) + &
-                 2d0*rho_K*G_K*(devdtensor(3) - Dp(3))              
-               rhs_vf(strxb + 3)%sf(k, l, q) = rhs_vf(strxb + 3)%sf(k, l, q) + rho_K*atensor(4) + &
+               !rhs_vf(strxb + 2)%sf(k, l, q) = rhs_vf(strxb + 2)%sf(k, l, q) + rho_K*tensora(3) + &
+               !  2d0*rho_K*G_K*(devdtensor(3) - Dp(3))              
+               rhs_vf(strxb + 2)%sf(k, l, q) = rhs_vf(strxb + 2)%sf(k, l, q) + rho_K*atensor(4) + &
                  2d0*rho_K*G_K*(devdtensor(4) - Dp(4))             
                ! STEP 5: Compute hardening rhs term
                rhs_vf(plasidx)%sf(k, l, q) = rhs_vf(plasidx)%sf(k, l, q) + rho_K*d_p
