@@ -14,7 +14,7 @@ Ny = 100.
 Nx = Ny*3
 dx = leng/Nx
 
-time_end = 2.E-4         #5*leng/vel
+time_end = 1.E-3         #5*leng/vel
 cfl = 0.08
 
 dt = cfl * dx/c_l
@@ -33,7 +33,7 @@ gamma_suc     = 1.09
 
 #Initial condition
 theta_0           = 298             #K
-P_0               = 1e6  #Pa
+P_0               = 0e6             #Pa (Gauge pressure is zero)
 compression_ratio = 1.1             #rho/rho_0 in the shocked region
 rho_0             = 1580.5          #kg/m^3
 
