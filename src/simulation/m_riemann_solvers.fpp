@@ -1069,6 +1069,12 @@ contains
                                 E_L = gamma_L*pres_L + pi_inf_L + 5d-1*rho_L*vel_L_rms + qv_L
                                 E_R = gamma_R*pres_R + pi_inf_R + 5d-1*rho_R*vel_R_rms + qv_R
 
+                                H_L = (E_L + pres_L)/rho_L
+                                H_R = (E_R + pres_R)/rho_R
+
+                                print *, 'j :: ',j,', k :: ',k,', energy L ', E_L,', pres L ',pres_L
+                                print *, 'j :: ',j,', k :: ',k,', energy R ', E_R,', pres R ',pres_R
+
                                 ! ENERGY ADJUSTMENTS FOR HYPOELASTIC ENERGY
                                 if (hypoelasticity) then
                                     !$acc loop seq
@@ -1123,17 +1129,16 @@ contains
                                     end do
                                 end if
 
-                                H_L = (E_L + pres_L)/rho_L
-                                H_R = (E_R + pres_R)/rho_R
 
                                 @:compute_average_state()
 
                                 call s_compute_speed_of_sound(pres_L, rho_L, gamma_L, pi_inf_L, H_L, alpha_L, &
                                                               vel_L_rms, c_L)
-                                print *, 'speed of sound L', c_L
 				call s_compute_speed_of_sound(pres_R, rho_R, gamma_R, pi_inf_R, H_R, alpha_R, &
                                                               vel_R_rms, c_R)
-                                print *, 'speed of sound R', c_R
+
+                                print *, 'j :: ',j,', speed of sound L',c_L,', speed of sound R',c_R
+
                                 !> The computation of c_avg does not require all the variables, and therefore the non '_avg'
                                 ! variables are placeholders to call the subroutine.
                                 call s_compute_speed_of_sound(pres_R, rho_avg, gamma_avg, pi_inf_R, H_avg, alpha_R, &
@@ -1363,7 +1368,7 @@ contains
                             end do
                         end do
                     end do
-
+stop
                 elseif (model_eqns == 4) then
                     !ME4
                     !$acc parallel loop collapse(3) gang vector default(present) private(alpha_rho_L, alpha_rho_R, &

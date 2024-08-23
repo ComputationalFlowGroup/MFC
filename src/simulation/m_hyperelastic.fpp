@@ -138,9 +138,9 @@ contains
         real(kind(0d0)) :: G
         integer :: j, k, l, i, r
 
-        !$acc parallel loop collapse(3) gang vector default(present) private(alpha_K, alpha_rho_K, & 
-        !$acc rho, gamma, pi_inf, qv, G, Re, tensora, tensorb)
         if (num_dims == 1) then
+          !$acc parallel loop collapse(3) gang vector default(present) private(alpha_K, alpha_rho_K, & 
+          !$acc rho, gamma, pi_inf, qv, G, Re, tensora, tensorb)
           do l = 0, p
              do k = 0, n
                 do j = 0, m 
@@ -205,10 +205,12 @@ contains
                  end do
              end do
           end do
+          !$acc end parallel loop
 
-        !$acc parallel loop collapse(3) gang vector default(present) private(alpha_K, alpha_rho_K, & 
-        !$acc rho, gamma, pi_inf, qv, G, Re, tensora, tensorb)
         elseif (num_dims == 2) then
+
+          !$acc parallel loop collapse(3) gang vector default(present) private(alpha_K, alpha_rho_K, & 
+          !$acc rho, gamma, pi_inf, qv, G, Re, tensora, tensorb)
           do l = 0, p
              do k = 0, n
                 do j = 0, m 
@@ -233,76 +235,76 @@ contains
                       ! grad_xi definition / organization
                       ! number for the tensor 1-2:  dxix_dx, dxiy_dx
                                             ! 3-4:  dxix_dy, dxiy_dy
-                           !$acc loop seq
-                           do r = -fd_number, fd_number
-                              ! derivatives in the x-direction
-                              tensora(1) = tensora(1) + q_prim_vf(xibeg)%sf(j + r, k, l)*fd_coeff_x(r, j)
-                              tensora(2) = tensora(2) + q_prim_vf(xibeg + 1)%sf(j + r, k, l)*fd_coeff_x(r, j)
-                              ! derivatives in the y-direction
-                              tensora(3) = tensora(3) + q_prim_vf(xibeg)%sf(j, k + r, l)*fd_coeff_y(r, k)
-                              tensora(4) = tensora(4) + q_prim_vf(xibeg + 1)%sf(j, k + r, l)*fd_coeff_y(r, k)
-                           end do
-                           ! STEP 2a: computing the adjoint of the grad_xi tensor for the inverse
-                           tensorb(1) = tensora(4)
-                           tensorb(2) = -tensora(3)
-                           tensorb(3) = -tensora(2)
-                           tensorb(4) = tensora(1)
-                           ! STEP 2b: computing the determinant of the grad_xi tensor
-                           tensorb(tensor_size) = tensora(1)*tensora(4) - tensora(2)*tensora(3)
+                      !$acc loop seq
+                      do r = -fd_number, fd_number
+                         ! derivatives in the x-direction
+                         tensora(1) = tensora(1) + q_prim_vf(xibeg)%sf(j + r, k, l)*fd_coeff_x(r, j)
+                         tensora(2) = tensora(2) + q_prim_vf(xibeg + 1)%sf(j + r, k, l)*fd_coeff_x(r, j)
+                         ! derivatives in the y-direction
+                         tensora(3) = tensora(3) + q_prim_vf(xibeg)%sf(j, k + r, l)*fd_coeff_y(r, k)
+                         tensora(4) = tensora(4) + q_prim_vf(xibeg + 1)%sf(j, k + r, l)*fd_coeff_y(r, k)
+                      end do
+                      !print *, 'j :: ',j,', tensor1 :: ',tensora(1),', tensor2 :: ',tensora(2),', tensora(3) :: ',tensora(3),', tensora(4) :: ',tensora(4)
+                      ! STEP 2a: computing the adjoint of the grad_xi tensor for the inverse
+                      tensorb(1) = tensora(4)
+                      tensorb(2) = -tensora(3)
+                      tensorb(3) = -tensora(2)
+                      tensorb(4) = tensora(1)
+                      ! STEP 2b: computing the determinant of the grad_xi tensor
+                      tensorb(tensor_size) = tensora(1)*tensora(4) - tensora(2)*tensora(3)
 
-                           if (tensorb(tensor_size) > verysmall) then
-                              ! STEP 2c: computing the inverse of grad_xi tensor = F
-                              ! tensorb is the adjoint, tensora becomes F
-                              !$acc loop seq
-                              do i = 1, tensor_size - 1
-                                 tensora(i) = tensorb(i)/tensorb(tensor_size)
-                              end do
+                      if (tensorb(tensor_size) > verysmall) then
+                        ! STEP 2c: computing the inverse of grad_xi tensor = F
+                        ! tensorb is the adjoint, tensora becomes F
+                        !$acc loop seq
+                        do i = 1, tensor_size - 1
+                           tensora(i) = tensorb(i)/tensorb(tensor_size)
+                        end do
+                        ! STEP 2d: computing the J = det(F) = 1/det(\grad{\xi})
+                        tensorb(tensor_size) = 1d0/tensorb(tensor_size)
+                        ! STEP 3: override adjoint (tensorb) to be F transpose F
+                        tensorb(1) = tensora(1)**2 + tensora(2)**2
+                        tensorb(4) = tensora(3)**2 + tensora(4)**2
+                        tensorb(2) = tensora(1)*tensora(3) + tensora(2)*tensora(4)
+                        tensorb(3) = tensorb(2) !tensora(3)*tensora(1) + tensora(4)*tensora(2)
 
-                              ! STEP 2d: computing the J = det(F) = 1/det(\grad{\xi})
-                              tensorb(tensor_size) = 1d0/tensorb(tensor_size)
+                        ! STEP 4: update the btensor, this is consistent with Riemann solvers
+                        #:for BIJ, TXY in [(1,1),(2,2),(3,4)]
+                            btensor%vf(${BIJ}$)%sf(j, k, l) = tensorb(${TXY}$)
+                        #:endfor
+                        ! store the determinant at the last entry of the btensor
+                        btensor%vf(b_size)%sf(j, k, l) = tensorb(tensor_size)
+                        ! STEP 5a: updating the Cauchy stress primitive scalar field
+                        !print *,'hyper model :: ',hyper_model
+                        if (hyper_model == 1) then
+                            call s_neoHookean_cauchy_solver_2D(btensor%vf, q_prim_vf, G, j, k, l)
+                        elseif (hyper_model == 2) then
+                            call s_Mooney_Rivlin_cauchy_solver_2D(btensor%vf, q_prim_vf, G, j, k, l)        
+                        end if
+                        print *, 'before j :: ',j,', k :: ',k,', p :: ',q_prim_vf(E_idx)%sf(j,k,l),', val :: ',q_prim_vf(xiend + 1)%sf(j, k, l)
 
-                              ! STEP 3: override adjoint (tensorb) to be F transpose F
-                              tensorb(1) = tensora(1)**2 + tensora(2)**2
-                              tensorb(4) = tensora(3)**2 + tensora(4)**2
-                              tensorb(2) = tensora(1)*tensora(3) + tensora(2)*tensora(4)
-                              tensorb(3) = tensorb(2) !tensora(3)*tensora(1) + tensora(4)*tensora(2)
+                        ! STEP 5b: updating the pressure field
+                        q_prim_vf(E_idx)%sf(j, k, l) = q_prim_vf(E_idx)%sf(j, k, l) - &
+                                                       G*q_prim_vf(xiend + 1)%sf(j, k, l)/gamma
 
-                              !print *, 'I got here d. tensorb(1) ::', tensorb(1), &
-                              !'tensorb(2) ::', tensorb(2), 'tensorb(3) ::', tensorb(3), &
-                              !'tensorb(4) ::', tensorb(4)
+                        print *, 'after j :: ',j,', k :: ',k,', p :: ',q_prim_vf(E_idx)%sf(j,k,l),' val :: ',q_prim_vf(xiend + 1)%sf(j, k, l)
 
-                              ! STEP 4: update the btensor, this is consistent with Riemann solvers
-!                              btensor%vf(1)%sf(j, k, l) = tensorb(1) !b_xx
-!                              btensor%vf(2)%sf(j, k, l) = tensorb(2) !b_xy
-!                              btensor%vf(3)%sf(j, k, l) = tensorb(4) !b_yy
-                              #:for BIJ, TXY in [(1,1),(2,2),(3,4)]
-                                btensor%vf(${BIJ}$)%sf(j, k, l) = tensorb(${TXY}$)
-                              #:endfor
-                              ! store the determinant at the last entry of the btensor
-                              btensor%vf(b_size)%sf(j, k, l) = tensorb(tensor_size)
-                              ! STEP 5a: updating the Cauchy stress primitive scalar field
-                            !  if (hyper_model == 1) then
-                                 call s_neoHookean_cauchy_solver_2D(btensor%vf, q_prim_vf, G, j, k, l)
-                            !  elseif (hyper_model == 2) then
-                            !     call s_Mooney_Rivlin_cauchy_solver_2D(btensor%vf, q_prim_vf, G, j, k, l)        
-                            !  end if
-                              ! STEP 5b: updating the pressure field
-                              q_prim_vf(E_idx)%sf(j, k, l) = q_prim_vf(E_idx)%sf(j, k, l) - &
-                                                             G*q_prim_vf(xiend + 1)%sf(j, k, l)/gamma
-                              ! STEP 5c: updating the Cauchy stress conservative scalar field
-                              !$acc loop seq
-                              do i = 1, b_size - 1
-                                  q_cons_vf(strxb + i - 1)%sf(j, k, l) = rho*q_prim_vf(strxb + i - 1)%sf(j, k, l)
-                              end do
-                         end if
-                     end if
-                 end do
+                        ! STEP 5c: updating the Cauchy stress conservative scalar field
+                        !$acc loop seq
+                        do i = 1, b_size - 1
+                           q_cons_vf(strxb + i - 1)%sf(j, k, l) = rho*q_prim_vf(strxb + i - 1)%sf(j, k, l)
+                        end do
+                      end if
+                   end if
+                end do
              end do
           end do
-
-        !$acc parallel loop collapse(3) gang vector default(present) private(alpha_K, alpha_rho_K, &
-        !$acc rho, gamma, pi_inf, qv, G, Re, tensora, tensorb)
+          !$acc end parallel loop
+stop
         elseif (num_dims == 3) then
+
+            !$acc parallel loop collapse(3) gang vector default(present) private(alpha_K, alpha_rho_K, &
+            !$acc rho, gamma, pi_inf, qv, G, Re, tensora, tensorb)
             do l = 0, p 
                 do k = 0, n 
                     do j = 0, m 
@@ -378,12 +380,6 @@ contains
                               tensorb(3) = tensora(1)*tensora(7) + tensora(2)*tensora(8) + tensora(3)*tensora(9)
                               tensorb(6) = tensora(4)*tensora(7) + tensora(5)*tensora(8) + tensora(6)*tensora(9)
                               ! STEP 4: update the btensor, this is consistent with Riemann solvers
-!                              btensor%vf(1)%sf(j, k, l) = tensorb(1) !b_xx
-!                              btensor%vf(2)%sf(j, k, l) = tensorb(2) !b_xy
-!                              btensor%vf(3)%sf(j, k, l) = tensorb(5) !b_yy
-!                              btensor%vf(4)%sf(j, k, l) = tensorb(3) !b_xz
-!                              btensor%vf(5)%sf(j, k, l) = tensorb(6) !b_yz
-!                              btensor%vf(6)%sf(j, k, l) = tensorb(9) !b_zz
                               #:for BIJ, TXY in [(1,1),(2,2),(3,5),(4,3),(5,6),(6,9)]
                                 btensor%vf(${BIJ}$)%sf(j, k, l) = tensorb(${TXY}$)
                               #:endfor
@@ -408,8 +404,8 @@ contains
                    end do
                end do
            end do
+          !$acc end parallel loop
         end if 
-        !$acc end parallel loop
     end subroutine s_hyperelastic_rmt_stress_update
 
     !>  The following subroutines handle the calculation of the btensor
@@ -462,24 +458,24 @@ contains
         real(kind(0d0)) :: f13 = 1d0/3d0
         integer :: i !< Generic loop iterators
 
-            ! tensor is the symmetric tensor & calculate the trace of the tensor
-            trace = btensor(1)%sf(j, k, l) + btensor(3)%sf(j, k, l)
+        ! tensor is the symmetric tensor & calculate the trace of the tensor
+        trace = btensor(1)%sf(j, k, l) + btensor(3)%sf(j, k, l)
 
-            ! calculate the deviatoric of the tensor
-            btensor(1)%sf(j, k, l) = btensor(1)%sf(j, k, l) - f13*trace
-            btensor(3)%sf(j, k, l) = btensor(3)%sf(j, k, l) - f13*trace
+        ! calculate the deviatoric of the tensor
+        btensor(1)%sf(j, k, l) = btensor(1)%sf(j, k, l) - f13*trace
+        btensor(3)%sf(j, k, l) = btensor(3)%sf(j, k, l) - f13*trace
 
-            ! dividing by the jacobian for neo-Hookean model
-            ! setting the tensor to the stresses for riemann solver
-            !$acc loop seq
-            do i = 1, b_size - 1
-                q_prim_vf(strxb + i - 1)%sf(j, k, l) = &
-                      G*btensor(i)%sf(j, k, l)/btensor(b_size)%sf(j, k, l)
-              !  print *, 'q_prim_vf(', strxb + i - 1, ', ', j, ', ', k, ', ', l, ') = ', q_prim_vf(strxb + i - 1)%sf(j, k, l)
-            end do
-            ! compute the invariant without the elastic modulus
-            q_prim_vf(xiend + 1)%sf(j, k, l) = &
-                0.5d0*(trace - 3.0d0)/btensor(b_size)%sf(j, k, l)
+        ! dividing by the jacobian for neo-Hookean model
+        ! setting the tensor to the stresses for riemann solver
+        !$acc loop seq
+        do i = 1, b_size - 1
+           q_prim_vf(strxb + i - 1)%sf(j, k, l) = &
+               G*btensor(i)%sf(j, k, l)/btensor(b_size)%sf(j, k, l)
+        !   print *,'j :: ',j,', val :: ', G*btensor(i)%sf(j, k, l)/btensor(b_size)%sf(j, k, l)
+        end do
+        ! compute the invariant without the elastic modulus
+        q_prim_vf(xiend + 1)%sf(j, k, l) = &
+          0.5d0*(trace - 3.0d0)/btensor(b_size)%sf(j, k, l)
 
    end subroutine s_neoHookean_cauchy_solver_2D
 

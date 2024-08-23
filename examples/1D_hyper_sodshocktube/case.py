@@ -3,7 +3,7 @@ import math
 import json
 
 #Numerical setup
-Nx      = 201
+Nx      = 199
 dx      = 1./(1.*(Nx+1))
 
 Tend    = 64E-06
@@ -22,7 +22,7 @@ print(json.dumps({
                     'y_domain%beg'                 : 0.E+00,
                     'y_domain%end'                 : 0.002,
                     'm'                            : Nx,                        
-                    'n'                            : 32,                         
+                    'n'                            : 31,                         
                     'p'                            : 0,                         
                     'dt'                           : mydt,                      
                     't_step_start'                 : 0,                         
