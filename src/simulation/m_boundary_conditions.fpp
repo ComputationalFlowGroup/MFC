@@ -346,14 +346,15 @@ contains
                     end do
                 end do
 
-               !$acc parallel loop collapse(4) gang vector default(present), private(bc_sum)
                if (hyperelasticity) then
-                  do j = 1, buff_size
+                 !$acc parallel loop collapse(4) gang vector default(present), private(bc_sum)
+                 do j = 1, buff_size
                      do l = -buff_size, m + buff_size
                         do k = 0, p
                            do i = xibeg, xiend
                               bc_sum = 0d0
-                              do q = 1, j
+                              !$acc loop seq
+                            do q = 1, j
                                  bc_sum = bc_sum + dy(n + q)
                                end do
                               q_prim_vf(i)%sf(l, n + j, k) = &
@@ -362,6 +363,7 @@ contains
                          end do
                      end do
                   end do
+                  !$acc end parallel loop
                end if
  
             end if
@@ -383,13 +385,14 @@ contains
                     end do
                 end do
 
-               !$acc parallel loop collapse(5) gang vector default(present), private(bc_sum)
-               if (hyperelasticity) then
+              if (hyperelasticity) then
+                  !$acc parallel loop collapse(4) gang vector default(present), private(bc_sum)
                   do j = 1, buff_size
                      do l = -buff_size, n + buff_size
                         do k = -buff_size, m + buff_size
                            do i = xibeg, xiend
                               bc_sum = 0d0
+                              !$acc loop seq
                               do q = 1, j
                                  bc_sum = bc_sum - dx(-q)
                               end do
@@ -399,6 +402,7 @@ contains
                          end do
                      end do
                   end do
+                  !$acc end parallel loop
                end if
              else !< bc_z%end
 
@@ -414,13 +418,14 @@ contains
                     end do
                 end do
 
-               !$acc parallel loop collapse(5) gang vector default(present), private(bc_sum)
                if (hyperelasticity) then
-                  do j = 1, buff_size
+                 !$acc parallel loop collapse(4) gang vector default(present), private(bc_sum)
+                 do j = 1, buff_size
                      do l = -buff_size, n + buff_size
                         do k = -buff_size, m + buff_size
                            do i = xibeg, xiend
                               bc_sum = 0d0
+                              !$acc loop seq
                               do q = 1, j
                                  bc_sum = bc_sum + dz(p + q)
                                end do
@@ -430,6 +435,7 @@ contains
                          end do
                      end do
                   end do
+                  !$acc end parallel loop
                end if
  
             end if
