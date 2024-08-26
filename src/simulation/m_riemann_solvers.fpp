@@ -2084,7 +2084,6 @@ contains
                     !$acc alpha_rho_L, alpha_rho_R, tau_e_L, tau_e_R, vel_L_tmp, vel_R_tmp, xi_d_L, xi_d_R, rho0mix, &
                     !$acc rho_mix_MG_denominator, zeta_mix, theta_E, gamma_rho_squared_denominator, rho_mix_ratio, &
                     !$acc rho_mix_MG, phi_mix, pres_bar, rho_K_ratio, E_mg)  
-
                     do l = is3%beg, is3%end
                         do k = is2%beg, is2%end
                             do j = is1%beg, is1%end
