@@ -97,7 +97,8 @@ contains
         type(scalar_field), dimension(sys_size), intent(inout) :: rhs_vf
 
         real(kind(0d0)) :: rho_K, G_K
-        real(kind(0d0)), dimension(num_dims**2) :: atensor, tensora, devdtensor, Dp
+        real(kind(0d0)) :: wtensor
+        real(kind(0d0)), dimension(num_dims**2) :: stensor, tensora, devdtensor, Dp
 
         integer :: i, k, l, p, r, q !< Loop variables
 
@@ -151,17 +152,16 @@ contains
         !$acc parallel loop collapse(2) gang vector default(present)
         do l = 0, n
           do k = 0, m
-             ! STEP 1 : Compute the first additional term in rhs: -rho((SW)^T - SW)
-             ! Let atensor = SW, attensor = (SW)^T, tensora = attensor - atensor
-             atensor(1) = (1d0/4d0)*(dv_dx(k, l, q)**2 - du_dy(k, l, q)**2)
-             atensor(2) = (1d0/2d0)*(du_dy(k, l, q)*du_dx(k, l, q) - &
-                  dv_dx(k, l, q)*du_dx(k, l, q))
-             atensor(3) = (1d0/2d0)*(dv_dx(k, l, q)*dv_dy(k, l, q) - &
-                  du_dy(k, l, q)*dv_dy(k, l, q))
-             atensor(4) = (1d0/4d0)*(du_dy(k, l, q)**2 - dv_dx(k, l, q)**2)
-             tensora(2) = atensor(3) - atensor(2)
-             tensora(3) = atensor(2) - atensor(3)
-            
+             ! STEP 1 : Compute the first additional term in rhs: -SW + WS
+             ! Let wtensor = W12, tensora = -SW + WS
+             wtensor = 5d-1*(du_dy(k, l, q) - dv_dx(k, l, q))
+             stensor(1) = 2d0*q_prim_vf(strxe - 1)%sf(k, l, q) !2*S12
+             stensor(2) = q_prim_vf(strxe)%sf(k, l, q) - q_prim_vf(strxb)%sf(k, l, q) !S22 - S11
+             stensor(3) = -stensor(1) !-2*S12
+             tensora(1) = wtensor*stensor(1)
+             tensora(2) = wtensor*stensor(2)
+             tensora(3) = wtensor*stensor(3)
+           
              ! STEP 2: Compute the deviatoric part of D, symmetric part of velocity gradient
              ! dtrace = du_dx(k, l, q) + dv_dy(k, l, q)
              devdtensor(1) = du_dx(k, l, q) - (1d0/3d0)*(du_dx(k, l, q) + dv_dy(k, l, q))
@@ -212,7 +212,7 @@ contains
              Dp(4) = ((3d0*d_p) / (2d0*sigma_bar)) * dv_dy(k, l, q)
 
              ! STEP 4: Compute rhs source terms
-             rhs_vf(strxb + 0)%sf(k, l, q) = rhs_vf(strxb)%sf(k, l, q) + rho_K_field(k, l ,q)*atensor(1) + & 
+             rhs_vf(strxb + 0)%sf(k, l, q) = rhs_vf(strxb)%sf(k, l, q) + rho_K_field(k, l ,q)*tensora(1) + & 
                2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(1) - Dp(1))
                       
              rhs_vf(strxb + 1)%sf(k, l, q) = rhs_vf(strxb + 1)%sf(k, l, q) + rho_K_field(k, l, q)* tensora(2) + &
@@ -221,7 +221,7 @@ contains
              rhs_vf(strxb + 2)%sf(k, l, q) = rhs_vf(strxb + 2)%sf(k, l, q) + rho_K_field(k, l, q)*tensora(3) + &
                2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(3) - Dp(3))
                
-             rhs_vf(strxb + 3)%sf(k, l, q) = rhs_vf(strxb + 3)%sf(k, l, q) + rho_K_field(k, l, q)*atensor(4) + &
+             rhs_vf(strxb + 3)%sf(k, l, q) = rhs_vf(strxb + 3)%sf(k, l, q) + rho_K_field(k, l, q)*tensora(4) + &
                2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(4) - Dp(4))             
 
              ! STEP 5: Compute hardening rhs term
