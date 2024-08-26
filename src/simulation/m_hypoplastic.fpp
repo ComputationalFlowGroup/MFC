@@ -47,9 +47,6 @@ module m_hypoplastic
     real(kind(0d0)), allocatable, dimension(:, :, :) :: dv_dx, dv_dy
     !$acc declare create(du_dx,du_dy,dv_dx,dv_dy)
 
-    real(kind(0d0)), allocatable, dimension(:, :, :) :: rho_K_field, G_K_field
-    !$acc declare create(rho_K_field, G_K_field)
-
     real(kind(0d0)), allocatable, dimension(:, :) :: fd_coeff_x, fd_coeff_y
     !$acc declare create(fd_coeff_x,fd_coeff_y)
 #endif
@@ -63,7 +60,6 @@ contains
         integer :: i, k, r
 
         @:ALLOCATE_GLOBAL(Gs(1:num_fluids))
-        @:ALLOCATE_GLOBAL(rho_K_field(0:m,0:n,0:p), G_K_field(0:m,0:n,0:p))
         @:ALLOCATE_GLOBAL(du_dx(0:m,0:n,0:p))
         @:ALLOCATE_GLOBAL(du_dy(0:m,0:n,0:p), dv_dx(0:m,0:n,0:p), dv_dy(0:m,0:n,0:p))
 
@@ -107,48 +103,25 @@ contains
         real(kind(0d0)) :: theta_m, tempref, theta_hat, sigma_bar, dp_JC, d_p
 
         ! compute velocity gradients and rho_K and G_K        
-        du_dx(:, :, :) = 0d0
-        du_dy(:, :, :) = 0d0
-        dv_dx(:, :, :) = 0d0
-        dv_dy(:, :, :) = 0d0
+        du_dx(:, :, :) = 0d0; du_dy(:, :, :) = 0d0
+        dv_dx(:, :, :) = 0d0; dv_dy(:, :, :) = 0d0
 
         !$acc parallel loop collapse(2) gang vector default(present)
         do l = 0, n
           do k = 0, m
             do r = -fd_number, fd_number
-               du_dx(k, l, q) = du_dx(k, l, q) &
-               + q_prim_vf(momxb)%sf(k + r, l, q)*fd_coeff_x(r, k)
-               du_dy(k, l, q) = du_dy(k, l, q) &
-               + q_prim_vf(momxb)%sf(k, l + r, q)*fd_coeff_y(r, l)
-               dv_dx(k, l, q) = dv_dx(k, l, q) &
-               + q_prim_vf(momxb + 1)%sf(k + r, l, q)*fd_coeff_x(r, k)
-               dv_dy(k, l, q) = dv_dy(k, l, q) &
-               + q_prim_vf(momxb + 1)%sf(k, l + r, q)*fd_coeff_y(r, l)
+               du_dx(k, l, q) = du_dx(k, l, q) + q_prim_vf(momxb)%sf(k + r, l, q)*fd_coeff_x(r, k)
+               du_dy(k, l, q) = du_dy(k, l, q) + q_prim_vf(momxb)%sf(k, l + r, q)*fd_coeff_y(r, l)
+               dv_dx(k, l, q) = dv_dx(k, l, q) + q_prim_vf(momxb + 1)%sf(k + r, l, q)*fd_coeff_x(r, k)
+               dv_dy(k, l, q) = dv_dy(k, l, q) + q_prim_vf(momxb + 1)%sf(k, l + r, q)*fd_coeff_y(r, l)
             end do
           end do
         end do
         !$acc end parallel loop
 
+        tensora(:) = 0d0
         !$acc parallel loop collapse(2) gang vector default(present)
-        do l = 0, n
-           do k = 0, m
-             rho_K = 0d0; G_K = 0d0
-             do i = 1, num_fluids
-                rho_K = rho_K + q_prim_vf(i)%sf(k, l, q) !alpha_rho_K(1)
-                G_K = G_K + q_prim_vf(advxb - 1 + i)%sf(k, l, q)*Gs(i)  !alpha_K(1) * Gs(1)
-             end do
-                rho_K_field(k, l, q) = rho_K
-                G_K_field(k, l, q) = G_K
-                !TODO: take this out if not needed
-                if (G_K < verysmall) then
-                    G_K_field(k, l, q) = 0
-                end if
-           end do
-        end do
-        !$acc end parallel loop
-
-        tensora(1) = 0d0;  tensora(4) = 0d0
-        !$acc parallel loop collapse(2) gang vector default(present)
+        !$acc private(rho_K,G_K,alpha_rho_K,alpha_K)
         do l = 0, n
           do k = 0, m
              ! STEP 1 : Compute the first additional term in rhs: -SW + WS
@@ -166,61 +139,88 @@ contains
              devdtensor(1) = du_dx(k, l, q) - (1d0/3d0)*(du_dx(k, l, q) + dv_dy(k, l, q))
              devdtensor(2) = 5d-1*(du_dy(k, l, q) + dv_dx(k, l, q))
              devdtensor(3) = dv_dy(k, l, q) - (1d0/3d0)*(du_dx(k, l, q) + dv_dy(k, l, q))
-            
+
              ! STEP 3: Compute the equivalent plastic strain rate, d^p 
-             ! STEP 3.1 : Compute mixture pressure and temperature
-             call s_compute_pressure(energy, alf, dyn_p, pi_inf, gamma,rho, qv, & 
-                                     pres, stress, mom, G, alpha_K, alpha_rho_K)
-             call s_compute_temperature(energy, dyn_p, pi_inf, gamma, rho, qv, & 
-                                        temp, alpha_K, alpha_rho_K)
+             ! STEP 3.1 : Compute mixtures variables for computing
+             ! pressure and temperature
+             energy = q_cons_vf(E_idx)%sf(k, l, q) !shouldn't this be qK_cons_vf(E_idx)
+             dyn_p = 0d0
+           
+             do i = momxb, momxe
+                q_cons_vf(i)%sf(k, l, q) = rho*q_prim_vf(i)%sf(k, l, q)
+                dyn_p = dyn_p + 5d-1*q_cons_vf(i)%sf(k, l, q)*q_prim_vf(i)%sf(k, l, q)
+             end do
+              
+             rho_K = 0d0; G_K = 0d0;
+             ! STEP 3.2 : Compute mixture pressure and temperature
+              do i = 1, num_fluids
+                 rho_K = rho_K + q_prim_vf(i)%sf(k, l, q) 
+                 G_K = G_K + q_prim_vf(advxb - 1 + i)%sf(k, l, q)*Gs(i) 
+                 alpha_rho_K(i) = q_cons_vf(i)%sf(k, l, q)
+                 alpha_K(i) = q_cons_vf(advxb + i - 1)%sf(k, l, q)
+              end do
+ 
+             ! STEP 3: Compute the equivalent plastic strain rate, d^p
+             if (G_K .gt. verysmall) then 
+                ! STEP 3.1 : Compute mixture pressure and temperature
+                call s_compute_pressure(energy, alf, dyn_p, pi_inf, gamma,rho, qv, & 
+                                        pres, stress, mom, G, alpha_K, alpha_rho_K)
+                call s_compute_temperature(energy, dyn_p, pi_inf, gamma, rho, qv, & 
+                                          temp, alpha_K, alpha_rho_K)
 
-             ! STEP 3.2 : Compute theta_m, theta_hat, and sigma_bar
-             ! compute theta_m from equation 4.10
-             ! jcook(6) = theta_m0, jcook(8) = pres_init, jcook(9) = d, assuming presref = 0
-             theta_m = jcook6(1)*(1d0 + (pres/jcook8(1)))**(1d0/jcook9(1))
-             ! compute theta_hat from equation 4.9
-             tempref = jcook11(1)
-             if (temp .lt. tempref) then
-                theta_hat = 0
-             elseif (temp .le. theta_m) then
-                theta_hat = (temp - tempref)/(theta_m - tempref)
-             else
-                theta_hat = 1
-             end if
-             !could alternatively compute subtract tempref in both temp subroutine and theta_m
-             ! compute sigma_bar = sqrt(3/2) * | S | 
-             sigma_bar = dsqrt(1.5d0) * (du_dx(k, l, q)**2 + dv_dy(k, l, q)**2 + &
-                         (5d-1)*du_dy(k, l, q)**2 + 5d-1*dv_dx(k, l, q)**2 + &
-                         du_dy(k, l, q)*dv_dx(k, l, q))**(5d-1)
+                ! STEP 3.2 : Compute theta_m, theta_hat, and sigma_bar
+                ! compute theta_m from equation 4.10
+                ! jcook(6) = theta_m0, jcook(8) = pres_init, jcook(9) = d, assuming presref = 0
+                theta_m = jcook6(1)*(1d0 + (pres/jcook8(1)))**(1d0/jcook9(1))
+                ! compute theta_hat from equation 4.9
+                tempref = jcook11(1)
+                if (temp .lt. tempref) then
+                   theta_hat = 0
+                elseif (temp .le. theta_m) then
+                   theta_hat = (temp - tempref)/(theta_m - tempref)
+                else
+                   theta_hat = 1
+                end if
+                !could alternatively compute subtract tempref in both temp subroutine and theta_m
+                ! compute sigma_bar = sqrt(3/2) * | S | 
+                sigma_bar = dsqrt(1.5d0) * (du_dx(k, l, q)**2 + dv_dy(k, l, q)**2 + &
+                            (5d-1)*du_dy(k, l, q)**2 + 5d-1*dv_dx(k, l, q)**2 + &
+                            du_dy(k, l, q)*dv_dx(k, l, q))**(5d-1)
 
-             ! STEP 3.3 : Compute d^p and update rhs
-             ! compute d^p_JC from equation 4.7
-             ! d0 = 1 s^-1, jcook(4) = C, jcook(1) = A, jcook(2) = B,
-             ! jcook(10) = d0 = R_tilde nondimensionally
-             dp_JC = jcook10(1) * dexp( (1d0/jcook4(1)) * (sigma_bar / &
-                 ((jcook1(1) + jcook2(1)*q_prim_vf(plasidx)%sf(k, l, q))**(jcook3(1)) &
-                 *(1d0 - theta_hat**jcook5(1)))) - 1d0)
-             ! compute d^p from equation 4.6
-             ! jcook(7) = d^p_lim
-             d_p = ((1d0/dp_JC) + (1d0/jcook7(1)))**(-1d0)
-             ! compute D^p using equation 4.5
-             Dp(1) = ((3d0*d_p) / (2d0*sigma_bar)) * du_dx(k, l, q)
-             Dp(2) = ((3d0*d_p) / (2d0*sigma_bar)) * 5d-1*(du_dy(k, l, q) + dv_dx(k, l, q))
-             Dp(3) = ((3d0*d_p) / (2d0*sigma_bar)) * dv_dy(k, l, q)
+                ! STEP 3.3 : Compute d^p and update rhs
+                ! compute d^p_JC from equation 4.7
+                ! d0 = 1 s^-1, jcook(4) = C, jcook(1) = A, jcook(2) = B,
+                ! jcook(10) = d0 = R_tilde nondimensionally
+                 dp_JC = jcook10(1) * dexp( (1d0/jcook4(1)) * (sigma_bar / &
+                     ((jcook1(1) + jcook2(1)*q_prim_vf(plasidx)%sf(k, l, q))**(jcook3(1)) &
+                     *(1d0 - theta_hat**jcook5(1)))) - 1d0)
+                ! compute d^p from equation 4.6
+                ! jcook(7) = d^p_lim
+                if (sigma_bar .gt. 100d0*verysmall) then
+                    d_p = ((1d0/dp_JC) + (1d0/jcook7(1)))**(-1d0)
+                    ! compute D^p using equation 4.5
+                    Dp(1) = 1.5d0*(d_p / sigma_bar) * q_prim_vf(strxb)%sf(k, l, q)
+                    Dp(2) = 1.5d0*(d_p / sigma_bar) * q_prim_vf(strxb + 1)%sf(k, l, q)
+                    Dp(3) = 1.5d0*(d_p / sigma_bar) * q_prim_vf(strxe)%sf(k, l, q)
+                else
+                    d_p = 0d0
+                    Dp(:) = 0d0
+                end if
 
-             ! STEP 4: Compute rhs source terms
-             rhs_vf(strxb + 0)%sf(k, l, q) = rhs_vf(strxb)%sf(k, l, q) + rho_K_field(k, l ,q)*tensora(1) + & 
-               2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(1) - Dp(1))
+                ! STEP 4: Compute rhs source terms
+                rhs_vf(strxb + 0)%sf(k, l, q) = rhs_vf(strxb)%sf(k, l, q) + rho_K*tensora(1) + & 
+                                                2d0*rho_K*G_K*(devdtensor(1) - Dp(1))
                       
-             rhs_vf(strxb + 1)%sf(k, l, q) = rhs_vf(strxb + 1)%sf(k, l, q) + rho_K_field(k, l, q)* tensora(2) + &
-               2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(2) - Dp(2))
+                rhs_vf(strxb + 1)%sf(k, l, q) = rhs_vf(strxb + 1)%sf(k, l, q) + rho_K*tensora(2) + &
+                                                2d0*rho_K*G_K*(devdtensor(2) - Dp(2))
                                                      
-             rhs_vf(strxb + 2)%sf(k, l, q) = rhs_vf(strxb + 2)%sf(k, l, q) + rho_K_field(k, l, q)*tensora(3) + &
-               2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(3) - Dp(3))
+                rhs_vf(strxb + 2)%sf(k, l, q) = rhs_vf(strxb + 2)%sf(k, l, q) + rho_K*tensora(3) + &
+                                                2d0*rho_K*G_K*(devdtensor(3) - Dp(3))
                
-             ! STEP 5: Compute hardening rhs term
-             rhs_vf(plasidx)%sf(k, l, q) = rhs_vf(plasidx)%sf(k, l, q) + rho_K_field(k, l, q)*d_p
-            end do
+               ! STEP 5: Compute hardening rhs term
+               rhs_vf(plasidx)%sf(k, l, q) = rhs_vf(plasidx)%sf(k, l, q) + rho_K*d_p
+             end if
+           end do
          end do
          !$acc end parallel loop
 
@@ -229,7 +229,6 @@ contains
     subroutine s_finalize_hypoplastic_module() ! --------------------
 
         @:DEALLOCATE_GLOBAL(Gs)
-        @:DEALLOCATE_GLOBAL(rho_K_field, G_K_field)
         @:DEALLOCATE_GLOBAL(du_dx)
         @:DEALLOCATE_GLOBAL(fd_coeff_x)
         @:DEALLOCATE_GLOBAL(du_dy,dv_dx,dv_dy)
