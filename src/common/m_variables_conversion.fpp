@@ -190,6 +190,7 @@ contains
                    end do
                 pres = pres + energy - dyn_p     
                 pres = pres/rho_mix_MG
+                
         else
             pres = (pref + pi_inf)* &
                    (energy/ &
