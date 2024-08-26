@@ -140,7 +140,6 @@ contains
              devdtensor(1) = du_dx(k, l, q) - (1d0/3d0)*(du_dx(k, l, q) + dv_dy(k, l, q))
              devdtensor(2) = 5d-1*(du_dy(k, l, q) + dv_dx(k, l, q))
              devdtensor(3) = dv_dy(k, l, q) - (1d0/3d0)*(du_dx(k, l, q) + dv_dy(k, l, q))
-
              ! STEP 3: Compute the equivalent plastic strain rate, d^p 
              ! STEP 3.1 : Compute mixtures variables for computing
              ! pressure and temperature

@@ -464,65 +464,62 @@ contains
                                 end do
                             end if
 
-                            E_L = gamma_L*pres_L + pi_inf_L + 5d-1*rho_L*vel_L_rms + qv_L
-                            E_R = gamma_R*pres_R + pi_inf_R + 5d-1*rho_R*vel_R_rms + qv_R
-
-                            ! elastic energy update
+                            ! ENERGY ADJUSTMENTS FOR HYPOELASTIC ENERGY
                             if (hypoelasticity) then
+                               !$acc loop seq
+                                do i = 1, strxe - strxb + 1
+                                    tau_e_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, strxb - 1 + i)
+                                    tau_e_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, strxb - 1 + i)
+                                end do
                                 G_L = 0d0; G_R = 0d0
                                 !$acc loop seq
                                 do i = 1, num_fluids
                                     G_L = G_L + alpha_L(i)*Gs(i)
                                     G_R = G_R + alpha_R(i)*Gs(i)
                                 end do
+                                !$acc loop seq
                                 do i = 1, strxe - strxb + 1
-                                    tau_e_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, strxb - 1 + i)
-                                    tau_e_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, strxb - 1 + i)
-                                    ! Elastic contribution to energy if G large enough
-                                    !TODO take out if statement if stable without
-                                    if ((G_L > 1000) .and. (G_R > 1000)) then
-                                        E_L = E_L + (tau_e_L(i)*tau_e_L(i))/(4d0*G_L)
-                                        E_R = E_R + (tau_e_R(i)*tau_e_R(i))/(4d0*G_R)
-                                        ! Additional terms in 2D and 3D
-                                        if ((i == 2) .or. (i == 4) .or. (i == 5)) then
-                                            E_L = E_L + (tau_e_L(i)*tau_e_L(i))/(4d0*G_L)
-                                            E_R = E_R + (tau_e_R(i)*tau_e_R(i))/(4d0*G_R)
-                                        end if
-                                    end if
+                                  ! Elastic contribution to energy if G large enough
+                                  if ((G_L > verysmall) .and. (G_R > verysmall)) then
+                                     E_L = E_L + (tau_e_L(i)*tau_e_L(i))/(4d0*G_L)
+                                     E_R = E_R + (tau_e_R(i)*tau_e_R(i))/(4d0*G_R)
+                                     ! Additional terms in 2D and 3D
+                                     if ((i == 2) .or. (i == 4) .or. (i == 5)) then
+                                         E_L = E_L + (tau_e_L(i)*tau_e_L(i))/(4d0*G_L)
+                                         E_R = E_R + (tau_e_R(i)*tau_e_R(i))/(4d0*G_R)
+                                     end if
+                                  end if
                                 end do
-                            end if
+                             end if
 
-                            ! elastic energy update
-                            !if ( hyperelasticity ) then
-                            !    G_L = 0d0
-                            !    G_R = 0d0
-                            !
-                            !    !$acc loop seq
-                            !    do i = 1, num_fluids
-                            !        G_L = G_L + alpha_L(i)*Gs(i)
-                            !        G_R = G_R + alpha_R(i)*Gs(i)
-                            !    end do
-                            !    ! Elastic contribution to energy if G large enough
-                            !    if ((G_L > 1d-3) .and. (G_R > 1d-3)) then
-                            !    E_L = E_L + G_L*qL_prim_rs${XYZ}$_vf(j, k, l, xiend + 1)
-                            !    E_R = E_R + G_R*qR_prim_rs${XYZ}$_vf(j + 1, k, l, xiend + 1)
-                            !    !$acc loop seq
-                            !    do i = 1, b_size-1
-                            !        tau_e_L(i) = G_L*qL_prim_rs${XYZ}$_vf(j, k, l, strxb - 1 + i)
-                            !        tau_e_R(i) = G_R*qR_prim_rs${XYZ}$_vf(j + 1, k, l, strxb - 1 + i)
-                            !    end do
-                            !    !$acc loop seq
-                            !    do i = 1, b_size-1
-                            !        tau_e_L(i) = 0d0
-                            !        tau_e_R(i) = 0d0
-                            !    end do
-                            !    !$acc loop seq
-                            !    do i = 1, num_dims
-                            !        xi_field_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, xibeg - 1 + i)
-                            !        xi_field_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, xibeg - 1 + i)
-                            !    end do
-                            !    end if
-                            !end if
+                             ! ENERGY ADJUSTMENTS FOR HYPERELASTIC ENERGY
+                             if (hyperelasticity) then
+                               !$acc loop seq
+                               do i = 1, num_dims
+                                  xi_field_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, xibeg - 1 + i)
+                                  xi_field_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, xibeg - 1 + i)
+                               end do
+                               G_L = 0d0; G_R = 0d0; 
+                               !$acc loop seq
+                               do i = 1, num_fluids
+                                  ! Mixture left and right shear modulus
+                                  G_L = G_L + alpha_L(i)*Gs(i)
+                                  G_R = G_R + alpha_R(i)*Gs(i)
+                               end do
+                               ! Elastic contribution to energy if G large enough
+                               if (G_L > verysmall .and. G_R > verysmall) then
+                                   E_L = E_L + G_L*qL_prim_rs${XYZ}$_vf(j, k, l, xiend + 1)
+                                   E_R = E_R + G_R*qR_prim_rs${XYZ}$_vf(j + 1, k, l, xiend + 1)
+                               end if
+                               !$acc loop seq
+                               do i = 1, b_size - 1
+                                  tau_e_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, strxb - 1 + i)
+                                  tau_e_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, strxb - 1 + i)
+                               end do
+                             end if
+
+                            E_L = gamma_L*pres_L + pi_inf_L + 5d-1*rho_L*vel_L_rms + qv_L
+                            E_R = gamma_R*pres_R + pi_inf_R + 5d-1*rho_R*vel_R_rms + qv_R
 
                             ! Enthalpy with elastic energy
                             H_L = (E_L + pres_L)/rho_L
@@ -552,7 +549,7 @@ contains
                             end if
 
                             if (wave_speeds == 1) then
-                                if (hypoelasticity) then
+                                if (elasticity) then
                                     s_L = min(vel_L(dir_idx(1)) - sqrt(c_L*c_L + &
                                                                        (((4d0*G_L)/3d0) + &
                                                                         tau_e_L(dir_idx_tau(1)))/rho_L) &
@@ -565,11 +562,6 @@ contains
                                               , vel_L(dir_idx(1)) + sqrt(c_L*c_L + &
                                                                          (((4d0*G_L)/3d0) + &
                                                                           tau_e_L(dir_idx_tau(1)))/rho_L))
-                                else if (hyperelasticity) then
-                                    s_L = min(vel_L(dir_idx(1)) - sqrt(c_L*c_L + (4d0*G_L/3d0)/rho_L) &
-                                              , vel_R(dir_idx(1)) - sqrt(c_R*c_R + (4d0*G_R/3d0)/rho_R))
-                                    s_R = max(vel_R(dir_idx(1)) + sqrt(c_R*c_R + (4d0*G_R/3d0)/rho_R) &
-                                              , vel_L(dir_idx(1)) + sqrt(c_L*c_L + (4d0*G_L/3d0)/rho_L))
                                 else
                                     s_L = min(vel_L(dir_idx(1)) - c_L, vel_R(dir_idx(1)) - c_R)
                                     s_R = max(vel_R(dir_idx(1)) + c_R, vel_L(dir_idx(1)) + c_L)
@@ -638,7 +630,7 @@ contains
                                                     - rho_R*vel_R(dir_idx(i)))) &
                                         /(s_M - s_P)
                                 end do
-                            else if (hypoelasticity) then
+                            else if (elasticity) then
                                 !$acc loop seq
                                 do i = 1, num_dims
                                     flux_rs${XYZ}$_vf(j, k, l, contxe + dir_idx(i)) = &
@@ -677,7 +669,7 @@ contains
                                      - s_P*vel_L(dir_idx(1))*(E_L + pres_L - ptilde_L) &
                                      + s_M*s_P*(E_L - E_R)) &
                                     /(s_M - s_P)
-                            else if (hypoelasticity) then
+                            else if (elasticity) then
                                 !TODO: simplify this so it's not split into 3
                                 if (num_dims == 1) then
                                     flux_rs${XYZ}$_vf(j, k, l, E_idx) = &
@@ -746,16 +738,16 @@ contains
                             end do
 
                             ! Xi field
-                            !if ( hyperelasticity ) then
-                            !    do i = 1, num_dims
-                            !      flux_rs${XYZ}$_vf(j, k, l, xibeg - 1 + i) = &
-                            !        (s_M*rho_R*vel_R(dir_idx(1))*xi_field_R(i) &
-                            !         - s_P*rho_L*vel_L(dir_idx(1))*xi_field_L(i) &
-                            !         + s_M*s_P*(rho_L*xi_field_L(i) &
-                            !                    - rho_R*xi_field_R(i))) &
-                            !        /(s_M - s_P)
-                            !    end do
-                            !end if
+                            if ( hyperelasticity ) then
+                                do i = 1, num_dims
+                                  flux_rs${XYZ}$_vf(j, k, l, xibeg - 1 + i) = &
+                                    (s_M*rho_R*vel_R(dir_idx(1))*xi_field_R(i) &
+                                     - s_P*rho_L*vel_L(dir_idx(1))*xi_field_L(i) &
+                                     + s_M*s_P*(rho_L*xi_field_L(i) &
+                                                - rho_R*xi_field_R(i))) &
+                                    /(s_M - s_P)
+                                end do
+                            end if
 
                             ! Div(U)?
                             !$acc loop seq
@@ -1076,6 +1068,9 @@ contains
                                 E_L = gamma_L*pres_L + pi_inf_L + 5d-1*rho_L*vel_L_rms + qv_L
                                 E_R = gamma_R*pres_R + pi_inf_R + 5d-1*rho_R*vel_R_rms + qv_R
 
+                                H_L = (E_L + pres_L)/rho_L
+                                H_R = (E_R + pres_R)/rho_R
+
                                 ! ENERGY ADJUSTMENTS FOR HYPOELASTIC ENERGY
                                 if (hypoelasticity) then
                                     !$acc loop seq
@@ -1130,15 +1125,14 @@ contains
                                     end do
                                 end if
 
-                                H_L = (E_L + pres_L)/rho_L
-                                H_R = (E_R + pres_R)/rho_R
 
                                 @:compute_average_state()
 
                                 call s_compute_speed_of_sound(pres_L, rho_L, gamma_L, pi_inf_L, H_L, alpha_L, &
                                                               vel_L_rms, c_L)
-                                call s_compute_speed_of_sound(pres_R, rho_R, gamma_R, pi_inf_R, H_R, alpha_R, &
+				call s_compute_speed_of_sound(pres_R, rho_R, gamma_R, pi_inf_R, H_R, alpha_R, &
                                                               vel_R_rms, c_R)
+
                                 !> The computation of c_avg does not require all the variables, and therefore the non '_avg'
                                 ! variables are placeholders to call the subroutine.
                                 call s_compute_speed_of_sound(pres_R, rho_avg, gamma_avg, pi_inf_R, H_avg, alpha_R, &
@@ -1155,11 +1149,11 @@ contains
                                 if (wave_speeds == 1) then
                                     if (elasticity) then
                                         s_L = min(vel_L(dir_idx(1)) - sqrt(c_L*c_L + &
-                                                                           (((4d0*G_L)/3d0) + tau_e_L(dir_idx_tau(1)))/rho_L), vel_R(dir_idx(1)) - sqrt(c_R*c_R + &
-                                                                                                                                                        (((4d0*G_R)/3d0) + tau_e_R(dir_idx_tau(1)))/rho_R))
+                                           (((4d0*G_L)/3d0) + tau_e_L(dir_idx_tau(1)))/rho_L), vel_R(dir_idx(1)) - sqrt(c_R*c_R + &
+                                           (((4d0*G_R)/3d0) + tau_e_R(dir_idx_tau(1)))/rho_R))
                                         s_R = max(vel_R(dir_idx(1)) + sqrt(c_R*c_R + &
-                                                                           (((4d0*G_R)/3d0) + tau_e_R(dir_idx_tau(1)))/rho_R), vel_L(dir_idx(1)) + sqrt(c_L*c_L + &
-                                                                                                                                                        (((4d0*G_L)/3d0) + tau_e_L(dir_idx_tau(1)))/rho_L))
+                                          (((4d0*G_R)/3d0) + tau_e_R(dir_idx_tau(1)))/rho_R), vel_L(dir_idx(1)) + sqrt(c_L*c_L + &
+                                          (((4d0*G_L)/3d0) + tau_e_L(dir_idx_tau(1)))/rho_L))
                                         s_S = (pres_R - tau_e_R(dir_idx_tau(1)) - pres_L + &
                                                tau_e_L(dir_idx_tau(1)) + rho_L*vel_L(idx1)*(s_L - vel_L(idx1)) - &
                                                rho_R*vel_R(idx1)*(s_R - vel_R(idx1)))/(rho_L*(s_L - vel_L(idx1)) - &
@@ -1368,7 +1362,6 @@ contains
                             end do
                         end do
                     end do
-
                 elseif (model_eqns == 4) then
                     !ME4
                     !$acc parallel loop collapse(3) gang vector default(present) private(alpha_rho_L, alpha_rho_R, &

@@ -93,7 +93,7 @@ contains
                     call s_check_inactive_patch_geometry(i)
                 else
                     call s_mpi_abort('patch_icpp('//trim(iStr)//')%geometry '// &
-                                     'must must be set. Exiting ...')
+                                     'must be set. Exiting ...')
                 end if
             end if
         end do

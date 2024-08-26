@@ -919,6 +919,7 @@ contains
                     xi_idx%end = sys_size + num_dims
                     ! adding three more equations for the \xi field and the elastic energy
                     sys_size = xi_idx%end + 1
+                    hyper_model = 1
                 end if
 
                 if (.not. f_is_default(sigma)) then

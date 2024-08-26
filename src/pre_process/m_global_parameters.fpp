@@ -87,7 +87,6 @@ module m_global_parameters
     logical :: elasticity      !< elasticity modeling, true for hyper or hypo
     integer :: b_size          !< Number of components in the b tensor
     integer :: tensor_size     !< Number of components in the nonsymmetric tensor
-    logical :: pre_stress      !< activate pre_stressed domain
 
     ! Annotations of the structure, i.e. the organization, of the state vectors
     type(int_bounds_info) :: cont_idx              !< Indexes of first & last continuity eqns.
@@ -289,7 +288,6 @@ contains
         hypoelasticity = .false.
         hyperelasticity = .false.
         elasticity = .false.
-        pre_stress = .false.
         hypoplasticity = .false.
 
         bc_x%beg = dflt_int; bc_x%end = dflt_int
