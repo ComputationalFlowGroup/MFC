@@ -428,9 +428,9 @@ contains
                               !$acc loop seq
                               do q = 1, j
                                  bc_sum = bc_sum + dz(p + q)
-                               end do
+                              end do
                               q_prim_vf(i)%sf(k, l, p + j) = &
-                                q_prim_vf(i)%sf(k, l, p) + bc_sum
+                                 q_prim_vf(i)%sf(k, l, p) + bc_sum
                            end do
                          end do
                      end do
