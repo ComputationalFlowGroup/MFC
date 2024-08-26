@@ -96,9 +96,8 @@ contains
         type(scalar_field), dimension(sys_size), intent(in) :: q_prim_vf
         type(scalar_field), dimension(sys_size), intent(inout) :: rhs_vf
 
-        real(kind(0d0)) :: rho_K, G_K
-        real(kind(0d0)) :: wtensor
-        real(kind(0d0)), dimension(num_dims**2) :: stensor, tensora, devdtensor, Dp
+        real(kind(0d0)) :: rho_K, G_K, wtensor
+        real(kind(0d0)), dimension(num_dims*(num_dims + 1)/2) :: stensor, tensora, devdtensor, Dp
 
         integer :: i, k, l, p, r, q !< Loop variables
 
@@ -165,9 +164,8 @@ contains
              ! STEP 2: Compute the deviatoric part of D, symmetric part of velocity gradient
              ! dtrace = du_dx(k, l, q) + dv_dy(k, l, q)
              devdtensor(1) = du_dx(k, l, q) - (1d0/3d0)*(du_dx(k, l, q) + dv_dy(k, l, q))
-             devdtensor(2) = (1d0/2d0)*(du_dy(k, l, q) + dv_dx(k, l, q))
-             devdtensor(3) = devdtensor(2)
-             devdtensor(4) = dv_dy(k, l, q) - (1d0/3d0)*(du_dx(k, l, q) + dv_dy(k, l, q))
+             devdtensor(2) = 5d-1*(du_dy(k, l, q) + dv_dx(k, l, q))
+             devdtensor(3) = dv_dy(k, l, q) - (1d0/3d0)*(du_dx(k, l, q) + dv_dy(k, l, q))
             
              ! STEP 3: Compute the equivalent plastic strain rate, d^p 
              ! STEP 3.1 : Compute mixture pressure and temperature
@@ -191,9 +189,9 @@ contains
              end if
              !could alternatively compute subtract tempref in both temp subroutine and theta_m
              ! compute sigma_bar = sqrt(3/2) * | S | 
-             sigma_bar = dsqrt(3d0/2d0) * (du_dx(k, l, q)**2 + dv_dy(k, l, q)**2 + &
-                         (1d0/2d0)*du_dy(k, l, q)**2 + (1d0/2d0)*dv_dx(k, l, q)**2 + &
-                         du_dy(k, l, q)*dv_dx(k, l, q))**(1d0/2d0)
+             sigma_bar = dsqrt(1.5d0) * (du_dx(k, l, q)**2 + dv_dy(k, l, q)**2 + &
+                         (5d-1)*du_dy(k, l, q)**2 + 5d-1*dv_dx(k, l, q)**2 + &
+                         du_dy(k, l, q)*dv_dx(k, l, q))**(5d-1)
 
              ! STEP 3.3 : Compute d^p and update rhs
              ! compute d^p_JC from equation 4.7
@@ -207,9 +205,8 @@ contains
              d_p = ((1d0/dp_JC) + (1d0/jcook7(1)))**(-1d0)
              ! compute D^p using equation 4.5
              Dp(1) = ((3d0*d_p) / (2d0*sigma_bar)) * du_dx(k, l, q)
-             Dp(2) = ((3d0*d_p) / (2d0*sigma_bar)) * (1d0/2d0)*(du_dy(k, l, q) + dv_dx(k, l, q))
-             Dp(3) = Dp(2)
-             Dp(4) = ((3d0*d_p) / (2d0*sigma_bar)) * dv_dy(k, l, q)
+             Dp(2) = ((3d0*d_p) / (2d0*sigma_bar)) * 5d-1*(du_dy(k, l, q) + dv_dx(k, l, q))
+             Dp(3) = ((3d0*d_p) / (2d0*sigma_bar)) * dv_dy(k, l, q)
 
              ! STEP 4: Compute rhs source terms
              rhs_vf(strxb + 0)%sf(k, l, q) = rhs_vf(strxb)%sf(k, l, q) + rho_K_field(k, l ,q)*tensora(1) + & 
@@ -221,9 +218,6 @@ contains
              rhs_vf(strxb + 2)%sf(k, l, q) = rhs_vf(strxb + 2)%sf(k, l, q) + rho_K_field(k, l, q)*tensora(3) + &
                2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(3) - Dp(3))
                
-             rhs_vf(strxb + 3)%sf(k, l, q) = rhs_vf(strxb + 3)%sf(k, l, q) + rho_K_field(k, l, q)*tensora(4) + &
-               2d0*rho_K_field(k, l, q)*G_K_field(k, l, q)*(devdtensor(4) - Dp(4))             
-
              ! STEP 5: Compute hardening rhs term
              rhs_vf(plasidx)%sf(k, l, q) = rhs_vf(plasidx)%sf(k, l, q) + rho_K_field(k, l, q)*d_p
             end do
