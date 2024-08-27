@@ -194,7 +194,7 @@ contains
                      *(1d0 - theta_hat**jcook5(1)))) - 1d0)
                 ! compute d^p from equation 4.6
                 ! jcook(7) = d^p_lim
-                if (sigma_bar .gt. 100d0*verysmall) then
+                if (sigma_bar .gt. 10d0*verysmall) then
                     d_p = ((1d0/dp_JC) + (1d0/jcook7(1)))**(-1d0)
                     ! compute D^p using equation 4.5
                     Dp(1) = 1.5d0*(d_p / sigma_bar) * q_prim_vf(strxb)%sf(k, l, q)
