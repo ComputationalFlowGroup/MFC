@@ -72,7 +72,7 @@ contains
             fd_order, mixture_err, alt_soundspeed, &
             flux_lim, flux_wrt, cyl_coord, &
             parallel_io, rhoref, pref, bubbles, qbmm, sigR, &
-            R0ref, nb, polytropic, thermal, Ca, Web, Re_inv, &
+            R0ref, Rinit, nb, polytropic, thermal, Ca, Web, Re_inv, &
             polydisperse, poly_sigma, file_per_process, relax, &
             relax_model, cf_wrt, sigma, adv_n, ib, sim_data, &
             hyperelasticity, hypoplasticity

@@ -229,7 +229,7 @@ module m_global_parameters
     !> @name Bubble modeling variables and parameters
     !> @{
     integer :: nb
-    real(kind(0d0)) :: R0ref
+    real(kind(0d0)) :: R0ref, Rinit
     real(kind(0d0)) :: Ca, Web, Re_inv
     real(kind(0d0)), dimension(:), allocatable :: weight, R0, V0
     logical :: bubbles
@@ -368,6 +368,7 @@ contains
         bubbles = .false.
         qbmm = .false.
         R0ref = dflt_real
+        Rinit = dflt_real
         nb = dflt_int
         polydisperse = .false.
         poly_sigma = dflt_real
