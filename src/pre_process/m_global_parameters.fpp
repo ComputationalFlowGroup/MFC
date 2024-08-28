@@ -222,6 +222,7 @@ module m_global_parameters
     integer :: intxb, intxe
     integer :: bubxb, bubxe
     integer :: strxb, strxe
+    integer :: mgidxb, mgidxe
     integer :: xibeg, xiend
     integer :: plasidx
     !> @}
@@ -739,14 +740,15 @@ contains
             E_idx = mom_idx%end + 1
             adv_idx%beg = E_idx + 1
             adv_idx%end = E_idx + num_fluids
-            sys_size = adv_idx%end
+            mgidxb = adv_idx%end + 1
+            mgidxe = adv_idx%end + 3
+            sys_size = mgidxe
 
             if (hypoplasticity) then
                 elasticity = .true.
                 stress_idx%beg = sys_size + 1
-                stress_idx%end = sys_size + (num_dims*(num_dims + 1))/2
+                stress_idx%end = sys_size + 2*num_dims
                 ! number of stresses is 1 in 1D, 3 in 2D, 6 in 3D
-                sys_size = stress_idx%end
                 plasidx = stress_idx%end + 1
                 sys_size = plasidx
             end if
