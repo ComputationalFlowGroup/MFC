@@ -121,7 +121,7 @@ contains
         !$acc end parallel loop
 
         tensora(:) = 0d0
-        !$acc parallel loop collapse(2) gang vector default(present)
+        !$acc parallel loop collapse(2) gang vector default(present) &
         !$acc private(rho_K,G_K,alpha_rho_K,alpha_K)
         do l = 0, n
           do k = 0, m
