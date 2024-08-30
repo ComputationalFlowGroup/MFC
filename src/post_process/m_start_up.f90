@@ -289,7 +289,7 @@ contains
         ! ----------------------------------------------------------------------
 
         ! Adding the temperature to the formatted database file -------------------
-        if (hypoplasticity .and. prim_vars_wrt) then
+        if (model_eqns==5 .and. prim_vars_wrt) then
            q_sf = q_prim_vf(plasidx+1)%sf( &
                   -offset_x%beg:m + offset_x%end, &
                   -offset_y%beg:n + offset_y%end, &
@@ -388,7 +388,7 @@ contains
 
         ! Adding the volume fraction(s) to the formatted database file ---------
         if (((model_eqns == 2) .and. (bubbles .neqv. .true.)) &
-            .or. (model_eqns == 3) &
+            .or. (model_eqns == 3) .or. (model_eqns == 5) &
             ) then
 
             do i = 1, num_fluids - 1
