@@ -15,7 +15,7 @@ Ny = 100.
 Nx = Ny*3
 dx = leng/Nx
 
-time_end = 3.E1         #5*leng/vel
+time_end = 4E-3 #3.E1         #5*leng/vel
 cfl = 0.1
 
 dt = cfl * dx/c_l 
