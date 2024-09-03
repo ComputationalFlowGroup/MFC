@@ -92,7 +92,7 @@ contains
         type(scalar_field), dimension(sys_size), intent(inout) :: rhs_vf
 
         real(kind(0d0)) :: rho_K, G_K, wtensor
-        real(kind(0d0)), dimension(num_dims*(num_dims + 1)/2) :: stensor, tensora, devdtensor, Dp
+        real(kind(0d0)), dimension(num_dims*(num_dims + 1) /2) :: stensor, tensora, devdtensor, Dp
 
         integer :: i, k, l, p, r, q !< Loop variables
 
@@ -132,7 +132,7 @@ contains
              tensora(1) = wtensor*stensor(1)
              tensora(2) = wtensor*stensor(2)
              tensora(3) = wtensor*stensor(3)
-           
+!             print *, 'I got here a'           
              ! STEP 2: Compute the deviatoric part of D, symmetric part of velocity gradient
              ! dtrace = du_dx(k, l, q) + dv_dy(k, l, q)
              devdtensor(1) = du_dx(k, l, q) - (1d0/3d0)*(du_dx(k, l, q) + dv_dy(k, l, q))
@@ -140,6 +140,9 @@ contains
              devdtensor(3) = dv_dy(k, l, q) - (1d0/3d0)*(du_dx(k, l, q) + dv_dy(k, l, q))
  
 !             print *, 'I got here A' 
+!             print *, 'k ::', k, 'l ::', l, 'q ::', q, &
+!'devdtensor(1) ::', devdtensor(1), 'devdten(2) ::', devdtensor(2), 'devdten(3) ::', devdtensor(3)
+
 
              ! STEP 3: Compute the equivalent plastic strain rate, d^p 
              ! STEP 3.1 : Compute mixtures variables for computing
@@ -149,7 +152,7 @@ contains
              do i = momxb, momxe
                 dyn_p = dyn_p + 5d-1*q_cons_vf(i)%sf(k, l, q)*q_prim_vf(i)%sf(k, l, q)
              end do
-!              print *, 'I got here B' 
+!             print *, 'I got here B' 
              
              rho_K = 0d0; G_K = 0d0;
              ! STEP 3.2 : Compute mixtures in preparation for pressure and temperature

@@ -907,21 +907,21 @@ contains
             ! ===============================================================
             ! Computing Riemann Solver Flux and Source Flux =================
             call nvtxStartRange("RHS_riemann_solver")
-            call s_riemann_solver(qR_rsx_vf, qR_rsy_vf, qR_rsz_vf, &
-                                  dqR_prim_dx_n(id)%vf, &
-                                  dqR_prim_dy_n(id)%vf, &
-                                  dqR_prim_dz_n(id)%vf, &
-                                  qR_prim(id)%vf, &
-                                  qL_rsx_vf, qL_rsy_vf, qL_rsz_vf, &
-                                  dqL_prim_dx_n(id)%vf, &
-                                  dqL_prim_dy_n(id)%vf, &
-                                  dqL_prim_dz_n(id)%vf, &
-                                  qL_prim(id)%vf, &
-                                  q_prim_qp%vf, &
-                                  flux_n(id)%vf, &
-                                  flux_src_n(id)%vf, &
-                                  flux_gsrc_n(id)%vf, &
-                                  id, ix, iy, iz)
+!            call s_riemann_solver(qR_rsx_vf, qR_rsy_vf, qR_rsz_vf, &
+!                                  dqR_prim_dx_n(id)%vf, &
+!                                  dqR_prim_dy_n(id)%vf, &
+!                                  dqR_prim_dz_n(id)%vf, &
+!                                  qR_prim(id)%vf, &
+!                                  qL_rsx_vf, qL_rsy_vf, qL_rsz_vf, &
+!                                  dqL_prim_dx_n(id)%vf, &
+!                                  dqL_prim_dy_n(id)%vf, &
+!                                  dqL_prim_dz_n(id)%vf, &
+!                                  qL_prim(id)%vf, &
+!                                  q_prim_qp%vf, &
+!                                  flux_n(id)%vf, &
+!                                  flux_src_n(id)%vf, &
+!                                  flux_gsrc_n(id)%vf, &
+!                                  id, ix, iy, iz)
             call nvtxEndRange
 
             ! ===============================================================
@@ -943,9 +943,9 @@ contains
             call nvtxEndRange
 
             call nvtxStartRange("RHS_Hypoplasticity")
-            if (hypoplasticity) call s_compute_hypoplastic_rhs(q_prim_qp%vf, & 
-                                                               q_cons_qp%vf, & 
-                                                               rhs_vf)
+ !           if (hypoplasticity) call s_compute_hypoplastic_rhs(q_prim_qp%vf, & 
+ !                                                              q_cons_qp%vf, & 
+ !                                                              rhs_vf)
             call nvtxEndRange
             !print *, "I got here f"
 
