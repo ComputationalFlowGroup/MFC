@@ -167,7 +167,7 @@ module m_global_parameters
     !> @name Bubble modeling
     !> @{
     integer :: nb
-    real(kind(0d0)) :: R0ref
+    real(kind(0d0)) :: R0ref, Rinit
     real(kind(0d0)) :: Ca, Web, Re_inv
     real(kind(0d0)), dimension(:), allocatable :: weight, R0, V0
     logical :: bubbles
@@ -383,6 +383,7 @@ contains
 
         thermal = dflt_int
         R0ref = dflt_real
+        Rinit = dflt_real
         nb = dflt_int
 
         Ca = dflt_real

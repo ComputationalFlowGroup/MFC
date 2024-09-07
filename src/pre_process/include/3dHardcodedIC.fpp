@@ -65,7 +65,7 @@
         theta = atan2(y_cc(j), x_cc(i))
         phi = atan2(sqrt(x_cc(i)**2 + y_cc(j)**2), z_cc(k))
         !spherical coord, assuming Rmax=1
-        xi_sph = (rcoord**3 - R0ref**3 + 1d0)**(1d0/3d0)
+        xi_sph = (rcoord**3 - R0ref**3 + Rinit**3)**(1d0/3d0)
         xi_cart(1) = xi_sph*sin(phi)*cos(theta)
         xi_cart(2) = xi_sph*sin(phi)*sin(theta)
         xi_cart(3) = xi_sph*cos(phi)

@@ -349,6 +349,7 @@ module m_global_parameters
     #:endif
 
     real(kind(0d0)) :: R0ref    !< Reference bubble size
+    real(kind(0d0)) :: Rinit    !< Initial bubble size
     real(kind(0d0)) :: Ca       !< Cavitation number
     real(kind(0d0)) :: Web      !< Weber number
     real(kind(0d0)) :: Re_inv   !< Inverse Reynolds number
@@ -392,7 +393,7 @@ module m_global_parameters
         !$acc declare create(nb)
     #:endif
 
-!$acc declare create(R0ref, Ca, Web, Re_inv, bubbles, polytropic, polydisperse, qbmm, nmomsp, nmomtot, R0_type, bubble_model, thermal, poly_sigma, adv_n, adap_dt, pi_fac)
+!$acc declare create(R0ref, Rinit, Ca, Web, Re_inv, bubbles, polytropic, polydisperse, qbmm, nmomsp, nmomtot, R0_type, bubble_model, thermal, poly_sigma, adv_n, adap_dt, pi_fac)
 
 #ifdef CRAY_ACC_WAR
     @:CRAY_DECLARE_GLOBAL(type(scalar_field), dimension(:), mom_sp)
@@ -607,6 +608,7 @@ contains
         polydisperse = .false.
         thermal = dflt_int
         R0ref = dflt_real
+        Rinit = dflt_real
 
         #:if not MFC_CASE_OPTIMIZATION
             nb = 1
@@ -1162,7 +1164,7 @@ contains
             !$acc update device(wenojs, mapped_weno, wenoz, teno)
         #:endif
 
-        !$acc enter data copyin(nb, R0ref, Ca, Web, Re_inv, weight, R0, V0, bubbles, polytropic, polydisperse, qbmm, R0_type, ptil, bubble_model, thermal, poly_sigma)
+        !$acc enter data copyin(nb, R0ref, Rinit, Ca, Web, Re_inv, weight, R0, V0, bubbles, polytropic, polydisperse, qbmm, R0_type, ptil, bubble_model, thermal, poly_sigma)
 
         !$acc enter data copyin(R_n, R_v, phi_vn, phi_nv, Pe_c, Tw, pv, M_n, M_v, k_n, k_v, pb0, mass_n0, mass_v0, Pe_T, Re_trans_T, Re_trans_c, Im_trans_T, Im_trans_c, omegaN, mul0, ss, gamma_v, mu_v, gamma_m, gamma_n, mu_n, gam)
 

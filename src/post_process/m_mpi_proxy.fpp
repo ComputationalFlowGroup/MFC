@@ -219,7 +219,7 @@ contains
             call MPI_BCAST(fluid_pp(i)%ein_cv(2), 2, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
         end do
 
-        #:for VAR in [ 'pref', 'rhoref', 'R0ref', 'poly_sigma', 'Web', 'Ca', &
+        #:for VAR in [ 'pref', 'rhoref', 'R0ref', 'Rinit', 'poly_sigma', 'Web', 'Ca', &
             & 'Re_inv', 'sigma' ]
             call MPI_BCAST(${VAR}$, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
         #:endfor
