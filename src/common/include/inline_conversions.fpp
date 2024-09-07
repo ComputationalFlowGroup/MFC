@@ -80,21 +80,21 @@
                 phi_mix = exp(phi_mix)
                 c = 0.d0
             do r = 1,num_fluids     
-                c = c   +alpha_rho_K(r)*pi_infs(r)/rho0(r)&
-                        +log_rho_mix_ratio*(alpha_rho_K(r)*pi_infs(r)*(qvs(r)-1.d0)/rho0(r))&
-                        +(log_rho_mix_ratio**2.d0)*(alpha_rho_K(r)*pi_infs(r)*0.5d0*(qvs(r)-2.d0)/rho0(r)) &
+                c = c +alpha_rho_K(r)*pi_infs(r)/rho0(r) &
+                       ! +log_rho_mix_ratio*(alpha_rho_K(r)*pi_infs(r)*(qvs(r)-1.d0)/rho0(r))&
+                       ! +(log_rho_mix_ratio**2.d0)*(alpha_rho_K(r)*pi_infs(r)*0.5d0*(qvs(r)-2.d0)/rho0(r)) &
                         +pres*(alpha_rho_K(r)*mg_b(r))/term1 &
-                        -log_rho_mix_ratio*alpha_rho_K(r)**2.d0*mg_b(r)*pi_infs(r)/deno_rho_sq &
-                        -(log_rho_mix_ratio**2.d0)*(alpha_rho_K(r)**2.d0)*mg_b(r)*pi_infs(r)*0.5d0*(qvs(r)-2.d0)/deno_rho_sq &
-                        +pres*(gammas(r)*mg_a(r)*adv(r)*rho0(r)/rho0_mix+mg_b(r)*gammas(r)*adv(r)) &
-                        -log_rho_mix_ratio*(gammas(r)*adv(r)*mg_a(r)*pi_infs(r) &
-                        +gammas(r)*alpha_rho_K(r)*mg_b(r)*pi_infs(r)/rho0_mix ) &
-                        -(log_rho_mix_ratio**2.d0)*(gammas(r)*adv(r)*mg_a(r)*pi_infs(r)*0.5d0*(qvs(r)-2.d0) &
-                        +gammas(r)*alpha_rho_K(r)*mg_b(r)*pi_infs(r)*0.5d0*(qvs(r)-2.d0)/rho0_mix) 
+                       ! -log_rho_mix_ratio*alpha_rho_K(r)**2.d0*mg_b(r)*pi_infs(r)/deno_rho_sq &
+                       ! -(log_rho_mix_ratio**2.d0)*(alpha_rho_K(r)**2.d0)*mg_b(r)*pi_infs(r)*0.5d0*(qvs(r)-2.d0)/deno_rho_sq &
+                        +pres*(gammas(r)*mg_a(r)*adv(r)*rho0(r)/rho0_mix+mg_b(r)*gammas(r)*adv(r)) ! &
+                       ! -log_rho_mix_ratio*(gammas(r)*adv(r)*mg_a(r)*pi_infs(r) &
+                       ! +gammas(r)*alpha_rho_K(r)*mg_b(r)*pi_infs(r)/rho0_mix ) &
+                       ! -(log_rho_mix_ratio**2.d0)*(gammas(r)*adv(r)*mg_a(r)*pi_infs(r)*0.5d0*(qvs(r)-2.d0) &
+                       ! +gammas(r)*alpha_rho_K(r)*mg_b(r)*pi_infs(r)*0.5d0*(qvs(r)-2.d0)/rho0_mix) 
             end do
-            c = c + (phi_mix**2.d0)*(exp(phi_mix*theta_E)/(exp(phi_mix*theta_E)-1.d0)**2.d0)*(term2/rho+term3)
+             c = c ! + (phi_mix**2.d0)*(exp(phi_mix*theta_E)/(exp(phi_mix*theta_E)-1.d0)**2.d0)*(term2/rho+term3)
             c = c/rho
-            !c = 1d0
+            !c =1.d0
             !print *, 'print c before the grinder :: c :: ',sqrt(c)
         else           
             c = ((H - 5d-1*vel_sum)/gamma)
@@ -104,6 +104,8 @@
             c = 100.d0*sgm_eps
         else
             c = sqrt(c)
+            c = adv(1)*0.977406+adv(2)*0.36838
+            !print *, 'c ::', c
         end if
     end subroutine s_compute_speed_of_sound
 #:enddef

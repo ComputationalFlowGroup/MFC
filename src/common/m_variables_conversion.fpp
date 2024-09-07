@@ -179,13 +179,14 @@ contains
                 log_rho_mix_ratio = dlog(rho/rho0_mix)
                 phi_mix = dexp(phi_mix)
                 pres = 0.d0
+                pres_mg = 0.d0
                 do s = 1, num_fluids
-                   pres_mg = - 0.5d0*(log_rho_mix_ratio**2.d0)*(pi_infs(s)*alpha_rho_K(s)/rho0(s)) &
-                        -0.5d0*(log_rho_mix_ratio**3.d0)*pi_infs(s)*alpha_rho_K(s)*(qvs(s)-2.d0)/(3*rho0(s)) &
-                        -phi_mix*dexp(phi_mix*theta_E)*(alpha_rho_K(s)*ein_cv1(s)*ein_cv2(s))/(dexp(phi_mix*theta_E)-1.d0) &
-                        +dlog(dexp(phi_mix*theta_E)-1.d0)*(alpha_rho_K(s)*ein_cv1(s)) &
-                        +log_rho_mix_ratio*(alpha_rho_K(s)*alpha_rho_K(s)*pi_infs(s))/deno_gamma_rho_sq &
-                        +(log_rho_mix_ratio**2.d0)*(alpha_rho_K(s)**2.d0*pi_infs(s)*0.5d0*(qvs(s)-2.d0))/deno_gamma_rho_sq
+                   pres_mg =0.d0 ! - 0.5d0*(log_rho_mix_ratio**2.d0)*(pi_infs(s)*alpha_rho_K(s)/rho0(s)) &
+                            ! -0.5d0*(log_rho_mix_ratio**3.d0)*pi_infs(s)*alpha_rho_K(s)*(qvs(s)-2.d0)/(3*rho0(s)) &
+                            ! -phi_mix*dexp(phi_mix*theta_E)*(alpha_rho_K(s)*ein_cv1(s)*ein_cv2(s))/(dexp(phi_mix*theta_E)-1.d0) &
+                            ! +dlog(dexp(phi_mix*theta_E)-1.d0)*(alpha_rho_K(s)*ein_cv1(s)) &
+                            ! +log_rho_mix_ratio*(alpha_rho_K(s)*alpha_rho_K(s)*pi_infs(s))/deno_gamma_rho_sq &
+                            ! +(log_rho_mix_ratio**2.d0)*(alpha_rho_K(s)**2.d0*pi_infs(s)*0.5d0*(qvs(s)-2.d0))/deno_gamma_rho_sq
                    pres = pres + pres_mg 
                    end do
                 pres = pres + energy - dyn_p     
@@ -1310,13 +1311,13 @@ contains
                         q_cons_vf(E_idx)%sf(j , k, l) = 0d0
                         do i = 1, num_fluids
                           rho_K_ratio = q_prim_vf(i)%sf(j, k, l)/rho0(i)
-                          E_mg = 0.5d0*((dlog(rho_mix_ratio))**2)*rho_K_ratio*pi_infs(i) &
-                                +0.5d0*((dlog(rho_mix_ratio))**3)*rho_K_ratio*pi_infs(i)*(qvs(i)-2.d0)/3.d0 &
-                                +phi_mix*(DEXP(phi_mix*theta_E)/(DEXP(phi_mix*theta_E)-1.d0))*q_prim_vf(i)%sf(j, k, l)*ein_cv1(i)*ein_cv2(i) &
-                                -dlog(DEXP(phi_mix*theta_E)-1.d0)*q_prim_vf(i)%sf(j, k, l)*ein_cv1(i) &
-                                -dlog(rho_mix_ratio)*(q_prim_vf(i)%sf(j, k, l)**2)*pi_infs(i)/gamma_rho_squared_denominator &
-                                -((dlog(rho_mix_ratio))**2)*(q_prim_vf(i)%sf(j, k, l)**2.d0)*pi_infs(i)*0.5d0*(qvs(i)-2.d0)/&
-                                 gamma_rho_squared_denominator
+                          E_mg = 0d0 !0.5d0*((dlog(rho_mix_ratio))**2)*rho_K_ratio*pi_infs(i) &
+                                !+0.5d0*((dlog(rho_mix_ratio))**3)*rho_K_ratio*pi_infs(i)*(qvs(i)-2.d0)/3.d0 &
+                                !+phi_mix*(DEXP(phi_mix*theta_E)/(DEXP(phi_mix*theta_E)-1.d0))*q_prim_vf(i)%sf(j, k, l)*ein_cv1(i)*ein_cv2(i) &
+                                !-dlog(DEXP(phi_mix*theta_E)-1.d0)*q_prim_vf(i)%sf(j, k, l)*ein_cv1(i) &
+                                !-dlog(rho_mix_ratio)*(q_prim_vf(i)%sf(j, k, l)**2)*pi_infs(i)/gamma_rho_squared_denominator &
+                                !-((dlog(rho_mix_ratio))**2)*(q_prim_vf(i)%sf(j, k, l)**2.d0)*pi_infs(i)*0.5d0*(qvs(i)-2.d0)/&
+                                ! gamma_rho_squared_denominator
 
                           q_cons_vf(E_idx)%sf(j,k,l) = q_cons_vf(E_idx)%sf(j, k, l) +  E_mg
                         end do

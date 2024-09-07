@@ -4,12 +4,12 @@ import json
 
 #Numerical setup
 c_l     = 3077.6
-Nx      = 399
+Nx      = 799
 cfl     = 0.08
 leng    = 1.
 dx      = leng/(Nx+1)
 mydt    = cfl*dx/c_l
-Tend    = 240E-04
+Tend    = 1.00E-2
 Nt      = int(Tend/mydt)
 #mydt   = Tend/(1.*Nt)
 vel     = 1.0
@@ -56,7 +56,7 @@ print(json.dumps({
                     'dt'                           : mydt,
                     't_step_start'                 : 0,
                     't_step_stop'                  : int(Nt),
-                    't_step_save'                  : int(math.ceil(Nt/20.)),
+                    't_step_save'                  : int(math.ceil(Nt/1000.)),
 		    # ==========================================================
 
                     # Simulation Algorithm Parameters ==========================
@@ -108,7 +108,7 @@ print(json.dumps({
                     # Patch 2 R ================================================
                     'patch_icpp(2)%geometry'       : 1,
                     'patch_icpp(2)%x_centroid'     : 0.5,
-                    'patch_icpp(2)%length_x'       : leng/2,
+                    'patch_icpp(2)%length_x'       : 0.5,
                     'patch_icpp(2)%alter_patch(1)' : 'T',
                     'patch_icpp(2)%vel(1)'         : vel,
                     'patch_icpp(2)%pres'           : tilde_P0,
