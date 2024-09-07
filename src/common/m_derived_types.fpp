@@ -177,6 +177,7 @@ module m_derived_types
         real(kind(0d0)), dimension(num_fluids_max) :: alpha
         real(kind(0d0)) :: gamma
         real(kind(0d0)) :: pi_inf !<
+        real(kind(0d0)) :: e_ref !<
         real(kind(0d0)) :: cv !<
         real(kind(0d0)) :: qv !<
         real(kind(0d0)) :: qvp !<

@@ -83,18 +83,16 @@ contains
 
     !>  The purpose of this procedure is to compute the source terms
         !!      that are needed for the elastic stress equations
-        !!  @param idir Dimension splitting index
         !!  @param q_prim_vf Primitive variables
         !!  @param rhs_vf rhs variables
-    subroutine s_compute_hypoplastic_rhs(idir, q_prim_vf, q_cons_vf, rhs_vf)
+    subroutine s_compute_hypoplastic_rhs(q_prim_vf, q_cons_vf, rhs_vf)
 
-        integer, intent(in) :: idir
         type(scalar_field), dimension(sys_size), intent(in) :: q_prim_vf
         type(scalar_field), dimension(sys_size), intent(in) :: q_cons_vf
         type(scalar_field), dimension(sys_size), intent(inout) :: rhs_vf
 
         real(kind(0d0)) :: rho_K, G_K, wtensor
-        real(kind(0d0)), dimension(num_dims*(num_dims + 1)/2) :: stensor, tensora, devdtensor, Dp
+        real(kind(0d0)), dimension(num_dims*(num_dims + 1) /2) :: stensor, tensora, devdtensor, Dp
 
         integer :: i, k, l, p, r, q !< Loop variables
 
@@ -134,12 +132,18 @@ contains
              tensora(1) = wtensor*stensor(1)
              tensora(2) = wtensor*stensor(2)
              tensora(3) = wtensor*stensor(3)
-           
+!             print *, 'I got here a'           
              ! STEP 2: Compute the deviatoric part of D, symmetric part of velocity gradient
              ! dtrace = du_dx(k, l, q) + dv_dy(k, l, q)
              devdtensor(1) = du_dx(k, l, q) - (1d0/3d0)*(du_dx(k, l, q) + dv_dy(k, l, q))
              devdtensor(2) = 5d-1*(du_dy(k, l, q) + dv_dx(k, l, q))
              devdtensor(3) = dv_dy(k, l, q) - (1d0/3d0)*(du_dx(k, l, q) + dv_dy(k, l, q))
+ 
+!             print *, 'I got here A' 
+!             print *, 'k ::', k, 'l ::', l, 'q ::', q, &
+!'devdtensor(1) ::', devdtensor(1), 'devdten(2) ::', devdtensor(2), 'devdten(3) ::', devdtensor(3)
+
+
              ! STEP 3: Compute the equivalent plastic strain rate, d^p 
              ! STEP 3.1 : Compute mixtures variables for computing
              ! pressure and temperature
@@ -148,7 +152,8 @@ contains
              do i = momxb, momxe
                 dyn_p = dyn_p + 5d-1*q_cons_vf(i)%sf(k, l, q)*q_prim_vf(i)%sf(k, l, q)
              end do
-              
+!             print *, 'I got here B' 
+             
              rho_K = 0d0; G_K = 0d0;
              ! STEP 3.2 : Compute mixtures in preparation for pressure and temperature
              do i = 1, num_fluids
@@ -157,15 +162,21 @@ contains
                 alpha_rho_K(i) = q_prim_vf(i)%sf(k, l, q)
                 alpha_K(i) = q_prim_vf(advxb + i - 1)%sf(k, l, q)
              end do
- 
+!              print *, 'I got here C' 
+
              ! STEP 3.3: TODO MIRELYS
              if (G_K .gt. verysmall) then 
-                ! STEP 3.4 : Compute mixture pressure and temperature
+!               print *, 'I got here D' 
+              ! STEP 3.4 : Compute mixture pressure and temperature
+!                print *, 'energy ::', energy, 'alf ::', alf, 'dyn_p ::',&
+!dyn_p, 'pi_inf ::', pi_inf, 'gamma ::', gamma, 'rho ::', rho, 'qv ::', &
+!qv, 'stress ::', stress, 'mom ::', mom, 'G ::', G, 'alpha_K ::', &
+!alpha_K, 'alpha_rho_K ::', alpha_rho_K
                 call s_compute_pressure(energy, alf, dyn_p, pi_inf, gamma, rho, qv, & 
                                         pres, stress, mom, G, alpha_K, alpha_rho_K)
                 call s_compute_temperature(energy, dyn_p, pi_inf, gamma, rho, qv, & 
                                           temp, alpha_K, alpha_rho_K)
-
+!                print *, 'pressure :: ', pres, 'temperature ::', temp
                 ! STEP 3.5 : Compute theta_m, theta_hat, and sigma_bar
                 ! compute theta_m from equation 4.10
                 ! jcook(6) = theta_m0, jcook(8) = pres_init, jcook(9) = d, assuming presref = 0
@@ -179,11 +190,13 @@ contains
                 else
                    theta_hat = 1
                 end if
-                !could alternatively compute subtract tempref in both temp subroutine and theta_m
+!                print *, 'I got here E' 
+             !could alternatively compute subtract tempref in both temp subroutine and theta_m
                 ! compute sigma_bar = sqrt(3/2) * | S | 
-                sigma_bar = dsqrt(1.5d0) * (du_dx(k, l, q)**2 + dv_dy(k, l, q)**2 + &
-                            (5d-1)*du_dy(k, l, q)**2 + 5d-1*dv_dx(k, l, q)**2 + &
-                            du_dy(k, l, q)*dv_dx(k, l, q))**(5d-1)
+                sigma_bar = dsqrt(1.5d0) * (q_prim_vf(strxb)%sf(k, l, q)**2d0 + & 
+                            2d0*q_prim_vf(strxb + 1)%sf(k, l, q)**2d0 + q_prim_vf(strxe - 1)%sf(k, l, q)**2d0 + &
+                            q_prim_vf(strxe)%sf(k, l, q)**2d0)**(5d-1)
+!                print *, 'sigma_bar ::', sigma_bar
 
                 ! STEP 3.6 : Compute d^p and update rhs
                 ! compute d^p_JC from equation 4.7
@@ -194,16 +207,18 @@ contains
                      *(1d0 - theta_hat**jcook5(1)))) - 1d0)
                 ! compute d^p from equation 4.6
                 ! jcook(7) = d^p_lim
-                if (sigma_bar .gt. 100d0*verysmall) then
+                if (sigma_bar .gt. 1d0*verysmall) then
                     d_p = ((1d0/dp_JC) + (1d0/jcook7(1)))**(-1d0)
                     ! compute D^p using equation 4.5
                     Dp(1) = 1.5d0*(d_p / sigma_bar) * q_prim_vf(strxb)%sf(k, l, q)
                     Dp(2) = 1.5d0*(d_p / sigma_bar) * q_prim_vf(strxb + 1)%sf(k, l, q)
                     Dp(3) = 1.5d0*(d_p / sigma_bar) * q_prim_vf(strxe)%sf(k, l, q)
-                else
+!                 print *, 'I got here F' 
+               else
                     d_p = 0d0
                     Dp(:) = 0d0
-                end if
+!                  print *, 'I got here G' 
+               end if
 
                 ! STEP 4: Compute rhs source terms
                 rhs_vf(strxb + 0)%sf(k, l, q) = rhs_vf(strxb)%sf(k, l, q) + rho_K*tensora(1) + & 

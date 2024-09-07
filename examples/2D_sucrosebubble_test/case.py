@@ -14,8 +14,8 @@ Ny = 100.
 Nx = Ny*3
 dx = leng/Nx
 
-time_end = 1.E-3         #5*leng/vel
-cfl = 0.08
+time_end = 3.E-3         #5*leng/vel
+cfl = 0.1 #0.08
 
 dt = cfl * dx/c_l
 Nt = int(time_end/dt)
@@ -57,7 +57,7 @@ p_theta0 = Kt0_tilde*tilde_rho*math.log(tilde_rho)*(1+0.5*(Kt0_prime_suc-2)*math
 ps =(-tilde_P_0*(1-1/tilde_rho+2/gamma_suc)+(2/gamma_suc)*(-p_theta0 + gamma_suc*(int_energy-int_energy0)))/(1-1/tilde_rho-2/gamma_suc)
 
 vel = math.sqrt((ps-tilde_P_0)*(1-1/tilde_rho))
-
+#print(G_suc/(rho_0_suc*c_0*c_0)) .5999
 
 # Configuring case dictionary
 print(json.dumps({
@@ -199,5 +199,4 @@ print(json.dumps({
     'fluid_pp(2)%jcook(10)'        : 3.2493E-7,                        # non-dimensional strain-rate limitI
     'fluid_pp(2)%jcook(11)'        : 298/theta_0,                      # non-dimensionalized Reference temperature
 }))
-
 # ==============================================================================

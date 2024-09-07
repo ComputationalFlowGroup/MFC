@@ -472,6 +472,23 @@ contains
             end do
         end if
 
+        if (model_eqns == 5) then 
+          ! Specific heat ratio function
+          q_prim_vf(gamma_idx)%sf(j, k, l) = &
+            eta*patch_icpp(patch_id)%gamma &
+            + (1d0 - eta)*patch_icpp(smooth_patch_id)%gamma
+
+          ! Liquid stiffness function
+          q_prim_vf(pi_inf_idx)%sf(j, k, l) = &
+            eta*patch_icpp(patch_id)%pi_inf &
+            + (1d0 - eta)*patch_icpp(smooth_patch_id)%pi_inf
+
+          ! \rho e_ref 
+          q_prim_vf(pi_inf_idx)%sf(j, k, l) = &
+            eta*patch_icpp(patch_id)%e_ref &
+            + (1d0 - eta)*patch_icpp(smooth_patch_id)%e_ref
+        end if
+
         if (hypoplasticity) then
             ! assigning the strain hardening to the q_prim vector field
             q_prim_vf(plasidx)%sf(j, k, l) = 0d0 
