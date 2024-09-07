@@ -246,7 +246,6 @@ module m_global_parameters
     real(kind(0d0)) :: poly_sigma
     real(kind(0d0)) :: sigR
     integer :: nmom
-
     !> @}
 
     !> @name surface tension coefficient

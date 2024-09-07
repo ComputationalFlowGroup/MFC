@@ -138,7 +138,7 @@
             rcoord = sqrt(x_cc(i)**2d0 + y_cc(j)**2d0)
             theta = atan2(y_cc(j), x_cc(i))
             !polar coord, assuming Rmax=1
-            xi_polar = (rcoord**3d0 - R0ref**3d0 + 1d0)**(1d0/3d0)
+            xi_polar = (rcoord**3d0 - R0ref**3d0 + Rinit**3d0)**(1d0/3d0)
             xi_cart(1) = xi_polar*cos(theta)
             xi_cart(2) = xi_polar*sin(theta)
             ! assigning the reference map to the q_prim vector field
