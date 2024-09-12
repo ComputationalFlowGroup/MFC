@@ -1,4 +1,3 @@
-	>
 !! @file m_global_parameters.f90
 !! @brief Contains module m_global_parameters
 
