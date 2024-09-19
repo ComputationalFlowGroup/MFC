@@ -642,17 +642,21 @@ contains
               adv_idx%end = E_idx + num_fluids
               mgidxb = adv_idx%end + 1
               mgidxe = adv_idx%end + 3
-              sys_size = adv_idx%end !mgidxe
+              sys_size = mgidxe
 
               if (hypoplasticity) then
                 elasticity = .true.
                 stress_idx%beg = sys_size + 1
                 stress_idx%end = sys_size + 2*num_dims
-                ! number of stresses is 1 in 1D, 3 in 2D, 6 in 3D
+                ! number of stresses is 1 in 1D, 2 in quasi-1D, 3 in
+                ! 2D-plane stress, 4 in 2D-plane strain, 6 in 3D 
+                ! TODO add more flags to incorporate all these cases
                 plasidx = stress_idx%end + 1
                 sys_size = plasidx
               end if
-
+             ! Increase sys_size in post_process for accessing temperature
+             ! in s_convert_conservative_to_primitive
+             sys_size = sys_size + 1 
         end if
 
         momxb = mom_idx%beg

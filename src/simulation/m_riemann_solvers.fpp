@@ -2074,9 +2074,7 @@ contains
                     ! 5-EQUATION MODEL WITH HLLC AND MIE-GRUNIESEN EOS
                     !$acc parallel loop collapse(3) gang vector default(present) private(vel_L, vel_R, Re_L, Re_R, &
                     !$acc rho_avg, h_avg, gamma_avg, alpha_L, alpha_R, s_L, s_R, s_S, vel_avg_rms, pcorr, zcoef, &
-                    !$acc alpha_rho_L, alpha_rho_R, tau_e_L, tau_e_R, vel_L_tmp, vel_R_tmp, xi_d_L, xi_d_R, rho0mix, &
-                    !$acc rho_mix_MG_denominator, zeta_mix, theta_E, gamma_rho_squared_denominator, rho_mix_ratio, &
-                    !$acc rho_mix_MG, phi_mix, pres_bar, rho_K_ratio, E_mg)  
+                    !$acc alpha_rho_L, alpha_rho_R, tau_e_L, tau_e_R, vel_L_tmp, vel_R_tmp, xi_d_L, xi_d_R)
                     do l = is3%beg, is3%end
                         do k = is2%beg, is2%end
                             do j = is1%beg, is1%end
@@ -2185,60 +2183,27 @@ contains
                                 !E_R = gamma_R*pres_R + pi_inf_R + 5d-1*rho_R*vel_R_rms + qv_R
 
                                 ! Energy corresponding to Mie-Gruneisen EOS
-                                #:for SIDE, SIDE_INDEX in [('L',0),('R',1)]
-                                rho0mix                       = 0.d0
-                                rho_mix_MG_denominator        = 0.d0
-                                zeta_mix                      = 0.d0
-                                theta_E                       = 0.d0
-                                gamma_rho_squared_denominator = 0.d0
-                                E_${SIDE}$                    = 0.d0
-                                do i = 1, num_fluids
-                                 rho0mix = rho0mix + rho0(i)*q${SIDE}$_prim_rs${XYZ}$_vf(j+${SIDE_INDEX}$, k, l, E_idx + i)
-                                 rho_mix_MG_denominator = rho_mix_MG_denominator + & 
-                                  gammas(i)*(mg_a(i)*q${SIDE}$_prim_rs${XYZ}$_vf(j+${SIDE_INDEX}$, k, l, E_idx+i)*rho0(i)&
-                                  + mg_b(i)*q${SIDE}$_prim_rs${XYZ}$_vf(j+${SIDE_INDEX}$, k, l, i))
-                                 zeta_mix = zeta_mix + q${SIDE}$_prim_rs${XYZ}$_vf(j+${SIDE_INDEX}$, k, l, E_idx+i)*gammas(i) &
-                                  - (q${SIDE}$_prim_rs${XYZ}$_vf(j+${SIDE_INDEX}$, k, l, E_idx+i)*gammas(i)*rho0(i))/rho_${SIDE}$
-                                 theta_E = theta_E + q${SIDE}$_prim_rs${XYZ}$_vf(j+${SIDE_INDEX}$, k, l, E_idx+i)*ein_cv2(i)
-                                 gamma_rho_squared_denominator = gamma_rho_squared_denominator & 
-                                  + gammas(i)*(mg_a(i)*q${SIDE}$_prim_rs${XYZ}$_vf(j+${SIDE_INDEX}$, k, l, i)*rho0(i)**2d0 &
-                                  + mg_b(i)*q${SIDE}$_prim_rs${XYZ}$_vf(j+${SIDE_INDEX}$, k, l, i)*rho0(i))
-                                end do  
-                                rho_mix_ratio = rho_${SIDE}$/rho0mix
-                                rho_mix_MG    = rho_${SIDE}$/rho_mix_MG_denominator
-                                phi_mix       = dexp(zeta_mix)                        
-                                pres_bar      = q${SIDE}$_prim_rs${XYZ}$_vf(j + ${SIDE_INDEX}$, k, l, E_idx)*rho_mix_MG 
-                                do i = 1, num_fluids
-                                  rho_K_ratio = q${SIDE}$_prim_rs${XYZ}$_vf(j + ${SIDE_INDEX}$, k, l, i)/rho0(i)
-                                  E_mg = 0.5d0*((dlog(rho_mix_ratio))**2.d0)*rho_K_ratio*pi_infs(i) &
-                                        +0.5d0*((dlog(rho_mix_ratio))**3.d0)*rho_K_ratio*pi_infs(i)*(qvs(i)-2.d0)/3.d0 &
-                                        + phi_mix*(dexp(phi_mix*theta_E)/(dexp(phi_mix*theta_E)-1.d0)) & 
-                                        * q${SIDE}$_prim_rs${XYZ}$_vf(j + ${SIDE_INDEX}$, k, l, i)*ein_cv1(i)*ein_cv2(i) &
-                                        - dlog(DEXP(phi_mix*theta_E)-1.d0)* & 
-                                        q${SIDE}$_prim_rs${XYZ}$_vf(j + ${SIDE_INDEX}$, k, l, i)*ein_cv1(i) &
-                                        -dlog(rho_mix_ratio)*(q${SIDE}$_prim_rs${XYZ}$_vf(j + ${SIDE_INDEX}$, k, l, i)**2.d0) & 
-                                        *pi_infs(i)/gamma_rho_squared_denominator &
-                                        -((dlog(rho_mix_ratio))**2.d0)*&
-                                        (q${SIDE}$_prim_rs${XYZ}$_vf(j + ${SIDE_INDEX}$, k, l, i)**2.d0) & 
-                                        *pi_infs(i)*0.5d0*(qvs(i)-2.d0)/&
-                                        gamma_rho_squared_denominator
-                                  E_${SIDE}$ = E_${SIDE}$ +  E_mg
-                                end do
-                                ! adding the dynamic pressure and pressure contribution to the rest of
-                                ! energy terms
-                                E_${SIDE}$ = E_${SIDE}$ + pres_bar + 5d-1*rho_${SIDE}$*vel_${SIDE}$_rms
 
-                                #:endfor                              
-                                
+                                E_L = rho_L*qL_prim_rs${XYZ}$_vf(j, k, l, mgidxe) +&
+                                      (pres_L-qL_prim_rs${XYZ}$_vf(j, k, l, mgidxb+1))*&
+                                      qL_prim_rs${XYZ}$_vf(j, k, l, mgidxb) +& 
+                                      5d-1*rho_L*vel_L_rms 
+                                E_R = rho_R*qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxe) +&
+                                      (pres_R - qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb + 1))*&
+                                      qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb) +&
+                                      5d-1*rho_R*vel_R_rms
+
                                 H_L = 0d0; H_R = 0d0 
 
                                 @:compute_average_state()
 
-                                call s_compute_speed_of_sound(pres_L, rho_L, gamma_L, pi_inf_L, H_L, alpha_L, &
-                                                              vel_L_rms,c_L, alpha_rho_L)
+                                call s_compute_speed_of_sound(pres_L,&
+                                     rho_L, qL_prim_rs${XYZ}$_vf(j, k, l, mgidxb), pi_inf_L, H_L, alpha_L, &
+                                     vel_L_rms, c_L, alpha_rho_L, qL_prim_rs${XYZ}$_vf(j, k, l, mgidxb+1))
 
-                                call s_compute_speed_of_sound(pres_R, rho_R, gamma_R, pi_inf_R, H_R, alpha_R, &
-                                                              vel_R_rms,c_R, alpha_rho_R)
+                                call s_compute_speed_of_sound(pres_R,&
+                                     rho_R, qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb), pi_inf_R, H_R, alpha_R, &
+                                     vel_R_rms, c_R, alpha_rho_R, qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb+1))
 
                                 !Added alpha_rho_R above instead of alpha_rho_avg because of alpha_R above instead of alpha_avg
 
@@ -2341,7 +2306,7 @@ contains
                                     flux_rs${XYZ}$_vf(j, k, l, E_idx) = flux_rs${XYZ}$_vf(j, k, l, E_idx) + flux_ene_e
                                 end if
 
-                                ! HYPOELASTIC STRESS EVOLUTION FLUX.
+                                ! HYPOPLASTIC STRESS EVOLUTION FLUX.
                                 if (hypoplasticity) then
                                     !$acc loop seq
                                     do i = 1, strxe - strxb + 1
@@ -2375,16 +2340,22 @@ contains
                                 end do
 
                                 flux_src_rs${XYZ}$_vf(j, k, l, advxb) = vel_src_rs${XYZ}$_vf(j, k, l, idx1)
+                                !GAMMA FLUX
+
+                                !P_REF FLUX
+
+                                !E_REF FLUX
+                                
 
                                 ! ISOTROPIC HARDENING FLUX.
                                 if (hypoplasticity) then
                                    xi_d_L = qL_prim_rs${XYZ}$_vf(j, k, l, plasidx)
                                    xi_d_R = qR_prim_rs${XYZ}$_vf(j + 1, k, l, plasidx)
                                    flux_rs${XYZ}$_vf(j, k, l, plasidx) = &
-                                     xi_M*(s_S/(s_L - s_S))*(s_L*rho_L*xi_d_L &
-                                                - rho_L*vel_L(idx1)*xi_d_L) + &
+                                            xi_M*(s_S/(s_L - s_S))*(s_L*rho_L*xi_d_L &
+                                            - rho_L*vel_L(idx1)*xi_d_L) + &
                                             xi_P*(s_S/(s_R - s_S))*(s_R*rho_R*xi_d_R &
-                                                - rho_R*vel_R(idx1)*xi_d_R)
+                                            - rho_R*vel_R(idx1)*xi_d_R)
                                 end if
 
                             end do

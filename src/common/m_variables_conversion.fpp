@@ -137,7 +137,7 @@ contains
         !! @param alpha_K volume fraction of mixture
         !! @param alpha_rho_K conservative volume fraction of mixture
     subroutine s_compute_pressure(energy, alf, dyn_p, pi_inf, gamma, &
-        rho, qv, pres, stress, mom, G, alpha_K, alpha_rho_K)
+        rho, qv, pres, stress, mom, G, pref_over_gamma, rho_eref)
         !$acc routine seq
 
         real(kind(0d0)), intent(in) :: energy, alf
@@ -145,10 +145,9 @@ contains
         real(kind(0d0)), intent(in) :: pi_inf, gamma, rho, qv
         real(kind(0d0)), intent(out) :: pres
         real(kind(0d0)), intent(in), optional :: stress, mom, G
-        real(kind(0d0)), dimension(num_fluids), intent(in), optional :: alpha_K, alpha_rho_K
+        real(kind(0d0)), intent(in), optional :: pref_over_gamma, rho_eref
 
-        real(kind(0d0)) :: E_e, pres_mg, pres_sg
-        real(kind(0d0)) :: log_rho_mix_ratio, rho_mix_MG,phi_mix,theta_E, deno_gamma_rho_sq, term1, rho0_mix
+        real(kind(0d0)) :: E_e, pres_sg
         integer :: s !< Generic loop iterator
 
         ! Depending on model_eqns and bubbles, the appropriate procedure
@@ -160,38 +159,7 @@ contains
         else if ((model_eqns /= 4 .and. model_eqns /=5) .and. bubbles) then
             pres = ((energy - dyn_p)/(1.d0 - alf) - pi_inf - qv)/gamma
         else if (model_eqns == 5) then
-                term1             = 0.d0
-                rho0_mix          = 0.d0
-                deno_gamma_rho_sq = 0.d0
-                phi_mix           = 0.d0
-                theta_E           = 0.d0
-                do s = 1, num_fluids
-                         term1 = term1+ gammas(s)*(mg_a(s)*alpha_K(s)*rho0(s)+&
-                                mg_b(s)*alpha_rho_K(s))
-                         rho0_mix = rho0_mix + alpha_K(s)*rho0(s)
-                
-                         deno_gamma_rho_sq = deno_gamma_rho_sq+gammas(s)*(mg_a(s)*alpha_K(s)*&
-                                        rho0(s)*rho0(s)+mg_b(s)*alpha_rho_K(s)*rho0(s))
-                         phi_mix = phi_mix+alpha_K(s)*gammas(s)-alpha_K(s)*gammas(s)*rho0(s)/rho
-                         theta_E = theta_E+ alpha_K(s)*ein_cv2(s)
-                end do 
-                rho_mix_MG =rho/term1
-                log_rho_mix_ratio = dlog(rho/rho0_mix)
-                phi_mix = dexp(phi_mix)
-                pres = 0.d0
-                pres_mg = 0.d0
-                do s = 1, num_fluids
-                   pres_mg =0.d0 ! - 0.5d0*(log_rho_mix_ratio**2.d0)*(pi_infs(s)*alpha_rho_K(s)/rho0(s)) &
-                            ! -0.5d0*(log_rho_mix_ratio**3.d0)*pi_infs(s)*alpha_rho_K(s)*(qvs(s)-2.d0)/(3*rho0(s)) &
-                            ! -phi_mix*dexp(phi_mix*theta_E)*(alpha_rho_K(s)*ein_cv1(s)*ein_cv2(s))/(dexp(phi_mix*theta_E)-1.d0) &
-                            ! +dlog(dexp(phi_mix*theta_E)-1.d0)*(alpha_rho_K(s)*ein_cv1(s)) &
-                            ! +log_rho_mix_ratio*(alpha_rho_K(s)*alpha_rho_K(s)*pi_infs(s))/deno_gamma_rho_sq &
-                            ! +(log_rho_mix_ratio**2.d0)*(alpha_rho_K(s)**2.d0*pi_infs(s)*0.5d0*(qvs(s)-2.d0))/deno_gamma_rho_sq
-                   pres = pres + pres_mg 
-                   end do
-                pres = pres + energy - dyn_p     
-                pres = pres/rho_mix_MG
-                
+            pres = (energy - dyn_p + pref_over_gamma - rho_eref)/gamma 
         else
             pres = (pref + pi_inf)* &
                    (energy/ &
@@ -1098,14 +1066,21 @@ contains
                     else    
                         call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
                                            qK_cons_vf(alf_idx)%sf(j, k, l), dyn_pres_K, & 
-                                           pi_inf_K, gamma_K, rho_K, qv_K, &
-                                           pres, 0d0, 0d0, 0d0, alpha_K, alpha_rho_K)
+                                           pi_inf_K, qK_cons_vf(mgidxb)%sf(j, k, l), rho_K, qv_K, &
+                                           pres, 0d0, 0d0, 0d0,qK_cons_vf(mgidxb+1)%sf(j, k, l),&
+                                           qK_cons_vf(mgidxe)%sf(j, k, l))
+                                       
+                        qK_prim_vf(mgidxb)%sf(j, k, l)   = qK_cons_vf(mgidxb)%sf(j, k, l) 
+                        qK_prim_vf(mgidxb+1)%sf(j, k, l) = qK_cons_vf(mgidxb+1)%sf(j, k, l)/&
+                                                           qK_cons_vf(mgidxb)%sf(j, k, l)
+                        qK_prim_vf(mgidxe)%sf(j, k, l)   = qK_cons_vf(mgidxe)%sf(j, k, l)/rho_K
+                        
 #ifdef MFC_POST_PROCESS                        
                         call s_compute_temperature(qK_cons_vf(E_idx)%sf(j,k,l), & 
                                                    dyn_pres_K, pi_inf_K, & 
                                                    gamma_K, rho_K, qv_K, & 
                                                    temp, alpha_K, alpha_rho_K)
-                        qK_prim_vf(plasidx+1)%sf(j,k,l) = temp
+                        qK_cons_vf(plasidx+1)%sf(j, j, l) = temp
 #endif
                     end if   
                        
@@ -1229,19 +1204,10 @@ contains
         real(kind(0d0)) :: nbub, R3, vftmp, R3tmp
         real(kind(0d0)), dimension(nb) :: Rtmp
         real(kind(0d0)) :: G = 0d0
-        real(kind(0d0)), dimension(2) :: Re_K
- 
-        !!Parameters to make stiffened gas eos of air and Mie-Gruneisen
-        !consistent with each 
-        real(kind(0d0)) :: rho_K_ratio, rho0mix
-        !local variables for computing energy corresponding to
-        !Mie-Gruneisen EOS
-        real(kind(0d0)) :: rho_mix_ratio, rho_mix_MG, phi_mix
-        real(kind(0d0)) :: zeta_mix, rho_mix_MG_denominator, theta_E
-        real(kind(0d0)) :: gamma_rho_squared_denominator, E_mg,  pres_bar
-        real(kind(0d0)), dimension(num_fluids) :: alpha_rho_K
-        !Parameters for einstein model 
-        real(kind(0d0)), dimension(2) :: theta_E_K
+        real(kind(0d0)), dimension(2) :: Re_K 
+        
+        !Local variables used for Mie-Gruneisen EOS
+        real(kind(0d0)) :: eref, Pref, gamma_inv
 
         integer :: i, j, k, l !< Generic loop iterators      
 
@@ -1289,40 +1255,17 @@ contains
                                                        (1.d0 - q_prim_vf(alf_idx)%sf(j, k, l))* &
                                                        (gamma*q_prim_vf(E_idx)%sf(j, k, l) + pi_inf)
                     else if (model_eqns == 5) then
-                        ! Energy corresponding to Mie-Gruneisen EOS    
-                        rho0mix                 = 0.d0
-                        rho_mix_MG_denominator  = 0.d0
-                        zeta_mix                = 0.d0
-                        theta_E                 = 0.d0
-                        gamma_rho_squared_denominator = 0.d0
-                        do i = 1, num_fluids
-                          rho0mix                       = rho0mix + rho0(i)*q_prim_vf(E_idx+i)%sf(j, k, l)
-                          rho_mix_MG_denominator        = rho_mix_MG_denominator + & 
-                                                          gammas(i)*(mg_a(i)*q_prim_vf(E_idx+i)%sf(j, k, l)*rho0(i) + mg_b(i)*q_prim_vf(i)%sf(j, k, l))
-                          zeta_mix                      = zeta_mix + q_prim_vf(E_idx+i)%sf(j, k, l)*gammas(i) - (q_prim_vf(E_idx+i)%sf(j, k, l)*gammas(i)*rho0(i))/rho
-                          theta_E                       = theta_E + q_prim_vf(E_idx+i)%sf(j, k, l)*ein_cv2(i)
-                          gamma_rho_squared_denominator = gamma_rho_squared_denominator + gammas(i)*(mg_a(i)*q_prim_vf(i)%sf(j, k, l)*rho0(i)**2d0+&
-                                                          mg_b(i)*q_prim_vf(i)%sf(j, k ,l)*rho0(i))
-                        end do  
-                        rho_mix_ratio = rho/rho0mix
-                        rho_mix_MG = rho/rho_mix_MG_denominator
-                        phi_mix = DEXP(zeta_mix)                        
-                        pres_bar = q_prim_vf(E_idx)%sf(j, k, l)*rho_mix_MG 
-                        q_cons_vf(E_idx)%sf(j , k, l) = 0d0
-                        do i = 1, num_fluids
-                          rho_K_ratio = q_prim_vf(i)%sf(j, k, l)/rho0(i)
-                          E_mg = 0d0 !0.5d0*((dlog(rho_mix_ratio))**2)*rho_K_ratio*pi_infs(i) &
-                                !+0.5d0*((dlog(rho_mix_ratio))**3)*rho_K_ratio*pi_infs(i)*(qvs(i)-2.d0)/3.d0 &
-                                !+phi_mix*(DEXP(phi_mix*theta_E)/(DEXP(phi_mix*theta_E)-1.d0))*q_prim_vf(i)%sf(j, k, l)*ein_cv1(i)*ein_cv2(i) &
-                                !-dlog(DEXP(phi_mix*theta_E)-1.d0)*q_prim_vf(i)%sf(j, k, l)*ein_cv1(i) &
-                                !-dlog(rho_mix_ratio)*(q_prim_vf(i)%sf(j, k, l)**2)*pi_infs(i)/gamma_rho_squared_denominator &
-                                !-((dlog(rho_mix_ratio))**2)*(q_prim_vf(i)%sf(j, k, l)**2.d0)*pi_infs(i)*0.5d0*(qvs(i)-2.d0)/&
-                                ! gamma_rho_squared_denominator
-
-                          q_cons_vf(E_idx)%sf(j,k,l) = q_cons_vf(E_idx)%sf(j, k, l) +  E_mg
-                        end do
-                        ! adding the dynamic pressure to the total energy
-                        q_cons_vf(E_idx)%sf(j, k, l) = q_cons_vf(E_idx)%sf(j, k, l) + pres_bar + dyn_pres
+                        ! Energy corresponding to Mie-Gruneisen EOS 
+                        gamma_inv= q_prim_vf(mgidxb)%sf(j, k, l)
+                        Pref     = q_prim_vf(mgidxb+1)%sf(j, k, l)
+                        eref     = q_prim_vf(mgidxe)%sf(j, k, l) 
+                        q_cons_vf(E_idx)%sf(j, k, l)    = rho*eref +&
+                                                          gamma_inv*(q_prim_vf(E_idx)%sf(j, k, l)-Pref) +& 
+                                                          dyn_pres
+                        q_cons_vf(mgidxb)%sf(j, k, l)   = q_prim_vf(mgidxb)%sf(j, k, l)
+                        q_cons_vf(mgidxb+1)%sf(j, k, l) = gamma_inv*Pref 
+                        q_cons_vf(mgidxe)%sf(j, k, l)   = rho*eref
+                        
                     else
                         !Tait EOS, no conserved energy variable
                         q_cons_vf(E_idx)%sf(j, k, l) = 0.d0

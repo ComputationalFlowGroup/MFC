@@ -50,6 +50,8 @@ module m_start_up
 
     use m_hypoplastic
 
+    use m_miegruneisen
+
     use m_hyperelastic
 
     use m_phase_change          !< Phase-change module
