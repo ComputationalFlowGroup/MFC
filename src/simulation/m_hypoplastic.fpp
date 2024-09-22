@@ -167,7 +167,7 @@ contains
 !              print *, 'I got here C' 
 
              ! STEP 3.3: TODO MIRELYS
-             if (G_K .gt. verysmall) then 
+             if (G_K .gt. sgm_eps) then 
 !               print *, 'I got here D' 
               ! STEP 3.4 : Compute mixture pressure and temperature
 !                print *, 'energy ::', energy, 'alf ::', alf, 'dyn_p ::',&
