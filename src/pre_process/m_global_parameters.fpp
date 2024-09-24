@@ -83,7 +83,7 @@ module m_global_parameters
     integer :: weno_order      !< Order of accuracy for the WENO reconstruction
     logical :: hypoelasticity  !< activate hypoelasticity
     logical :: hyperelasticity !< activate hyperelasticity
-    logical :: hypoplasticity      !< activate johnson-cook hypoplasticity 
+    logical :: hypoplasticity  !< activate johnson-cook hypoplasticity 
     logical :: elasticity      !< elasticity modeling, true for hyper or hypo
     integer :: b_size          !< Number of components in the b tensor
     integer :: tensor_size     !< Number of components in the nonsymmetric tensor

@@ -178,9 +178,9 @@ cfl = 0.30
 R0 = 244.8E-06
 
 # number of elements
-Nx = 249 #404 #249
-Ny = 124 #179 #124
-Nz = 124 #179 #124
+Nx = 679 #249 #404 #249
+Ny = 299 #124 #179 #124
+Nz = 299 #124 #179 #124
 Nx0 = Nx
 
 # domain boundaries
@@ -228,7 +228,8 @@ PPBR_z = R0 / dz
 SF = 100
 
 # Critical time-step
-tc = 0.915 * R0 * math.sqrt( rho0wl1 / p01 )
+#tc = 0.915 * R0 * math.sqrt( rho0wl1 / p01 )
+tc = ((2/3) + (5/3)*(Gg/p01)**(-.5E+00)) * 0.747 * R0 * math.sqrt(rho0wg1 / p01)
 
 # making Nt divisible by SF
 # tendA = 1.5 * tc
@@ -243,7 +244,7 @@ tend = 1.2 * tc
 # Nt = total number of steps. Ensure Nt > NtA (so the total tendA is covered)
 # Nt = AS * SF
 #Nt = int(2.5E3 * tend // tc * Nx / Nx0 + 1)
-Nt = int(2.0E3 * tend // tc * Nx / Nx0 + 1)
+Nt = int(80.0E3 * tend // tc * Nx / Nx0 + 1)
 #print(Nt)
 dt = tend / Nt
 
@@ -286,7 +287,7 @@ print(json.dumps({
     'dt'           : dt,        
     't_step_start' : tstart,       
     't_step_stop'  : Nt,      
-    't_step_save'  : AS,        
+    't_step_save'  : 1, #AS,        
     # ==========================================================
     # Simulation Algorithm Parameters ==========================
     'num_patches'  : 3,        
@@ -296,10 +297,10 @@ print(json.dumps({
     #'adv_alphan'   : 'T',      
     'mpp_lim'      : 'T',      
     'mixture_err'  : 'T',      
-  #  'relax'        : 'T',  
-  #  'relax_model'  : 6,        
-  #  'palpha_eps'   : 1.0E-6,   
-  #  'ptgalpha_eps' : 1.0E-2,   
+    #'relax'        : 'T',  
+    #'relax_model'  : 6,        
+    #'palpha_eps'   : 1.0E-6,   
+    #'ptgalpha_eps' : 1.0E-2,   
     'time_stepper' : 3,        
     'weno_order'   : 3,        
     'weno_eps'     : 1.0E-16,
@@ -332,7 +333,8 @@ print(json.dumps({
     # ==========================================================
     # Patch 1: High pressured water ============================
     # Specify the cubic water background grid geometry
-    'patch_icpp(1)%geometry'       : 9,
+    'patch_icpp(1)%geometry'       : 13, #9
+    'patch_icpp(1)%hcid'           : 302, 	
     'patch_icpp(1)%x_centroid'     : 20*xcenl,
     'patch_icpp(1)%y_centroid'     : 20*ycenl,
     'patch_icpp(1)%z_centroid'     : 20*zcenl,
@@ -353,7 +355,8 @@ print(json.dumps({
     'patch_icpp(1)%alpha(1)'       : liq_wg,   	
     # ==========================================================
     # Patch 2: (Vapor) Bubble ==================================
-    'patch_icpp(2)%geometry'       : 8,     	
+    'patch_icpp(2)%geometry'       : 8,     
+    'patch_icpp(2)%alter_patch(1)' : 'T',	
     'patch_icpp(2)%x_centroid'     : xcenb,
     'patch_icpp(2)%y_centroid'     : ycenb,
     'patch_icpp(2)%z_centroid'     : zcenb,
@@ -370,11 +373,11 @@ print(json.dumps({
     'patch_icpp(2)%alpha(2)'       : bub_wv,   	
     'patch_icpp(2)%alpha(3)'       : bub_wa,
     'patch_icpp(2)%alpha(1)'       : bub_wg,
-    'patch_icpp(2)%alter_patch(1)' : 'T',
     # ==========================================================
     # Patch 3: Gel Object ======================================
-    'patch_icpp(3)%geometry'       : 13, #9,
-    'patch_icpp(3)%hcid'           : 302,     	
+    #'patch_icpp(3)%geometry'       : 9,
+    'patch_icpp(3)%geometry'       : 13,
+    'patch_icpp(3)%hcid'           : 302,
     'patch_icpp(3)%alter_patch(1)' : 'T',
     'patch_icpp(3)%x_centroid'     : 20*xceng,
     'patch_icpp(3)%y_centroid'     : 20*yceng,

@@ -1412,6 +1412,7 @@ contains
                 end do
             end do
         end do
+        print *, 'I got here aaa'
 
     end subroutine s_3D_analytical
 

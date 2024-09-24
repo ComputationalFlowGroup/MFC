@@ -107,11 +107,11 @@ contains
         real(kind(0d0)) :: gamma, lit_gamma, pi_inf, qv !< Temporary EOS params
         real(kind(0d0)) :: rho                          !< Temporary density
         real(kind(0d0)) :: pres                         !< Temporary pressure
-!        real(kind(0d0)) :: temp                         !< Temporary temp
- !       real(kind(0d0)), dimension(num_fluids)  :: alpha_K, alpha_rho_K         !< Temporary params needed
+        real(kind(0d0)) :: temp                         !< Temporary temp
+        real(kind(0d0)), dimension(num_fluids)  :: alpha_K, alpha_rho_K         !< Temporary params needed
 
-        !type(scalar_field), dimension(sys_size) :: q_prim_vf
-        !type(scalar_field), dimension(sys_size), intent(inout) :: q_cons_vf
+!        type(scalar_field), dimension(sys_size) :: q_prim_vf
+!        type(scalar_field), dimension(sys_size) :: q_cons_vf
 
         !real(kind(0d0)) :: nR3
         !real(kind(0d0)) :: ntmp
@@ -264,15 +264,15 @@ contains
                                 q_cons_vf(alf_idx)%sf(j, 0, 0), &
                                 0.5d0*(q_cons_vf(mom_idx%beg)%sf(j, 0, 0)**2.d0)/rho, &
                                 pi_inf, gamma, rho, qv, pres)
-                            !do s = 1, num_fluids 
-                             !       alpha_rho_K(s) = q_prim_vf(s)%sf(j , k, l)
-                              !      alpha_K = q_prim_vf(E_idx+s)%sf(j, k, l)
-!                                    call s_convert_primitive_to_conservative_variables(q_prim_vf, q_cons_vf)
+                            ! do s = 1, num_fluids 
+                            !        alpha_rho_K(s) = q_prim_vf(s)%sf(j , k, l)
+                            !        alpha_K = q_prim_vf(E_idx+s)%sf(j, k, l)
+                            !        call s_convert_primitive_to_conservative_variables(q_prim_vf, q_cons_vf)
                             !        call s_compute_temperature( &
-                             !       q_cons_vf(E_idx)%sf(j, 0, 0), &
-			!	    0.50*(q_cons_vf(mom_idx%beg)%sf(j, 0, 0)**2.d0)/rho, &
-                         !           pi_inf, gamma, rho, qv, temp ) !, alpha_K, alpha_rho_K(s))
-                           ! end do
+                            !        q_cons_vf(E_idx)%sf(j, 0, 0), &
+		            !        0.50*(q_cons_vf(mom_idx%beg)%sf(j, 0, 0)**2.d0)/rho, &
+                            !        pi_inf, gamma, rho, qv, temp ) !, alpha_K, alpha_rho_K(s))
+                            !end do
                             write (2, FMT) x_cb(j), pres
                         else if ((i >= bub_idx%beg) .and. (i <= bub_idx%end) .and. bubbles) then
 

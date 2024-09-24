@@ -172,7 +172,6 @@ Gg = 0.57E+03
 ## SIMULATION PARAMETERS
 
 # CFL
-cfl = 0.50
 
 # Bubble Initial Radius
 R0 = 230.4E-06
@@ -243,7 +242,7 @@ tend = 1.2 * tc
 
 # Nt = total number of steps. Ensure Nt > NtA (so the total tendA is covered)
 # Nt = AS * SF
-Nt = int(2E3 * tend // tc * Nx / Nx0 + 1)
+Nt = int(3.0E3 * tend // tc * Nx / Nx0 + 1)
 #print(Nt)
 dt = tend / Nt
 
@@ -296,10 +295,10 @@ print(json.dumps({
     #'adv_alphan'   : 'T',      
     'mpp_lim'      : 'T',      
     'mixture_err'  : 'T',      
-#    'relax'        : 'T',  
-#    'relax_model'  : 6,        
-#    'palpha_eps'   : 1.0E-6,   
-#    'ptgalpha_eps' : 1.0E-2,   
+    #'relax'        : 'T',  
+    #'relax_model'  : 6,        
+    #'palpha_eps'   : 1.0E-6,   
+    #'ptgalpha_eps' : 1.0E-2,   
     'time_stepper' : 3,        
     'weno_order'   : 3,        
     'weno_eps'     : 1.0E-16,
@@ -332,7 +331,8 @@ print(json.dumps({
     # ==========================================================
     # Patch 1: High pressured water ============================
     # Specify the cubic water background grid geometry
-    'patch_icpp(1)%geometry'       : 9,
+    'patch_icpp(1)%geometry'       : 13, #9
+    'patch_icpp(1)%hcid'           : 302, 	
     'patch_icpp(1)%x_centroid'     : 20*xcenl,
     'patch_icpp(1)%y_centroid'     : 20*ycenl,
     'patch_icpp(1)%z_centroid'     : 20*zcenl,
@@ -373,8 +373,7 @@ print(json.dumps({
     'patch_icpp(2)%alter_patch(1)' : 'T',
     # ==========================================================
     # Patch 3: Gel Object ======================================
-    'patch_icpp(3)%geometry'       : 13, #8 
-    'patch_icpp(3)%hcid'           : 302, 	
+    'patch_icpp(3)%geometry'       : 9, 
     'patch_icpp(3)%alter_patch(1)' : 'T',
     'patch_icpp(3)%x_centroid'     : 20*xceng,
     'patch_icpp(3)%y_centroid'     : 20*yceng,

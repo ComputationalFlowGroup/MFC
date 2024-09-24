@@ -61,6 +61,8 @@
         end if
 
      case (302) ! pre_stress for hyperelasticity, bubble in material
+        R0ref = 30E-6    ! equilibrium radius
+        Rinit = 230.4E-6 ! initial radius
         rcoord = sqrt(x_cc(i)**2 + y_cc(j)**2 + z_cc(k)**2)
         theta = atan2(y_cc(j), x_cc(i))
         phi = atan2(sqrt(x_cc(i)**2 + y_cc(j)**2), z_cc(k))
@@ -73,6 +75,12 @@
         do ii = 1, num_dims
             q_prim_vf(ii + xibeg - 1)%sf(i, j, k) = xi_cart(ii)
         end do
+           q_prim_vf(contxb)%sf(i, j, k) = patch_icpp(1)%alpha_rho(1)
+           q_prim_vf(contxe)%sf(i, j, k) = patch_icpp(1)%alpha_rho(2)
+!what about alpha_rho(3) and alpha_rho(4) [contxb + 1, contxe - 1]?
+           q_prim_vf(E_idx)%sf(i, j, k) = patch_icpp(1)%pres
+           q_prim_vf(advxb)%sf(i, j, k) = patch_icpp(1)%alpha(1)
+           q_prim_vf(advxe)%sf(i, j, k) = patch_icpp(1)%alpha(2)
 
         ! Put your variable assignments here
     case default
