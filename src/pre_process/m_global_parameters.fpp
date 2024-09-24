@@ -736,7 +736,12 @@ contains
             cont_idx%beg = 1
             cont_idx%end = num_fluids
             mom_idx%beg = cont_idx%end + 1
-            mom_idx%end = cont_idx%end + num_dims
+            if (hypoplasticity .eqv. .false.) then
+              mom_idx%end = cont_idx%end + num_dims
+            else if (num_dims == 1 .and. hypoplasticity .eqv. .true.) then
+              !To account for v for quasi-1D case for hypoplasticity
+              mom_idx%end = cont_idx%end + 2
+            end if
             E_idx = mom_idx%end + 1
             adv_idx%beg = E_idx + 1
             adv_idx%end = E_idx + num_fluids
