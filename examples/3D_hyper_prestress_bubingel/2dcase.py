@@ -180,7 +180,7 @@ R0 = 244.8E-06
 # number of elements
 Nx = 249 #679 #404 #249
 Ny = 124 #299 #179 #124
-Nz = 124 #299 #179 #124
+#Nz = 124 #299 #179 #124
 Nx0 = Nx
 
 # domain boundaries
@@ -191,36 +191,36 @@ xe = lref
 yb = 0.00
 ye = lref
 
-zb = 0.00
-ze = lref
+#zb = 0.00
+#ze = lref
 
 lenx = ( xe - xb )
 leny = ( ye - yb )
-lenz = ( ze - zb )
+#lenz = ( ze - zb )
 
 xcenl = 0. 
 ycenl = leny/2.
-zcenl = lenz/2.
+#zcenl = lenz/2.
 
 #xdist = 6.51E-10 #2.17E-5
 #sod = xdist/R0
 sod = 1.39
 xcenb = sod*R0 #neg for bub in liq; pos bub in gel 
 ycenb = 0.00
-zcenb = 0.00
+#zcenb = 0.00
 
 xceng = xe / 2.
 yceng = ycenl
-zceng = zcenl
+#zceng = zcenl
 
 # typical cell size
 dx = ( xe - xb ) / Nx
 dy = ( ye - yb ) / Ny
-dz = ( ze - zb ) / Nz
+#dz = ( ze - zb ) / Nz
 #print(dx)
 PPBR_x = R0 / dx
 PPBR_y = R0 / dy
-PPBR_z = R0 / dz
+#PPBR_z = R0 / dz
 #print(PPBR_x)
 #print(PPBR_y)
 
@@ -263,8 +263,8 @@ print(json.dumps({
     'x_domain%end' : xe,        
     'y_domain%beg' : yb,        
     'y_domain%end' : ye,
-    'z_domain%beg' : zb,
-    'z_domain%end' : ze,
+ #   'z_domain%beg' : zb,
+ #   'z_domain%end' : ze,
     'stretch_x'    : 'T',
     'loops_x'      : 1,
     'a_x'          : 4.0E0,
@@ -275,15 +275,15 @@ print(json.dumps({
     'a_y'          : 1.0E0,
     'y_a'          : -1.5*R0*abs(sod),
     'y_b'          :  1.5*R0*abs(sod),
-    'stretch_z'    : 'T',
-    'loops_z'      : 1,
-    'a_z'          : 1.0E0,
-    'z_a'          : -1.5*R0*abs(sod),
-    'z_b'          :  1.5*R0*abs(sod),
+ #   'stretch_z'    : 'T',
+ #   'loops_z'      : 1,
+ #   'a_z'          : 1.0E0,
+ #   'z_a'          : -1.5*R0*abs(sod),
+ #   'z_b'          :  1.5*R0*abs(sod),
     'cyl_coord'    : 'F',
     'm'            : Nx,        
     'n'            : Ny,        
-    'p'            : Nz,         
+    'p'            : 0, #Nz,         
     'dt'           : dt,        
     't_step_start' : tstart,       
     't_step_stop'  : Nt,      
@@ -316,8 +316,8 @@ print(json.dumps({
     'bc_x%end'     : -6,       
     'bc_y%beg'     : -2,       
     'bc_y%end'     : -6,
-    'bc_z%beg'     : -2,
-    'bc_z%end'     : -6,
+   # 'bc_z%beg'     : -2,
+   # 'bc_z%end'     : -6,
     # ==========================================================
     # Formatted Database Files Structure Parameters ============
     'format'       : 1,        
@@ -333,17 +333,17 @@ print(json.dumps({
     # ==========================================================
     # Patch 1: High pressured water ============================
     # Specify the cubic water background grid geometry
-    'patch_icpp(1)%geometry'       : 9, #13
+    'patch_icpp(1)%geometry'       : 3, #9, #13
 #    'patch_icpp(1)%hcid'           : 302, 	
     'patch_icpp(1)%x_centroid'     : 20*xcenl,
     'patch_icpp(1)%y_centroid'     : 20*ycenl,
-    'patch_icpp(1)%z_centroid'     : 20*zcenl,
+   # 'patch_icpp(1)%z_centroid'     : 20*zcenl,
     'patch_icpp(1)%length_x'       : 20*lenx,
     'patch_icpp(1)%length_y'       : 20*leny,
-    'patch_icpp(1)%length_z'       : 20*lenz,
+   # 'patch_icpp(1)%length_z'       : 20*lenz,
     'patch_icpp(1)%vel(1)'         : 0.0E+00,
     'patch_icpp(1)%vel(2)'         : 0.0E+00,
-    'patch_icpp(1)%vel(3)'         : 0.0E+00,
+   # 'patch_icpp(1)%vel(3)'         : 0.0E+00,
     'patch_icpp(1)%pres'           : p01,  	
     'patch_icpp(1)%alpha_rho(4)'   : liq_wl * rho0wl1,           	
     'patch_icpp(1)%alpha_rho(2)'   : liq_wv * rho0wv1,            
@@ -355,15 +355,15 @@ print(json.dumps({
     'patch_icpp(1)%alpha(1)'       : liq_wg,   	
     # ==========================================================
     # Patch 2: (Vapor) Bubble ==================================
-    'patch_icpp(2)%geometry'       : 8,     
+    'patch_icpp(2)%geometry'       : 2, #8,     
     'patch_icpp(2)%alter_patch(1)' : 'T',	
     'patch_icpp(2)%x_centroid'     : xcenb,
     'patch_icpp(2)%y_centroid'     : ycenb,
-    'patch_icpp(2)%z_centroid'     : zcenb,
+    #'patch_icpp(2)%z_centroid'     : zcenb,
     'patch_icpp(2)%radius'         : R0,
     'patch_icpp(2)%vel(1)'         : 0.0E+00,
     'patch_icpp(2)%vel(2)'         : 0.0E+00,
-    'patch_icpp(2)%vel(3)'         : 0.0E+00,
+    #'patch_icpp(2)%vel(3)'         : 0.0E+00,
     'patch_icpp(2)%pres'           : p02,    	
     'patch_icpp(2)%alpha_rho(4)'   : bub_wl*rho0wl2,           	
     'patch_icpp(2)%alpha_rho(2)'   : bub_wv*rho0wv2,           	
@@ -375,19 +375,19 @@ print(json.dumps({
     'patch_icpp(2)%alpha(1)'       : bub_wg,
     # ==========================================================
     # Patch 3: Gel Object ======================================
-    'patch_icpp(3)%geometry'       : 9,
+    'patch_icpp(3)%geometry'       : 3, #9,
    # 'patch_icpp(3)%geometry'       : 13,
    # 'patch_icpp(3)%hcid'           : 302,
     'patch_icpp(3)%alter_patch(1)' : 'T',
     'patch_icpp(3)%x_centroid'     : 20*xceng,
     'patch_icpp(3)%y_centroid'     : 20*yceng,
-    'patch_icpp(3)%z_centroid'     : 20*zceng,
+    #'patch_icpp(3)%z_centroid'     : 20*zceng,
     'patch_icpp(3)%length_x'       : 20*xe,
     'patch_icpp(3)%length_y'       : 20*leny,
-    'patch_icpp(3)%length_z'       : 20*lenz,
+    #'patch_icpp(3)%length_z'       : 20*lenz,
     'patch_icpp(3)%vel(1)'         : 0.0E+00,
     'patch_icpp(3)%vel(2)'         : 0.0E+00,
-    'patch_icpp(3)%vel(3)'         : 0.0E+00,
+    #'patch_icpp(3)%vel(3)'         : 0.0E+00,
     'patch_icpp(3)%pres'           : p03,    	
     'patch_icpp(3)%alpha_rho(4)'   : gel_wl * rho0wl3,           	
     'patch_icpp(3)%alpha_rho(2)'   : gel_wv * rho0wv3,           	
@@ -400,17 +400,17 @@ print(json.dumps({
     ## ==========================================================
     # Patch 4: For prestress and xi_RMT initialization===========
     # Specify the cubic water background grid geometry
-    'patch_icpp(4)%geometry'       : 13,
-    'patch_icpp(4)%hcid'           : 302, 	
+    'patch_icpp(4)%geometry'       : 7, #13,
+    'patch_icpp(4)%hcid'           : 207, #302, 	
     'patch_icpp(4)%x_centroid'     : 20*xcenl,
     'patch_icpp(4)%y_centroid'     : 20*ycenl,
-    'patch_icpp(4)%z_centroid'     : 20*zcenl,
+    #'patch_icpp(4)%z_centroid'     : 20*zcenl,
     'patch_icpp(4)%length_x'       : 20*lenx,
     'patch_icpp(4)%length_y'       : 20*leny,
-    'patch_icpp(4)%length_z'       : 20*lenz,
+    #'patch_icpp(4)%length_z'       : 20*lenz,
     'patch_icpp(4)%vel(1)'         : 0.0E+00,
     'patch_icpp(4)%vel(2)'         : 0.0E+00,
-    'patch_icpp(4)%vel(3)'         : 0.0E+00,
+    #'patch_icpp(4)%vel(3)'         : 0.0E+00,
     'patch_icpp(4)%pres'           : p03,    	
     'patch_icpp(4)%alpha_rho(4)'   : gel_wl * rho0wl3,           	
     'patch_icpp(4)%alpha_rho(2)'   : gel_wv * rho0wv3,           	

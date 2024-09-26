@@ -290,7 +290,7 @@ print(json.dumps({
     't_step_save'  : 1, #AS,        
     # ==========================================================
     # Simulation Algorithm Parameters ==========================
-    'num_patches'  : 4,        
+    'num_patches'  : 3,        
     'model_eqns'   : 3,        
     'num_fluids'   : 4,       
     'hyperelasticity' : 'T', 
@@ -334,7 +334,7 @@ print(json.dumps({
     # Patch 1: High pressured water ============================
     # Specify the cubic water background grid geometry
     'patch_icpp(1)%geometry'       : 9, #13
-#    'patch_icpp(1)%hcid'           : 302, 	
+    #'patch_icpp(1)%hcid'           : 302, 	
     'patch_icpp(1)%x_centroid'     : 20*xcenl,
     'patch_icpp(1)%y_centroid'     : 20*ycenl,
     'patch_icpp(1)%z_centroid'     : 20*zcenl,
@@ -375,9 +375,9 @@ print(json.dumps({
     'patch_icpp(2)%alpha(1)'       : bub_wg,
     # ==========================================================
     # Patch 3: Gel Object ======================================
-    'patch_icpp(3)%geometry'       : 9,
-   # 'patch_icpp(3)%geometry'       : 13,
-   # 'patch_icpp(3)%hcid'           : 302,
+#    'patch_icpp(3)%geometry'       : 9,
+    'patch_icpp(3)%geometry'       : 13,
+    'patch_icpp(3)%hcid'           : 302,
     'patch_icpp(3)%alter_patch(1)' : 'T',
     'patch_icpp(3)%x_centroid'     : 20*xceng,
     'patch_icpp(3)%y_centroid'     : 20*yceng,
@@ -397,30 +397,7 @@ print(json.dumps({
     'patch_icpp(3)%alpha(2)'       : gel_wv,   	
     'patch_icpp(3)%alpha(3)'       : gel_wa,
     'patch_icpp(3)%alpha(1)'       : gel_wg,	
-    ## ==========================================================
-    # Patch 4: For prestress and xi_RMT initialization===========
-    # Specify the cubic water background grid geometry
-    'patch_icpp(4)%geometry'       : 13,
-    'patch_icpp(4)%hcid'           : 302, 	
-    'patch_icpp(4)%x_centroid'     : 20*xcenl,
-    'patch_icpp(4)%y_centroid'     : 20*ycenl,
-    'patch_icpp(4)%z_centroid'     : 20*zcenl,
-    'patch_icpp(4)%length_x'       : 20*lenx,
-    'patch_icpp(4)%length_y'       : 20*leny,
-    'patch_icpp(4)%length_z'       : 20*lenz,
-    'patch_icpp(4)%vel(1)'         : 0.0E+00,
-    'patch_icpp(4)%vel(2)'         : 0.0E+00,
-    'patch_icpp(4)%vel(3)'         : 0.0E+00,
-    'patch_icpp(4)%pres'           : p03,    	
-    'patch_icpp(4)%alpha_rho(4)'   : gel_wl * rho0wl3,           	
-    'patch_icpp(4)%alpha_rho(2)'   : gel_wv * rho0wv3,           	
-    'patch_icpp(4)%alpha_rho(3)'   : gel_wa * rho0wa3,
-    'patch_icpp(4)%alpha_rho(1)'   : gel_wg * rho0wg3,           	
-    'patch_icpp(4)%alpha(4)'       : gel_wl,   	
-    'patch_icpp(4)%alpha(2)'       : gel_wv,   	
-    'patch_icpp(4)%alpha(3)'       : gel_wa,
-    'patch_icpp(4)%alpha(1)'       : gel_wg,	
-   # ==========================================================
+    # ==========================================================
     # Fluids Physical Parameters ===============================
     'fluid_pp(4)%gamma'            : 1.0E+00 / ( gamwl - 1 ),       
     'fluid_pp(4)%pi_inf'           : gamwl * piwl / ( gamwl - 1 ),  
