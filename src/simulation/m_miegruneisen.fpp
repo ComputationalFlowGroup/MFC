@@ -73,10 +73,14 @@ contains
         ! Computing centered finite difference coefficients
         call s_compute_finite_difference_coefficients(m, x_cc, fd_coeff_x, buff_size, &
                                                       fd_number, fd_order)
+
         !$acc update device(fd_coeff_x)
+        if (num_dims /= 1) then
         call s_compute_finite_difference_coefficients(n, y_cc, fd_coeff_y, buff_size, &
                                                           fd_number, fd_order)
+
         !$acc update device(fd_coeff_y)
+        end if
     
     end subroutine s_initialize_miegruneisen_module
 
@@ -98,7 +102,102 @@ contains
         real(kind(0d0)) :: energy, alf, dyn_p, pi_inf
         real(kind(0d0)) :: gamma, rho, qv, pres, mom, temp, G 
         real(kind(0d0)), dimension(num_fluids) ::  alpha_K, alpha_rho_K
+        if (num_dims == 1) then
+        ! Writing code for quasi-1D not true 1D
+        du_dx(:, :, :) = 0d0; 
+        dv_dx(:, :, :) = 0d0;
+        !$acc parallel loop collapse(2) gang vector default(present)
+        do k = 0, m
+            do r = -fd_number, fd_number
+               du_dx(k, l, q) = du_dx(k, l, q) + q_prim_vf(momxb)%sf(k + r, l, q)*fd_coeff_x(r, k)
+               dv_dx(k, l, q) = dv_dx(k, l, q) + q_prim_vf(momxb + 1)%sf(k + r, l, q)*fd_coeff_x(r, k)
+            end do
+        end do
+        !$acc end parallel loop
 
+        !$acc parallel loop collapse(2) gang vector default(present) &
+        !$acc private(rho_K,G_K,alpha_rho_K,alpha_K,&
+        !$acc mg_exp,rhs_mgidx2_mix, rhs_mgidx3_mix,&
+        !$acc A_cv, rho0_mix, theta_E, gamma_inf, gamma0)
+        do k = 0, m
+             ! STEP 3.1 : Compute mixtures variables for computing
+             ! pressure and temperature
+             energy = q_cons_vf(E_idx)%sf(k, l, q) 
+             dyn_p  = 0d0          
+             do i = momxb, momxe
+                dyn_p = dyn_p + 5d-1*q_cons_vf(i)%sf(k, l, q)*q_prim_vf(i)%sf(k, l, q)
+             end do
+             !print *, 'I got here B' 
+             
+             rho_K          = 0d0
+             mg_exp         = 0d0
+             rhs_mgidx2_mix = 0d0
+             rhs_mgidx3_mix = 0d0
+             A_cv           = 0d0
+             rho0_mix       = 0d0
+             theta_E        = 0d0
+             gamma_inf      = 0d0
+             gamma0         = 0d0
+             ! STEP 3.2 : Compute mixtures in preparation for pressure and temperature
+             do i = 1, num_fluids
+                rho_K          = rho_K    + q_prim_vf(i)%sf(k, l, q) 
+                alpha_rho_K(i) = q_prim_vf(i)%sf(k, l, q)
+                alpha_K(i)     = q_prim_vf(advxb + i - 1)%sf(k, l, q)
+                mg_exp         = mg_exp   + alpha_K(i)*mg_b(i)
+                rho0_mix       = rho0_mix + alpha_K(i)*rho0(i)
+                A_cv           = A_cv     + alpha_K(i)*ein_cv1(q)
+                theta_E        = theta_E  + alpha_K(i)*ein_cv2(q)
+                gamma_inf      = gamma_inf+ alpha_K(i)*mg_a(q)
+                gamma0         = gamma0   + alpha_K(i)*gammas(q)
+             end do
+!              print *, 'I got here C'
+
+                phi_mix = ((rho0_mix/rho_K)**(-gamma_inf))*&
+                            dexp((gamma0 - gamma_inf)*&
+                            (1d0- (rho0_mix/rho_K)**mg_exp))
+ 
+             do i = 1, num_fluids
+                rhs_mgidx2_mix = rhs_mgidx2_mix +&
+                                 pi_infs(i)*alpha_K(i)*rho_K/rho0(i) +&
+                                 dlog(rho_K/rho0_mix)*alpha_K(i)&
+                                 *pi_infs(i)*(qvs(i)-2d0)*rho_K/rho0(i)
+               
+                rhs_mgidx3_mix = rhs_mgidx3_mix +&
+                                 (1d0/q_prim_vf(mgidxb)%sf(k, l, q))*alpha_rho_K(i)*A_cv*((theta_E*phi_mix)**2d0)&
+                                 *dexp(theta_E*phi_mix)/((dexp(theta_E*phi_mix)-1d0)**2d0)
+                                 
+             end do
+             rhs_mgidx2_mix = rhs_mgidx2_mix*q_prim_vf(mgidxb)%sf(k, l, q)
+             ! STEP 3.3: TODO MIRELYS
+!              if (G_K .gt. verysmall) then 
+!               print *, 'I got here D' 
+              ! STEP 3.4 : Compute mixture pressure and temperature
+!                print *, 'energy ::', energy, 'alf ::', alf, 'dyn_p ::',&
+!                dyn_p, 'pi_inf ::', pi_inf, 'gamma ::', gamma, 'rho ::', rho, 'qv ::', &
+!                qv, 'stress ::', stress, 'mom ::', mom, 'G ::', G, 'alpha_K ::', &
+!                alpha_K, 'alpha_rho_K ::', alpha_rho_K
+                call s_compute_pressure(energy, alf, dyn_p, pi_inf, q_cons_vf(mgidxb)%sf(k, l, q), rho_K, 0d0, & 
+                                        pres, 0d0, 0d0, G, &
+                                        q_cons_vf(mgidxb+1)%sf(k, l, q), &
+                                        q_cons_vf(mgidxe)%sf(k, l, q))
+!               print *, 'pressure :: ', pres, 'temperature ::', temp
+!               rhs_vf(plasidx)%sf(k, l, q) = rhs_vf(plasidx)%sf(k, l, q) + rho_K*d_p
+!             Compute the three rhs for the mie-gruneisen eos as written
+!             in the overleaf
+                rhs_vf(mgidxb)%sf(k, l, q)   = rhs_vf(mgidxb)%sf(k, l, q)&
+                                            + q_prim_vf(mgidxb)%sf(k, l, q)*&
+                                            (1d0- mg_exp)*du_dx(k, l, q)
+                rhs_vf(mgidxb+1)%sf(k, l, q) = rhs_vf(mgidxb+1)%sf(k, l, q) &
+                                            -(q_cons_vf(mgidxb+1)%sf(k, l, q)*mg_exp + rhs_mgidx2_mix)&
+                                            *du_dx(k, l, q)
+                rhs_vf(mgidxe)%sf(k, l, q) = rhs_vf(mgidxe)%sf(k, l, q)&
+                                            +(-q_prim_vf(E_idx)%sf(k, l, q)+&
+                                            rhs_mgidx3_mix)*du_dx(k, l, q)
+                                            
+!             end if
+           end do
+         !$acc end parallel loop
+        else if (num_dims == 2) then 
         ! compute velocity gradients and rho_K and G_K        
         du_dx(:, :, :) = 0d0; du_dy(:, :, :) = 0d0
         dv_dx(:, :, :) = 0d0; dv_dy(:, :, :) = 0d0
@@ -200,6 +299,7 @@ contains
            end do
          end do
          !$acc end parallel loop
+     end if
 
     end subroutine s_compute_miegruneisen_rhs
 

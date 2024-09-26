@@ -1323,6 +1323,7 @@ contains
         if (hypoelasticity) call s_initialize_hypoelastic_module()
         if (hyperelasticity) call s_initialize_hyperelastic_module()
         if (hypoplasticity) call s_initialize_hypoplastic_module()
+        if (model_eqns == 5) call s_initialize_miegruneisen_module()
 
     end subroutine s_initialize_modules
 

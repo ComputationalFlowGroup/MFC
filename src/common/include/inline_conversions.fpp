@@ -82,7 +82,9 @@
             end do 
             c = c + pres - pref
             c = c/(rho*gamma)
-           
+            if (c /=c) then
+                print *, 'pres', pres,'pref',pref,'gamma',gamma
+            end if
         else           
             c = ((H - 5d-1*vel_sum)/gamma)
         end if

@@ -925,7 +925,6 @@ contains
 !                                  flux_gsrc_n(id)%vf, &
 !                                  id, ix, iy, iz)
             call nvtxEndRange
-
             ! ===============================================================
             ! Additional physics and source terms ===========================
             ! RHS addition for advection source
@@ -936,7 +935,6 @@ contains
                                                  q_prim_qp, &
                                                  flux_src_n(id))
             call nvtxEndRange
-
             ! RHS additions for hypoelasticity
             call nvtxStartRange("RHS_Hypoelasticity")
             if (hypoelasticity) call s_compute_hypoelastic_rhs(id, &
@@ -949,15 +947,11 @@ contains
                                                                q_cons_qp%vf, & 
                                                                rhs_vf)
             call nvtxEndRange
-            !print *, "I got here f"
-
             !RHS additions for Mie-Gruneisen EoS
             call nvtxStartRange("RHS_Mie_Gruneisen")
             if (model_eqns == 5) call s_compute_miegruneisen_rhs(q_prim_qp%vf, &
-                                                                  q_cons_qp%vf, &
-                                                                  rhs_vf)
+                                                q_cons_qp%vf, rhs_vf)
             call nvtxEndRange
-
             ! RHS additions for viscosity
             call nvtxStartRange("RHS_add_phys")
             if (any(Re_size > 0d0) .or. (.not. f_is_default(sigma))) then
@@ -994,7 +988,6 @@ contains
 
         end do
         ! END: Dimensional Splitting Loop =================================
-
         if (ib) then
             !$acc parallel loop collapse(3) gang vector default(present)
             do l = 0, p
@@ -1028,7 +1021,6 @@ contains
             rhs_vf)
         call nvtxEndRange
         ! END: Additional pphysics and source terms ============================
-        !print *, "I got here g"
 
         if (run_time_info .or. probe_wrt .or. ib) then
 
@@ -1037,18 +1029,18 @@ contains
             if (p > 0) iz%beg = -buff_size; 
             ix%end = m - ix%beg; iy%end = n - iy%beg; iz%end = p - iz%beg
             !$acc update device(ix, iy, iz)
-
             !$acc parallel loop collapse(4) gang vector default(present)
             do i = 1, sys_size
                 do l = iz%beg, iz%end
                     do k = iy%beg, iy%end
-                        do j = ix%beg, ix%end
+                        do j = ix%beg, ix%end 
                             q_prim_vf(i)%sf(j, k, l) = q_prim_qp%vf(i)%sf(j, k, l)
                         end do
                     end do
                 end do
             end do
         end if
+
         call cpu_time(t_finish)
         if (t_step >= 4) then
             time_avg = (abs(t_finish - t_start) + (t_step - 4)*time_avg)/(t_step - 3)
@@ -1056,7 +1048,7 @@ contains
             time_avg = 0d0
         end if
         ! ==================================================================
-        !print *, "I got here h"
+        print *, "I got here h"
 
         call nvtxEndRange
     end subroutine s_compute_rhs

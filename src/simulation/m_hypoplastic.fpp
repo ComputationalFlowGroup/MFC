@@ -75,8 +75,11 @@ contains
         call s_compute_finite_difference_coefficients(m, x_cc, fd_coeff_x, buff_size, &
                                                       fd_number, fd_order)
         !$acc update device(fd_coeff_x)
+        if (num_dims /= 1) then
+        
         call s_compute_finite_difference_coefficients(n, y_cc, fd_coeff_y, buff_size, &
-                                                          fd_number, fd_order)
+                                                      fd_number, fd_order)
+        end if
         !$acc update device(fd_coeff_y)
     
     end subroutine s_initialize_hypoplastic_module
@@ -104,12 +107,12 @@ contains
             ! For quasi-1D case
             du_dx(:,:,:) = 0d0; dv_dx(:,:,:) = 0d0
             !$acc parallel loop collapse(2) gang vector default (present)
-            do k=0, m
+            do k = 0, m
                do r = -fd_number, fd_number
                   du_dx(k, l, q) = du_dx(k, l, q) +&
-                                   q_prim_vf(momxb)%sf(k+r, l, q)*fd_coeff_x(r, k)
+                                   q_prim_vf(momxb)%sf(k + r, l, q)*fd_coeff_x(r, k)
                   dv_dx(k, l, q) = dv_dx(k, l, q) +&
-                                   q_prim_vf(momxb+1)%sf(k+r, l, q)*fd_coeff_x(r, k)
+                                   q_prim_vf(momxb+1)%sf(k + r, l, q)*fd_coeff_x(r, k)
                end do
             end do 
             !$acc end parallel loop
@@ -147,8 +150,8 @@ contains
                                         pres, stress, 0d0, G, &
                                         q_cons_vf(mgidxb+1)%sf(k, l, q), &
                                         q_cons_vf(mgidxe)%sf(k, l, q))
-                call s_compute_temperature(energy, dyn_p, pi_inf, gamma, rho, 0d0, & 
-                                          temp, alpha_K, alpha_rho_K)
+                call s_compute_temperature(pres, q_prim_vf(mgidxb+1)%sf(k, l, q), q_prim_vf(mgidxb)%sf(k, l, q),&
+                    rho, temp, alpha_K)
 !                print *, 'pressure :: ', pres, 'temperature ::', temp
                 ! STEP 3.5 : Compute theta_m, theta_hat, and sigma_bar
                 ! compute theta_m from equation 4.10
@@ -291,8 +294,8 @@ contains
                                         pres, stress, 0d0, G, &
                                         q_cons_vf(mgidxb+1)%sf(k, l, q), &
                                         q_cons_vf(mgidxe)%sf(k, l, q))
-                call s_compute_temperature(energy, dyn_p, pi_inf, gamma, rho, 0d0, & 
-                                          temp, alpha_K, alpha_rho_K)
+                call s_compute_temperature(pres, q_prim_vf(mgidxb+1)%sf(k, l,q), q_prim_vf(mgidxb)%sf(k, l, q),&
+                                        rho_K, temp, alpha_K)
 !                print *, 'pressure :: ', pres, 'temperature ::', temp
                 ! STEP 3.5 : Compute theta_m, theta_hat, and sigma_bar
                 ! compute theta_m from equation 4.10

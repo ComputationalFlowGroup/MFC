@@ -200,7 +200,14 @@ contains
                 @:ACC_SETUP_SFs(q_prim_vf(i))
             end do
         end if
-
+        if (model_eqns == 5) then
+            do i = mgidxb, mgidxe
+               @:ALLOCATE(q_prim_vf(i)%sf(ix_t%beg:ix_t%end, &
+                    iy_t%beg:iy_t%end, &
+                    iz_t%beg:iz_t%end))
+               @:ACC_SETUP_SFs(q_prim_vf(i))
+            end do
+        end if
         if (hypoplasticity) then 
             @:ALLOCATE(q_prim_vf(plasidx)%sf(ix_t%beg:ix_t%end, &
                  iy_t%beg:iy_t%end, &
@@ -595,12 +602,11 @@ contains
 
         integer, intent(IN) :: t_step
         real(kind(0d0)), intent(INOUT) :: time_avg
-
-        integer :: i, j, k, l, q !< Generic loop iterator
         real(kind(0d0)) :: ts_error, denom, error_fraction, time_step_factor !< Generic loop iterator
         real(kind(0d0)) :: start, finish
         real(kind(0d0)) :: nR3bar
-
+        
+        integer :: i, j, k, l, q !< Generic loop iterator
         ! Stage 1 of 3 =====================================================
 
         if (.not. adap_dt) then
@@ -646,7 +652,7 @@ contains
                             end do
                         end do
                     end do
-                end do
+               end do
             end do
         end if
 
@@ -1035,6 +1041,16 @@ contains
             do i = internalEnergies_idx%beg, internalEnergies_idx%end
                 @:DEALLOCATE(q_prim_vf(i)%sf)
             end do
+        end if
+        
+        if (model_eqns == 5) then 
+            do i = mgidxb, mgidxe
+               @:DEALLOCATE(q_prim_vf(i)%sf)
+            end do
+        end if
+        
+        if (hypoplasticity) then 
+            @:DEALLOCATE(q_prim_vf(plasidx)%sf)
         end if
 
         @:DEALLOCATE_GLOBAL(q_prim_vf)

@@ -40,7 +40,7 @@ Kt0_tilde = Kt0_suc/(rho_0_suc*c_0*c_0)
 A_tilde   = ein_cv1_suc*theta_0/(c_0*c_0)
 theta_E_tilde = ein_cv2_suc/theta_0
 rho_0_tilde = rho_0/rho_0_suc
-phi = math.exp(gamma_suc*(1-1/tilde_rho))
+#phi = math.exp(gamma_suc*(1-1/tilde_rho))
 # Configuring case dictionary
 print(json.dumps({
                     # Logistics ================================================
@@ -67,7 +67,7 @@ print(json.dumps({
 		            'mpp_lim'                      : 'T',
 		            'mixture_err'                  : 'F',
 		            'time_stepper'                 : 3,
-                    'weno_order'                   : 3,
+                    'weno_order'                   : 5,
                     'weno_eps'                     : 1.E-16,
 		            'weno_Re_flux'                 : 'F',
                     'weno_avg'                     : 'F',
@@ -82,7 +82,7 @@ print(json.dumps({
                     # ==========================================================
 
                     # Turning on Hypoplasticity ================================
-                    'hypoplasticity'               : 'F',
+                    'hypoplasticity'               : 'T',
                     # ==========================================================
 
                     # Formatted Database Files Structure Parameters ============
@@ -100,8 +100,8 @@ print(json.dumps({
                     'patch_icpp(1)%pres'           : tilde_P0,
                     'patch_icpp(1)%alpha_rho(1)'   : 1,
                     'patch_icpp(1)%alpha_rho(2)'   : 0.,
-                    'patch_icpp(1)%alpha(1)'       : 1.,
-                    'patch_icpp(1)%alpha(2)'       : 0.,
+                    'patch_icpp(1)%alpha(1)'       : 1.0-1e-6,
+                    'patch_icpp(1)%alpha(2)'       : 1e-6,
                    # 'patch_icpp(1)%tau_e(1)'      : 0.0,
                     # ==========================================================
 
@@ -114,8 +114,8 @@ print(json.dumps({
                     'patch_icpp(2)%pres'           : tilde_P0,
                     'patch_icpp(2)%alpha_rho(1)'   : 0.,
                     'patch_icpp(2)%alpha_rho(2)'   : 1.168/1580.5,
-                    'patch_icpp(2)%alpha(1)'       : 0.,
-                    'patch_icpp(2)%alpha(2)'       : 1.,
+                    'patch_icpp(2)%alpha(1)'       : 1e-6,
+                    'patch_icpp(2)%alpha(2)'       : 1.0-1e-6,
                    #'patch_icpp(2)%tau_e(1)'       : 0.0,
                     # ==========================================================
     # Fluids Physical Parameters ===============================================
@@ -131,10 +131,10 @@ print(json.dumps({
     'fluid_pp(2)%ein_cv(1)'        : 0.026937087111210E0,              #
     'fluid_pp(1)%ein_cv(2)'        : theta_E_tilde,                    # Can be replaced with a scalar theta_E at some point
     'fluid_pp(2)%ein_cv(2)'        : 100E0/298E0, #0.335E0,
-    'fluid_pp(1)%mg_a'             : 1.E0,                             #a_mg
-    'fluid_pp(1)%mg_b'             : 0.E0,                             #b_mg
-    'fluid_pp(2)%mg_a'             : 0.E0,                             #a_mg
-    'fluid_pp(2)%mg_b'             : 1.E0,                             #b_mg
+    'fluid_pp(1)%mg_a'             : 0.E0,                             #a_mg
+    'fluid_pp(1)%mg_b'             : 1.E0,                             #b_mg
+    'fluid_pp(2)%mg_a'             : 0.4E0,                             #a_mg
+    'fluid_pp(2)%mg_b'             : 0.E0,                             #b_mg
     'fluid_pp(1)%rho0'             : 1.E0,                 #Non-dimensional initial density in Birch-Murnaghan cold curve
     'fluid_pp(2)%rho0'             : 1.168/1580.5,
     'fluid_pp(1)%jcook(1)'         : 0.0334,                           # A, Static yield strength
