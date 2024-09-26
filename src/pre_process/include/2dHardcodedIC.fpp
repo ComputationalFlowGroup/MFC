@@ -4,7 +4,7 @@
     real(kind(0d0)) :: r, rmax, gam, umax, p0
     real(kind(0d0)) :: rhoH, rhoL, pRef, pInt, h, lam, wl, amp, intH, intL, alph
 
-    real(kind(0d0)) :: rcoord, theta, xi_polar
+    real(kind(0d0)) :: rcoord, theta, xi_polar, x_centriod, y_centriod
     real(kind(0d0)), dimension(num_dims) :: xi_cart
     integer :: ii
 
@@ -135,12 +135,20 @@
         end if
 
     case (207) ! 2D hyperelastic pre_stress patch
+            R0ref = 30E-6    ! equilibrium radius
+            Rinit = 244.8E-6 ! initial radius
+            x_centroid = patch_icpp(patch_id)%x_centroid
+            y_centroid = patch_icpp(patch_id)%y_centroid
             rcoord = sqrt(x_cc(i)**2d0 + y_cc(j)**2d0)
             theta = atan2(y_cc(j), x_cc(i))
-            !polar coord, assuming Rmax=1
-            xi_polar = (rcoord**3d0 - R0ref**3d0 + Rinit**3d0)**(1d0/3d0)
-            xi_cart(1) = xi_polar*cos(theta)
-            xi_cart(2) = xi_polar*sin(theta)
+            !polar coord
+            xi_polar = (rcoord**3d0 + R0ref**3d0 - Rinit**3d0)**(1d0/3d0)
+          !  xi_cart(1) = xi_polar*cos(theta)
+          !  xi_cart(2) = xi_polar*sin(theta)
+            xi_cart(1) = (xi_polar*x_cc(i)) / &
+                sqrt((x_cc(i) - x_centriod)**2 + (y_cc(j) - y_centriod)**2)
+            xi_cart(2) = (xi_polar*y_cc(j)) / &
+                sqrt((x_cc(i) - x_centriod)**2 + (y_cc(j) - y_centriod)**2)
             ! assigning the reference map to the q_prim vector field
             do ii = 1, num_dims
                 q_prim_vf(ii + xibeg - 1)%sf(i, j, k) = xi_cart(ii)
