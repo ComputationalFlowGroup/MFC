@@ -909,21 +909,21 @@ contains
             ! ===============================================================
             ! Computing Riemann Solver Flux and Source Flux =================
             call nvtxStartRange("RHS_riemann_solver")
-!            call s_riemann_solver(qR_rsx_vf, qR_rsy_vf, qR_rsz_vf, &
-!                                  dqR_prim_dx_n(id)%vf, &
-!                                  dqR_prim_dy_n(id)%vf, &
-!                                  dqR_prim_dz_n(id)%vf, &
-!                                  qR_prim(id)%vf, &
-!                                  qL_rsx_vf, qL_rsy_vf, qL_rsz_vf, &
-!                                  dqL_prim_dx_n(id)%vf, &
-!                                  dqL_prim_dy_n(id)%vf, &
-!                                  dqL_prim_dz_n(id)%vf, &
-!                                  qL_prim(id)%vf, &
-!                                  q_prim_qp%vf, &
-!                                  flux_n(id)%vf, &
-!                                  flux_src_n(id)%vf, &
-!                                  flux_gsrc_n(id)%vf, &
-!                                  id, ix, iy, iz)
+            call s_riemann_solver(qR_rsx_vf, qR_rsy_vf, qR_rsz_vf, &
+                                  dqR_prim_dx_n(id)%vf, &
+                                  dqR_prim_dy_n(id)%vf, &
+                                  dqR_prim_dz_n(id)%vf, &
+                                  qR_prim(id)%vf, &
+                                  qL_rsx_vf, qL_rsy_vf, qL_rsz_vf, &
+                                  dqL_prim_dx_n(id)%vf, &
+                                  dqL_prim_dy_n(id)%vf, &
+                                  dqL_prim_dz_n(id)%vf, &
+                                  qL_prim(id)%vf, &
+                                  q_prim_qp%vf, &
+                                  flux_n(id)%vf, &
+                                  flux_src_n(id)%vf, &
+                                  flux_gsrc_n(id)%vf, &
+                                  id, ix, iy, iz)
             call nvtxEndRange
             ! ===============================================================
             ! Additional physics and source terms ===========================
@@ -949,8 +949,12 @@ contains
             call nvtxEndRange
             !RHS additions for Mie-Gruneisen EoS
             call nvtxStartRange("RHS_Mie_Gruneisen")
-            if (model_eqns == 5) call s_compute_miegruneisen_rhs(q_prim_qp%vf, &
+            if (model_eqns == 5) then
+                !print *,'in s_compute_rhs'
+                call s_compute_miegruneisen_rhs(q_prim_qp%vf, &
                                                 q_cons_qp%vf, rhs_vf)
+               ! print *,'after_miegruneisen_rhs'
+            end if
             call nvtxEndRange
             ! RHS additions for viscosity
             call nvtxStartRange("RHS_add_phys")
@@ -1040,7 +1044,7 @@ contains
                 end do
             end do
         end if
-
+        
         call cpu_time(t_finish)
         if (t_step >= 4) then
             time_avg = (abs(t_finish - t_start) + (t_step - 4)*time_avg)/(t_step - 3)
@@ -1048,7 +1052,6 @@ contains
             time_avg = 0d0
         end if
         ! ==================================================================
-        print *, "I got here h"
 
         call nvtxEndRange
     end subroutine s_compute_rhs

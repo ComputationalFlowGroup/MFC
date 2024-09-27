@@ -66,7 +66,7 @@ contains
 
     !> Checks constraints on momentum parameters
     subroutine s_check_inputs_momentum
-        if (n == 0 .and. mom_wrt(2)) then
+        if (n == 0 .and. mom_wrt(2) .and. (model_eqns /= 5)) then
             call s_mpi_abort('mom_wrt(2) is not supported for n = 0. Exiting ...')
         elseif (p == 0 .and. mom_wrt(3)) then
             call s_mpi_abort('mom_wrt(3) is not supported for p = 0. Exiting ...')
@@ -75,7 +75,7 @@ contains
 
     !> Checks constraints on velocity parameters
     subroutine s_check_inputs_velocity
-        if (n == 0 .and. vel_wrt(2)) then
+        if (n == 0 .and. vel_wrt(2) .and. (model_eqns /= 5)) then
             call s_mpi_abort('vel_wrt(2) is not supported for n = 0. Exiting ...')
         elseif (p == 0 .and. vel_wrt(3)) then
             call s_mpi_abort('vel_wrt(3) is not supported for p = 0. Exiting ...')
@@ -84,7 +84,7 @@ contains
 
     !> Checks constraints on flux limiter parameters
     subroutine s_check_inputs_flux_limiter
-        if (n == 0 .and. flux_wrt(2)) then
+        if (n == 0 .and. flux_wrt(2) .and. (model_eqns /= 5)) then
             call s_mpi_abort('flux_wrt(2) is not supported for n = 0. Exiting ...')
         elseif (p == 0 .and. flux_wrt(3)) then
             call s_mpi_abort('flux_wrt(3) is not supported for p = 0. Exiting ...')

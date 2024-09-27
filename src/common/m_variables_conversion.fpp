@@ -160,6 +160,8 @@ contains
             pres = ((energy - dyn_p)/(1.d0 - alf) - pi_inf - qv)/gamma
         else if (model_eqns == 5) then
             pres = (energy - dyn_p + pref_over_gamma - rho_eref)/gamma 
+           !if (pres /= pres) print *,'rho_eref',rho_eref
+            
         else
             pres = (pref + pi_inf)* &
                    (energy/ &
@@ -1056,7 +1058,11 @@ contains
                         qK_prim_vf(mgidxb+1)%sf(j, k, l) = qK_cons_vf(mgidxb+1)%sf(j, k, l)/&
                                                            qK_cons_vf(mgidxb)%sf(j, k, l)
                         qK_prim_vf(mgidxe)%sf(j, k, l)   = qK_cons_vf(mgidxe)%sf(j, k, l)/rho_K
-                        
+!                        print *, 'j',j,'rho_eref',qK_cons_vf(mgidxe)%sf(j,k,l)
+!                        if (qK_prim_vf(mgidxe)%sf(j,k,l) /= qK_prim_vf(mgidxe)%sf(j,k,l)) then 
+!                            print *,'j',j,'k',k,'l',l,'eref',qK_prim_vf(mgidxe)%sf(j, k, l)                       
+!                            call s_mpi_abort('eref NaN')
+!                        end if
 #ifdef MFC_POST_PROCESS                        
                         call s_compute_temperature(qK_prim_vf(E_idx)%sf(j, k, l), &
                                                    qK_prim_vf(mgidxb+1)%sf(j, k, l), &
@@ -1269,7 +1275,6 @@ contains
                         q_cons_vf(mgidxb)%sf(j, k, l)   = q_prim_vf(mgidxb)%sf(j, k, l)
                         q_cons_vf(mgidxb+1)%sf(j, k, l) = gamma_inv*Pref 
                         q_cons_vf(mgidxe)%sf(j, k, l)   = rho*eref
-                        
                     else
                         !Tait EOS, no conserved energy variable
                         q_cons_vf(E_idx)%sf(j, k, l) = 0.d0

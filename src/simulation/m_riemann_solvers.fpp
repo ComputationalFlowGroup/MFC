@@ -983,7 +983,7 @@ contains
 
                                 pres_L = qL_prim_rs${XYZ}$_vf(j, k, l, E_idx)
                                 pres_R = qR_prim_rs${XYZ}$_vf(j + 1, k, l, E_idx)
-
+                                print *, pres_L, pres_R
                                 rho_L = 0d0
                                 gamma_L = 0d0
                                 pi_inf_L = 0d0

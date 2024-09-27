@@ -815,7 +815,7 @@ contains
             call s_mpi_abort('vel(1) must be set for active patch '// &
                              trim(iStr)//'. Exiting ...')
         elseif (n == 0 .and. (.not. f_is_default(patch_icpp(patch_id)%vel(2))) .and. &
-                patch_icpp(patch_id)%vel(2) /= 0) then
+                patch_icpp(patch_id)%vel(2) /= 0 .and. (model_eqns /= 5)) then
             call s_mpi_abort('vel(2) must not be set when n = 0 '// &
                              'for active patch '//trim(iStr)//'. Exiting ...')
         elseif (n > 0 .and. f_is_default(patch_icpp(patch_id)%vel(2))) then

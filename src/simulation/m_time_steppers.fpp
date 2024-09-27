@@ -637,7 +637,7 @@ contains
                 end do
             end do
         end do
-
+         
         !Evolve pb and mv for non-polytropic qbmm
         if (qbmm .and. (.not. polytropic)) then
             !$acc parallel loop collapse(5) gang vector default(present)
@@ -694,11 +694,9 @@ contains
         end if
 
         ! ==================================================================
-
         ! Stage 2 of 3 =====================================================
 
         call s_compute_rhs(q_cons_ts(2)%vf, q_prim_vf, rhs_vf, pb_ts(2)%sf, rhs_pb, mv_ts(2)%sf, rhs_mv, t_step, time_avg)
-
         !$acc parallel loop collapse(4) gang vector default(present)
         do i = 1, sys_size
             do l = 0, p

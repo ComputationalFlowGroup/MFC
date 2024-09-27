@@ -145,17 +145,16 @@ contains
                 alpha_K(i)     = q_prim_vf(advxb + i - 1)%sf(k, l, q)
                 mg_exp         = mg_exp   + alpha_K(i)*mg_b(i)
                 rho0_mix       = rho0_mix + alpha_K(i)*rho0(i)
-                A_cv           = A_cv     + alpha_K(i)*ein_cv1(q)
-                theta_E        = theta_E  + alpha_K(i)*ein_cv2(q)
-                gamma_inf      = gamma_inf+ alpha_K(i)*mg_a(q)
-                gamma0         = gamma0   + alpha_K(i)*gammas(q)
+                A_cv           = A_cv     + alpha_K(i)*ein_cv1(i)
+                theta_E        = theta_E  + alpha_K(i)*ein_cv2(i)
+                gamma_inf      = gamma_inf+ alpha_K(i)*mg_a(i)
+                gamma0         = gamma0   + alpha_K(i)*gammas(i)
              end do
 !              print *, 'I got here C'
-
-                phi_mix = ((rho0_mix/rho_K)**(-gamma_inf))*&
+             phi_mix = ((rho0_mix/rho_K)**(-gamma_inf))*&
                             dexp((gamma0 - gamma_inf)*&
                             (1d0- (rho0_mix/rho_K)**mg_exp))
- 
+             
              do i = 1, num_fluids
                 rhs_mgidx2_mix = rhs_mgidx2_mix +&
                                  pi_infs(i)*alpha_K(i)*rho_K/rho0(i) +&
@@ -164,9 +163,9 @@ contains
                
                 rhs_mgidx3_mix = rhs_mgidx3_mix +&
                                  (1d0/q_prim_vf(mgidxb)%sf(k, l, q))*alpha_rho_K(i)*A_cv*((theta_E*phi_mix)**2d0)&
-                                 *dexp(theta_E*phi_mix)/((dexp(theta_E*phi_mix)-1d0)**2d0)
-                                 
+                                 *dexp(theta_E*phi_mix)/((dexp(theta_E*phi_mix)-1d0)**2d0)                 
              end do
+             
              rhs_mgidx2_mix = rhs_mgidx2_mix*q_prim_vf(mgidxb)%sf(k, l, q)
              ! STEP 3.3: TODO MIRELYS
 !              if (G_K .gt. verysmall) then 
@@ -176,6 +175,10 @@ contains
 !                dyn_p, 'pi_inf ::', pi_inf, 'gamma ::', gamma, 'rho ::', rho, 'qv ::', &
 !                qv, 'stress ::', stress, 'mom ::', mom, 'G ::', G, 'alpha_K ::', &
 !                alpha_K, 'alpha_rho_K ::', alpha_rho_K
+               ! print *,q_cons_vf(mgidxe)%sf(k, l, q)
+               ! if (q_cons_vf(mgidxe)%sf(k, l, q) /= q_cons_vf(mgidxe)%sf(k,l,q)) then
+               !     print *,'rho_eref is NaN in miegruneisen'
+               ! end if
                 call s_compute_pressure(energy, alf, dyn_p, pi_inf, q_cons_vf(mgidxb)%sf(k, l, q), rho_K, 0d0, & 
                                         pres, 0d0, 0d0, G, &
                                         q_cons_vf(mgidxb+1)%sf(k, l, q), &
@@ -190,11 +193,12 @@ contains
                 rhs_vf(mgidxb+1)%sf(k, l, q) = rhs_vf(mgidxb+1)%sf(k, l, q) &
                                             -(q_cons_vf(mgidxb+1)%sf(k, l, q)*mg_exp + rhs_mgidx2_mix)&
                                             *du_dx(k, l, q)
+                !if (rhs_vf(mgidxe)%sf(k,l,q) /= rhs_vf(mgidxe)%sf(k,l,q)) then
+                !  print *,'k',k, rhs_vf(mgidxe)%sf(k, l, q)      
+                !end if
                 rhs_vf(mgidxe)%sf(k, l, q) = rhs_vf(mgidxe)%sf(k, l, q)&
-                                            +(-q_prim_vf(E_idx)%sf(k, l, q)+&
+                                            +(-q_prim_vf(mgidxe)%sf(k, l, q)+&
                                             rhs_mgidx3_mix)*du_dx(k, l, q)
-                                            
-!             end if
            end do
          !$acc end parallel loop
         else if (num_dims == 2) then 
@@ -246,10 +250,10 @@ contains
                 alpha_K(i)     = q_prim_vf(advxb + i - 1)%sf(k, l, q)
                 mg_exp         = mg_exp   + alpha_K(i)*mg_b(i)
                 rho0_mix       = rho0_mix + alpha_K(i)*rho0(i)
-                A_cv           = A_cv     + alpha_K(i)*ein_cv1(q)
-                theta_E        = theta_E  + alpha_K(i)*ein_cv2(q)
-                gamma_inf      = gamma_inf+ alpha_K(i)*mg_a(q)
-                gamma0         = gamma0   + alpha_K(i)*gammas(q)
+                A_cv           = A_cv     + alpha_K(i)*ein_cv1(i)
+                theta_E        = theta_E  + alpha_K(i)*ein_cv2(i)
+                gamma_inf      = gamma_inf+ alpha_K(i)*mg_a(i)
+                gamma0         = gamma0   + alpha_K(i)*gammas(i)
              end do
 !              print *, 'I got here C'
 
@@ -291,8 +295,8 @@ contains
                 rhs_vf(mgidxb+1)%sf(k, l, q) = rhs_vf(mgidxb+1)%sf(k, l, q) &
                                             -(q_cons_vf(mgidxb+1)%sf(k, l, q)*mg_exp + rhs_mgidx2_mix)&
                                             *(du_dx(k, l, q)+dv_dy(k, l, q))
-                rhs_vf(mgidxe)%sf(k, l, q) = rhs_vf(mgidxe)%sf(k, l, q)&
-                                            +(-q_prim_vf(E_idx)%sf(k, l, q)+&
+                rhs_vf(mgidxe)%sf(k, l, q)   = rhs_vf(mgidxe)%sf(k, l, q)&
+                                            +(-q_prim_vf(mgidxe)%sf(k, l, q)+&
                                             rhs_mgidx3_mix)*(du_dx(k, l, q)+ dv_dy(k, l, q))
                                             
 !             end if

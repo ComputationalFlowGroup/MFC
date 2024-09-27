@@ -4,15 +4,16 @@ import json
 
 #Numerical setup
 c_l     = 3077.6
-Nx      = 799
-cfl     = 0.08
+Nx      = 599
+cfl     = 0.5
 leng    = 1.
 dx      = leng/(Nx+1)
 mydt    = cfl*dx/c_l
 Tend    = 1.00E-2
 Nt      = int(Tend/mydt)
 #mydt   = Tend/(1.*Nt)
-vel     = 1.0
+vel1    = 1.0
+vel2    = 0.0
 theta_0 = 298.0
 
 
@@ -28,7 +29,7 @@ gamma_suc     = 1.09
 
 #Initial condition
 theta_0           = 298             #K
-P_0               = 1.0E6             #Pa (Gauge pressure is zero)
+P_0               = 1.0E6           #Pa
 compression_ratio = 1.1             #rho/rho_0 in the shocked region
 rho_0             = 1580.5          #kg/m^3
 
@@ -56,7 +57,7 @@ print(json.dumps({
                     'dt'                           : mydt,
                     't_step_start'                 : 0,
                     't_step_stop'                  : int(Nt),
-                    't_step_save'                  : int(math.ceil(Nt/1000.)),
+                    't_step_save'                  : int(math.ceil(Nt/100.)),
 		    # ==========================================================
 
                     # Simulation Algorithm Parameters ==========================
@@ -96,10 +97,11 @@ print(json.dumps({
                     'patch_icpp(1)%geometry'       : 1,
                     'patch_icpp(1)%x_centroid'     : 0.5,
                     'patch_icpp(1)%length_x'       : leng,
-                    'patch_icpp(1)%vel(1)'         : vel,
+                    'patch_icpp(1)%vel(1)'         : vel1,
+                    'patch_icpp(1)%vel(2)'         : vel2,
                     'patch_icpp(1)%pres'           : tilde_P0,
-                    'patch_icpp(1)%alpha_rho(1)'   : 1,
-                    'patch_icpp(1)%alpha_rho(2)'   : 0.,
+                    'patch_icpp(1)%alpha_rho(1)'   : (1.0-1e-6),
+                    'patch_icpp(1)%alpha_rho(2)'   : (1e-6)*(1.168/1580.5),
                     'patch_icpp(1)%alpha(1)'       : 1.0-1e-6,
                     'patch_icpp(1)%alpha(2)'       : 1e-6,
                    # 'patch_icpp(1)%tau_e(1)'      : 0.0,
@@ -110,10 +112,11 @@ print(json.dumps({
                     'patch_icpp(2)%x_centroid'     : 0.5,
                     'patch_icpp(2)%length_x'       : 0.5,
                     'patch_icpp(2)%alter_patch(1)' : 'T',
-                    'patch_icpp(2)%vel(1)'         : vel,
+                    'patch_icpp(2)%vel(1)'         : vel1,
+                    'patch_icpp(2)%vel(2)'         : vel2,
                     'patch_icpp(2)%pres'           : tilde_P0,
-                    'patch_icpp(2)%alpha_rho(1)'   : 0.,
-                    'patch_icpp(2)%alpha_rho(2)'   : 1.168/1580.5,
+                    'patch_icpp(2)%alpha_rho(1)'   : 1e-6,
+                    'patch_icpp(2)%alpha_rho(2)'   : (1-1e-6)*1.168/1580.5,
                     'patch_icpp(2)%alpha(1)'       : 1e-6,
                     'patch_icpp(2)%alpha(2)'       : 1.0-1e-6,
                    #'patch_icpp(2)%tau_e(1)'       : 0.0,
