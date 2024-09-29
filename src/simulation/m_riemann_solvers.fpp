@@ -983,7 +983,6 @@ contains
 
                                 pres_L = qL_prim_rs${XYZ}$_vf(j, k, l, E_idx)
                                 pres_R = qR_prim_rs${XYZ}$_vf(j + 1, k, l, E_idx)
-                                print *, pres_L, pres_R
                                 rho_L = 0d0
                                 gamma_L = 0d0
                                 pi_inf_L = 0d0
@@ -2079,7 +2078,6 @@ contains
                     do l = is3%beg, is3%end
                         do k = is2%beg, is2%end
                             do j = is1%beg, is1%end
-
                                 !$acc loop seq
                                 do i = 1, num_fluids
                                     alpha_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, E_idx + i)
@@ -2090,6 +2088,7 @@ contains
 
                                 vel_L_rms = 0d0; vel_R_rms = 0d0
                                 !$acc loop seq
+                                !For model_eqns == 5, quasi-1D case, 
                                 do i = 1, num_dims
                                     vel_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, contxe + i)
                                     vel_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, contxe + i)
@@ -2099,7 +2098,10 @@ contains
 
                                 pres_L = qL_prim_rs${XYZ}$_vf(j, k, l, E_idx)
                                 pres_R = qR_prim_rs${XYZ}$_vf(j + 1, k, l, E_idx)
-
+                                
+                                if (pres_L /= pres_L) then 
+                                    print *, pres_L 
+                                end if 
                                 rho_L = 0d0
                                 rho0_L = 0d0
                                 gamma_L = 0d0
@@ -2152,33 +2154,33 @@ contains
                                 end do
 
                                 ! ENERGY ADJUSTMENTS FOR HYPOELASTIC ENERGY
-                               ! if (hypoplasticity) then
-                               !     !$acc loop seq
-                               !     do i = 1, strxe - strxb + 1
-                               !         tau_e_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, strxb - 1 + i)
-                               !         tau_e_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, strxb - 1 + i)
-                               !    end do
-                               !     G_L = 0d0
-                               !     G_R = 0d0
-                               !     !$acc loop seq
-                               !     do i = 1, num_fluids
-                               !         G_L = G_L + alpha_L(i)*Gs(i)
-                               !         G_R = G_R + alpha_R(i)*Gs(i)
-                               !     end do
-                               !     !$acc loop seq
-                               !     do i = 1, strxe - strxb + 1
-                               !         ! Elastic contribution to energy if G large enough
-                               !         if ((G_L > verysmall) .and. (G_R > verysmall)) then
-                               !             E_L = E_L + (tau_e_L(i)*tau_e_L(i))/(4d0*G_L)
-                               !             E_R = E_R + (tau_e_R(i)*tau_e_R(i))/(4d0*G_R)
-                               !             ! Additional terms in 2D and 3D
-                               !             if ((i == 2) .or. (i == 4) .or. (i == 5)) then
-                               !                 E_L = E_L + (tau_e_L(i)*tau_e_L(i))/(4d0*G_L)
-                               !                 E_R = E_R + (tau_e_R(i)*tau_e_R(i))/(4d0*G_R)
-                               !             end if
-                               !         end if
-                               !     end do
-                               ! end if
+                                if (hypoplasticity) then
+                                    !$acc loop seq
+                                   do i = 1, strxe - strxb + 1
+                                        tau_e_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, strxb - 1 + i)
+                                        tau_e_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, strxb - 1 + i)
+                                   end do
+                                    G_L = 0d0
+                                    G_R = 0d0
+                                    !$acc loop seq
+                                    do i = 1, num_fluids
+                                        G_L = G_L + alpha_L(i)*Gs(i)
+                                        G_R = G_R + alpha_R(i)*Gs(i)
+                                    end do
+                                    !$acc loop seq
+                                    do i = 1, strxe - strxb + 1
+                                        ! Elastic contribution to energy if G large enough
+                                        if ((G_L > verysmall) .and. (G_R > verysmall)) then
+                                            E_L = E_L + (tau_e_L(i)*tau_e_L(i))/(4d0*G_L)
+                                            E_R = E_R + (tau_e_R(i)*tau_e_R(i))/(4d0*G_R)
+                                            ! Additional terms in 2D and 3D
+                                            if ((i == 2) .or. (i == 4) .or. (i == 5)) then
+                                                E_L = E_L + (tau_e_L(i)*tau_e_L(i))/(4d0*G_L)
+                                                E_R = E_R + (tau_e_R(i)*tau_e_R(i))/(4d0*G_R)
+                                            end if
+                                        end if
+                                    end do
+                                end if
 
                                 !E_L = gamma_L*pres_L + pi_inf_L + 5d-1*rho_L*vel_L_rms + qv_L
                                 !E_R = gamma_R*pres_R + pi_inf_R + 5d-1*rho_R*vel_R_rms + qv_R
@@ -2193,7 +2195,10 @@ contains
                                       (pres_R - qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb + 1))*&
                                       qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb) +&
                                       5d-1*rho_R*vel_R_rms
-
+                                
+                                if ((pres_L /= pres_L) .or. (pres_R /= pres_R)) then
+                                   print *, 'pres_L', pres_L,'pres_R',pres_R
+                                end if
                                 H_L = 0d0; H_R = 0d0 
 
                                 @:compute_average_state()
@@ -2299,9 +2304,9 @@ contains
                                             - xi_P*(rho_R/rho0_R)*tau_e_R(dir_idx_tau(i))
                                       ! ENERGY ELASTIC FLUX.
                                       flux_ene_e = flux_ene_e - &
-                                       xi_M*(vel_L(idxi)*tau_e_L(dir_idx_tau(i)) + &
+                                       xi_M*(vel_L(idxi)*(rho_L/rho0_L)*tau_e_L(dir_idx_tau(i)) + &
                                        s_M*(xi_L*((s_S - vel_L(i))*((rho_L/rho0_L)*tau_e_L(dir_idx_tau(i))/(s_L - vel_L(i)))))) - &
-                                       xi_P*(vel_R(idxi)*tau_e_R(dir_idx_tau(i)) + &
+                                       xi_P*(vel_R(idxi)*(rho_R/rho0_R)*tau_e_R(dir_idx_tau(i)) + &
                                        s_P*(xi_R*((s_S - vel_R(i))*((rho_R/rho0_R)*tau_e_R(dir_idx_tau(i))/(s_R - vel_R(i))))))
                                     end do
                                     flux_rs${XYZ}$_vf(j, k, l, E_idx) = flux_rs${XYZ}$_vf(j, k, l, E_idx) + flux_ene_e
@@ -2315,6 +2320,10 @@ contains
                                             xi_M*(s_S/(s_L - s_S))*(s_L*rho_L*tau_e_L(i) - rho_L*vel_L(idx1)*tau_e_L(i)) + &
                                             xi_P*(s_S/(s_R - s_S))*(s_R*rho_R*tau_e_R(i) - rho_R*vel_R(idx1)*tau_e_R(i))
                                     end do
+                                    if (flux_rs${XYZ}$_vf(j,k,l,12) /= flux_rs${XYZ}$_vf(j,k,l,12)) then
+                                        print *,j,tau_e_L(2),tau_e_R(2), flux_rs${XYZ}$_vf(j, k, l, 12)
+                                        call s_mpi_abort('in riemann solver')
+                                    end if
                                 end if
 
                                 ! VOLUME FRACTION FLUX.
@@ -2359,7 +2368,6 @@ contains
                                              xi_M*rho_L*eref_L*(vel_L(idx1)+s_M*(xi_L-1d0))+&
                                              xi_P*rho_R*eref_R*(vel_R(idx1)+s_P*(xi_R-1d0))
 
-
                                 ! ISOTROPIC HARDENING FLUX.
                                 if (hypoplasticity) then
                                    xi_d_L = qL_prim_rs${XYZ}$_vf(j, k, l, plasidx)
@@ -2373,7 +2381,6 @@ contains
                                             xi_M*(rho_L*xi_d_L*vel_L(idx1)+s_M*(xi_L*rho_L*xi_d_L-rho_L*xi_d_L))+&
                                             xi_P*(rho_R*xi_d_R*vel_L(idx1)+s_P*(xi_R*rho_R*xi_d_R-rho_R*xi_d_R))
                                 end if
-
                             end do
                         end do
                     end do

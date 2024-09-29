@@ -5,7 +5,7 @@ import json
 #Numerical setup
 c_l     = 3077.6
 Nx      = 599
-cfl     = 0.5
+cfl     = 0.1
 leng    = 1.
 dx      = leng/(Nx+1)
 mydt    = cfl*dx/c_l
@@ -136,9 +136,9 @@ print(json.dumps({
     'fluid_pp(2)%ein_cv(2)'        : 100E0/298E0, #0.335E0,
     'fluid_pp(1)%mg_a'             : 0.E0,                             #a_mg
     'fluid_pp(1)%mg_b'             : 1.E0,                             #b_mg
-    'fluid_pp(2)%mg_a'             : 0.4E0,                             #a_mg
+    'fluid_pp(2)%mg_a'             : 0.4E0,                            #a_mg
     'fluid_pp(2)%mg_b'             : 0.E0,                             #b_mg
-    'fluid_pp(1)%rho0'             : 1.E0,                 #Non-dimensional initial density in Birch-Murnaghan cold curve
+    'fluid_pp(1)%rho0'             : 1.E0,                             #Non-dimensional initial density in Birch-Murnaghan cold curve
     'fluid_pp(2)%rho0'             : 1.168/1580.5,
     'fluid_pp(1)%jcook(1)'         : 0.0334,                           # A, Static yield strength
     'fluid_pp(1)%jcook(2)'         : 0.0334,                           # B, Strain-Hardening coefficient

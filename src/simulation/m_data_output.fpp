@@ -360,6 +360,7 @@ contains
                         print *, 'alpha1 ::', alpha(1), 'and alpha2 ::', alpha(2)
                         print *, 'alpha_rho1 ::', alpha_rho(1), ', alpha_rho2 ::', alpha_rho(2)
                         print *, 'E :: ', E, ', pres :: ', pres, ', rho :: ', rho
+                        call s_mpi_abort('c is NaN')
                     end if
 
                     if (grid_geometry == 3) then

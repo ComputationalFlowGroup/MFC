@@ -159,9 +159,11 @@ contains
         else if ((model_eqns /= 4 .and. model_eqns /=5) .and. bubbles) then
             pres = ((energy - dyn_p)/(1.d0 - alf) - pi_inf - qv)/gamma
         else if (model_eqns == 5) then
-            pres = (energy - dyn_p + pref_over_gamma - rho_eref)/gamma 
-           !if (pres /= pres) print *,'rho_eref',rho_eref
-            
+            pres = (energy - dyn_p + pref_over_gamma - rho_eref)/gamma
+            !if (pres /= pres) then
+            !    print *,energy, dyn_p, pref_over_gamma, rho_eref, gamma
+            !end if
+
         else
             pres = (pref + pi_inf)* &
                    (energy/ &
@@ -1058,11 +1060,11 @@ contains
                         qK_prim_vf(mgidxb+1)%sf(j, k, l) = qK_cons_vf(mgidxb+1)%sf(j, k, l)/&
                                                            qK_cons_vf(mgidxb)%sf(j, k, l)
                         qK_prim_vf(mgidxe)%sf(j, k, l)   = qK_cons_vf(mgidxe)%sf(j, k, l)/rho_K
-!                        print *, 'j',j,'rho_eref',qK_cons_vf(mgidxe)%sf(j,k,l)
-!                        if (qK_prim_vf(mgidxe)%sf(j,k,l) /= qK_prim_vf(mgidxe)%sf(j,k,l)) then 
-!                            print *,'j',j,'k',k,'l',l,'eref',qK_prim_vf(mgidxe)%sf(j, k, l)                       
-!                            call s_mpi_abort('eref NaN')
-!                        end if
+                       !print *, 'j',j,'rho_eref',qK_cons_vf(mgidxe)%sf(j,k,l)
+            !            if (pres /= pres)  then 
+            !                print *,'j',j,'pres',pres,'energy'
+            !                call s_mpi_abort()
+            !            end if
 #ifdef MFC_POST_PROCESS                        
                         call s_compute_temperature(qK_prim_vf(E_idx)%sf(j, k, l), &
                                                    qK_prim_vf(mgidxb+1)%sf(j, k, l), &
@@ -1156,15 +1158,24 @@ contains
                     end do
 
                     if (.not. f_is_default(sigma)) then
-
                         qK_prim_vf(c_idx)%sf(j, k, l) = qK_cons_vf(c_idx)%sf(j, k, l)
                     end if
-
+#ifdef MFC_SIMULATION
+                    !if (qK_prim_vf(12)%sf(j, k, l)/= qK_prim_vf(12)%sf(j,k,l)) then
+                        !print *,j,'prim' 
+                    !do i=1, sys_size
+                    !    print *,j,qK_prim_vf(12)%sf(j,k,l)
+                    !end if
+                    !end do
+                    !print *,'cons'
+                    !do i=1, sys_size
+                    !    print *,qK_cons_vf(i)%sf(j,k,l)
+                    !end do
+#endif
                 end do
             end do
         end do
         !$acc end parallel loop
-
     end subroutine s_convert_conservative_to_primitive_variables ! ---------
 
     !>  The following procedure handles the conversion between
@@ -1260,12 +1271,12 @@ contains
                         end do
                            log_rho_mix = dlog(rho/rho0_mix)
                            phi = ((rho0_mix/rho)**(-mg_a_mix))*dexp((gamma-mg_a_mix)*(1d0-(rho0_mix/rho)**mg_b_mix))
-                           gamma_inv = mg_a_mix+(gamma-mg_a_mix)*(rho0_mix/rho)**mg_b_mix 
+                           gamma_inv = 1d0/(mg_a_mix+(gamma-mg_a_mix)*(rho0_mix/rho)**mg_b_mix) 
                            Pref = pi_inf*log_rho_mix*(1d0+0.5d0*(qv-2d0)*log_rho_mix)
                            eref = 0.5d0*pi_inf*(log_rho_mix**2d0)*(1d0+(1/3d0)*(qv-2d0)*log_rho_mix)+&
                            ein_cv1_mix*(phi*theta_E_mix*dexp(phi*theta_E_mix)/(dexp(phi*theta_E_mix)-1)-dlog(dexp(phi*theta_E_mix)-1))
                         
-                        q_prim_vf(mgidxb)%sf(j, k, l) = 1d0/gamma_inv
+                        q_prim_vf(mgidxb)%sf(j, k, l) = gamma_inv
                         q_prim_vf(mgidxb+1)%sf(j, k, l) = Pref
                         q_prim_vf(mgidxe)%sf(j, k, l) = eref
                         ! Energy corresponding to Mie-Gruneisen EOS 
