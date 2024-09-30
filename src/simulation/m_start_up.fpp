@@ -1091,7 +1091,7 @@ contains
         integer, intent(inout) :: nt
 
         integer :: i, j, k, l
-
+        
         if (proc_rank == 0 .and. mod(t_step - t_step_start, t_step_print) == 0) then
             print '(" ["I3"%]  Time step "I8" of "I0" @ t_step = "I0"")', &
                 int(ceiling(100d0*(real(t_step - t_step_start)/(t_step_stop - t_step_start + 1)))), &
@@ -1106,7 +1106,7 @@ contains
                 !$acc update host(q_cons_ts(1)%vf(i)%sf)
             end do
         end if
-
+        
         call s_compute_derived_variables(t_step)
 
 #ifdef DEBUG

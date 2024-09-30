@@ -734,9 +734,9 @@ contains
 
         integer :: i, j, k, l, q, ii, id !< Generic loop iterators
         integer :: term_index
-
+        
         call nvtxStartRange("Compute_RHS")
-
+        
         ! Configuring Coordinate Direction Indexes =========================
         ix%beg = -buff_size; iy%beg = 0; iz%beg = 0
 
@@ -744,7 +744,6 @@ contains
 
         ix%end = m - ix%beg; iy%end = n - iy%beg; iz%end = p - iz%beg
         ! ==================================================================
-
         !$acc update device(ix, iy, iz)
         call cpu_time(t_start)
         ! Association/Population of Working Variables ======================
@@ -782,7 +781,7 @@ contains
                 end do
             end do
         end if
-        !print *, "I got here A"
+       ! print *, "I got here A"
         if (model_eqns == 5) then
             call nvtxStartRange("RHS-CONS-BUFFER")
             call s_populate_primitive_variables_buffers(q_cons_qp%vf, pb, mv)
@@ -915,6 +914,7 @@ contains
             ix%end = m; iy%end = n; iz%end = p
             ! ===============================================================
             ! Computing Riemann Solver Flux and Source Flux =================
+            !print *, 'before riemann solver'
             call nvtxStartRange("RHS_riemann_solver")
             call s_riemann_solver(qR_rsx_vf, qR_rsy_vf, qR_rsz_vf, &
                                   dqR_prim_dx_n(id)%vf, &

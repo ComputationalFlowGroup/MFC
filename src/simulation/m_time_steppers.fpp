@@ -608,14 +608,14 @@ contains
         
         integer :: i, j, k, l, q !< Generic loop iterator
         ! Stage 1 of 3 =====================================================
-
+        !print *, 'in 3rd order'
         if (.not. adap_dt) then
             call cpu_time(start)
             call nvtxStartRange("Time_Step")
         end if
-
+        !print *, 'before s_compute_rhs', t_step
         call s_compute_rhs(q_cons_ts(1)%vf, q_prim_vf, rhs_vf, pb_ts(1)%sf, rhs_pb, mv_ts(1)%sf, rhs_mv, t_step, time_avg)
-
+        !print *, 'after s_compute_rhs'
         if (run_time_info) then
             call s_write_run_time_information(q_prim_vf, t_step)
         end if

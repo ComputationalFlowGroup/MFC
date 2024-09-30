@@ -9,7 +9,7 @@ gam = 1.4
 rho = 1.
 #c_l = math.sqrt( 1.4*ps/rho )
 c_l = 3077.6       #m/s
-vel = 0
+vel1 = 1.E0
 
 leng = 1.
 Ny = 100.
@@ -25,7 +25,7 @@ Nt = int(time_end/dt)
 #Material parameters of sucrose (dimensional)
 Kt0_suc       = 14.3e9      #Pa
 Kt0_prime_suc = 3.75        #-
-rho_0_suc     = 1580.5      #kg/m^3
+rho_0_suc     = 1.580488803979682E3      #kg/m^3
 ein_cv1_suc   = 3279        #J/Kg-K
 ein_cv2_suc   = 1125        #K
 G_suc         = 8.58e9      #Pa
@@ -36,7 +36,7 @@ gamma_suc     = 1.09
 #Material parameters for air (dimensional)
 Kt0_air       = 1.013e5     #Pa
 Kt0_prime_air = 2.00        #Pa
-rho_0_air     = 1.168       #kg/m^3
+rho_0_air     = 0.429683187288245      #kg/m^3
 theta_0_air   = theta_0_suc
 ein_cv1_air   = 718         #J/Kg-K
 ein_cv2_air   = 100         #K
@@ -45,7 +45,7 @@ gamma_air     = 0.4         #n-1
 
 #Initial condition
 theta_0           = 310             #K
-P_0               = 1.000000000e+6  #Pa
+P_0               = 1.013E5  #Pa
 compression_ratio = 1.1             #rho/rho_0 in the shocked region
 rho_suc           = 1580.5          #kg/m^3
 
@@ -145,10 +145,10 @@ print(json.dumps({
     'riemann_solver'               : 2,
     'wave_speeds'                  : 1,
     'avg_state'                    : 2,
-    'bc_x%beg'                     : -6,
-    'bc_x%end'                     : -6,
-    'bc_y%beg'                     : -6,
-    'bc_y%end'                     : -6,
+    'bc_x%beg'                     : -1,
+    'bc_x%end'                     : -1,
+    'bc_y%beg'                     : -1,
+    'bc_y%end'                     : -1,
     # ==========================================================================
 
     # Formatted Database Files Structure Parameters ============================
@@ -164,13 +164,13 @@ print(json.dumps({
     'patch_icpp(1)%y_centroid'     : 0.,
     'patch_icpp(1)%length_x'       : 10*leng,
     'patch_icpp(1)%length_y'       : leng,
-    'patch_icpp(1)%vel(1)'         : vel,
+    'patch_icpp(1)%vel(1)'         : vel1,
     'patch_icpp(1)%vel(2)'         : 0.E+00,
     'patch_icpp(1)%pres'           : tilde_P_0,
-    'patch_icpp(1)%alpha_rho(1)'   : rho_suc_at_P_0/rho_0_suc,
-    'patch_icpp(1)%alpha_rho(2)'   : 0.E+00,
-    'patch_icpp(1)%alpha(1)'       : 1.E+00,
-    'patch_icpp(1)%alpha(2)'       : 0.E+00,
+    'patch_icpp(1)%alpha_rho(1)'   : (1.E+00-(1.E-06))*(1580.5/1.580488803979682E3),
+    'patch_icpp(1)%alpha_rho(2)'   : (1.E-06)*(1.168/0.429683187288245),
+    'patch_icpp(1)%alpha(1)'       : (1.E+00-1.E-06),
+    'patch_icpp(1)%alpha(2)'       : 1.E-06,
     # ==========================================================================
 
     # Patch 2: Shocked state ===================================================
@@ -195,11 +195,11 @@ print(json.dumps({
     'patch_icpp(2)%y_centroid'     : 0.E+00,
     'patch_icpp(2)%radius'         : leng/5,
     'patch_icpp(2)%alter_patch(1)' : 'T',
-    'patch_icpp(2)%vel(1)'         : vel,
+    'patch_icpp(2)%vel(1)'         : vel1,
     'patch_icpp(2)%vel(2)'         : 0.E+00,
     'patch_icpp(2)%pres'           : tilde_P_0,
-    'patch_icpp(2)%alpha_rho(1)'   : 0.E+0,
-    'patch_icpp(2)%alpha_rho(2)'   : rho_air_at_P_0/rho_0_suc,
+    'patch_icpp(2)%alpha_rho(1)'   : 1.E-06*(1580.5/1.580488803979682E3),
+    'patch_icpp(2)%alpha_rho(2)'   : (1.E0-(1.E-6))*(1.168/0.429683187288245),
     'patch_icpp(2)%alpha(1)'       : 1.E-06,
     'patch_icpp(2)%alpha(2)'       : 1.E+00-(1.E-06),
     # ==========================================================================

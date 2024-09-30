@@ -83,7 +83,7 @@ print(json.dumps({
                     # ==========================================================
 
                     # Turning on Hypoplasticity ================================
-                    'hypoplasticity'               : 'T',
+                     'hypoplasticity'               : 'T',
                     # ==========================================================
 
                     # Formatted Database Files Structure Parameters ============
@@ -98,7 +98,7 @@ print(json.dumps({
                     'patch_icpp(1)%x_centroid'     : 0.5,
                     'patch_icpp(1)%length_x'       : leng,
                     'patch_icpp(1)%vel(1)'         : vel1,
-                    'patch_icpp(1)%vel(2)'         : vel2,
+                   # 'patch_icpp(1)%vel(2)'        : vel2,
                     'patch_icpp(1)%pres'           : tilde_P0,
                     'patch_icpp(1)%alpha_rho(1)'   : (1.0-1e-6),
                     'patch_icpp(1)%alpha_rho(2)'   : (1e-6)*(1.168/1580.5),
@@ -113,12 +113,12 @@ print(json.dumps({
                     'patch_icpp(2)%length_x'       : 0.5,
                     'patch_icpp(2)%alter_patch(1)' : 'T',
                     'patch_icpp(2)%vel(1)'         : vel1,
-                    'patch_icpp(2)%vel(2)'         : vel2,
+                   # 'patch_icpp(2)%vel(2)'        : vel2,
                     'patch_icpp(2)%pres'           : tilde_P0,
                     'patch_icpp(2)%alpha_rho(1)'   : 1e-6,
-                    'patch_icpp(2)%alpha_rho(2)'   : (1-1e-6)*1.168/1580.5,
-                    'patch_icpp(2)%alpha(1)'       : 1e-6,
-                    'patch_icpp(2)%alpha(2)'       : 1.0-1e-6,
+                    'patch_icpp(2)%alpha_rho(2)'   : (1.E0-1.E-6)*1.168/1580.5,
+                    'patch_icpp(2)%alpha(1)'       : 1.E-6,
+                    'patch_icpp(2)%alpha(2)'       : 1.0-1.E-6,
                    #'patch_icpp(2)%tau_e(1)'       : 0.0,
                     # ==========================================================
     # Fluids Physical Parameters ===============================================
@@ -145,7 +145,7 @@ print(json.dumps({
     'fluid_pp(1)%jcook(3)'         : 0.1,                              # n, Strain-Hardening exponent
     'fluid_pp(1)%jcook(4)'         : 0.01,                             # C, Strain-rate hardening coefficient
     'fluid_pp(1)%jcook(5)'         : 0.45,                             # m, Thermal softening exponent
-    'fluid_pp(1)%jcook(6)'         : 1.5403,                           # theta_m, Melt temperature at ambient pressure
+    'fluid_pp(1)%jcook(6)'         : 1.5403,                           # theta_m, Melt temperature at ambient #pressure
     'fluid_pp(1)%jcook(7)'         : 1.0E7,                            # Limiting strain-rate
     'fluid_pp(1)%jcook(8)'         : 0.02,                             # Parameter in Simon-Glatzel melt relation
     'fluid_pp(1)%jcook(9)'         : 3.25,                             # exponent in Simon-Glatzel melt relation
