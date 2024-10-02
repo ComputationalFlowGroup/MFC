@@ -2372,14 +2372,17 @@ contains
                                 if (hypoplasticity) then
                                    xi_d_L = qL_prim_rs${XYZ}$_vf(j, k, l, plasidx)
                                    xi_d_R = qR_prim_rs${XYZ}$_vf(j + 1, k, l, plasidx)
-                                  ! flux_rs${XYZ}$_vf(j, k, l, plasidx) = &
-                                  !          xi_M*(s_S/(s_L - s_S))*(s_L*rho_L*xi_d_L &
-                                  !          - rho_L*vel_L(idx1)*xi_d_L) + &
-                                  !          xi_P*(s_S/(s_R - s_S))*(s_R*rho_R*xi_d_R &
-                                  !          - rho_R*vel_R(idx1)*xi_d_R)
                                    flux_rs${XYZ}$_vf(j, k, l, plasidx) = &
-                                            xi_M*(rho_L*xi_d_L*vel_L(idx1)+s_M*(xi_L*rho_L*xi_d_L-rho_L*xi_d_L))+&
-                                            xi_P*(rho_R*xi_d_R*vel_L(idx1)+s_P*(xi_R*rho_R*xi_d_R-rho_R*xi_d_R))
+                                            xi_M*(s_S/(s_L - s_S))*(s_L*rho_L*xi_d_L &
+                                            - rho_L*vel_L(idx1)*xi_d_L) + &
+                                            xi_P*(s_S/(s_R - s_S))*(s_R*rho_R*xi_d_R &
+                                            - rho_R*vel_R(idx1)*xi_d_R)
+                                    if(flux_rs${XYZ}$_vf(j,k,l,plasidx)/=flux_rs${XYZ}$_vf(j,k,l,plasidx)) then
+                                        print *, 's_S',s_S,'s_L',s_L,'s_R',s_R,'vel_L',vel_L(idx1),'vel_R',vel_R(idx1),'xi_L',xi_d_L,'xi_d_R',xi_d_R,'rho_L',rho_L,'rho_R',rho_R
+                                    end if
+                                  !flux_rs${XYZ}$_vf(j, k, l, plasidx) = &
+                                  !          xi_M*(rho_L*xi_d_L*vel_L(idx1)+s_M*(xi_L*rho_L*xi_d_L-rho_L*xi_d_L))+&
+                                  !          xi_P*(rho_R*xi_d_R*vel_R(idx1)+s_P*(xi_R*rho_R*xi_d_R-rho_R*xi_d_R))
                                 end if
                             end do
                         end do

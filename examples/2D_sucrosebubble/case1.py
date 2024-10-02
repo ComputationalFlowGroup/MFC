@@ -16,8 +16,8 @@ Ny = 128.
 Nx = 256.
 dx = leng/Nx
 
-time_end = 2e-2     #5*leng/vel
-cfl = 0.2
+time_end = 1         #5*leng/vel
+cfl = 0.1
 
 dt = cfl * dx/c_l
 Nt = int(time_end/dt)

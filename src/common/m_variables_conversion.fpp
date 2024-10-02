@@ -1061,10 +1061,19 @@ contains
                                                            qK_cons_vf(mgidxb)%sf(j, k, l)
                         qK_prim_vf(mgidxe)%sf(j, k, l)   = qK_cons_vf(mgidxe)%sf(j, k, l)/rho_K
                        !print *, 'j',j,'rho_eref',qK_cons_vf(mgidxe)%sf(j,k,l)
-            !            if (pres /= pres)  then 
-            !                print *,'j',j,'pres',pres,'energy'
-            !                call s_mpi_abort()
-            !            end if
+                       ! if (pres /= pres)  then 
+                       !     print *,'j',j,'pres',pres,'energy'
+                       !     call s_mpi_abort()
+                       ! end if
+
+                        !$acc loop seq
+                        do i=1, sys_size
+                           if (qK_cons_vf(i)%sf(j,k,l) /= qK_cons_vf(i)%sf(j,k,l)) then
+                               print *, 'i',i,'j k',j,k,qK_cons_vf(i)%sf(j, k, l)
+                               call s_mpi_abort()
+                           end if 
+                        end do  
+
 #ifdef MFC_POST_PROCESS                        
                         call s_compute_temperature(qK_prim_vf(E_idx)%sf(j, k, l), &
                                                    qK_prim_vf(mgidxb+1)%sf(j, k, l), &
@@ -1141,6 +1150,13 @@ contains
                         !$acc loop seq
                         do i = strxb, strxe
                             qK_prim_vf(i)%sf(j, k, l) = qK_cons_vf(i)%sf(j, k, l)/rho_K
+                            !if (i == 11 .or. i==12 .or. i==13 .or. i==14) then
+                            !    print *,'j',j,'k',k,'i',i,qK_prim_vf(i)%sf(j,k,l)
+                            !end if
+                        !    if (qK_prim_vf(i)%sf(j, k, l) /= qK_prim_vf(i)%sf(j, k, l)) then
+                        !         print *,'j',j,'k',k,'i',i,qK_prim_vf(i)%sf(j, k, l)
+                        !         call s_mpi_abort('stress is NaN')
+                        !   end if
                         end do
                         qK_prim_vf(plasidx)%sf(j, k, l) = qK_cons_vf(plasidx)%sf(j, k, l)/rho_K
                     end if

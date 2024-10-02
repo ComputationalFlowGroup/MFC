@@ -283,7 +283,7 @@ contains
 !              print *, 'I got here C' 
 
              ! STEP 3.3: TODO MIRELYS
-             if (G_K .gt. sgm_eps) then 
+             !if (G_K .gt. sgm_eps) then 
 !               print *, 'I got here D' 
               ! STEP 3.4 : Compute mixture pressure and temperature
 !                print *, 'energy ::', energy, 'alf ::', alf, 'dyn_p ::',&
@@ -296,6 +296,9 @@ contains
                                         q_cons_vf(mgidxe)%sf(k, l, q))
                 call s_compute_temperature(pres, q_prim_vf(mgidxb+1)%sf(k, l,q), q_prim_vf(mgidxb)%sf(k, l, q),&
                                         rho_K, temp, alpha_K)
+                if (temp /=temp) then
+                    print *,'temp::',temp,'pres',pres
+                end if
 !                print *, 'pressure :: ', pres, 'temperature ::', temp
                 ! STEP 3.5 : Compute theta_m, theta_hat, and sigma_bar
                 ! compute theta_m from equation 4.10
@@ -327,17 +330,17 @@ contains
                      *(1d0 - theta_hat**jcook5(1))) - 1d0))
                 ! compute d^p from equation 4.6
                 ! jcook(7) = d^p_lim
-                if (sigma_bar .gt. 1d0*verysmall) then
-                    d_p = ((1d0/dp_JC) + (1d0/jcook7(1)))**(-1d0)
+                if (sigma_bar .gt. 1.E-16) then
+                    d_p = ((1d0/dp_JC) + (jcook10(1)/jcook7(1)))**(-1d0)
                     ! compute D^p using equation 4.5
                     do i = strxb, strxe
                         Dp(i-strxb + 1) = 1.5d0*(d_p / sigma_bar) * q_prim_vf(i)%sf(k, l, q)
                     end do
-!                 print *, 'I got here F' 
+                    !print *, 'I got here F' 
                 else
                     d_p = 0d0
                     Dp(:) = 0d0
-!                 print *, 'I got here G' 
+                    !print *, 'I got here G' 
                 end if
 
                 ! STEP 4: Compute rhs source terms
@@ -351,7 +354,7 @@ contains
 
                 rhs_vf(plasidx)%sf(k, l, q) = rhs_vf(plasidx)%sf(k, l, q) + rho_K*d_p
 
-             end if
+             !end if
            end do
          end do
          !$acc end parallel loop

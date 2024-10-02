@@ -781,12 +781,12 @@ contains
                 end do
             end do
         end if
-       ! print *, "I got here A"
-        if (model_eqns == 5) then
-            call nvtxStartRange("RHS-CONS-BUFFER")
-            call s_populate_primitive_variables_buffers(q_cons_qp%vf, pb, mv)
-            call nvtxEndRange
-        end if
+        !print *, "I got here A"
+        !if (model_eqns == 5) then
+        !    call nvtxStartRange("RHS-CONS-BUFFER")
+        !    call s_populate_primitive_variables_buffers(q_cons_qp%vf, pb, mv)
+        !    call nvtxEndRange
+        !end if
         
         call nvtxStartRange("RHS-CONVERT")
         !print *, "I got here B"
@@ -796,7 +796,7 @@ contains
             gm_alpha_qp%vf, &
             ix, iy, iz)
         call nvtxEndRange
-        !print *, "I got here B"
+        !print *, "I got here B+"
 
         call nvtxStartRange("RHS-MPI")
         call s_populate_primitive_variables_buffers(q_prim_qp%vf, pb, mv)
@@ -949,11 +949,11 @@ contains
                                                                rhs_vf)
             call nvtxEndRange
             ! RHS additions for hypoplasticity
-            call nvtxStartRange("RHS_Hypoplasticity")
-            if (hypoplasticity) call s_compute_hypoplastic_rhs(q_prim_qp%vf, & 
-                                                               q_cons_qp%vf, & 
-                                                               rhs_vf)
-            call nvtxEndRange
+            !call nvtxStartRange("RHS_Hypoplasticity")
+            !if (hypoplasticity) call s_compute_hypoplastic_rhs(q_prim_qp%vf, & 
+            !                                                   q_cons_qp%vf, & 
+            !                                                   rhs_vf)
+            !call nvtxEndRange
             !RHS additions for Mie-Gruneisen EoS
             call nvtxStartRange("RHS_Mie_Gruneisen")
             if (model_eqns == 5) then
