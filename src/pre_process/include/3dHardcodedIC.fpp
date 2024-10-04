@@ -5,7 +5,8 @@
 
     real(kind(0d0)) :: eps
 
-    real(kind(0d0)) :: rcoord, theta, phi, xi_sph, x_centriod, y_centriod, z_centriod
+    real(kind(0d0)) :: rcoord, theta, phi, xi_sph, x_centroid, y_centroid, z_centroid
+    real(kind(0d0)) :: testing
     real(kind(0d0)), dimension(num_dims) :: xi_cart
     integer :: ii
 
@@ -61,31 +62,32 @@
         end if
 
      case (302) ! pre_stress for hyperelasticity, bubble in material
-        R0ref = 30E-6    ! equilibrium radius
-        Rinit = 244.8E-6 ! initial radius
+        !R0ref = 30E-6    ! equilibrium radius
+        !Rinit = 244.8E-6 ! initial radius
         x_centroid = patch_icpp(patch_id)%x_centroid
         y_centroid = patch_icpp(patch_id)%y_centroid
         z_centroid = patch_icpp(patch_id)%z_centroid
-        rcoord = sqrt(x_cc(i)**2 + y_cc(j)**2 + z_cc(k)**2)
-        theta = atan2(y_cc(j), x_cc(i))
-        phi = atan2(sqrt(x_cc(i)**2 + y_cc(j)**2), z_cc(k))
+        rcoord = sqrt((x_cc(i) - x_centroid)**2 + (y_cc(j) - y_centroid)**2 + (z_cc(k) - z_centroid)**2)
+        theta = atan2((y_cc(j) - y_centroid), (x_cc(i) - x_centroid))
+        phi = atan2(sqrt((x_cc(i) - x_centroid)**2 + (y_cc(j) - y_centroid)**2), (z_cc(k) - z_centroid))
         !spherical coord, assuming Rmax=1
         xi_sph = (rcoord**3 + R0ref**3 - Rinit**3)**(1d0/3d0)
         !xi_cart(1) = xi_sph*sin(phi)*cos(theta)
         !xi_cart(2) = xi_sph*sin(phi)*sin(theta)
         !xi_cart(3) = xi_sph*cos(phi)
         xi_cart(1) = (xi_sph*x_cc(i)) / &
-            sqrt((x_cc(i) - x_centriod)**2 + (y_cc(j) - y_centriod)**2 + (z_cc(k) - z_centriod)**2)
+            sqrt((x_cc(i) - x_centroid)**2 + (y_cc(j) - y_centroid)**2 + (z_cc(k) - z_centroid)**2)
         xi_cart(2) = (xi_sph*y_cc(j)) / &
-            sqrt((x_cc(i) - x_centriod)**2 + (y_cc(j) - y_centriod)**2 + (z_cc(k) - z_centriod)**2)
+            sqrt((x_cc(i) - x_centroid)**2 + (y_cc(j) - y_centroid)**2 + (z_cc(k) - z_centroid)**2)
         xi_cart(3) = (xi_sph*z_cc(k)) / &
-            sqrt((x_cc(i) - x_centriod)**2 + (y_cc(j) - y_centriod)**2 + (z_cc(k) - z_centriod)**2)
- 
+            sqrt((x_cc(i) - x_centroid)**2 + (y_cc(j) - y_centroid)**2 + (z_cc(k) - z_centroid)**2)
+        !print *, 'xi_cart(3)::', xi_cart(3)
+        
         ! assigning the reference map to the q_prim vector field
-        do ii = 1, num_dims
+        do ii = 1, 3
             q_prim_vf(ii + xibeg - 1)%sf(i, j, k) = xi_cart(ii)
-        end do
-!           q_prim_vf(contxb)%sf(i, j, k) = patch_icpp(patch_id)%alpha_rho(1)
+       end do
+       !           q_prim_vf(contxb)%sf(i, j, k) = patch_icpp(patch_id)%alpha_rho(1)
 !           q_prim_vf(contxe)%sf(i, j, k) = patch_icpp(patch_id)%alpha_rho(2)
 !what about alpha_rho(3) and alpha_rho(4) [contxb + 1, contxe - 1]?
 !           q_prim_vf(E_idx)%sf(i, j, k) = patch_icpp(patch_id)%pres

@@ -175,7 +175,7 @@ Gg = 0.57E+03
 cfl = 0.30
 
 # Bubble Initial Radius
-R0 = 244.8E-06
+R0 = 244E-4 #244.8E-06
 
 # number of elements
 Nx = 249 #679 #404 #249
@@ -333,8 +333,8 @@ print(json.dumps({
     # ==========================================================
     # Patch 1: High pressured water ============================
     # Specify the cubic water background grid geometry
-    'patch_icpp(1)%geometry'       : 9, #13
-    #'patch_icpp(1)%hcid'           : 302, 	
+    'patch_icpp(1)%geometry'       : 13, #9
+    'patch_icpp(1)%hcid'           : 302, 	
     'patch_icpp(1)%x_centroid'     : 20*xcenl,
     'patch_icpp(1)%y_centroid'     : 20*ycenl,
     'patch_icpp(1)%z_centroid'     : 20*zcenl,
@@ -356,7 +356,7 @@ print(json.dumps({
     # ==========================================================
     # Patch 2: (Vapor) Bubble ==================================
     'patch_icpp(2)%geometry'       : 8,     
-    'patch_icpp(2)%alter_patch(1)' : 'T',	
+    'patch_icpp(2)%alter_patch(1)' : 'F',	
     'patch_icpp(2)%x_centroid'     : xcenb,
     'patch_icpp(2)%y_centroid'     : ycenb,
     'patch_icpp(2)%z_centroid'     : zcenb,
@@ -375,10 +375,10 @@ print(json.dumps({
     'patch_icpp(2)%alpha(1)'       : bub_wg,
     # ==========================================================
     # Patch 3: Gel Object ======================================
-#    'patch_icpp(3)%geometry'       : 9,
-    'patch_icpp(3)%geometry'       : 13,
-    'patch_icpp(3)%hcid'           : 302,
-    'patch_icpp(3)%alter_patch(1)' : 'T',
+    'patch_icpp(3)%geometry'       : 9,
+#    'patch_icpp(3)%geometry'       : 13,
+#    'patch_icpp(3)%hcid'           : 302,
+    'patch_icpp(3)%alter_patch(1)' : 'F',
     'patch_icpp(3)%x_centroid'     : 20*xceng,
     'patch_icpp(3)%y_centroid'     : 20*yceng,
     'patch_icpp(3)%z_centroid'     : 20*zceng,
