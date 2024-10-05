@@ -5,8 +5,8 @@
 
     real(kind(0d0)) :: eps
 
-    real(kind(0d0)) :: rcoord, theta, phi, xi_sph, x_centroid, y_centroid, z_centroid
-    real(kind(0d0)) :: testing
+    real(kind(0d0)) :: rcoord, theta, phi, xi_sph, x_bcen, y_bcen, z_bcen
+    real(kind(0d0)) :: x_ccs, y_ccs, z_ccs
     real(kind(0d0)), dimension(num_dims) :: xi_cart
     integer :: ii
 
@@ -62,31 +62,32 @@
         end if
 
      case (302) ! pre_stress for hyperelasticity, bubble in material
-        !R0ref = 30E-6    ! equilibrium radius
-        !Rinit = 244.8E-6 ! initial radius
-        x_centroid = patch_icpp(patch_id)%x_centroid
-        y_centroid = patch_icpp(patch_id)%y_centroid
-        z_centroid = patch_icpp(patch_id)%z_centroid
-        rcoord = sqrt((x_cc(i) - x_centroid)**2 + (y_cc(j) - y_centroid)**2 + (z_cc(k) - z_centroid)**2)
-        theta = atan2((y_cc(j) - y_centroid), (x_cc(i) - x_centroid))
-        phi = atan2(sqrt((x_cc(i) - x_centroid)**2 + (y_cc(j) - y_centroid)**2), (z_cc(k) - z_centroid))
+        R0ref = 30E-6    ! equilibrium radius
+        Rinit = patch_icpp(2)%radius ! initial radius
+        x_bcen = patch_icpp(2)%x_centroid
+        y_bcen = patch_icpp(2)%y_centroid
+        z_bcen = patch_icpp(2)%z_centroid
+        x_ccs = x_cc(i) - x_bcen
+        y_ccs = y_cc(j) - y_bcen
+        z_ccs = z_cc(k) - z_bcen
+        rcoord = sqrt(x_ccs**2 + y_ccs**2 + z_ccs**2)
+        phi = atan2(y_ccs, x_ccs)
+        theta = atan2(sqrt(x_ccs**2 + y_ccs**2), z_ccs)
         !spherical coord, assuming Rmax=1
         xi_sph = (rcoord**3 + R0ref**3 - Rinit**3)**(1d0/3d0)
-        !xi_cart(1) = xi_sph*sin(phi)*cos(theta)
-        !xi_cart(2) = xi_sph*sin(phi)*sin(theta)
-        !xi_cart(3) = xi_sph*cos(phi)
-        xi_cart(1) = (xi_sph*x_cc(i)) / &
-            sqrt((x_cc(i) - x_centroid)**2 + (y_cc(j) - y_centroid)**2 + (z_cc(k) - z_centroid)**2)
-        xi_cart(2) = (xi_sph*y_cc(j)) / &
-            sqrt((x_cc(i) - x_centroid)**2 + (y_cc(j) - y_centroid)**2 + (z_cc(k) - z_centroid)**2)
-        xi_cart(3) = (xi_sph*z_cc(k)) / &
-            sqrt((x_cc(i) - x_centroid)**2 + (y_cc(j) - y_centroid)**2 + (z_cc(k) - z_centroid)**2)
-        !print *, 'xi_cart(3)::', xi_cart(3)
-        
+        !xi_cart(1) = xi_sph*sin(theta)*cos(phi)
+        !xi_cart(2) = xi_sph*sin(theta)*sin(phi)
+        !xi_cart(3) = xi_sph*cos(theta)
+        xi_cart(1) = (xi_sph*x_ccs) / rcoord
+        xi_cart(2) = (xi_sph*y_ccs) / rcoord
+        xi_cart(3) = (xi_sph*z_ccs) / rcoord
+!        print *, 'xi_cart(3)::', xi_cart(3), ', xi_sph::', xi_sph, ', z_cc::', z_cc(k)
         ! assigning the reference map to the q_prim vector field
         do ii = 1, 3
             q_prim_vf(ii + xibeg - 1)%sf(i, j, k) = xi_cart(ii)
        end do
+
+ !      print *, 'i::', i, ', q_prim_vf(xi_beg)', q_prim_vf(3 + xibeg - 1)%sf(i,j,k) 
        !           q_prim_vf(contxb)%sf(i, j, k) = patch_icpp(patch_id)%alpha_rho(1)
 !           q_prim_vf(contxe)%sf(i, j, k) = patch_icpp(patch_id)%alpha_rho(2)
 !what about alpha_rho(3) and alpha_rho(4) [contxb + 1, contxe - 1]?
