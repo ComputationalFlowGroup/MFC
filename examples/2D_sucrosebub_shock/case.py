@@ -12,11 +12,11 @@ c_l = 3077.6       #m/s
 vel1 = 1.E0
 
 leng = 1.
-Ny = 128.
-Nx = 256.
+Ny = 256.
+Nx = 512.
 dx = leng/Nx
 
-time_end = 1.E-3         #5*leng/vel
+time_end = 2.E-1         #5*leng/vel
 cfl = 0.1
 
 dt = cfl * dx/c_l
@@ -123,7 +123,7 @@ print(json.dumps({
     'dt'                           : dt,
     't_step_start'                 : 0,
     't_step_stop'                  : Nt,
-    't_step_save'                  : int(Nt/50.),
+    't_step_save'                  : int(Nt/80000.),
     # ==========================================================================
 
     # Simulation Algorithm Parameters ==========================================

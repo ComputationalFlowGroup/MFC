@@ -992,12 +992,7 @@ contains
               cont_idx%beg = 1
               cont_idx%end = num_fluids
               mom_idx%beg = cont_idx%end + 1
-              if (num_dims == 1 .and. hypoplasticity .eqv. .true.) then
-                !To account for v for quasi-1D case for hypoplasticity
-                 mom_idx%end = cont_idx%end + 2
-              else
-                 mom_idx%end = cont_idx%end + num_dims
-              end if
+              mom_idx%end = cont_idx%end + num_dims
               E_idx = mom_idx%end + 1
               adv_idx%beg = E_idx + 1
               adv_idx%end = E_idx + num_fluids
@@ -1008,7 +1003,11 @@ contains
               if (hypoplasticity) then
                 elasticity = .true.
                 stress_idx%beg = sys_size + 1
-                stress_idx%end = sys_size + 2*num_dims
+                if (num_dims == 2) then
+                    stress_idx%end = sys_size + 2*num_dims
+                else
+                    stress_idx%end = sys_size + num_dims
+                end if
                 ! number of stresses is 1 in 1D, 2 in quasi-1D, 3 in
                 ! 2D-plane stress, 4 in 2D-plane strain, 6 in 3D 
                 ! TODO add more flags to incorporate all these cases
@@ -1099,7 +1098,7 @@ contains
             buff_size = weno_polyn + 2
         end if
 
-        if (elasticity) then
+        if (elasticity .or. model_eqns == 5) then
             fd_order = 4
             fd_number = max(1, fd_order/2)
             !buff_size = buff_size + fd_number

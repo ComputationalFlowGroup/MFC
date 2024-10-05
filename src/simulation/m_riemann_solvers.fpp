@@ -2196,9 +2196,6 @@ contains
                                       qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb) +&
                                       5d-1*rho_R*vel_R_rms
                                 
-                                if ((pres_L /= pres_L) .or. (pres_R /= pres_R)) then
-                                   print *, 'pres_L', pres_L,'pres_R',pres_R
-                                end if
                                 H_L = 0d0; H_R = 0d0 
 
                                 @:compute_average_state()
@@ -2220,7 +2217,10 @@ contains
                                 !print*,"E_L :: ",E_L,', E_R :: ',E_R
                                 !print*,"c_L :: ",c_L,', c_R :: ',c_R
 
+                                    !pcorr = 0d0
+
                                 if (wave_speeds == 1) then
+                                    if (hypoplasticity) then
                                         s_L = min(vel_L(dir_idx(1)) - sqrt(c_L*c_L + &
                                        (((4d0*G_L)/3d0) )/rho_L), vel_R(dir_idx(1)) - sqrt(c_R*c_R + &
                                        (((4d0*G_R)/3d0) )/rho_R))
@@ -2231,6 +2231,16 @@ contains
                                              (rho_L/rho0_L)*tau_e_L(dir_idx_tau(1)) + rho_L*vel_L(idx1)*(s_L - vel_L(idx1)) - &
                                               rho_R*vel_R(idx1)*(s_R - vel_R(idx1)))/(rho_L*(s_L - vel_L(idx1)) - &
                                                                                        rho_R*(s_R - vel_R(idx1)))
+                                    else
+                                    s_L = min(vel_L(dir_idx(1)) - c_L, vel_R(dir_idx(1)) - c_R)
+                                    s_R = max(vel_R(dir_idx(1)) + c_R, vel_L(dir_idx(1)) + c_L)
+                                    s_S = (pres_R - pres_L + rho_L*vel_L(dir_idx(1))* &
+                                           (s_L - vel_L(dir_idx(1))) - &
+                                           rho_R*vel_R(dir_idx(1))* &
+                                           (s_R - vel_R(dir_idx(1)))) &
+                                          /(rho_L*(s_L - vel_L(dir_idx(1))) - &
+                                            rho_R*(s_R - vel_R(dir_idx(1))))
+                                    end if
                                 end if
 
                                 ! follows Einfeldt et al.
@@ -2256,7 +2266,6 @@ contains
                                         + xi_P*qR_prim_rs${XYZ}$_vf(j + 1, k, l, i) &
                                         *(vel_R(idx1) + s_P*(xi_R - 1d0))
                                 end do
-
                                 ! MOMENTUM FLUX.
                                 ! f = \rho u u - \sigma, q = \rho u, q_star = \xi * \rho*(s_star, v, w)
                                 !$acc loop seq
@@ -2274,8 +2283,8 @@ contains
                                                        s_P*(xi_R*(dir_flg(idxi)*s_S + &
                                                                   (1d0 - dir_flg(idxi))* &
                                                                   vel_R(idxi)) - vel_R(idxi))) + &
-                                                dir_flg(idxi)*(pres_R)) &
-                                        + (s_M/s_L)*(s_P/s_R)*dir_flg(idxi)*pcorr
+                                                dir_flg(idxi)*(pres_R)) 
+                                      !  + (s_M/s_L)*(s_P/s_R)*dir_flg(idxi)*pcorr
                                 end do
 
                                 ! ENERGY FLUX.
@@ -2288,8 +2297,8 @@ contains
                                     + xi_P*(vel_R(idx1)*(E_R + pres_R) + &
                                             s_P*(xi_R*(E_R + (s_S - vel_R(idx1))* &
                                                        (rho_R*s_S + pres_R/ &
-                                                        (s_R - vel_R(idx1)))) - E_R)) &
-                                    + (s_M/s_L)*(s_P/s_R)*pcorr*s_S
+                                                        (s_R - vel_R(idx1)))) - E_R)) 
+                                   ! + (s_M/s_L)*(s_P/s_R)*pcorr*s_S
 
                                 ! ELASTICITY. Elastic shear stress additions for the momentum and energy flux
                                 if (elasticity) then
@@ -2316,14 +2325,14 @@ contains
                                 if (hypoplasticity) then
                                     !$acc loop seq
                                     do i = 1, strxe - strxb + 1
+                                       ! flux_rs${XYZ}$_vf(j, k, l, strxb - 1 + i) = &
+                                       !     xi_M*(s_S/(s_L - s_S))*(s_L*rho_L*tau_e_L(i) - rho_L*vel_L(idx1)*tau_e_L(i)) + &
+                                       !     xi_P*(s_S/(s_R - s_S))*(s_R*rho_R*tau_e_R(i) - rho_R*vel_R(idx1)*tau_e_R(i))
+                                        
                                         flux_rs${XYZ}$_vf(j, k, l, strxb - 1 + i) = &
-                                            xi_M*(s_S/(s_L - s_S))*(s_L*rho_L*tau_e_L(i) - rho_L*vel_L(idx1)*tau_e_L(i)) + &
-                                            xi_P*(s_S/(s_R - s_S))*(s_R*rho_R*tau_e_R(i) - rho_R*vel_R(idx1)*tau_e_R(i))
+                                            xi_M*(rho_L*tau_e_L(i)*vel_L(idx1)+s_M*(xi_L*rho_L*tau_e_L(i)-rho_L*tau_e_L(i)))+&
+                                            xi_P*(rho_R*tau_e_R(i)*vel_R(idx1)+s_P*(xi_R*rho_R*tau_e_R(i)-rho_R*tau_e_R(i)))
                                     end do
-                                    if (flux_rs${XYZ}$_vf(j,k,l,12) /= flux_rs${XYZ}$_vf(j,k,l,12)) then
-                                        print *,j,tau_e_L(2),tau_e_R(2), flux_rs${XYZ}$_vf(j, k, l, 12)
-                                        call s_mpi_abort('in riemann solver')
-                                    end if
                                 end if
 
                                 ! VOLUME FRACTION FLUX.
@@ -2372,17 +2381,17 @@ contains
                                 if (hypoplasticity) then
                                    xi_d_L = qL_prim_rs${XYZ}$_vf(j, k, l, plasidx)
                                    xi_d_R = qR_prim_rs${XYZ}$_vf(j + 1, k, l, plasidx)
-                                   flux_rs${XYZ}$_vf(j, k, l, plasidx) = &
-                                            xi_M*(s_S/(s_L - s_S))*(s_L*rho_L*xi_d_L &
-                                            - rho_L*vel_L(idx1)*xi_d_L) + &
-                                            xi_P*(s_S/(s_R - s_S))*(s_R*rho_R*xi_d_R &
-                                            - rho_R*vel_R(idx1)*xi_d_R)
-                                    if(flux_rs${XYZ}$_vf(j,k,l,plasidx)/=flux_rs${XYZ}$_vf(j,k,l,plasidx)) then
-                                        print *, 's_S',s_S,'s_L',s_L,'s_R',s_R,'vel_L',vel_L(idx1),'vel_R',vel_R(idx1),'xi_L',xi_d_L,'xi_d_R',xi_d_R,'rho_L',rho_L,'rho_R',rho_R
-                                    end if
-                                  !flux_rs${XYZ}$_vf(j, k, l, plasidx) = &
-                                  !          xi_M*(rho_L*xi_d_L*vel_L(idx1)+s_M*(xi_L*rho_L*xi_d_L-rho_L*xi_d_L))+&
-                                  !          xi_P*(rho_R*xi_d_R*vel_R(idx1)+s_P*(xi_R*rho_R*xi_d_R-rho_R*xi_d_R))
+                                  ! flux_rs${XYZ}$_vf(j, k, l, plasidx) = &
+                                  !          xi_M*(s_S/(s_L - s_S))*(s_L*rho_L*xi_d_L &
+                                  !          - rho_L*vel_L(idx1)*xi_d_L) + &
+                                  !          xi_P*(s_S/(s_R - s_S))*(s_R*rho_R*xi_d_R &
+                                  !          - rho_R*vel_R(idx1)*xi_d_R)
+                                  !  if(flux_rs${XYZ}$_vf(j,k,l,plasidx)/=flux_rs${XYZ}$_vf(j,k,l,plasidx)) then
+                                  !      print *, 's_S',s_S,'s_L',s_L,'s_R',s_R,'vel_L',vel_L(idx1),'vel_R',vel_R(idx1),'xi_L',xi_d_L,'xi_d_R',xi_d_R,'rho_L',rho_L,'rho_R',rho_R
+                                  !  end if
+                                  flux_rs${XYZ}$_vf(j, k, l, plasidx) = &
+                                            xi_M*(rho_L*xi_d_L*vel_L(idx1)+s_M*(xi_L*rho_L*xi_d_L-rho_L*xi_d_L))+&
+                                            xi_P*(rho_R*xi_d_R*vel_R(idx1)+s_P*(xi_R*rho_R*xi_d_R-rho_R*xi_d_R))
                                 end if
                             end do
                         end do

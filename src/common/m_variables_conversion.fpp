@@ -939,8 +939,7 @@ contains
 
         type(scalar_field), dimension(sys_size), intent(in) :: qK_cons_vf
         type(scalar_field), dimension(sys_size), intent(inout) :: qK_prim_vf
-        type(scalar_field), &
-            allocatable, optional, dimension(:), &
+        type(scalar_field), allocatable, optional, dimension(:), &
             intent(in) :: gm_alphaK_vf
 
         type(int_bounds_info), optional, intent(in) :: ix, iy, iz
@@ -1049,9 +1048,9 @@ contains
                         call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
                                                 qK_cons_vf(alf_idx)%sf(j, k, l), &
                                                 dyn_pres_K, pi_inf_K, gamma_K, rho_K, qv_K, pres)
-                    else    
+                    else
                         call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
-                                           qK_cons_vf(alf_idx)%sf(j, k, l), dyn_pres_K, & 
+                                           0d0, dyn_pres_K, & 
                                            pi_inf_K, qK_cons_vf(mgidxb)%sf(j, k, l), rho_K, qv_K, &
                                            pres, 0d0, 0d0, 0d0,qK_cons_vf(mgidxb+1)%sf(j, k, l),&
                                            qK_cons_vf(mgidxe)%sf(j, k, l))
@@ -1291,7 +1290,7 @@ contains
                            Pref = pi_inf*log_rho_mix*(1d0+0.5d0*(qv-2d0)*log_rho_mix)
                            eref = 0.5d0*pi_inf*(log_rho_mix**2d0)*(1d0+(1/3d0)*(qv-2d0)*log_rho_mix)+&
                            ein_cv1_mix*(phi*theta_E_mix*dexp(phi*theta_E_mix)/(dexp(phi*theta_E_mix)-1)-dlog(dexp(phi*theta_E_mix)-1))
-                        
+                        print *,pref 
                         q_prim_vf(mgidxb)%sf(j, k, l) = gamma_inv
                         q_prim_vf(mgidxb+1)%sf(j, k, l) = Pref
                         q_prim_vf(mgidxe)%sf(j, k, l) = eref

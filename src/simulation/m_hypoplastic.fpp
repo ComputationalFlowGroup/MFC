@@ -106,7 +106,9 @@ contains
         if (num_dims == 1) then
             ! For quasi-1D case
             du_dx(:,:,:) = 0d0; dv_dx(:,:,:) = 0d0
-            !$acc parallel loop collapse(2) gang vector default (present)
+            l = 0
+            q = 0 
+            !$acc parallel loop collapse(1) gang vector default (present)
             do k = 0, m
                do r = -fd_number, fd_number
                   du_dx(k, l, q) = du_dx(k, l, q) +&
@@ -219,7 +221,7 @@ contains
         ! compute velocity gradients and rho_K and G_K        
         du_dx(:, :, :) = 0d0; du_dy(:, :, :) = 0d0
         dv_dx(:, :, :) = 0d0; dv_dy(:, :, :) = 0d0
-        
+        q = 0        
 
         !$acc parallel loop collapse(2) gang vector default(present)
         do l = 0, n
@@ -290,7 +292,7 @@ contains
 !dyn_p, 'pi_inf ::', pi_inf, 'gamma ::', gamma, 'rho ::', rho, 'qv ::', &
 !qv, 'stress ::', stress, 'mom ::', mom, 'G ::', G, 'alpha_K ::', &
 !alpha_K, 'alpha_rho_K ::', alpha_rho_K
-                call s_compute_pressure(energy, alf, dyn_p, pi_inf, q_cons_vf(mgidxb)%sf(k, l, q), rho, 0d0, & 
+                call s_compute_pressure(energy, 0d0, dyn_p, pi_inf, q_cons_vf(mgidxb)%sf(k, l, q), rho, 0d0, & 
                                         pres, stress, 0d0, G, &
                                         q_cons_vf(mgidxb+1)%sf(k, l, q), &
                                         q_cons_vf(mgidxe)%sf(k, l, q))

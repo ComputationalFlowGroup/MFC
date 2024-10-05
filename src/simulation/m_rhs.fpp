@@ -782,11 +782,11 @@ contains
             end do
         end if
         !print *, "I got here A"
-        !if (model_eqns == 5) then
-        !    call nvtxStartRange("RHS-CONS-BUFFER")
-        !    call s_populate_primitive_variables_buffers(q_cons_qp%vf, pb, mv)
-        !    call nvtxEndRange
-        !end if
+        if (model_eqns == 5) then
+            call nvtxStartRange("RHS-CONS-BUFFER")
+            call s_populate_primitive_variables_buffers(q_cons_qp%vf, pb, mv)
+            call nvtxEndRange
+        end if
         
         call nvtxStartRange("RHS-CONVERT")
         !print *, "I got here B"

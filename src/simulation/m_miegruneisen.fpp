@@ -29,9 +29,9 @@ module m_miegruneisen
     @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), dimension(:), Gs)
     !$acc declare link(Gs)
 
-    @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), dimension(:, :, :), du_dx, du_dy)
-    @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), dimension(:, :, :), dv_dx, dv_dy)
-    !$acc declare link(du_dx,du_dy,dv_dx,dv_dy)
+    @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), dimension(:, :, :), du_dx)
+    @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), dimension(:, :, :), dv_dy)
+    !$acc declare link(du_dx,dv_dy)
 
     @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), dimension(:, :, :), rho_K_field, G_K_field)
     !$acc declare link(rho_K_field, G_K_field)
@@ -40,12 +40,9 @@ module m_miegruneisen
     !$acc declare link(fd_coeff_x,fd_coeff_y)
 
 #else
-    real(kind(0d0)), allocatable, dimension(:) :: Gs
-    !$acc declare create(Gs)
-
-    real(kind(0d0)), allocatable, dimension(:, :, :) :: du_dx, du_dy
-    real(kind(0d0)), allocatable, dimension(:, :, :) :: dv_dx, dv_dy
-    !$acc declare create(du_dx,du_dy,dv_dx,dv_dy)
+    real(kind(0d0)), allocatable, dimension(:, :, :) :: du_dx
+    real(kind(0d0)), allocatable, dimension(:, :, :) :: dv_dy
+    !$acc declare create(du_dx,dv_dy)
 
     real(kind(0d0)), allocatable, dimension(:, :) :: fd_coeff_x, fd_coeff_y
     !$acc declare create(fd_coeff_x,fd_coeff_y)
@@ -58,24 +55,16 @@ contains
 
         integer :: i, k, r
 
-        @:ALLOCATE_GLOBAL(Gs(1:num_fluids))
         @:ALLOCATE_GLOBAL(du_dx(0:m,0:n,0:p))
-        @:ALLOCATE_GLOBAL(du_dy(0:m,0:n,0:p), dv_dx(0:m,0:n,0:p), dv_dy(0:m,0:n,0:p))
-
-        do i = 1, num_fluids
-            Gs(i) = fluid_pp(i)%G
-        end do
-        !$acc update device(Gs)
-
         @:ALLOCATE_GLOBAL(fd_coeff_x(-fd_number:fd_number, 0:m))
-        @:ALLOCATE_GLOBAL(fd_coeff_y(-fd_number:fd_number, 0:n))
-   
         ! Computing centered finite difference coefficients
         call s_compute_finite_difference_coefficients(m, x_cc, fd_coeff_x, buff_size, &
                                                       fd_number, fd_order)
 
         !$acc update device(fd_coeff_x)
         if (num_dims /= 1) then
+        @:ALLOCATE_GLOBAL(dv_dy(0:m,0:n,0:p))
+        @:ALLOCATE_GLOBAL(fd_coeff_y(-fd_number:fd_number, 0:n))
         call s_compute_finite_difference_coefficients(n, y_cc, fd_coeff_y, buff_size, &
                                                           fd_number, fd_order)
 
@@ -105,12 +94,14 @@ contains
         if (num_dims == 1) then
         ! Writing code for quasi-1D not true 1D
         du_dx(:, :, :) = 0d0; 
-        dv_dx(:, :, :) = 0d0;
-        !$acc parallel loop collapse(2) gang vector default(present)
-        do k = 0, m
-            do r = -fd_number, fd_number
-               du_dx(k, l, q) = du_dx(k, l, q) + q_prim_vf(momxb)%sf(k + r, l, q)*fd_coeff_x(r, k)
-               dv_dx(k, l, q) = dv_dx(k, l, q) + q_prim_vf(momxb + 1)%sf(k + r, l, q)*fd_coeff_x(r, k)
+        !$acc parallel loop collapse(3) gang vector default(present)
+        do q = 0, p
+            do l = 0, n
+                do k = 0, m
+                    do r = -fd_number, fd_number
+                        du_dx(k, l, q) = du_dx(k, l, q) + q_prim_vf(momxb)%sf(k + r, l, q)*fd_coeff_x(r, k)
+                    end do
+                end do
             end do
         end do
         !$acc end parallel loop
@@ -119,6 +110,8 @@ contains
         !$acc private(rho_K,G_K,alpha_rho_K,alpha_K,&
         !$acc mg_exp,rhs_mgidx2_mix, rhs_mgidx3_mix,&
         !$acc A_cv, rho0_mix, theta_E, gamma_inf, gamma0)
+        l=0
+        q=0
         do k = 0, m
              ! STEP 3.1 : Compute mixtures variables for computing
              ! pressure and temperature
@@ -179,7 +172,7 @@ contains
                ! if (q_cons_vf(mgidxe)%sf(k, l, q) /= q_cons_vf(mgidxe)%sf(k,l,q)) then
                !     print *,'rho_eref is NaN in miegruneisen'
                ! end if
-                call s_compute_pressure(energy, alf, dyn_p, pi_inf, q_cons_vf(mgidxb)%sf(k, l, q), rho_K, 0d0, & 
+                call s_compute_pressure(energy, 0d0, dyn_p, pi_inf, q_cons_vf(mgidxb)%sf(k, l, q), rho_K, 0d0, & 
                                         pres, 0d0, 0d0, G, &
                                         q_cons_vf(mgidxb+1)%sf(k, l, q), &
                                         q_cons_vf(mgidxe)%sf(k, l, q))
@@ -203,22 +196,19 @@ contains
          !$acc end parallel loop
         else if (num_dims == 2) then 
         ! compute velocity gradients and rho_K and G_K        
-        du_dx(:, :, :) = 0d0; du_dy(:, :, :) = 0d0
-        dv_dx(:, :, :) = 0d0; dv_dy(:, :, :) = 0d0
+        du_dx(:, :, :) = 0d0; dv_dy(:, :, :) = 0d0
 
         !$acc parallel loop collapse(2) gang vector default(present)
         do l = 0, n
           do k = 0, m
             do r = -fd_number, fd_number
                du_dx(k, l, q) = du_dx(k, l, q) + q_prim_vf(momxb)%sf(k + r, l, q)*fd_coeff_x(r, k)
-               du_dy(k, l, q) = du_dy(k, l, q) + q_prim_vf(momxb)%sf(k, l + r, q)*fd_coeff_y(r, l)
-               dv_dx(k, l, q) = dv_dx(k, l, q) + q_prim_vf(momxb + 1)%sf(k + r, l, q)*fd_coeff_x(r, k)
                dv_dy(k, l, q) = dv_dy(k, l, q) + q_prim_vf(momxb + 1)%sf(k, l + r, q)*fd_coeff_y(r, l)
             end do
           end do
         end do
         !$acc end parallel loop
-
+        q = 0
         !$acc parallel loop collapse(2) gang vector default(present) &
         !$acc private(rho_K,G_K,alpha_rho_K,alpha_K,&
         !$acc mg_exp,rhs_mgidx2_mix, rhs_mgidx3_mix,&
@@ -309,11 +299,12 @@ contains
 
     subroutine s_finalize_miegruneisen_module() ! --------------------
 
-        @:DEALLOCATE_GLOBAL(Gs)
         @:DEALLOCATE_GLOBAL(du_dx)
         @:DEALLOCATE_GLOBAL(fd_coeff_x)
-        @:DEALLOCATE_GLOBAL(du_dy,dv_dx,dv_dy)
-        @:DEALLOCATE_GLOBAL(fd_coeff_y)
+        if (num_dims /=1) then
+            @:DEALLOCATE_GLOBAL(dv_dy)
+            @:DEALLOCATE_GLOBAL(fd_coeff_y)
+        end if
 
     end subroutine s_finalize_miegruneisen_module
 
