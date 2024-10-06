@@ -747,8 +747,14 @@ contains
             if (hypoplasticity) then
                 elasticity = .true.
                 stress_idx%beg = sys_size + 1
-                stress_idx%end = sys_size + 2*num_dims
-                ! number of stresses is 1 in 1D, 3 in 2D, 6 in 3D
+                if (num_dims == 2) then
+                    stress_idx%end = sys_size + 2*num_dims
+                else 
+                    stress_idx%end = sys_size + num_dims
+                end if
+                ! number of stresses is 1 in 1D, 2 in quasi-1D, 3 in
+                ! 2D-plane stress, 4 in 2D-plane strain, 6 in 3D 
+                ! TODO add more flags to incorporate all these cases
                 plasidx = stress_idx%end + 1
                 sys_size = plasidx
             end if

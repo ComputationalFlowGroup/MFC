@@ -50,6 +50,8 @@ module m_start_up
 
     use m_hypoplastic
 
+    use m_miegruneisen
+
     use m_hyperelastic
 
     use m_phase_change          !< Phase-change module
@@ -1089,7 +1091,6 @@ contains
         integer, intent(inout) :: nt
 
         integer :: i, j, k, l
-
         if (proc_rank == 0 .and. mod(t_step - t_step_start, t_step_print) == 0) then
             print '(" ["I3"%]  Time step "I8" of "I0" @ t_step = "I0"")', &
                 int(ceiling(100d0*(real(t_step - t_step_start)/(t_step_stop - t_step_start + 1)))), &
@@ -1104,7 +1105,7 @@ contains
                 !$acc update host(q_cons_ts(1)%vf(i)%sf)
             end do
         end if
-
+        
         call s_compute_derived_variables(t_step)
 
 #ifdef DEBUG
@@ -1321,6 +1322,7 @@ contains
         if (hypoelasticity) call s_initialize_hypoelastic_module()
         if (hyperelasticity) call s_initialize_hyperelastic_module()
         if (hypoplasticity) call s_initialize_hypoplastic_module()
+        if (model_eqns == 5) call s_initialize_miegruneisen_module()
 
     end subroutine s_initialize_modules
 

@@ -59,9 +59,15 @@
 
 #./mfc.sh run ./examples/2D_sucrosebubble_test/case.py -p batch -N 1 -n 4 -g 0 -w 01:00:00 -# test1 -t pre_process -c oscar
 #./mfc.sh run ./examples/2D_sucrosebubble_test/case.py -p batch -N 1 -n 4 -g 0 -w 01:00:00 -# test1 -t simulation -c oscar
-./mfc.sh run ./examples/2D_sucrosebubble_test/case.py -p batch -N 1 -n 4 -g 0 -w 01:00:00 -# test1 -t post_process -c oscar
+#./mfc.sh run ./examples/2D_sucrosebubble_test/case.py -p batch -N 1 -n 4 -g 0 -w 01:00:00 -# test1 -t post_process -c oscar
 
 #./mfc.sh run ./examples/1D_hyper_sodshocktube/case.py -p batch -N 1 -n 1 -g 1 -w 01:00:00 -# test1 -t pre_process -c oscar
 #./mfc.sh run ./examples/1D_hyper_sodshocktube/case.py -p batch -N 1 -n 1 -g 1 -w 01:00:00 -# test1 -t simulation -c oscar
 #./mfc.sh run ./examples/1D_hyper_sodshocktube/case.py -p batch -N 1 -n 1 -g 1 -w 01:00:00 -# test1 -t post_process -c oscar
+
+
+#./mfc.sh run ./examples/2D_sucrose/case3.py -p batch -N 1 -n 4 -g 0 -w 01:00:00 -# test1 -t pre_process -c oscar
+#./mfc.sh run ./examples/2D_sucrose/case3.py -p batch -N 1 -n 4 -g 0 -w 01:00:00 -# test1 -t simulation -c oscar
+./mfc.sh run ./examples/2D_sucrose/case3.py -p batch -N 1 -n 4 -g 0 -w 01:00:00 -# test1 -t post_process -c oscar
+
 

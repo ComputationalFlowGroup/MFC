@@ -12,11 +12,11 @@ c_l = 3077.6       #m/s
 vel1 = 1.E0
 
 leng = 1.
-Ny = 128.
-Nx = 256.
+Ny = 256.
+Nx = 512.
 dx = leng/Nx
 
-time_end = 2.E-2         #5*leng/vel
+time_end = 2.E-1         #5*leng/vel
 cfl = 0.1
 
 dt = cfl * dx/c_l
@@ -123,7 +123,7 @@ print(json.dumps({
     'dt'                           : dt,
     't_step_start'                 : 0,
     't_step_stop'                  : Nt,
-    't_step_save'                  : int(Nt/100.),
+    't_step_save'                  : int(Nt/80000.),
     # ==========================================================================
 
     # Simulation Algorithm Parameters ==========================================
@@ -182,7 +182,7 @@ print(json.dumps({
     'patch_icpp(2)%alter_patch(1)' : 'T',
     'patch_icpp(2)%x_centroid'     : -3*leng/8.,
     'patch_icpp(2)%y_centroid'     : 0.,
-    'patch_icpp(2)%length_x'       : leng/4.+0.09,
+    'patch_icpp(2)%length_x'       : leng/4.,
     'patch_icpp(2)%length_y'       : leng,
     'patch_icpp(2)%vel(1)'         : vel,
     'patch_icpp(2)%vel(2)'         : 0.E+00,
@@ -218,7 +218,7 @@ print(json.dumps({
     'fluid_pp(2)%gamma'            : 0.4E0,                            # 1.E+00/(1.6666E+00-1.E+00),
     'fluid_pp(2)%pi_inf'           : Kt0_air/(rho_0_suc*c_0*c_0),                              # 0.0
     'fluid_pp(1)%qv'               : 3.75E0,                           # K'_theta0 for sucrose
-    'fluid_pp(2)%qv'               : 2.1E0,                            # K'_theta0 for air
+    'fluid_pp(2)%qv'               : 2.0E0,                            # K'_theta0 for air
     'fluid_pp(1)%G'                : G_suc/(rho_0_suc*c_0*c_0),        # Shear modulus
     'fluid_pp(2)%G'                : 1.E-5,                            # Shear modulus of air taken to be a very small value
     'fluid_pp(1)%ein_cv(1)'        : A_tilde,                          # Can be replaced with fluid_pp(:)%cv at some point

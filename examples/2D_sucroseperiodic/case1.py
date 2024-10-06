@@ -16,8 +16,8 @@ Ny = 128.
 Nx = 256.
 dx = leng/Nx
 
-time_end = 2.E-2         #5*leng/vel
-cfl = 0.1
+time_end = 2e-2     #5*leng/vel
+cfl = 0.2
 
 dt = cfl * dx/c_l
 Nt = int(time_end/dt)
@@ -123,11 +123,11 @@ print(json.dumps({
     'dt'                           : dt,
     't_step_start'                 : 0,
     't_step_stop'                  : Nt,
-    't_step_save'                  : int(Nt/100.),
+    't_step_save'                  : int(Nt/50.),
     # ==========================================================================
 
     # Simulation Algorithm Parameters ==========================================
-    'num_patches'                  : 3,             #change this to 3 for shocked state
+    'num_patches'                  : 2,             #change this to 3 for shocked state
     'model_eqns'                   : 5,
     'alt_soundspeed'               : 'F',
     'hypoplasticity'               : 'T',
@@ -164,7 +164,7 @@ print(json.dumps({
     'patch_icpp(1)%y_centroid'     : 0.,
     'patch_icpp(1)%length_x'       : 10*leng,
     'patch_icpp(1)%length_y'       : leng,
-    'patch_icpp(1)%vel(1)'         : 1.E-06,
+    'patch_icpp(1)%vel(1)'         : vel1,
     'patch_icpp(1)%vel(2)'         : 0.E+00,
     'patch_icpp(1)%pres'           : tilde_P_0,
     'patch_icpp(1)%alpha_rho(1)'   : (1.E+00-(1.E-06))*(1580.5/1.580488803979682E3),
@@ -178,38 +178,38 @@ print(json.dumps({
     # ==========================================================================
 
     # Patch 2: Shocked state ===================================================
-    'patch_icpp(2)%geometry'       : 3,
-    'patch_icpp(2)%alter_patch(1)' : 'T',
-    'patch_icpp(2)%x_centroid'     : -3*leng/8.,
-    'patch_icpp(2)%y_centroid'     : 0.,
-    'patch_icpp(2)%length_x'       : leng/4.+0.09,
-    'patch_icpp(2)%length_y'       : leng,
-    'patch_icpp(2)%vel(1)'         : vel,
-    'patch_icpp(2)%vel(2)'         : 0.E+00,
-    'patch_icpp(2)%pres'           : ps,
-    'patch_icpp(2)%alpha_rho(1)'   : (1.E0-(1.E-06))*tilde_rho,
-    'patch_icpp(2)%alpha_rho(2)'   : (1.E-06)*(1.168/1.580488803979682E3),
-    'patch_icpp(2)%alpha(1)'       : 1.E+00-(1.E-06),
-    'patch_icpp(2)%alpha(2)'       : 1.E-06,
+    #'patch_icpp(2)%geometry'       : 3,
+    #'patch_icpp(2)%alter_patch(1)' : 'T',
+    #'patch_icpp(2)%x_centroid'     : -3*leng/8.,
+    #'patch_icpp(2)%y_centroid'     : 0.,
+    #'patch_icpp(2)%length_x'       : leng/4.,
+    #'patch_icpp(2)%length_y'       : leng,
+    #'patch_icpp(2)%vel(1)'         : vel,
+    #'patch_icpp(2)%vel(2)'         : 0.E+00,
+    #'patch_icpp(2)%pres'           : ps,
+    #'patch_icpp(2)%alpha_rho(1)'   : tilde_rho,
+    #'patch_icpp(2)%alpha_rho(2)'   : 0.E+00,
+    #'patch_icpp(2)%alpha(1)'       : 1.E+00,
+    #'patch_icpp(2)%alpha(2)'       : 0.E+00,
     # ==========================================================================
 
     # Patch 3: Bubble ==========================================================
-    'patch_icpp(3)%geometry'       : 2,
-    'patch_icpp(3)%x_centroid'     : 0.E+00,
-    'patch_icpp(3)%y_centroid'     : 0.E+00,
-    'patch_icpp(3)%radius'         : leng/5,
-    'patch_icpp(3)%alter_patch(1)' : 'T',
-    'patch_icpp(3)%vel(1)'         : 1.E-6,
-    'patch_icpp(3)%vel(2)'         : 0.E+00,
-    'patch_icpp(3)%pres'           : tilde_P_0,
-    'patch_icpp(3)%alpha_rho(1)'   : 1.E-06*(1580.5/1.580488803979682E3),
-    'patch_icpp(3)%alpha_rho(2)'   : (1.E0-(1.E-6))*(1.168/1.580488803979682E3),
-    'patch_icpp(3)%alpha(1)'       : 1.E-06,
-    'patch_icpp(3)%alpha(2)'       : 1.E+00-(1.E-06),
-    'patch_icpp(3)%tau_e(1)'       : 1.E-17,
-    'patch_icpp(3)%tau_e(2)'       : 1.E-17,
-    'patch_icpp(3)%tau_e(3)'       : 1.E-17,
-    'patch_icpp(3)%tau_e(4)'       : 1.E-17,
+    'patch_icpp(2)%geometry'       : 2,
+    'patch_icpp(2)%x_centroid'     : 0.E+00,
+    'patch_icpp(2)%y_centroid'     : 0.E+00,
+    'patch_icpp(2)%radius'         : leng/5,
+    'patch_icpp(2)%alter_patch(1)' : 'T',
+    'patch_icpp(2)%vel(1)'         : vel1,
+    'patch_icpp(2)%vel(2)'         : 0.E+00,
+    'patch_icpp(2)%pres'           : tilde_P_0,
+    'patch_icpp(2)%alpha_rho(1)'   : 1.E-06*(1580.5/1.580488803979682E3),
+    'patch_icpp(2)%alpha_rho(2)'   : (1.E0-(1.E-6))*(1.168/1.580488803979682E3),
+    'patch_icpp(2)%alpha(1)'       : 1.E-06,
+    'patch_icpp(2)%alpha(2)'       : 1.E+00-(1.E-06),
+    'patch_icpp(2)%tau_e(1)'       : 1.E-17,
+    'patch_icpp(2)%tau_e(2)'       : 1.E-17,
+    'patch_icpp(2)%tau_e(3)'       : 1.E-17,
+    'patch_icpp(2)%tau_e(4)'       : 1.E-17,
     # ==========================================================================
 
     # Fluids Physical Parameters ===============================================
@@ -218,9 +218,9 @@ print(json.dumps({
     'fluid_pp(2)%gamma'            : 0.4E0,                            # 1.E+00/(1.6666E+00-1.E+00),
     'fluid_pp(2)%pi_inf'           : Kt0_air/(rho_0_suc*c_0*c_0),                              # 0.0
     'fluid_pp(1)%qv'               : 3.75E0,                           # K'_theta0 for sucrose
-    'fluid_pp(2)%qv'               : 2.1E0,                            # K'_theta0 for air
+    'fluid_pp(2)%qv'               : 2.0E0,                            # K'_theta0 for air
     'fluid_pp(1)%G'                : G_suc/(rho_0_suc*c_0*c_0),        # Shear modulus
-    'fluid_pp(2)%G'                : 1.E-5,                            # Shear modulus of air taken to be a very small value
+    'fluid_pp(2)%G'                : 1.E-2,                            # Shear modulus of air taken to be a very small value
     'fluid_pp(1)%ein_cv(1)'        : A_tilde,                          # Can be replaced with fluid_pp(:)%cv at some point
     'fluid_pp(2)%ein_cv(1)'        : 0.026937087111210E0,              #
     'fluid_pp(1)%ein_cv(2)'        : theta_E_tilde,                    # Can be replaced with a scalar theta_E at some point

@@ -33,7 +33,6 @@ program p_main
     integer :: nt
 
     call system_clock(COUNT=cpu_start, COUNT_RATE=cpu_rate)
-
     !Initialize MPI
     call s_initialize_mpi_domain()
     !Initialize Modules
@@ -52,15 +51,12 @@ program p_main
         mytime = t_step*dt
     end if
     finaltime = t_step_stop*dt
-
-    ! Time-stepping Loop =======================================================
     do
         if (t_step == t_step_stop) then
             call s_save_performance_metrics(t_step, time_avg, time_final, io_time_avg, &
                                             io_time_final, proc_time, io_proc_time, file_exists, start, finish, nt)
             exit
         end if
-
         call s_perform_time_step(t_step, time_avg, time_final, io_time_avg, io_time_final, &
                                  proc_time, io_proc_time, file_exists, start, finish, nt)
 

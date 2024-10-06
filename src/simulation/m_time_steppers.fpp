@@ -200,7 +200,14 @@ contains
                 @:ACC_SETUP_SFs(q_prim_vf(i))
             end do
         end if
-
+        if (model_eqns == 5) then
+            do i = mgidxb, mgidxe
+               @:ALLOCATE(q_prim_vf(i)%sf(ix_t%beg:ix_t%end, &
+                    iy_t%beg:iy_t%end, &
+                    iz_t%beg:iz_t%end))
+               @:ACC_SETUP_SFs(q_prim_vf(i))
+            end do
+        end if
         if (hypoplasticity) then 
             @:ALLOCATE(q_prim_vf(plasidx)%sf(ix_t%beg:ix_t%end, &
                  iy_t%beg:iy_t%end, &
@@ -595,21 +602,17 @@ contains
 
         integer, intent(IN) :: t_step
         real(kind(0d0)), intent(INOUT) :: time_avg
-
-        integer :: i, j, k, l, q !< Generic loop iterator
         real(kind(0d0)) :: ts_error, denom, error_fraction, time_step_factor !< Generic loop iterator
         real(kind(0d0)) :: start, finish
         real(kind(0d0)) :: nR3bar
-
+        
+        integer :: i, j, k, l, q !< Generic loop iterator
         ! Stage 1 of 3 =====================================================
-
         if (.not. adap_dt) then
             call cpu_time(start)
             call nvtxStartRange("Time_Step")
         end if
-
         call s_compute_rhs(q_cons_ts(1)%vf, q_prim_vf, rhs_vf, pb_ts(1)%sf, rhs_pb, mv_ts(1)%sf, rhs_mv, t_step, time_avg)
-
         if (run_time_info) then
             call s_write_run_time_information(q_prim_vf, t_step)
         end if
@@ -631,7 +634,7 @@ contains
                 end do
             end do
         end do
-
+         
         !Evolve pb and mv for non-polytropic qbmm
         if (qbmm .and. (.not. polytropic)) then
             !$acc parallel loop collapse(5) gang vector default(present)
@@ -646,7 +649,7 @@ contains
                             end do
                         end do
                     end do
-                end do
+               end do
             end do
         end if
 
@@ -688,11 +691,9 @@ contains
         end if
 
         ! ==================================================================
-
         ! Stage 2 of 3 =====================================================
 
         call s_compute_rhs(q_cons_ts(2)%vf, q_prim_vf, rhs_vf, pb_ts(2)%sf, rhs_pb, mv_ts(2)%sf, rhs_mv, t_step, time_avg)
-
         !$acc parallel loop collapse(4) gang vector default(present)
         do i = 1, sys_size
             do l = 0, p
@@ -1035,6 +1036,16 @@ contains
             do i = internalEnergies_idx%beg, internalEnergies_idx%end
                 @:DEALLOCATE(q_prim_vf(i)%sf)
             end do
+        end if
+        
+        if (model_eqns == 5) then 
+            do i = mgidxb, mgidxe
+               @:DEALLOCATE(q_prim_vf(i)%sf)
+            end do
+        end if
+        
+        if (hypoplasticity) then 
+            @:DEALLOCATE(q_prim_vf(plasidx)%sf)
         end if
 
         @:DEALLOCATE_GLOBAL(q_prim_vf)

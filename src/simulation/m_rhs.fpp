@@ -40,6 +40,8 @@ module m_rhs
     use m_hypoelastic
 
     use m_hypoplastic
+    
+    use m_miegruneisen
 
     use m_hyperelastic
 
@@ -732,9 +734,9 @@ contains
 
         integer :: i, j, k, l, q, ii, id !< Generic loop iterators
         integer :: term_index
-
+        
         call nvtxStartRange("Compute_RHS")
-
+        
         ! Configuring Coordinate Direction Indexes =========================
         ix%beg = -buff_size; iy%beg = 0; iz%beg = 0
 
@@ -742,7 +744,6 @@ contains
 
         ix%end = m - ix%beg; iy%end = n - iy%beg; iz%end = p - iz%beg
         ! ==================================================================
-
         !$acc update device(ix, iy, iz)
         call cpu_time(t_start)
         ! Association/Population of Working Variables ======================
@@ -781,14 +782,21 @@ contains
             end do
         end if
         !print *, "I got here A"
+        if (model_eqns == 5) then
+            call nvtxStartRange("RHS-CONS-BUFFER")
+            call s_populate_primitive_variables_buffers(q_cons_qp%vf, pb, mv)
+            call nvtxEndRange
+        end if
+        
         call nvtxStartRange("RHS-CONVERT")
+        !print *, "I got here B"
         call s_convert_conservative_to_primitive_variables( &
             q_cons_qp%vf, &
             q_prim_qp%vf, &
             gm_alpha_qp%vf, &
             ix, iy, iz)
         call nvtxEndRange
-        !print *, "I got here B"
+        !print *, "I got here B+"
 
         call nvtxStartRange("RHS-MPI")
         call s_populate_primitive_variables_buffers(q_prim_qp%vf, pb, mv)
@@ -906,6 +914,7 @@ contains
             ix%end = m; iy%end = n; iz%end = p
             ! ===============================================================
             ! Computing Riemann Solver Flux and Source Flux =================
+            !print *, 'before riemann solver'
             call nvtxStartRange("RHS_riemann_solver")
             call s_riemann_solver(qR_rsx_vf, qR_rsy_vf, qR_rsz_vf, &
                                   dqR_prim_dx_n(id)%vf, &
@@ -923,7 +932,6 @@ contains
                                   flux_gsrc_n(id)%vf, &
                                   id, ix, iy, iz)
             call nvtxEndRange
-
             ! ===============================================================
             ! Additional physics and source terms ===========================
             ! RHS addition for advection source
@@ -934,21 +942,27 @@ contains
                                                  q_prim_qp, &
                                                  flux_src_n(id))
             call nvtxEndRange
-
             ! RHS additions for hypoelasticity
             call nvtxStartRange("RHS_Hypoelasticity")
             if (hypoelasticity) call s_compute_hypoelastic_rhs(id, &
                                                                q_prim_qp%vf, &
                                                                rhs_vf)
             call nvtxEndRange
-
-            call nvtxStartRange("RHS_Hypoplasticity")
-            if (hypoplasticity) call s_compute_hypoplastic_rhs(q_prim_qp%vf, & 
-                                                               q_cons_qp%vf, & 
-                                                               rhs_vf)
+            ! RHS additions for hypoplasticity
+            !call nvtxStartRange("RHS_Hypoplasticity")
+            !if (hypoplasticity) call s_compute_hypoplastic_rhs(q_prim_qp%vf, & 
+            !                                                   q_cons_qp%vf, & 
+            !                                                   rhs_vf)
+            !call nvtxEndRange
+            !RHS additions for Mie-Gruneisen EoS
+            call nvtxStartRange("RHS_Mie_Gruneisen")
+            if (model_eqns == 5) then
+                !print *,'in s_compute_rhs'
+                call s_compute_miegruneisen_rhs(q_prim_qp%vf, &
+                                                q_cons_qp%vf, rhs_vf)
+               ! print *,'after_miegruneisen_rhs'
+            end if
             call nvtxEndRange
-            !print *, "I got here f"
-
             ! RHS additions for viscosity
             call nvtxStartRange("RHS_add_phys")
             if (any(Re_size > 0d0) .or. (.not. f_is_default(sigma))) then
@@ -985,7 +999,6 @@ contains
 
         end do
         ! END: Dimensional Splitting Loop =================================
-
         if (ib) then
             !$acc parallel loop collapse(3) gang vector default(present)
             do l = 0, p
@@ -1019,7 +1032,6 @@ contains
             rhs_vf)
         call nvtxEndRange
         ! END: Additional pphysics and source terms ============================
-        !print *, "I got here g"
 
         if (run_time_info .or. probe_wrt .or. ib) then
 
@@ -1028,18 +1040,18 @@ contains
             if (p > 0) iz%beg = -buff_size; 
             ix%end = m - ix%beg; iy%end = n - iy%beg; iz%end = p - iz%beg
             !$acc update device(ix, iy, iz)
-
             !$acc parallel loop collapse(4) gang vector default(present)
             do i = 1, sys_size
                 do l = iz%beg, iz%end
                     do k = iy%beg, iy%end
-                        do j = ix%beg, ix%end
+                        do j = ix%beg, ix%end 
                             q_prim_vf(i)%sf(j, k, l) = q_prim_qp%vf(i)%sf(j, k, l)
                         end do
                     end do
                 end do
             end do
         end if
+        
         call cpu_time(t_finish)
         if (t_step >= 4) then
             time_avg = (abs(t_finish - t_start) + (t_step - 4)*time_avg)/(t_step - 3)
@@ -1047,7 +1059,6 @@ contains
             time_avg = 0d0
         end if
         ! ==================================================================
-        !print *, "I got here h"
 
         call nvtxEndRange
     end subroutine s_compute_rhs
