@@ -1401,7 +1401,6 @@ contains
 
                         call s_assign_patch_primitive_variables(patch_id, i, j, k, &
                                                                 eta, q_prim_vf, patch_id_fp)
-
                         @:Hardcoded3D()
 
                         ! Updating the patch identities bookkeeping variable

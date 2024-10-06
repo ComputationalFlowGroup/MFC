@@ -63,10 +63,10 @@
 
      case (302) ! pre_stress for hyperelasticity, bubble in material
         R0ref = 30E-6    ! equilibrium radius
-        Rinit = patch_icpp(2)%radius ! initial radius
-        x_bcen = patch_icpp(2)%x_centroid
-        y_bcen = patch_icpp(2)%y_centroid
-        z_bcen = patch_icpp(2)%z_centroid
+        Rinit = patch_icpp(3)%radius ! initial radius
+        x_bcen = patch_icpp(3)%x_centroid
+        y_bcen = patch_icpp(3)%y_centroid
+        z_bcen = patch_icpp(3)%z_centroid
         x_ccs = x_cc(i) - x_bcen
         y_ccs = y_cc(j) - y_bcen
         z_ccs = z_cc(k) - z_bcen
@@ -75,25 +75,19 @@
         theta = atan2(sqrt(x_ccs**2 + y_ccs**2), z_ccs)
         !spherical coord, assuming Rmax=1
         xi_sph = (rcoord**3 + R0ref**3 - Rinit**3)**(1d0/3d0)
-        !xi_cart(1) = xi_sph*sin(theta)*cos(phi)
-        !xi_cart(2) = xi_sph*sin(theta)*sin(phi)
-        !xi_cart(3) = xi_sph*cos(theta)
-        xi_cart(1) = (xi_sph*x_ccs) / rcoord
-        xi_cart(2) = (xi_sph*y_ccs) / rcoord
-        xi_cart(3) = (xi_sph*z_ccs) / rcoord
-!        print *, 'xi_cart(3)::', xi_cart(3), ', xi_sph::', xi_sph, ', z_cc::', z_cc(k)
+        if (rcoord**3 + R0ref**3 .lt. Rinit**3) then
+          xi_sph = -(dabs(rcoord**3 + R0ref**3 - Rinit**3)**(1d0/3d0))
+        end if
+        xi_cart(1) = xi_sph*sin(theta)*cos(phi)
+        xi_cart(2) = xi_sph*sin(theta)*sin(phi)
+        xi_cart(3) = xi_sph*cos(theta)
+        !xi_cart(1) = (xi_sph*x_ccs) / rcoord
+        !xi_cart(2) = (xi_sph*y_ccs) / rcoord
+        !xi_cart(3) = (xi_sph*z_ccs) / rcoord
         ! assigning the reference map to the q_prim vector field
         do ii = 1, 3
             q_prim_vf(ii + xibeg - 1)%sf(i, j, k) = xi_cart(ii)
-       end do
-
- !      print *, 'i::', i, ', q_prim_vf(xi_beg)', q_prim_vf(3 + xibeg - 1)%sf(i,j,k) 
-       !           q_prim_vf(contxb)%sf(i, j, k) = patch_icpp(patch_id)%alpha_rho(1)
-!           q_prim_vf(contxe)%sf(i, j, k) = patch_icpp(patch_id)%alpha_rho(2)
-!what about alpha_rho(3) and alpha_rho(4) [contxb + 1, contxe - 1]?
-!           q_prim_vf(E_idx)%sf(i, j, k) = patch_icpp(patch_id)%pres
-!           q_prim_vf(advxb)%sf(i, j, k) = patch_icpp(patch_id)%alpha(1)
-!           q_prim_vf(advxe)%sf(i, j, k) = patch_icpp(patch_id)%alpha(2)
+        end do
 
         ! Put your variable assignments here
     case default
