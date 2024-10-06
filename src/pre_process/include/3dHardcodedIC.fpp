@@ -74,16 +74,10 @@
         phi = atan2(y_ccs, x_ccs)
         theta = atan2(sqrt(x_ccs**2 + y_ccs**2), z_ccs)
         !spherical coord, assuming Rmax=1
-        xi_sph = (rcoord**3 - R0ref**3 + Rinit**3)**(1d0/3d0) !+ rcoord
-        !if (rcoord**3 + R0ref**3 .lt. Rinit**3) then
-        !  xi_sph = -(dabs(rcoord**3 + R0ref**3 - Rinit**3)**(1d0/3d0)) + rcoord
-        !end if
+        xi_sph = (rcoord**3 - R0ref**3 + Rinit**3)**(1d0/3d0) 
         xi_cart(1) = xi_sph*sin(theta)*cos(phi)
         xi_cart(2) = xi_sph*sin(theta)*sin(phi)
         xi_cart(3) = xi_sph*cos(theta)
-        !xi_cart(1) = (xi_sph*x_ccs) / rcoord
-        !xi_cart(2) = (xi_sph*y_ccs) / rcoord
-        !xi_cart(3) = (xi_sph*z_ccs) / rcoord
         ! assigning the reference map to the q_prim vector field
         do l = 1, 3
             q_prim_vf(l + xibeg - 1)%sf(i, j, k) = xi_cart(l)
