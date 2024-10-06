@@ -294,6 +294,7 @@ print(json.dumps({
     'model_eqns'   : 3,        
     'num_fluids'   : 4,       
     'hyperelasticity' : 'T', 
+    'pre_stress'   : 'T',
     #'adv_alphan'   : 'T',      
     'mpp_lim'      : 'T',      
     'mixture_err'  : 'T',      

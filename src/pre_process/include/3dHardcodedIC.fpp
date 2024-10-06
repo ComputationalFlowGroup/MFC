@@ -8,7 +8,7 @@
     real(kind(0d0)) :: rcoord, theta, phi, xi_sph, x_bcen, y_bcen, z_bcen
     real(kind(0d0)) :: x_ccs, y_ccs, z_ccs
     real(kind(0d0)), dimension(num_dims) :: xi_cart
-    integer :: ii
+    integer :: l
 
     eps = 1e-9
 #:enddef
@@ -74,10 +74,10 @@
         phi = atan2(y_ccs, x_ccs)
         theta = atan2(sqrt(x_ccs**2 + y_ccs**2), z_ccs)
         !spherical coord, assuming Rmax=1
-        xi_sph = (rcoord**3 + R0ref**3 - Rinit**3)**(1d0/3d0)
-        if (rcoord**3 + R0ref**3 .lt. Rinit**3) then
-          xi_sph = -(dabs(rcoord**3 + R0ref**3 - Rinit**3)**(1d0/3d0))
-        end if
+        xi_sph = (rcoord**3 - R0ref**3 + Rinit**3)**(1d0/3d0) !+ rcoord
+        !if (rcoord**3 + R0ref**3 .lt. Rinit**3) then
+        !  xi_sph = -(dabs(rcoord**3 + R0ref**3 - Rinit**3)**(1d0/3d0)) + rcoord
+        !end if
         xi_cart(1) = xi_sph*sin(theta)*cos(phi)
         xi_cart(2) = xi_sph*sin(theta)*sin(phi)
         xi_cart(3) = xi_sph*cos(theta)
@@ -85,8 +85,8 @@
         !xi_cart(2) = (xi_sph*y_ccs) / rcoord
         !xi_cart(3) = (xi_sph*z_ccs) / rcoord
         ! assigning the reference map to the q_prim vector field
-        do ii = 1, 3
-            q_prim_vf(ii + xibeg - 1)%sf(i, j, k) = xi_cart(ii)
+        do l = 1, 3
+            q_prim_vf(l + xibeg - 1)%sf(i, j, k) = xi_cart(l)
         end do
 
         ! Put your variable assignments here

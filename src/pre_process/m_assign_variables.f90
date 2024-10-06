@@ -458,19 +458,19 @@ contains
         end if
 
         ! Elastic Shear Stress
-        if (hyperelasticity) then
-              xi_cart(1) = x_cc(j)
-               if (p > 0) then            
-                  xi_cart(2) = y_cc(k)
-                  xi_cart(3) = z_cc(l)
-               elseif (n > 0) then
-                  xi_cart(2) = y_cc(k)
-               end if
+        if (hyperelasticity .and. .not. pre_stress) then
+            xi_cart(1) = x_cc(j)
+            if (p > 0) then            
+               xi_cart(2) = y_cc(k)
+               xi_cart(3) = z_cc(l)
+            elseif (n > 0) then
+               xi_cart(2) = y_cc(k)
+            end if
             ! assigning the reference map to the q_prim vector field
-            !do i = 1, num_dims
-            !    q_prim_vf(i + xibeg - 1)%sf(j, k, l) = eta*xi_cart(i) + &
-            !                                           (1d0 - eta)*orig_prim_vf(i + xibeg - 1)
-            !end do
+            do i = 1, num_dims
+               q_prim_vf(i + xibeg - 1)%sf(j, k, l) = eta*xi_cart(i) + &
+                         (1d0 - eta)*orig_prim_vf(i + xibeg - 1)
+            end do
         end if
 
         if (hypoplasticity) then
