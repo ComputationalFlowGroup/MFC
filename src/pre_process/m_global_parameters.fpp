@@ -740,9 +740,9 @@ contains
             E_idx = mom_idx%end + 1
             adv_idx%beg = E_idx + 1
             adv_idx%end = E_idx + num_fluids
-            mgidxb = adv_idx%end + 1
-            mgidxe = adv_idx%end + 3
-            sys_size = mgidxe
+            !mgidxb = adv_idx%end + 1
+            !mgidxe = adv_idx%end + 3
+            sys_size = adv_idx%end !mgidxe
 
             if (hypoplasticity) then
                 elasticity = .true.
