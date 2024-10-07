@@ -305,9 +305,9 @@ stop
 
             !$acc parallel loop collapse(3) gang vector default(present) private(alpha_K, alpha_rho_K, &
             !$acc rho, gamma, pi_inf, qv, G, Re, tensora, tensorb)
-            do l = 0, p 
-                do k = 0, n 
-                    do j = 0, m 
+            do l = 2, p-2 
+                do k = 0, n-2
+                    do j = 0, m-2
                         !$acc loop seq
                         do i = 1, num_fluids
                            alpha_rho_k(i) = q_cons_vf(i)%sf(j, k, l)
@@ -318,9 +318,9 @@ stop
                                                                     alpha_rho_k, Re, j, k, l, G, Gs)
                         rho = max(rho, sgm_eps)
                         G = max(G, sgm_eps)
-                        !if ( G <= verysmall ) G_K = 0d0
+                        if ( G .le. verysmall ) G = 0d0
 
-                        if ( G > verysmall ) then
+                        if ( G .gt. verysmall ) then
                            !$acc loop seq
                            do i = 1, tensor_size
                               tensora(i) = 0d0
@@ -361,7 +361,7 @@ stop
                                                  - tensora(2)*(tensora(4)*tensora(9) - tensora(6)*tensora(7)) &
                                                  + tensora(3)*(tensora(4)*tensora(8) - tensora(5)*tensora(7))
 
-                           if (tensorb(tensor_size) > verysmall) then
+                           if (tensorb(tensor_size) .gt. verysmall) then
                               ! STEP 2c: computing the inverse of grad_xi tensor = F
                               ! tensorb is the adjoint, tensora becomes F
                               !$acc loop seq
