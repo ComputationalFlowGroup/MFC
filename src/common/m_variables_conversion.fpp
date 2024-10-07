@@ -1064,7 +1064,6 @@ contains
                        !     print *,'j',j,'pres',pres,'energy'
                        !     call s_mpi_abort()
                        ! end if
-
                         !$acc loop seq
                         do i=1, sys_size
                            if (qK_cons_vf(i)%sf(j,k,l) /= qK_cons_vf(i)%sf(j,k,l)) then
@@ -1272,6 +1271,21 @@ contains
                                                        (gamma*q_prim_vf(E_idx)%sf(j, k, l) + pi_inf)
                     else if (model_eqns == 5) then
                         ! Calculate the extra primitive variables
+                       if (num_dims == 1) then
+                           !write code for polynomial reconstruction
+                           !Step 1: Calculate A_0, A_2
+                           !Step 2: Calculate P_0, P_2 for each
+                           !conservative variables at the quadrature
+                           !points
+                           !Step 3: Calculate primitive variables at
+                           !each quadrature point
+                           !Step 4: Integrate to calculate cell average
+                           !primitive variables
+                           !Step 5: Once the code runs create function
+                           !to calculate all the primitive variables
+                           !Step 6: Do it for 2D
+                           !Step 7: Do it for 3D
+                       else
                            ein_cv1_mix = 0d0
                            theta_E_mix = 0d0
                            mg_a_mix = 0d0
@@ -1290,7 +1304,6 @@ contains
                            Pref = pi_inf*log_rho_mix*(1d0+0.5d0*(qv-2d0)*log_rho_mix)
                            eref = 0.5d0*pi_inf*(log_rho_mix**2d0)*(1d0+(1/3d0)*(qv-2d0)*log_rho_mix)+&
                            ein_cv1_mix*(phi*theta_E_mix*dexp(phi*theta_E_mix)/(dexp(phi*theta_E_mix)-1)-dlog(dexp(phi*theta_E_mix)-1))
-                        print *,pref 
                         q_prim_vf(mgidxb)%sf(j, k, l) = gamma_inv
                         q_prim_vf(mgidxb+1)%sf(j, k, l) = Pref
                         q_prim_vf(mgidxe)%sf(j, k, l) = eref
@@ -1301,6 +1314,7 @@ contains
                         q_cons_vf(mgidxb)%sf(j, k, l)   = q_prim_vf(mgidxb)%sf(j, k, l)
                         q_cons_vf(mgidxb+1)%sf(j, k, l) = gamma_inv*Pref 
                         q_cons_vf(mgidxe)%sf(j, k, l)   = rho*eref
+                        end if
                     else
                         !Tait EOS, no conserved energy variable
                         q_cons_vf(E_idx)%sf(j, k, l) = 0.d0

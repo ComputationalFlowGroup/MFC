@@ -9,7 +9,7 @@ cfl     = 0.1
 leng    = 1.
 dx      = leng/(Nx+1)
 mydt    = cfl*dx/c_l
-Tend    = 1.0
+Tend    = 1.0E-6
 Nt      = int(Tend/mydt)
 #mydt   = Tend/(1.*Nt)
 vel1    = 1.0
@@ -71,10 +71,10 @@ print(json.dumps({
                     'weno_order'                   : 5,
                     'weno_eps'                     : 1.E-16,
 		            'weno_Re_flux'                 : 'F',
-                    'weno_avg'                     : 'F',
-                    'mapped_weno'                  : 'F',
-                    'null_weights'                 : 'F',
-                    'mp_weno'                      : 'F',
+                    'weno_avg'                     : 'T',
+                    'mapped_weno'                  : 'T',
+                    'null_weights'                 : 'T',
+                    'mp_weno'                      : 'T',
 		            'riemann_solver'               : 2,
                     'wave_speeds'                  : 1,
                     'avg_state'                    : 2,
@@ -82,7 +82,7 @@ print(json.dumps({
                     'bc_x%end'                     : -1,
                     # ==========================================================
 
-                    # Turning on Hypoplasticity ================================
+                    # Hypoplasticity ================================
                      'hypoplasticity'               : 'F',
                     # ==========================================================
 

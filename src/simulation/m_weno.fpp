@@ -533,7 +533,6 @@ contains
         is3_weno = is3_weno_d
 
         !$acc update device(is1_weno, is2_weno, is3_weno)
-
         if (weno_order /= 1) then
             call s_initialize_weno(v_vf, &
                                    norm_dir, weno_dir)

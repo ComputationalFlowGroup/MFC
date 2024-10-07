@@ -2232,8 +2232,8 @@ contains
                                               rho_R*vel_R(idx1)*(s_R - vel_R(idx1)))/(rho_L*(s_L - vel_L(idx1)) - &
                                                                                        rho_R*(s_R - vel_R(idx1)))
                                     else
-                                    s_L = min(vel_L(dir_idx(1)) - c_L, vel_R(dir_idx(1)) - c_R)
-                                    s_R = max(vel_R(dir_idx(1)) + c_R, vel_L(dir_idx(1)) + c_L)
+                                    s_L = min((sqrt(rho_L)*(vel_L(dir_idx(1))-c_L)+sqrt(rho_R)*(vel_R(dir_idx(1))-c_R))/(sqrt(rho_L)+sqrt(rho_R)),vel_L(dir_idx(1)) - c_L)
+                                    s_R = max((sqrt(rho_L)*(vel_L(dir_idx(1))+c_L)+sqrt(rho_R)*(vel_R(dir_idx(1))+c_R))/(sqrt(rho_L)+sqrt(rho_R)),vel_R(dir_idx(1)) + c_R)
                                     s_S = (pres_R - pres_L + rho_L*vel_L(dir_idx(1))* &
                                            (s_L - vel_L(dir_idx(1))) - &
                                            rho_R*vel_R(dir_idx(1))* &
