@@ -947,7 +947,16 @@ contains
         real(kind(0d0)), dimension(num_fluids) :: alpha_K, alpha_rho_K
         real(kind(0d0)), dimension(2) :: Re_K
         real(kind(0d0)) :: rho_K, gamma_K, pi_inf_K, qv_K, dyn_pres_K
-
+        !WENO primitive reconstruction
+        real(kind(0d0)), dimension(sys_size, 3) :: P0, P2, Poly, omega
+        !P_1 is equal to the cell average for zeta_1, zeta_2, zeta 3
+        real(kind(0d0)), dimension(sys_size) :: P1, theta
+        real(kind(0d0)), dimension(5,5) :: A0, A2, M0, M2, M3, M4
+        real(kind(0d0)), dimension(3,5) :: zeta
+        real(kind(0d0)), dimension(5) :: q_stencil, beta, zeta1, zeta2, zeta3
+        real(kind(0d0)), dimension(3) :: omega_bar
+        real(kind(0d0)), dimension(4) :: mu_bar
+        real(kind(0d0)) :: r0, r1, r2, s0, s2, s3, s4, mu_0, zeta_i = 0.5d0*dsqrt(3.0d0/5.0d0)
         #:if MFC_CASE_OPTIMIZATION
 #ifndef MFC_SIMULATION
             real(kind(0d0)), dimension(:), allocatable :: nRtmp
@@ -964,7 +973,7 @@ contains
 
         real(kind(0d0)) :: pres, temp
 
-        integer :: i, j, k, l, q !< Generic loop iterators
+        integer :: i, j, k, l, q, r !< Generic loop iterators
 
         real(kind(0d0)) :: ntmp
 
@@ -983,6 +992,64 @@ contains
                 allocate (nRtmp(0))
             end if
         #:endif
+        
+        if (model_eqns == 5 .and. num_dims == 1) then 
+            A0(1,1) = 3.0d0/640.0d0;A0(1,2) = -29.0d0/480.0d0;A0(1,3) = 1067.0d0/960.0d0;A0(1,4) = -29.0d0/480.0d0;A0(1,5) = 3.0d0/640.0d0
+            A0(2,1) = 5.0d0/48.0d0;A0(2,2) = -34.0d0/48.0d0;A0(2,3) =0.0d0;A0(2,4) = 34.0d0/48.0d0;A0(2,5) = -5.0d0/48.0d0
+            A0(3,1) = -1.0d0/16.0d0;A0(3,2) = 12.0d0/16.0d0;A0(3,3) =-22.0d0/16.0d0;A0(3,4) = 12.0d0/16.0d0;A0(3,5) = -1.0d0/16.0d0
+            A0(4,1) = -1.0d0/12.0d0;A0(4,2) = -2.0d0/12.0d0;A0(4,3) = 0.0d0;A0(4,4) = -2.0d0/12.0d0;A0(4,5) = 1.0d0/12.0d0
+            A0(5,1) = 1.0d0/24.0d0;A0(5,2) = -4.0d0/24.0d0;A0(5,3) = 6.0d0/24.0d0;A0(5,4) = -4.0d0/24.0d0;A0(5,5) = 1.0d0/24.0d0
+
+              ! Assign matrix A2
+            A2(1,1) = 0.0d0;A2(1,2) = -1.0d0/24.0d0;A2(1,3) = 13.0d0/12.0d0;A2(1,4) = -1.0d0/24.0d0;A2(1,5) = 0.0d0
+            A2(2,1) = 0.0d0;A2(2,2) = -1.0d0/2.0d0;A2(2,3) =0.0d0;A2(2,4) = 1.0d0/2.0d0;A2(2,5) = 0.0d0
+            A2(3,1) = 0.0d0;A2(3,2) = 1.0d0/2.0d0;A2(3,3) =-1.0d0;A2(3,4) = 1.0d0/2.0d0;A2(3,5) = 0.0d0
+            A2(4,1) = 0.0d0;A2(4,2) = 0.0d0;A2(4,3) = 0.0d0;A2(4,4) = 0.0d0;A2(4,5) = 0.0d0
+            A2(5,1) = 0.0d0;A2(5,2) = 0.0d0;A2(5,3) = 0.0d0;A2(5,4) = 0.0d0;A2(5,5) = 0.0d0
+
+             ! Assign matrix M0 and M2
+          ! Assign upper diagonal elements of M0
+            M0(1,1) = 1727.0d0/1680.0d0;M0(1,2) = -51001.0d0/16800.0d0;M0(1,3) = 7547.0d0/1680.0d0
+            M0(1,4) = -38947.0d0/16800.0d0;M0(1,5) = 8209.0d0/1680.0d0
+            M0(2,2) = 104963.0d0/5040.0d0;M0(2,3) =-24923.0d0/1680.0d0;M0(2,4) = 89549.0d0/5040.0d0;M0(2,5) = -38947.0d0/16800.0d0
+            M0(3,3) = 77051.0d0/1680.0d0;M0(3,4) = -24923.0d0/1680.0d0;M0(3,5) = 7547.0d0/1680.0d0
+            M0(4,4) = 104963.0d0/5040.0d0;M0(4,5) = -51001.0d0/16800.0d0;M0(5,5) = 1727.0d0/1680.0d0
+
+          ! Assign upper diagonal elements of M2
+            M2(1,1) = 4.0d0/3.0d0;M2(1,2) = 5.0d0/3.0d0
+            M2(1,3) = -13.0d0/3.0d0;M2(1,4) = 5.0d0/3.0d0;M2(1,5) = 4.0d0/3.0d0;M2(2,2) = 13.0d0/3.0d0
+            M2(2,3) = -13.0d0/3.0d0;M2(2,4) = 0.0d0;M2(2,5) = 0.0d0;M2(3,3) = 13.0d0;M2(3,4) = -13.0d0/3.0d0
+            M2(3,5) = -13.0d0/3.0d0;M2(4,4) = 5.0d0/3.0d0;M2(4,5) = 4.0d0/3.0d0;M2(5,5) = 0d0
+            
+          ! Assign upper diagonal elements of M3  
+            M3(1,1) = 4.0d0/3.0d0;M3(1,2) = -19.0d0/3.0d0;M3(1,3) =11.0d0/3.0d0;M3(1,4) = 0.0d0;M3(1,5) = 0.0d0
+            M3(2,2) = 25.0d0/3.0d0;M3(2,3) = -31.0d0/3.0d0;M3(2,4) = 25.0d0/3.0d0;M3(2,5) = 0.0d0
+            M3(3,3) = 10.0d0/3.0d0;M3(3,4) = -31.0d0/3.0d0;M3(3,5) = 11.0d0/3.0d0
+            M3(4,4) = 25.0d0/3.0d0;M3(4,5) = -19.0d0/3.0d0
+            M3(5,5) = 4.0d0/3.0d0
+
+          ! Assign upper diagonal elements of M4
+            M4(1,1) = 0.0d0;M4(1,2) = 0.0d0;M4(1,3) =11.0d0/3.0d0;M4(1,4) = 0.0d0;M4(1,5) = 4.0d0/3.0d0
+            M4(2,2) = -19.0d0/3.0d0;M4(2,3) = -31.0d0/3.0d0;M4(2,4) =25.0d0/3.0d0;M4(2,5) = 0.0d0
+            M4(3,3) = 10.0d0/3.0d0;M4(3,4) = -31.0d0/3.0d0;M4(3,5) = 11.0d0/3.0d0
+            M4(4,4) = 25.0d0/3.0d0;M4(4,5) = -19.0d0/3
+            M4(5,5) = 4.0d0/3.0d0
+
+          !Fill the lower triangular part of M0 and M2 using symmetry
+            do i = 2, 5
+                do j = 1, i-1
+                    M0(i,j) = M0(j,i)
+                    M2(i,j) = M2(j,i)
+                    M3(i,j) = M3(j,i)
+                    M4(i,j) = M4(j,i)
+                end do
+            end do
+            r0 = 1100d0/1111d0; r1 = 1d0/1111d0; r2 = 10d0/1111d0; s0 = 0.97d0; s2 = 0.01d0; s3 = 0.01d0; s4 = 0.01d0 
+            !calculate zeta
+            zeta(1,1) = 1.0d0;zeta(1,2) = -zeta_i;zeta(1,3) = zeta_i**2d0;zeta(1,4) = -zeta_i**3d0;zeta(1,5) = zeta_i**4d0
+            zeta(2,1) = 1.0d0;zeta(2,2) = 0d0; zeta(2,3) = 0d0; zeta(2,4) = 0d0; zeta(2,5) = 0d0
+            zeta(3,1) = 1.0d0;zeta(3,2) = zeta_i; zeta(3,3) = zeta_i**2d0; zeta(3,4) = zeta_i**3d0; zeta(3,5) =zeta_i**4d0
+        end if 
 
         !$acc parallel loop collapse(3) gang vector default(present) private(alpha_K, alpha_rho_K, Re_K, nRtmp, rho_K, gamma_K, pi_inf_K, qv_K, dyn_pres_K, R3tmp, G_K)
         do l = izb, ize
@@ -1049,29 +1116,79 @@ contains
                                                 qK_cons_vf(alf_idx)%sf(j, k, l), &
                                                 dyn_pres_K, pi_inf_K, gamma_K, rho_K, qv_K, pres)
                     else
-                        call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
-                                           0d0, dyn_pres_K, & 
-                                           pi_inf_K, qK_cons_vf(mgidxb)%sf(j, k, l), rho_K, qv_K, &
-                                           pres, 0d0, 0d0, 0d0,qK_cons_vf(mgidxb+1)%sf(j, k, l),&
-                                           qK_cons_vf(mgidxe)%sf(j, k, l))
-                                       
-                        qK_prim_vf(mgidxb)%sf(j, k, l)   = qK_cons_vf(mgidxb)%sf(j, k, l) 
-                        qK_prim_vf(mgidxb+1)%sf(j, k, l) = qK_cons_vf(mgidxb+1)%sf(j, k, l)/&
-                                                           qK_cons_vf(mgidxb)%sf(j, k, l)
-                        qK_prim_vf(mgidxe)%sf(j, k, l)   = qK_cons_vf(mgidxe)%sf(j, k, l)/rho_K
-                       !print *, 'j',j,'rho_eref',qK_cons_vf(mgidxe)%sf(j,k,l)
-                       ! if (pres /= pres)  then 
-                       !     print *,'j',j,'pres',pres,'energy'
-                       !     call s_mpi_abort()
-                       ! end if
-                        !$acc loop seq
-                        do i=1, sys_size
-                           if (qK_cons_vf(i)%sf(j,k,l) /= qK_cons_vf(i)%sf(j,k,l)) then
-                               print *, 'i',i,'j k',j,k,qK_cons_vf(i)%sf(j, k, l)
-                               call s_mpi_abort()
-                           end if 
-                        end do  
+                       if ((num_dims == 1) .and. (j .ge. -2) .and. (j .le. (ixe - 2))) then
+                           !write code for polynomial reconstruction
+                           do i = 1, sys_size
+                                do q = 1, 5
+                                    q_stencil(q) = qK_cons_vf(i)%sf(j - 3 + q, k, l)
+                                    zeta1(q) = zeta(1,q)
+                                    zeta2(q) = zeta(2,q)
+                                    zeta3(q) = zeta(3,q)
+                                end do  
+                                beta(1) = dot_product(q_stencil,matmul(M0,q_stencil))
+                                beta(2) = min((qK_cons_vf(i)%sf(j+1,k,l)-qK_cons_vf(i)%sf(j,k,l))**2d0,&
+                                    (qK_cons_vf(i)%sf(j,k,l)-qK_cons_vf(i)%sf(j-1,k,l))**2d0)
+                                beta(3) = dot_product(q_stencil,matmul(M2,q_stencil))
+                                beta(4) = dot_product(q_stencil,matmul(M3, q_stencil))
+                                beta(5) = dot_product(q_stencil,matmul(M4, q_stencil))
 
+                                !Compute the non-linear weights omega_bar_k
+                                omega_bar(1) = r0/(beta(1)+verysmall)**2d0
+                                omega_bar(2) = r1/(beta(2)+verysmall)**2d0
+                                omega_bar(3) = r2/(beta(3)+verysmall)**2d0
+
+                                mu_bar(1) = s0/(beta(1)+verysmall)**4d0
+                                mu_bar(2) = s2/(beta(3)+verysmall)**4d0
+                                mu_bar(3) = s3/(beta(4)+verysmall)**4d0
+                                mu_bar(4) = s4/(beta(5)+verysmall)**4d0
+                                mu_0 = mu_bar(1)/(mu_bar(1)+mu_bar(2)+mu_bar(3)+mu_bar(4))
+                                theta(i) = 1.0d0-(1.0d0-min(1.0d0,mu_0/s0)**4d0)**4d0
+                                P1(i) = qK_cons_vf(i)%sf(j, k, l)
+                                P0(i,1) = dot_product(zeta1,matmul(A0,q_stencil))
+                                P0(i,2) = dot_product(zeta2,matmul(A0,q_stencil))
+                                P0(i,3) = dot_product(zeta3,matmul(A0,q_stencil))
+                                P2(i,1) = dot_product(zeta1,matmul(A2,q_stencil))
+                                P2(i,2) = dot_product(zeta2,matmul(A2,q_stencil))
+                                P2(i,3) = dot_product(zeta3,matmul(A2,q_stencil))
+                                do q = 1, 3
+                                    omega(i,q) = omega_bar(q)/(omega_bar(1)+omega_bar(2)+omega_bar(3))
+                                end do
+                                do q = 1,3 
+                                    Poly(i,q) = theta(i)*P0(i,q) + &
+                                    (1d0-theta(i))*(omega(i,1)*P0(i,q)+omega(i,2)*P1(i)+omega(i,3)*P2(i,q))
+                                end do
+                           end do
+                           !Step 4: Integrate to calculate cell average
+                           !primitive variables
+                           !Step 5: Once the code runs create function
+                           !to calculate all the primitive variables
+                           !Step 6: Do it for 2D
+                           !Step 7: Do it for 3D
+                           
+                       else
+                            call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
+                                               0d0, dyn_pres_K, & 
+                                               pi_inf_K, qK_cons_vf(mgidxb)%sf(j, k, l), rho_K, qv_K, &
+                                               pres, 0d0, 0d0, 0d0,qK_cons_vf(mgidxb+1)%sf(j, k, l),&
+                                               qK_cons_vf(mgidxe)%sf(j, k, l))
+                                           
+                            qK_prim_vf(mgidxb)%sf(j, k, l)   = qK_cons_vf(mgidxb)%sf(j, k, l) 
+                            qK_prim_vf(mgidxb+1)%sf(j, k, l) = qK_cons_vf(mgidxb+1)%sf(j, k, l)/&
+                                                               qK_cons_vf(mgidxb)%sf(j, k, l)
+                            qK_prim_vf(mgidxe)%sf(j, k, l)   = qK_cons_vf(mgidxe)%sf(j, k, l)/rho_K
+                           !print *, 'j',j,'rho_eref',qK_cons_vf(mgidxe)%sf(j,k,l)
+                           ! if (pres /= pres)  then 
+                           !     print *,'j',j,'pres',pres,'energy'
+                           !     call s_mpi_abort()
+                           ! end if
+                            !$acc loop seq
+                            do i=1, sys_size
+                               if (qK_cons_vf(i)%sf(j,k,l) /= qK_cons_vf(i)%sf(j,k,l)) then
+                                   print *, 'i',i,'j k',j,k,qK_cons_vf(i)%sf(j, k, l)
+                                   call s_mpi_abort()
+                               end if 
+                            end do  
+                       end if 
 #ifdef MFC_POST_PROCESS                        
                         call s_compute_temperature(qK_prim_vf(E_idx)%sf(j, k, l), &
                                                    qK_prim_vf(mgidxb+1)%sf(j, k, l), &
@@ -1271,21 +1388,6 @@ contains
                                                        (gamma*q_prim_vf(E_idx)%sf(j, k, l) + pi_inf)
                     else if (model_eqns == 5) then
                         ! Calculate the extra primitive variables
-                       if (num_dims == 1) then
-                           !write code for polynomial reconstruction
-                           !Step 1: Calculate A_0, A_2
-                           !Step 2: Calculate P_0, P_2 for each
-                           !conservative variables at the quadrature
-                           !points
-                           !Step 3: Calculate primitive variables at
-                           !each quadrature point
-                           !Step 4: Integrate to calculate cell average
-                           !primitive variables
-                           !Step 5: Once the code runs create function
-                           !to calculate all the primitive variables
-                           !Step 6: Do it for 2D
-                           !Step 7: Do it for 3D
-                       else
                            ein_cv1_mix = 0d0
                            theta_E_mix = 0d0
                            mg_a_mix = 0d0
@@ -1314,7 +1416,6 @@ contains
                         q_cons_vf(mgidxb)%sf(j, k, l)   = q_prim_vf(mgidxb)%sf(j, k, l)
                         q_cons_vf(mgidxb+1)%sf(j, k, l) = gamma_inv*Pref 
                         q_cons_vf(mgidxe)%sf(j, k, l)   = rho*eref
-                        end if
                     else
                         !Tait EOS, no conserved energy variable
                         q_cons_vf(E_idx)%sf(j, k, l) = 0.d0
