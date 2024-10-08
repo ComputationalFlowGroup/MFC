@@ -78,6 +78,11 @@
         xi_cart(1) = xi_sph*sin(theta)*cos(phi)
         xi_cart(2) = xi_sph*sin(theta)*sin(phi)
         xi_cart(3) = xi_sph*cos(theta)
+        ! shift back
+        xi_cart(1) = xi_cart(1) + x_bcen
+        xi_cart(2) = xi_cart(2) + y_bcen
+        xi_cart(3) = xi_cart(3) + z_bcen
+!        print *, 'xi_cart(1) ::', xi_cart(1), 'xi_cart(2) ::', xi_cart(2), 'xi_cart(3) ::', xi_cart(3)
         ! assigning the reference map to the q_prim vector field
         do l = 1, 3
             q_prim_vf(l + xibeg - 1)%sf(i, j, k) = xi_cart(l)
