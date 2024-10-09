@@ -5,11 +5,11 @@ import json
 #Numerical setup
 c_l     = 3077.6
 Nx      = 192
-cfl     = 0.1
+cfl     = 0.05
 leng    = 1.
 dx      = leng/(Nx+1)
 mydt    = cfl*dx/c_l
-Tend    = 1.0E-6
+Tend    = 5.0E-2
 Nt      = int(Tend/mydt)
 #mydt   = Tend/(1.*Nt)
 vel1    = 1.0
@@ -57,7 +57,7 @@ print(json.dumps({
                     'dt'                           : mydt,
                     't_step_start'                 : 0,
                     't_step_stop'                  : int(Nt),
-                    't_step_save'                  : int(math.ceil(Nt/1000.)),
+                    't_step_save'                  : int(math.ceil(Nt/100.)),
 		    # ==========================================================
 
                     # Simulation Algorithm Parameters ==========================

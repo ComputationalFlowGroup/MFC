@@ -948,15 +948,15 @@ contains
         real(kind(0d0)), dimension(2) :: Re_K
         real(kind(0d0)) :: rho_K, gamma_K, pi_inf_K, qv_K, dyn_pres_K
         !WENO primitive reconstruction
-        real(kind(0d0)), dimension(sys_size, 3) :: P0, P2, Poly, omega
+        real(kind(0d0)), dimension(sys_size, 3) :: P0, P2, Poly_cons, Poly_prim, omega
         !P_1 is equal to the cell average for zeta_1, zeta_2, zeta 3
         real(kind(0d0)), dimension(sys_size) :: P1, theta
         real(kind(0d0)), dimension(5,5) :: A0, A2, M0, M2, M3, M4
         real(kind(0d0)), dimension(3,5) :: zeta
         real(kind(0d0)), dimension(5) :: q_stencil, beta, zeta1, zeta2, zeta3
-        real(kind(0d0)), dimension(3) :: omega_bar
+        real(kind(0d0)), dimension(3) :: omega_bar, density, weights, dyn_pres
         real(kind(0d0)), dimension(4) :: mu_bar
-        real(kind(0d0)) :: r0, r1, r2, s0, s2, s3, s4, mu_0, zeta_i = 0.5d0*dsqrt(3.0d0/5.0d0)
+        real(kind(0d0)) :: r0, r1, r2, s0, s2, s3, s4, mu_0, theta_min, zeta_i = 0.5d0*dsqrt(3.0d0/5.0d0)
         #:if MFC_CASE_OPTIMIZATION
 #ifndef MFC_SIMULATION
             real(kind(0d0)), dimension(:), allocatable :: nRtmp
@@ -1049,8 +1049,9 @@ contains
             zeta(1,1) = 1.0d0;zeta(1,2) = -zeta_i;zeta(1,3) = zeta_i**2d0;zeta(1,4) = -zeta_i**3d0;zeta(1,5) = zeta_i**4d0
             zeta(2,1) = 1.0d0;zeta(2,2) = 0d0; zeta(2,3) = 0d0; zeta(2,4) = 0d0; zeta(2,5) = 0d0
             zeta(3,1) = 1.0d0;zeta(3,2) = zeta_i; zeta(3,3) = zeta_i**2d0; zeta(3,4) = zeta_i**3d0; zeta(3,5) =zeta_i**4d0
-        end if 
-
+            !calc weights for each gauss quadrature point
+            weights(1) = 5.0d0/9.0d0; weights(2) = 8.0d0/9.0d0; weights(3) = 5.0d0/9.0d0 
+        end if
         !$acc parallel loop collapse(3) gang vector default(present) private(alpha_K, alpha_rho_K, Re_K, nRtmp, rho_K, gamma_K, pi_inf_K, qv_K, dyn_pres_K, R3tmp, G_K)
         do l = izb, ize
             do k = iyb, iye
@@ -1109,14 +1110,12 @@ contains
                                                         /qK_cons_vf(1)%sf(j, k, l)
                         end if
                     end do
-
                     ! PRESSURE CALCULATION
                     if (model_eqns/= 5) then 
                         call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
                                                 qK_cons_vf(alf_idx)%sf(j, k, l), &
                                                 dyn_pres_K, pi_inf_K, gamma_K, rho_K, qv_K, pres)
-                    else
-                       if ((num_dims == 1) .and. (j .ge. -2) .and. (j .le. (ixe - 2))) then
+                    elseif (num_dims == 1 .and. (j .le. ixe - 2) .and. (j .ge. -2)) then
                            !write code for polynomial reconstruction
                            do i = 1, sys_size
                                 do q = 1, 5
@@ -1142,30 +1141,94 @@ contains
                                 mu_bar(3) = s3/(beta(4)+verysmall)**4d0
                                 mu_bar(4) = s4/(beta(5)+verysmall)**4d0
                                 mu_0 = mu_bar(1)/(mu_bar(1)+mu_bar(2)+mu_bar(3)+mu_bar(4))
+                                
                                 theta(i) = 1.0d0-(1.0d0-min(1.0d0,mu_0/s0)**4d0)**4d0
-                                P1(i) = qK_cons_vf(i)%sf(j, k, l)
+                                
+                                !Calculate polynomials P0,P1,P2, theta(m)
                                 P0(i,1) = dot_product(zeta1,matmul(A0,q_stencil))
                                 P0(i,2) = dot_product(zeta2,matmul(A0,q_stencil))
                                 P0(i,3) = dot_product(zeta3,matmul(A0,q_stencil))
+                                P1(i) = qK_cons_vf(i)%sf(j, k, l)
                                 P2(i,1) = dot_product(zeta1,matmul(A2,q_stencil))
                                 P2(i,2) = dot_product(zeta2,matmul(A2,q_stencil))
                                 P2(i,3) = dot_product(zeta3,matmul(A2,q_stencil))
                                 do q = 1, 3
                                     omega(i,q) = omega_bar(q)/(omega_bar(1)+omega_bar(2)+omega_bar(3))
                                 end do
+                               ! do q = 1, 3
+                               !     Poly_cons(i,q) = theta(i)*P0(i,q)+&
+                               !     (1d0-theta(i))*(omega(i,1)*P0(i,q)+omega(i,2)*P1(i)+omega(i,3)*P2(i,q))
+                               ! end do
+                           end do
+                           theta_min = minval(theta)
+                           do i = 1, sys_size
                                 do q = 1,3 
-                                    Poly(i,q) = theta(i)*P0(i,q) + &
-                                    (1d0-theta(i))*(omega(i,1)*P0(i,q)+omega(i,2)*P1(i)+omega(i,3)*P2(i,q))
+                                    Poly_cons(i,q) = theta_min*P0(i,q) +(1d0-theta_min)*P2(i,q)
                                 end do
+                           end do 
+                                !if (j == 7 .or. j==8 .or. j==9) then 
+                                !    print *,'j::',j,'mom::','P0',P0(3,1),P0(3,2),P0(3,3),'P2',P2(3,1),P2(3,2),P2(3,3)
+                                !    print *,'j::',j,'dens::','P0',P0(1,1),P0(1,2),P0(1,3),'P2',P2(1,1),P2(1,2),P2(1,3)
+                                !    print *,'j::',j,'dens::','P0',P0(2,1),P0(2,2),P0(2,3),'P2',P2(2,1),P2(2,2),P2(2,3)
+                                !end if
+                           !Step 3: Calculate the polynomials of primitive variables
+                           !Calc densities
+                           density(:) = 0d0
+                           dyn_pres(:) = 0d0
+                           !if (j == 8 .or. j == 7 .or. j==9) then 
+                           !    print *, j, Poly_cons(3,1), Poly_cons(3,2), Poly_cons(3,3)
+                           !end if
+                           !if (j == 32 .or. j == 31) then
+                           !     print *, Poly_cons(mgidxb,1),Poly_cons(mgidxb,2), Poly_cons(mgidxb,3)
+                           !end if
+                           do q = 1,3
+                                do i = 1, contxe
+                                    Poly_prim(i,q) = Poly_cons(i,q)
+                                    density(q) = density(q) + Poly_cons(i,q)
+                                end do
+                                !Calc velocities
+                                do i = momxb, momxe
+                                    Poly_prim(i,q) = Poly_cons(i,q)/density(q)
+                                    dyn_pres(q)= dyn_pres(q) + 0.5d0*density(q)*Poly_prim(i,q)**2d0
+                                end do
+                                !if (j ==7 .or. j==8 .or. j==9) then 
+                                !    print *,'j::',j, 'mom::',Poly_cons(3,q),'density::',density(q)
+                                !end if
+                                !Calc pressure
+                                Poly_prim(E_idx,q) = (Poly_cons(E_idx,q)& 
+                                        - dyn_pres(q) -Poly_cons(mgidxe+1,q)& 
+                                    - Poly_cons(mgidxe,q))/Poly_cons(mgidxb,q)
+                                do i = advxb, advxe
+                                    Poly_prim(i,q) = Poly_cons(i,q)
+                                end do
+                                !Calc primitive variables of MG EoS
+                                Poly_prim(mgidxb,q) = Poly_cons(mgidxb,q)
+                                Poly_prim(mgidxb+1, q) = Poly_cons(mgidxb+1,q)/Poly_cons(mgidxb,q)
+                                Poly_prim(mgidxe,q) = Poly_cons(mgidxe,q)/density(q)
+                                !Calc Stress
+                                if (hypoplasticity) then
+                                    do i = strxb,strxe
+                                        Poly_prim(i,q) = Poly_cons(i,q)/density(q)
+                                    end do
+                                    Poly_prim(plasidx,q) = Poly_cons(plasidx,q)/density(q)
+                                end if
                            end do
                            !Step 4: Integrate to calculate cell average
                            !primitive variables
+                           !print *, 'j', j
+                           do i = 1, sys_size
+                                    qK_prim_vf(i)%sf(j, k, l) = 0d0
+                                do q = 1,3
+                                    qK_prim_vf(i)%sf(j, k, l) = &
+                                    qK_prim_vf(i)%sf(j, k, l) + 0.5d0*weights(q)*Poly_prim(i,q)
+                                end do
+                           !     print *,i,qK_prim_vf(i)%sf(j, k, l)
+                           end do
                            !Step 5: Once the code runs create function
                            !to calculate all the primitive variables
                            !Step 6: Do it for 2D
                            !Step 7: Do it for 3D
-                           
-                       else
+                    else
                             call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
                                                0d0, dyn_pres_K, & 
                                                pi_inf_K, qK_cons_vf(mgidxb)%sf(j, k, l), rho_K, qv_K, &
@@ -1187,8 +1250,9 @@ contains
                                    print *, 'i',i,'j k',j,k,qK_cons_vf(i)%sf(j, k, l)
                                    call s_mpi_abort()
                                end if 
-                            end do  
-                       end if 
+                            end do
+                    end if
+                    if (model_eqns == 5) then
 #ifdef MFC_POST_PROCESS                        
                         call s_compute_temperature(qK_prim_vf(E_idx)%sf(j, k, l), &
                                                    qK_prim_vf(mgidxb+1)%sf(j, k, l), &
