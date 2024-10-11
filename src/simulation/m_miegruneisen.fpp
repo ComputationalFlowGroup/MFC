@@ -144,19 +144,29 @@ contains
                 gamma0         = gamma0   + alpha_K(i)*gammas(i)
              end do
 !              print *, 'I got here C'
-             phi_mix = ((rho0_mix/rho_K)**(-gamma_inf))*&
-                            dexp((gamma0 - gamma_inf)*&
-                            (1d0- (rho0_mix/rho_K)**mg_exp))
+             !phi_mix = ((rho0_mix/rho_K)**(-gamma_inf))*&
+             !               dexp((gamma0 - gamma_inf)*&
+             !               (1d0- (rho0_mix/rho_K)**mg_exp))
              
              do i = 1, num_fluids
+                !rhs_mgidx2_mix = rhs_mgidx2_mix +&
+                !                 pi_infs(i)*alpha_K(i)*rho_K/rho0(i) +&
+                !                 dlog(rho_K/rho0_mix)*alpha_K(i)&
+                !                 *pi_infs(i)*(qvs(i)-2d0)*rho_K/rho0(i)
+               phi_mix = &
+               (alpha_K(i)*rho0(i)/alpha_rho_K(i)**(-mg_a(i)))*&
+                   dexp((gammas(i)-mg_a(i))*(1d0- &
+               (alpha_K(i)*rho0(i)/alpha_rho_K(i))**mg_b(i)))
                 rhs_mgidx2_mix = rhs_mgidx2_mix +&
-                                 pi_infs(i)*alpha_K(i)*rho_K/rho0(i) +&
-                                 dlog(rho_K/rho0_mix)*alpha_K(i)&
-                                 *pi_infs(i)*(qvs(i)-2d0)*rho_K/rho0(i)
-               
+                                 pi_infs(i)*alpha_rho_K(i)/rho0(i) +&
+                                 dlog(alpha_rho_K(i)/(alpha_K(i)*rho0(i)))*alpha_rho_K(i)&
+                                 *pi_infs(i)*(qvs(i)-2d0)/rho0(i)
+                !rhs_mgidx3_mix = rhs_mgidx3_mix +&
+                !                 (1d0/q_prim_vf(mgidxb)%sf(k, l, q))*alpha_rho_K(i)*A_cv*((theta_E*phi_mix)**2d0)&
+                !                 *dexp(theta_E*phi_mix)/((dexp(theta_E*phi_mix)-1d0)**2d0)                 
                 rhs_mgidx3_mix = rhs_mgidx3_mix +&
-                                 (1d0/q_prim_vf(mgidxb)%sf(k, l, q))*alpha_rho_K(i)*A_cv*((theta_E*phi_mix)**2d0)&
-                                 *dexp(theta_E*phi_mix)/((dexp(theta_E*phi_mix)-1d0)**2d0)                 
+                                 (1d0/q_prim_vf(mgidxb)%sf(k, l, q))*alpha_rho_K(i)*ein_cv1(i)*((ein_cv2(i)*phi_mix)**2d0)&
+                                 *dexp(ein_cv2(i)*phi_mix)/((dexp(ein_cv2(i)*phi_mix)-1d0)**2d0)                 
              end do
              
              rhs_mgidx2_mix = rhs_mgidx2_mix*q_prim_vf(mgidxb)%sf(k, l, q)
@@ -190,7 +200,7 @@ contains
                 !  print *,'k',k, rhs_vf(mgidxe)%sf(k, l, q)      
                 !end if
                 rhs_vf(mgidxe)%sf(k, l, q) = rhs_vf(mgidxe)%sf(k, l, q)&
-                                            +(-q_prim_vf(mgidxe)%sf(k, l, q)+&
+                                            +(-q_prim_vf(mgidxb+1)%sf(k, l, q)+&
                                             rhs_mgidx3_mix)*du_dx(k, l, q)
            end do
          !$acc end parallel loop

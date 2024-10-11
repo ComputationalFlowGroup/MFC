@@ -960,7 +960,7 @@ contains
                 !print *,'in s_compute_rhs'
                 call s_compute_miegruneisen_rhs(q_prim_qp%vf, &
                                                 q_cons_qp%vf, rhs_vf)
-               ! print *,'after_miegruneisen_rhs'
+                !print *,'after_miegruneisen_rhs'
             end if
             call nvtxEndRange
             ! RHS additions for viscosity

@@ -4,12 +4,12 @@ import json
 
 #Numerical setup
 c_l     = 3077.6
-Nx      = 192
-cfl     = 0.05
+Nx      = 32
+cfl     = 0.1
 leng    = 1.
 dx      = leng/(Nx+1)
 mydt    = cfl*dx/c_l
-Tend    = 5.0E-2
+Tend    = 5.0E-6
 Nt      = int(Tend/mydt)
 #mydt   = Tend/(1.*Nt)
 vel1    = 1.0
@@ -99,7 +99,7 @@ print(json.dumps({
                     'patch_icpp(1)%length_x'       : leng,
                     'patch_icpp(1)%vel(1)'         : vel1,
                    # 'patch_icpp(1)%vel(2)'        : vel2,
-                    'patch_icpp(1)%pres'           : tilde_P0,
+                    'patch_icpp(1)%pres'           : 0.0*tilde_P0,
                     'patch_icpp(1)%alpha_rho(1)'   : (1.0-1e-6),
                     'patch_icpp(1)%alpha_rho(2)'   : (1e-6)*(1.168/1580.5),
                     'patch_icpp(1)%alpha(1)'       : 1.0-1e-6,
@@ -114,7 +114,7 @@ print(json.dumps({
                     'patch_icpp(2)%alter_patch(1)' : 'T',
                     'patch_icpp(2)%vel(1)'         : vel1,
                    # 'patch_icpp(2)%vel(2)'        : vel2,
-                    'patch_icpp(2)%pres'           : tilde_P0,
+                    'patch_icpp(2)%pres'           : 0.0*tilde_P0,
                     'patch_icpp(2)%alpha_rho(1)'   : 1e-6,
                     'patch_icpp(2)%alpha_rho(2)'   : (1.E0-1.E-6)*1.168/1580.5,
                     'patch_icpp(2)%alpha(1)'       : 1.E-6,
@@ -125,7 +125,8 @@ print(json.dumps({
     'fluid_pp(1)%gamma'            : 1.09E0,                           # 1.E+00/(1.4E+00-1.E+00),
     'fluid_pp(1)%pi_inf'           : Kt0_suc/(rho_0_suc*c_0*c_0),        # isothermal bulk modulus
     'fluid_pp(2)%gamma'            : 0.4E0,                            # 1.E+00/(1.6666E+00-1.E+00),
-    'fluid_pp(2)%pi_inf'           : 4.1110986919636283842*1.013e5/(rho_0_suc*c_0*c_0),      # 0.0
+   # 'fluid_pp(2)%pi_inf'           : 4.1110986919636283842*1.013e5/(rho_0_suc*c_0*c_0),      # 0.0
+    'fluid_pp(2)%pi_inf'           : 1.013e5/(rho_0_suc*c_0*c_0),      # 0.0
     'fluid_pp(1)%qv'               : 3.75E0,                           # K'_theta0 for sucrose
     'fluid_pp(2)%qv'               : 2.0E0,                            #
    # 'fluid_pp(1)%G'                : G_suc/(rho_0_suc*c_0*c_0),        # Shear modulus
@@ -138,8 +139,10 @@ print(json.dumps({
     'fluid_pp(1)%mg_b'             : 1.E0,                             #b_mg
     'fluid_pp(2)%mg_a'             : 0.4E0,                            #a_mg
     'fluid_pp(2)%mg_b'             : 0.E0,                             #b_mg
-    'fluid_pp(1)%rho0'             : 1.580488803979682E3/1580.5,       #Non-dimensional initial density in Birch-Murnaghan cold curve
-    'fluid_pp(2)%rho0'             : 0.8/1580.5,
+   'fluid_pp(1)%rho0'             : 1580.5/1580.5,       #Non-dimensional initial density in Birch-Murnaghan cold curve
+   'fluid_pp(2)%rho0'             : 1.168/1580.5,
+   # 'fluid_pp(1)%rho0'             : 1.580488803979682E3/1580.5,       #Non-dimensional initial density in Birch-Murnaghan cold curve
+   # 'fluid_pp(2)%rho0'             : 0.429683187295/1580.5,
    # 'fluid_pp(1)%jcook(1)'         : 0.0334,                           # A, Static yield strength
    # 'fluid_pp(1)%jcook(2)'         : 0.0334,                           # B, Strain-Hardening coefficient
    # 'fluid_pp(1)%jcook(3)'         : 0.1,                              # n, Strain-Hardening exponent

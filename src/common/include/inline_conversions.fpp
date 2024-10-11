@@ -18,7 +18,7 @@
 
         !Local variables used for computation only
         real(kind(0d0)) :: rho0_mix, gamma_inf, gamma0, mg_exp, A_cv,&
-                            theta_E, logrho, phi_mix
+                            theta_E, logrho, phi_mix, gamma_inv, pref1
         integer :: q, r
 
         if (alt_soundspeed) then
@@ -73,15 +73,38 @@
                         (1d0- (rho0_mix/rho)**mg_exp))
             
             do q = 1, num_fluids
-               c = c + pres*gamma*adv(q)*(1d0-mg_b(q))&
-                     + pref*gamma*adv(q)*mg_b(q)&
-                     + gamma*alpha_rho_K(q)*pi_infs(q)/rho0(q)&
-                     + gamma*dlog(rho/rho0_mix)*alpha_rho_K(q)*pi_infs(q)*(qvs(q)-2d0)/rho0(q)&
-                     + (1d0/gamma)*alpha_rho_K(q)*A_cv*((theta_E*phi_mix)**2d0)&
-                     *dexp(theta_E*phi_mix)/((dexp(theta_E*phi_mix)-1d0)**2d0)                     
+               phi_mix = &
+               ((adv(q)*rho0(q)/alpha_rho_K(q))**(-mg_a(q)))*&
+               dexp((gammas(q)-mg_a(q))*(1.0d0-(adv(q)*rho0(q)/alpha_rho_K(q))**mg_b(q)))
+               
+               pref1 = &
+               pi_infs(q)*dlog(alpha_rho_K(q)/(adv(q)*rho0(q)))*(1d0+0.5d0*(qvs(q)-2d0)*dlog(alpha_rho_K(q)/(adv(q)*rho0(q))))
+
+
+               gamma_inv = &
+               1d0/(mg_a(q)+(gammas(q)-mg_a(q))*(adv(q)*rho0(q)/alpha_rho_K(q))**mg_b(q)) 
+               
+               c = c + (alpha_rho_K(q)/rho)*((adv(q)/alpha_rho_K(q))*pres*(gamma_inv + &
+                    1d0-mg_b(q)*gamma_inv) + &
+                    mg_b(q)*pref1*gamma_inv*adv(q)/alpha_rho_K(q) + &
+                    gamma_inv*(pref1*adv(q)/alpha_rho_K(q)+pi_infs(q)/&
+                    rho0(q)+(pi_infs(q)/rho0(q))*(qvs(q)-2d0)*dlog(alpha_rho_K(q)/(adv(q)*rho0(q))))-&
+                    pref1*(adv(q)/alpha_rho_K(q))+&
+                    (1d0/gamma_inv)*ein_cv1(q)*((phi_mix*ein_cv2(q))**2d0)*dexp(phi_mix*ein_cv2(q))/&
+                    (dexp(phi_mix*ein_cv2(q))-1.0d0)**2d0)
+
+!             c = c + pres*gamma*adv(q)*(1d0-mg_b(q))&
+!                    + pref*gamma*adv(q)*mg_b(q)&
+!                    + gamma*alpha_rho_K(q)*pi_infs(q)/rho0(q)&
+!                    + gamma*dlog(rho/rho0_mix)*alpha_rho_K(q)*pi_infs(q)*(qvs(q)-2d0)/rho0(q)&
+!                    + (1d0/gamma)*alpha_rho_K(q)*A_cv*((theta_E*phi_mix)**2d0)&
+!                    *dexp(theta_E*phi_mix)/((dexp(theta_E*phi_mix)-1d0)**2d0)
+               
             end do 
-            c = c + pres - pref
-            c = c/(rho*gamma)
+!            c = c + pres - pref
+!            c = c/(rho*gamma)
+            c = c/gamma 
+!            print *,c
             if (c /=c) then
                 print *,'c',c
 !                call s_MPI_abort()
