@@ -1225,15 +1225,16 @@ contains
                                 alpha_K(i)/(mg_a(i)+(gammas(i)-mg_a(i))*(alpha_K(i)*rho0(i)/alpha_rho_K(i))**mg_b(i))
                                 phi = (alpha_K(i)*rho0(i)/alpha_rho_K(i))**(-mg_a(i))*&
                                     dexp((gammas(i)-mg_a(i))*(1d0-(alpha_K(i)*rho0(i)/alpha_rho_K(i))**mg_b(i)))
-                                Pref_by_gamma = Pref_by_gamma !+&
-                                   ! alpha_K(i)*pi_infs(i)*dlog(alpha_rho_K(i)/(alpha_K(i)*rho0(i)))*&
-                                   ! (1d0+0.5d0*(qvs(i)-2d0)*dlog(alpha_rho_K(i)/(alpha_K(i)*rho0(i))))/&
-                                   ! (mg_a(i)+(gammas(i)-mg_a(i))*(alpha_K(i)*rho0(i)/alpha_rho_K(i))**mg_b(i))
+                                Pref_by_gamma = Pref_by_gamma +&
+                                    alpha_K(i)*pi_infs(i)*dlog(alpha_rho_K(i)/(alpha_K(i)*rho0(i)))*&
+                                    (1d0+0.5d0*(qvs(i)-2d0)*dlog(alpha_rho_K(i)/(alpha_K(i)*rho0(i))))/&
+                                    (mg_a(i)+(gammas(i)-mg_a(i))*(alpha_K(i)*rho0(i)/alpha_rho_K(i))**mg_b(i))
                                 eref_gamma = eref_gamma + &
-                                   ! alpha_K(i)*(0.5d0*(pi_infs(i)/rho0(i))*(dlog(alpha_rho_K(i)/(alpha_K(i)*rho0(i)))**2d0)*&
-                                   ! (1d0+(1d0/3d0)*(qvs(i)-2d0)*dlog(alpha_rho_K(i)/(alpha_K(i)*rho0(i))))+&
-                                    alpha_K(i)*(ein_cv1(i)*(phi*ein_cv2(i)*dexp(phi*ein_cv2(i))/&
-                                    (dexp(phi*ein_cv2(i))-1d0)-dlog(dexp(phi*ein_cv2(i))-1.d0)))
+                                    alpha_K(i)*0.5d0*(pi_infs(i)/rho0(i))*(dlog(alpha_rho_K(i)/(alpha_K(i)*rho0(i)))**2d0)*&
+                                    (1d0+(1d0/3d0)*(qvs(i)-2d0)*dlog(alpha_rho_K(i)/(alpha_K(i)*rho0(i))))
+                                !+&
+                                   ! alpha_K(i)*(ein_cv1(i)*(phi*ein_cv2(i)*dexp(phi*ein_cv2(i))/&
+                                   ! (dexp(phi*ein_cv2(i))-1d0)-dlog(dexp(phi*ein_cv2(i))-1.d0)))
                                 end do
                                 !Poly_prim(E_idx,q) = (Poly_cons(E_idx,q)& 
                                 !        - dyn_pres(q) +Poly_cons(mgidxb+1,q)& 
@@ -1241,10 +1242,10 @@ contains
                                 Poly_prim(E_idx,q) = (Poly_cons(E_idx,q)& 
                                         - dyn_pres(q) + Pref_by_gamma &
                                     -density(q)*eref_gamma)/Poly_cons(mgidxb,q)
-                                if (j == 8 .or. j==9 .or. j==7 .or. j==6) then
+                                !if (j == 8 .or. j==9 .or. j==7 .or. j==6) then
                                     !print *,j,alpha_rho_K(1)/(alpha_K(1)*rho0(1)),alpha_rho_K(2)/(alpha_K(2)*rho0(2))
-                                    print *,j,q, eref_gamma
-                                end if
+                                    !print *,j,q, eref_gamma
+                                !end if
                                ! print *,'Prefbygam',Pref_by_gamma,'rho_e_ref',density(q)*eref_gamma,'ene',Poly_cons(E_idx,q),'dyn_pr',dyn_pres(q)
                                 do i = advxb, advxe
                                     Poly_prim(i,q) = Poly_cons(i,q)
@@ -1274,7 +1275,7 @@ contains
                            end do
                            !print *,'Ene = ', qK_cons_vf(E_idx)%sf(j, k, l)
                            pres = qK_prim_vf(E_idx)%sf(j ,k, l)
-                           print * ,'pres=',j, pres
+                           !print * ,'pres=',j, pres
                            !Step 5: Once the code runs create function
                            !to calculate all the primitive variables
                            !Step 6: Do it for 2D
@@ -1421,7 +1422,7 @@ contains
                 end do
             end do
         end do
-        print *, maxval(qK_prim_vf(E_idx)%sf(ixb:ixe,0,0))
+        !print *, maxval(qK_prim_vf(E_idx)%sf(ixb:ixe,0,0))
         !$acc end parallel loop
     end subroutine s_convert_conservative_to_primitive_variables ! ---------
 
@@ -1533,10 +1534,10 @@ contains
                                 (1d0+0.5d0*(qvs(i)-2d0)*dlog(alpha_rho_K(i)/(alpha_K(i)*rho0(i))))/&
                                 (mg_a(i)+(gammas(i)-mg_a(i))*(alpha_K(i)*rho0(i)/alpha_rho_K(i))**mg_b(i))
                             eref_gamma = eref_gamma + &
-                                alpha_K(i)*(0.5d0*(pi_infs(i)/rho0(i))*(dlog(alpha_rho_K(i)/(alpha_K(i)*rho0(i)))**2d0)*&
-                                (1d0+(1d0/3d0)*(qvs(i)-2d0)*dlog(alpha_rho_K(i)/(alpha_K(i)*rho0(i))))+&
-                                ein_cv1(i)*(phi*ein_cv2(i)*dexp(phi*ein_cv2(i))/&
-                                (dexp(phi*ein_cv2(i))-1d0)-dlog(dexp(phi*ein_cv2(i))-1.d0)))
+                                alpha_K(i)*0.5d0*(pi_infs(i)/rho0(i))*(dlog(alpha_rho_K(i)/(alpha_K(i)*rho0(i)))**2d0)*&
+                                (1d0+(1d0/3d0)*(qvs(i)-2d0)*dlog(alpha_rho_K(i)/(alpha_K(i)*rho0(i)))) !+&
+                               ! ein_cv1(i)*(phi*ein_cv2(i)*dexp(phi*ein_cv2(i))/&
+                               ! (dexp(phi*ein_cv2(i))-1d0)-dlog(dexp(phi*ein_cv2(i))-1.d0)))
                         end do
                         q_prim_vf(mgidxb)%sf(j, k, l) = gamma_inv
                         q_prim_vf(mgidxb+1)%sf(j, k, l) = Pref_by_gamma/gamma_inv

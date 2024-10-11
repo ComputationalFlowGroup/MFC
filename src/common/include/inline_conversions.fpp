@@ -89,9 +89,9 @@
                     mg_b(q)*pref1*gamma_inv*adv(q)/alpha_rho_K(q) + &
                     gamma_inv*(pref1*adv(q)/alpha_rho_K(q)+pi_infs(q)/&
                     rho0(q)+(pi_infs(q)/rho0(q))*(qvs(q)-2d0)*dlog(alpha_rho_K(q)/(adv(q)*rho0(q))))-&
-                    pref1*(adv(q)/alpha_rho_K(q))+&
-                    (1d0/gamma_inv)*ein_cv1(q)*((phi_mix*ein_cv2(q))**2d0)*dexp(phi_mix*ein_cv2(q))/&
-                    (dexp(phi_mix*ein_cv2(q))-1.0d0)**2d0)
+                    pref1*(adv(q)/alpha_rho_K(q))) !+&
+                   ! (1d0/gamma_inv)*ein_cv1(q)*((phi_mix*ein_cv2(q))**2d0)*dexp(phi_mix*ein_cv2(q))/&
+                   ! (dexp(phi_mix*ein_cv2(q))-1.0d0)**2d0)
 
 !             c = c + pres*gamma*adv(q)*(1d0-mg_b(q))&
 !                    + pref*gamma*adv(q)*mg_b(q)&
@@ -106,7 +106,7 @@
             c = c/gamma 
 !            print *,c
             if (c /=c) then
-                print *,'c',c
+                print *,'c',c,alpha_rho_K(1),alpha_rho_K(2),adv(1),adv(2),pres 
 !                call s_MPI_abort()
             end if
         else           
