@@ -18,7 +18,7 @@
 
         !Local variables used for computation only
         real(kind(0d0)) :: rho0_mix, gamma_inf, gamma0, mg_exp, A_cv,&
-                            theta_E, logrho, phi_mix, gamma_inv, pref1
+                            theta_E, logrho, phi_mix, gamma_inv, pref1, dummy
         integer :: q, r
 
         if (alt_soundspeed) then
@@ -77,22 +77,22 @@
                ((adv(q)*rho0(q)/alpha_rho_K(q))**(-mg_a(q)))*&
                dexp((gammas(q)-mg_a(q))*(1.0d0-(adv(q)*rho0(q)/alpha_rho_K(q))**mg_b(q)))
                
-               pref1 = &
-               pi_infs(q)*dlog(alpha_rho_K(q)/(adv(q)*rho0(q)))*(1d0+0.5d0*(qvs(q)-2d0)*dlog(alpha_rho_K(q)/(adv(q)*rho0(q))))
-
+               dummy = adv(q)/alpha_rho_K(q) 
+               pref1 = pi_infs(q) + &
+               qvs(q)*(1d0/rho0(q)-dummy)/(1d0/rho0(q)-1.51d0*(1d0/rho0(q)-dummy))**2d0
+               !pi_infs(q)*dlog(alpha_rho_K(q)/(adv(q)*rho0(q)))*(1d0+0.5d0*(qvs(q)-2d0)*dlog(alpha_rho_K(q)/(adv(q)*rho0(q))))
 
                gamma_inv = &
-               1d0/(mg_a(q)+(gammas(q)-mg_a(q))*(adv(q)*rho0(q)/alpha_rho_K(q))**mg_b(q)) 
-               
-               c = c + (alpha_rho_K(q)/rho)*((adv(q)/alpha_rho_K(q))*pres*(gamma_inv + &
-                    1d0-mg_b(q)*gamma_inv) + &
-                    mg_b(q)*pref1*gamma_inv*adv(q)/alpha_rho_K(q) + &
-                    gamma_inv*(pref1*adv(q)/alpha_rho_K(q)+pi_infs(q)/&
-                    rho0(q)+(pi_infs(q)/rho0(q))*(qvs(q)-2d0)*dlog(alpha_rho_K(q)/(adv(q)*rho0(q))))-&
-                    pref1*(adv(q)/alpha_rho_K(q))) !+&
+               1d0/(mg_a(q)+(gammas(q)-mg_a(q))*(dummy*rho0(q))**mg_b(q)) 
+               c = c + &
+               (alpha_rho_K(q)/(alpha_rho_K(1)+alpha_rho_K(2)))*(dummy*pres*(gamma_inv + &
+                    1d0-mg_b(q)*gamma_inv) + & !(mg_b(q)-1d0)*pref1*dummy*gamma_inv + &
+                    gamma_inv*((qvs(q)/rho0(q))**2d0/(1d0/rho0(q)-1.51d0*(1d0/rho0(q)-dummy))**2d0+&
+                    2d0*((qvs(q)/rho0(q))**2d0)*1.51*(1d0/rho0(q)-dummy)/&
+                    (1d0/rho0(q)-1.51d0*(1d0/rho0(q)-dummy))**3d0)-&
+                    (pref1*dummy)) !+&
                    ! (1d0/gamma_inv)*ein_cv1(q)*((phi_mix*ein_cv2(q))**2d0)*dexp(phi_mix*ein_cv2(q))/&
                    ! (dexp(phi_mix*ein_cv2(q))-1.0d0)**2d0)
-
 !             c = c + pres*gamma*adv(q)*(1d0-mg_b(q))&
 !                    + pref*gamma*adv(q)*mg_b(q)&
 !                    + gamma*alpha_rho_K(q)*pi_infs(q)/rho0(q)&
@@ -104,11 +104,15 @@
 !            c = c + pres - pref
 !            c = c/(rho*gamma)
             c = c/gamma 
+           ! if (c<0d0) then
+           !  print *,&
+           !  'c',c,'rho1',alpha_rho_K(1)/adv(1),'rho2',alpha_rho_K(2)/adv(2),'sum',adv(1)+adv(2) 
+           ! end if
 !            print *,c
-            if (c /=c) then
-                print *,'c',c,alpha_rho_K(1),alpha_rho_K(2),adv(1),adv(2),pres 
-!                call s_MPI_abort()
-            end if
+           ! if (c /=c) then
+           !     print *,'c is NaN',c,alpha_rho_K(1),alpha_rho_K(2),adv(1),adv(2),pres 
+!          !      call s_MPI_abort()
+           ! end if
         else           
             c = ((H - 5d-1*vel_sum)/gamma)
         end if
