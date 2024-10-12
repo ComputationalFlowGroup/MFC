@@ -85,7 +85,7 @@
                gamma_inv = &
                1d0/(mg_a(q)+(gammas(q)-mg_a(q))*(dummy*rho0(q))**mg_b(q)) 
                c = c + &
-               (alpha_rho_K(q)/(alpha_rho_K(1)+alpha_rho_K(2)))*(dummy*pres*(gamma_inv + &
+               gamma_inv*(dummy*adv(q))/(dummy*pres*(gamma_inv + &
                     1d0-mg_b(q)*gamma_inv) + & !(mg_b(q)-1d0)*pref1*dummy*gamma_inv + &
                     gamma_inv*((qvs(q)/rho0(q))**2d0/(1d0/rho0(q)-1.51d0*(1d0/rho0(q)-dummy))**2d0+&
                     2d0*((qvs(q)/rho0(q))**2d0)*1.51*(1d0/rho0(q)-dummy)/&
@@ -103,10 +103,11 @@
             end do 
 !            c = c + pres - pref
 !            c = c/(rho*gamma)
-            c = c/gamma 
+           ! c = c/gamma
+           c = 1d0/(rho*c)
            ! if (c<0d0) then
-           !  print *,&
-           !  'c',c,'rho1',alpha_rho_K(1)/adv(1),'rho2',alpha_rho_K(2)/adv(2),'sum',adv(1)+adv(2) 
+          !   print *,&
+          !   'c',c,'rho1',alpha_rho_K(1)/adv(1),'rho2',alpha_rho_K(2)/adv(2),'sum',adv(1)+adv(2) 
            ! end if
 !            print *,c
            ! if (c /=c) then
