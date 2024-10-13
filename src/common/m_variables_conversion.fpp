@@ -1243,7 +1243,7 @@ contains
                                 !Calc primitive variables of MG EoS
                                 Poly_prim(mgidxb,q) = Poly_cons(mgidxb,q)
                                 Poly_prim(mgidxb+1, q) = Poly_cons(mgidxb+1,q)/Poly_cons(mgidxb,q)
-                                Poly_prim(mgidxe,q) = Poly_cons(advxb,q)*Poly_cons(mgidxe,q)/Poly_cons(1,q)
+                                Poly_prim(mgidxe,q) = Poly_cons(mgidxe,q)
                                 !Calc Stress
                                 if (hypoplasticity) then
                                     do i = strxb,strxe
@@ -1538,7 +1538,7 @@ contains
                         end do
                         q_prim_vf(mgidxb)%sf(j, k, l)   = gamma_inv
                         q_prim_vf(mgidxb+1)%sf(j, k, l) = Pref_by_gamma/gamma_inv
-                        q_prim_vf(mgidxe)%sf(j, k, l)   = alpha_K(1)*eref_gamma/alpha_rho_K(1)
+                        q_prim_vf(mgidxe)%sf(j, k, l)   = eref_gamma
                          
                         ! Energy corresponding to Mie-Gruneisen EOS 
                         q_cons_vf(E_idx)%sf(j, k, l)    = eref_gamma +&

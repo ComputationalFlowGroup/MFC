@@ -2187,11 +2187,11 @@ contains
 
                                 ! Energy corresponding to Mie-Gruneisen EOS
 
-                                E_L = rho_L*qL_prim_rs${XYZ}$_vf(j, k, l, mgidxe) +&
+                                E_L = qL_prim_rs${XYZ}$_vf(j, k, l, mgidxe) +&
                                       (pres_L-qL_prim_rs${XYZ}$_vf(j, k, l, mgidxb+1))*&
                                       qL_prim_rs${XYZ}$_vf(j, k, l, mgidxb) +& 
                                       5d-1*rho_L*vel_L_rms 
-                                E_R = rho_R*qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxe) +&
+                                E_R = qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxe) +&
                                       (pres_R - qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb + 1))*&
                                       qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb) +&
                                       5d-1*rho_R*vel_R_rms
@@ -2374,8 +2374,8 @@ contains
                                 eref_L = qL_prim_rs${XYZ}$_vf(j, k, l, mgidxe)
                                 eref_R = qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxe)
                                 flux_rs${XYZ}$_vf(j, k, l, mgidxe) = &
-                                             xi_M*rho_L*eref_L*(vel_L(idx1)+s_M*(xi_L-1d0))+&
-                                             xi_P*rho_R*eref_R*(vel_R(idx1)+s_P*(xi_R-1d0))
+                                             xi_M*eref_L*(vel_L(idx1)+s_M*(xi_L-1d0))+&
+                                             xi_P*eref_R*(vel_R(idx1)+s_P*(xi_R-1d0))
 
                                 ! ISOTROPIC HARDENING FLUX.
                                 if (hypoplasticity) then

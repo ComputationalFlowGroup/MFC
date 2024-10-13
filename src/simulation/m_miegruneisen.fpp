@@ -304,7 +304,7 @@ contains
                                             -(q_cons_vf(mgidxb+1)%sf(k, l, q)*mg_exp + rhs_mgidx2_mix)&
                                             *(du_dx(k, l, q)+dv_dy(k, l, q))
                 rhs_vf(mgidxe)%sf(k, l, q)   = rhs_vf(mgidxe)%sf(k, l, q)&
-                                            +(-q_prim_vf(mgidxe)%sf(k, l, q)+&
+                                            +(-q_prim_vf(mgidxb+1)%sf(k, l, q)+&
                                             rhs_mgidx3_mix)*(du_dx(k, l, q)+ dv_dy(k, l, q))
                                             
 !             end if
