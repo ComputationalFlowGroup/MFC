@@ -84,7 +84,7 @@ contains
         type(scalar_field), dimension(sys_size), intent(inout) :: rhs_vf
 
         real(kind(0d0)) :: rho_K, G_K, mg_exp, rhs_mgidx2_mix, rhs_mgidx3_mix
-        real(kind(0d0)) :: A_cv, rho0_mix, theta_E, gamma_inf, gamma0, phi_mix 
+        real(kind(0d0)) :: A_cv, rho0_mix, theta_E, gamma_inf, gamma0, phi_mix, dummy 
 
         integer :: i, k, l, p, r, q !< Loop variables
 
@@ -153,14 +153,20 @@ contains
                 !                 pi_infs(i)*alpha_K(i)*rho_K/rho0(i) +&
                 !                 dlog(rho_K/rho0_mix)*alpha_K(i)&
                 !                 *pi_infs(i)*(qvs(i)-2d0)*rho_K/rho0(i)
+                dummy = alpha_K(i)/alpha_rho_K(i)
                phi_mix = &
                (alpha_K(i)*rho0(i)/alpha_rho_K(i)**(-mg_a(i)))*&
                    dexp((gammas(i)-mg_a(i))*(1d0- &
                (alpha_K(i)*rho0(i)/alpha_rho_K(i))**mg_b(i)))
-                rhs_mgidx2_mix = rhs_mgidx2_mix +&
-                                 pi_infs(i)*alpha_rho_K(i)/rho0(i) +&
-                                 dlog(alpha_rho_K(i)/(alpha_K(i)*rho0(i)))*alpha_rho_K(i)&
-                                 *pi_infs(i)*(qvs(i)-2d0)/rho0(i)
+                !rhs_mgidx2_mix = rhs_mgidx2_mix +&
+                !                 pi_infs(i)*alpha_rho_K(i)/rho0(i) +&
+                !                 dlog(alpha_rho_K(i)/(alpha_K(i)*rho0(i)))*alpha_rho_K(i)&
+                !                 *pi_infs(i)*(qvs(i)-2d0)/rho0(i)
+                rhs_mgidx2_mix = rhs_mgidx2_mix + &
+                    ((qvs(i)/rho0(i))**2d0/(1d0/rho0(i)-1.51d0*(1d0/rho0(i)-dummy))**2d0+&
+                    2d0*((qvs(i)/rho0(i))**2d0)*1.51*(1d0/rho0(i)-dummy)/&
+                    (1d0/rho0(i)-1.51d0*(1d0/rho0(i)-dummy))**3d0)
+                                  
                 !rhs_mgidx3_mix = rhs_mgidx3_mix +&
                 !                 (1d0/q_prim_vf(mgidxb)%sf(k, l, q))*alpha_rho_K(i)*A_cv*((theta_E*phi_mix)**2d0)&
                 !                 *dexp(theta_E*phi_mix)/((dexp(theta_E*phi_mix)-1d0)**2d0)                 
@@ -194,14 +200,16 @@ contains
                                             + q_prim_vf(mgidxb)%sf(k, l, q)*&
                                             (1d0- mg_exp)*du_dx(k, l, q)
                 rhs_vf(mgidxb+1)%sf(k, l, q) = rhs_vf(mgidxb+1)%sf(k, l, q) &
-                                            -(q_cons_vf(mgidxb+1)%sf(k, l, q)*mg_exp + rhs_mgidx2_mix)&
+                                            +(q_prim_vf(mgidxb)%sf(k, l, q))*&
+                                            ((1d0-mg_exp)*q_cons_vf(mgidxb+1)%sf(k, l, q) - rho_K*rhs_mgidx2_mix)&
                                             *du_dx(k, l, q)
                 !if (rhs_vf(mgidxe)%sf(k,l,q) /= rhs_vf(mgidxe)%sf(k,l,q)) then
                 !  print *,'k',k, rhs_vf(mgidxe)%sf(k, l, q)      
                 !end if
                 rhs_vf(mgidxe)%sf(k, l, q) = rhs_vf(mgidxe)%sf(k, l, q)&
-                                            +(-q_prim_vf(mgidxb+1)%sf(k, l, q)+&
-                                            rhs_mgidx3_mix)*du_dx(k, l, q)
+                                            -0.5d0*(q_prim_vf(mgidxb+1)%sf(k,l,q)+&
+                                            alpha_K(1)*rhs_mgidx2_mix*(((alpha_rho_K(1)/alpha_K(1))**2d0)/rho0(1)&
+                                        - alpha_rho_K(1)/alpha_K(1)))*du_dx(k, l, q)
            end do
          !$acc end parallel loop
         else if (num_dims == 2) then 

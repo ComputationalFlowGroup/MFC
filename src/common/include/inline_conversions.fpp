@@ -85,7 +85,7 @@
                gamma_inv = &
                1d0/(mg_a(q)+(gammas(q)-mg_a(q))*(dummy*rho0(q))**mg_b(q)) 
                c = c + &
-               gamma_inv*(dummy*adv(q))/(dummy*pres*(gamma_inv + &
+               (alpha_rho_K(q)/rho)*(dummy*pres*(gamma_inv + &
                     1d0-mg_b(q)*gamma_inv) + & !(mg_b(q)-1d0)*pref1*dummy*gamma_inv + &
                     gamma_inv*((qvs(q)/rho0(q))**2d0/(1d0/rho0(q)-1.51d0*(1d0/rho0(q)-dummy))**2d0+&
                     2d0*((qvs(q)/rho0(q))**2d0)*1.51*(1d0/rho0(q)-dummy)/&
@@ -99,12 +99,13 @@
 !                    + gamma*dlog(rho/rho0_mix)*alpha_rho_K(q)*pi_infs(q)*(qvs(q)-2d0)/rho0(q)&
 !                    + (1d0/gamma)*alpha_rho_K(q)*A_cv*((theta_E*phi_mix)**2d0)&
 !                    *dexp(theta_E*phi_mix)/((dexp(theta_E*phi_mix)-1d0)**2d0)
+              
                
             end do 
 !            c = c + pres - pref
 !            c = c/(rho*gamma)
-           ! c = c/gamma
-           c = 1d0/(rho*c)
+            c = c/gamma
+           
            ! if (c<0d0) then
           !   print *,&
           !   'c',c,'rho1',alpha_rho_K(1)/adv(1),'rho2',alpha_rho_K(2)/adv(2),'sum',adv(1)+adv(2) 

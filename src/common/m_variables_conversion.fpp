@@ -1177,12 +1177,6 @@ contains
                            density(:) = 0d0
                            dyn_pres(:) = 0d0
                            pres_var = 0d0
-                           !if (j == 8 .or. j == 7 .or. j==9) then 
-                           !    print *, j, Poly_cons(3,1), Poly_cons(3,2), Poly_cons(3,3)
-                           !end if
-                           !if (j == 32 .or. j == 31) then
-                           !     print *, Poly_cons(mgidxb,1),Poly_cons(mgidxb,2), Poly_cons(mgidxb,3)
-                           !end if
                            do q = 1,3
                                 do i = 1, contxe
                                     Poly_prim(i,q) = Poly_cons(i,q)
@@ -1193,9 +1187,6 @@ contains
                                     Poly_prim(i,q) = Poly_cons(i,q)/density(q)
                                     dyn_pres(q)= dyn_pres(q) + 0.5d0*density(q)*Poly_prim(i,q)**2d0
                                 end do
-                                !if (j ==7 .or. j==8 .or. j==9) then 
-                                !    print *,'j::',j, 'mom::',Poly_cons(3,q),'density::',density(q)
-                                !end if
                                 !Calc pressure
                                 !pres_var1=0d0
                                ! do i= 1, num_fluids
@@ -1219,42 +1210,28 @@ contains
                                 Pref_by_gamma = 0d0
                                 eref_gamma = 0d0
                                 do i = 1, num_fluids
-                                alpha_K(i) =Poly_cons(advxb+i-1,q)
-                                alpha_rho_K(i)=Poly_cons(i,q)
-                                gamma_inv = gamma_inv + &
-                                alpha_K(i)/(mg_a(i)+(gammas(i)-mg_a(i))*(alpha_K(i)*rho0(i)/alpha_rho_K(i))**mg_b(i))
-!                                phi = (alpha_K(i)*rho0(i)/alpha_rho_K(i))**(-mg_a(i))*&
-!                                    dexp((gammas(i)-mg_a(i))*(1d0-(alpha_K(i)*rho0(i)/alpha_rho_K(i))**mg_b(i)))
-!                                Pref_by_gamma = Pref_by_gamma +&
-!                                   alpha_K(i)*pi_infs(i)*dlog(alpha_rho_K(i)/(alpha_K(i)*rho0(i)))*&
-!                                   (1d0+0.5d0*(qvs(i)-2d0)*dlog(alpha_rho_K(i)/(alpha_K(i)*rho0(i))))/&
-!                                    (mg_a(i)+(gammas(i)-mg_a(i))*(alpha_K(i)*rho0(i)/alpha_rho_K(i))**mg_b(i))
-!                                eref_gamma = eref_gamma + &
-!                                    alpha_K(i)*0.5d0*(pi_infs(i)/rho0(i))*(dlog(alpha_rho_K(i)/(alpha_K(i)*rho0(i)))**2d0)*&
-!                                    (1d0+(1d0/3d0)*(qvs(i)-2d0)*dlog(alpha_rho_K(i)/(alpha_K(i)*rho0(i))))
-                                !+&
-                                   ! alpha_K(i)*(ein_cv1(i)*(phi*ein_cv2(i)*dexp(phi*ein_cv2(i))/&
-                                   ! (dexp(phi*ein_cv2(i))-1d0)-dlog(dexp(phi*ein_cv2(i))-1.d0)))
-                                
-                                Pref_by_gamma = Pref_by_gamma + &
-                                (alpha_K(i)/(mg_a(i)+(gammas(i)-mg_a(i))*(alpha_K(i)*rho0(i)/alpha_rho_K(i))**mg_b(i)))*&
-                                (pi_infs(i)+(qvs(i)**2d0)*((1d0/rho0(i))-(alpha_K(i)/alpha_rho_K(i)))/&
-                                                    (1d0/rho0(i)-1.51d0*(1d0/rho0(i)-alpha_K(i)/alpha_rho_K(i))))
-                                eref_gamma = eref_gamma + &
-                                0.5d0*alpha_K(i)*(2d0*pi_infs(i)+(qvs(i)**2d0)*((1d0/rho0(i))-(alpha_K(i)/alpha_rho_K(i)))/&
-                                (1d0/rho0(i)-1.51d0*(1d0/rho0(i)-alpha_K(i)/alpha_rho_K(i))))*(alpha_rho_K(i)/(alpha_K(i)*rho0(i))-1)
-
-
+                                    alpha_K(i) =Poly_cons(advxb+i-1,q)
+                                    alpha_rho_K(i)=Poly_cons(i,q)
+                                    gamma_inv = gamma_inv + &
+                                    alpha_K(i)/(mg_a(i)+(gammas(i)-mg_a(i))*(alpha_K(i)*rho0(i)/alpha_rho_K(i))**mg_b(i))
+                                    
+                                    Pref_by_gamma = Pref_by_gamma + &
+                                    (alpha_K(i)/(mg_a(i)+(gammas(i)-mg_a(i))*(alpha_K(i)*rho0(i)/alpha_rho_K(i))**mg_b(i)))*&
+                                    (pi_infs(i)+(qvs(i)**2d0)*((1d0/rho0(i))-(alpha_K(i)/alpha_rho_K(i)))/&
+                                                        (1d0/rho0(i)-1.51d0*(1d0/rho0(i)-alpha_K(i)/alpha_rho_K(i))))
+                                    eref_gamma = eref_gamma + &
+                                    0.5d0*alpha_K(i)*(2d0*pi_infs(i)+(qvs(i)**2d0)*((1d0/rho0(i))-(alpha_K(i)/alpha_rho_K(i)))/&
+                                    (1d0/rho0(i)-1.51d0*(1d0/rho0(i)-alpha_K(i)/alpha_rho_K(i))))*(alpha_rho_K(i)/(alpha_K(i)*rho0(i))-1)
                                 end do
-                                !Poly_prim(E_idx,q) = (Poly_cons(E_idx,q)& 
-                                !        - dyn_pres(q) +Poly_cons(mgidxb+1,q)& 
-                                !    - Poly_cons(mgidxe,q))/Poly_cons(mgidxb,q)
+                                Poly_prim(E_idx,q) = (Poly_cons(E_idx,q)& 
+                                        - dyn_pres(q) +Poly_cons(mgidxb+1,q)& 
+                                    - Poly_cons(mgidxe,q))/Poly_cons(mgidxb,q)
 !                                Poly_prim(E_idx,q) = (Poly_cons(E_idx,q)& 
 !                                        - dyn_pres(q) + Pref_by_gamma &
 !                                    -density(q)*eref_gamma)/Poly_cons(mgidxb,q)
-                                Poly_prim(E_idx,q) = (Poly_cons(E_idx,q)& 
-                                        - dyn_pres(q) + Pref_by_gamma &
-                                    -eref_gamma)/Poly_cons(mgidxb,q)
+                               ! Poly_prim(E_idx,q) = (Poly_cons(E_idx,q)& 
+                               !         - dyn_pres(q) + Pref_by_gamma &
+                               !     -eref_gamma)/Poly_cons(mgidxb,q)
                                 !if (j == 8 .or. j==9 .or. j==7 .or. j==6) then
                                     !print *,j,alpha_rho_K(1)/(alpha_K(1)*rho0(1)),alpha_rho_K(2)/(alpha_K(2)*rho0(2))
                                     !print *,j,q, eref_gamma
@@ -1266,7 +1243,7 @@ contains
                                 !Calc primitive variables of MG EoS
                                 Poly_prim(mgidxb,q) = Poly_cons(mgidxb,q)
                                 Poly_prim(mgidxb+1, q) = Poly_cons(mgidxb+1,q)/Poly_cons(mgidxb,q)
-                                Poly_prim(mgidxe,q) = Poly_cons(mgidxe,q)/density(q)
+                                Poly_prim(mgidxe,q) = Poly_cons(advxb,q)*Poly_cons(mgidxe,q)/Poly_cons(1,q)
                                 !Calc Stress
                                 if (hypoplasticity) then
                                     do i = strxb,strxe
@@ -1555,19 +1532,20 @@ contains
                             alpha_K(i)*(pi_infs(i)+(qvs(i)**2d0)*((1d0/rho0(i))-(alpha_K(i)/alpha_rho_K(i)))/&
                                 (1d0/rho0(i)-1.51d0*(1d0/rho0(i)-alpha_K(i)/alpha_rho_K(i))))/&
                                 (mg_a(i)+(gammas(i)-mg_a(i))*(alpha_K(i)*rho0(i)/alpha_rho_K(i))**mg_b(i))
-                            eref_gamma = eref_gamma + &
-                            0.5d0*alpha_K(i)*(2d0*pi_infs(i)+(qvs(i)**2d0)*((1d0/rho0(i))-(alpha_K(i)/alpha_rho_K(i)))/&
-                                (1d0/rho0(i)-1.51d0*(1d0/rho0(i)-alpha_K(i)/alpha_rho_K(i))))*(alpha_rho_K(i)/(alpha_K(i)*rho0(i))-1)
+                            eref_gamma = eref_gamma + alpha_rho_K(i)*pi_infs(i)+&
+                                0.5d0*alpha_K(i)*(2d0*pi_infs(i)+(qvs(i)**2d0)*((1d0/rho0(i))-(alpha_K(i)/alpha_rho_K(i)))/&
+                                (1d0/rho0(i)-1.51d0*(1d0/rho0(i)-alpha_K(i)/alpha_rho_K(i))))*(alpha_rho_K(i)/(alpha_K(i)*rho0(i))-1d0)
                         end do
-                        q_prim_vf(mgidxb)%sf(j, k, l) = gamma_inv
+                        q_prim_vf(mgidxb)%sf(j, k, l)   = gamma_inv
                         q_prim_vf(mgidxb+1)%sf(j, k, l) = Pref_by_gamma/gamma_inv
-                        q_prim_vf(mgidxe)%sf(j, k, l) = eref_gamma/rho
+                        q_prim_vf(mgidxe)%sf(j, k, l)   = alpha_K(1)*eref_gamma/alpha_rho_K(1)
+                         
                         ! Energy corresponding to Mie-Gruneisen EOS 
                         q_cons_vf(E_idx)%sf(j, k, l)    = eref_gamma +&
                                                           gamma_inv*(q_prim_vf(E_idx)%sf(j,k,l))-Pref_by_gamma +& 
                                                           dyn_pres
                     
-!                        print *,q_cons_vf(E_idx)%sf(j, k, l), &
+!                        print *,q_cons_vf(E_idx)%sf(j, k, l),&
 !                            q_prim_vf(E_idx)%sf(j,k,l),&
 !                        Pref_by_gamma-rho*q_prim_vf(mgidxe)%sf(j, k, l)&
 !                        , Pref_by_gamma, rho*q_prim_vf(mgidxe)%sf(j,k,l)
