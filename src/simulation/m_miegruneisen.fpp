@@ -166,7 +166,7 @@ contains
                     ((qvs(i)*dummy)**2d0/(1d0/rho0(i)-1.51d0*(1d0/rho0(i)-dummy))**2d0+&
                     2d0*((qvs(i)*dummy)**2d0)*1.51*(1d0/rho0(i)-dummy)/&
                     (1d0/rho0(i)-1.51d0*(1d0/rho0(i)-dummy))**3d0)
-                                  
+                    
                 !rhs_mgidx3_mix = rhs_mgidx3_mix +&
                 !                 (1d0/q_prim_vf(mgidxb)%sf(k, l, q))*alpha_rho_K(i)*A_cv*((theta_E*phi_mix)**2d0)&
                 !                 *dexp(theta_E*phi_mix)/((dexp(theta_E*phi_mix)-1d0)**2d0)                 
@@ -175,7 +175,7 @@ contains
                                  *dexp(ein_cv2(i)*phi_mix)/((dexp(ein_cv2(i)*phi_mix)-1d0)**2d0)                 
              end do
              
-             rhs_mgidx2_mix = rhs_mgidx2_mix*q_prim_vf(mgidxb)%sf(k, l, q)
+          !  rhs_mgidx2_mix = rhs_mgidx2_mix*q_prim_vf(mgidxb)%sf(k, l, q)
              ! STEP 3.3: TODO MIRELYS
 !              if (G_K .gt. verysmall) then 
 !               print *, 'I got here D' 
@@ -198,10 +198,12 @@ contains
 !             in the overleaf
                 rhs_vf(mgidxb)%sf(k, l, q)   = rhs_vf(mgidxb)%sf(k, l, q)&
                                             + (q_prim_vf(mgidxb)%sf(k, l, q)*&
-                                            (alpha_K(1)*(1d0-mg_b(1))+alpha_K(2)*(1d0-mg_b(2))))*du_dx(k, l, q)
+                                               (1d0-mg_exp))*du_dx(k, l, q)
+                                           ! (alpha_K(1)*(1d0-mg_b(1))+alpha_K(2)*(1d0-mg_b(2))))*du_dx(k, l, q)
                 rhs_vf(mgidxb+1)%sf(k, l, q) = rhs_vf(mgidxb+1)%sf(k, l, q)+ &
-                                            (q_cons_vf(mgidxb+1)%sf(k, l, q)*&
-                                            (alpha_K(2)*(1d0-mg_b(2))+(alpha_K(1)*(1d0-mg_b(1)))) -&
+                                            (q_prim_vf(mgidxb+1)%sf(k, l, q)*&
+                                            (1d0-mg_exp)*q_prim_vf(mgidxb)%sf(k, l, q) - &
+                                           ! (alpha_K(2)*(1d0-mg_b(2))+(alpha_K(1)*(1d0-mg_b(1)))) -&
                                             q_prim_vf(mgidxb)%sf(k,l,q)*alpha_rho_K(1)*rhs_mgidx2_mix)&
                                             *du_dx(k, l, q)
                 !if (rhs_vf(mgidxe)%sf(k,l,q) /= rhs_vf(mgidxe)%sf(k,l,q)) then
@@ -209,8 +211,8 @@ contains
                 !end if
                 rhs_vf(mgidxe)%sf(k, l, q) = rhs_vf(mgidxe)%sf(k, l, q)&
                                             -0.5d0*(q_prim_vf(mgidxb+1)%sf(k,l,q)+&
-                                            alpha_K(1)*rhs_mgidx2_mix*(((alpha_rho_K(1)/alpha_K(1))**2d0)/rho0(1)&
-                                        - alpha_rho_K(1)/alpha_K(1)))*du_dx(k, l, q)
+                                            alpha_rho_K(1)*rhs_mgidx2_mix*((alpha_rho_K(1)/alpha_K(1))/rho0(1)&
+                                        - 1d0))*du_dx(k, l, q)
            end do
          !$acc end parallel loop
         else if (num_dims == 2) then 
