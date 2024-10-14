@@ -2366,9 +2366,9 @@ contains
                                 !P_REF FLUX
                                 pref_gam_L = qL_prim_rs${XYZ}$_vf(j, k, l, mgidxb+1)*qL_prim_rs${XYZ}$_vf(j, k, l, mgidxb)
                                 pref_gam_R = qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb+1)*qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb)
-                                flux_rs${XYZ}$_vf(j, k, l, mgidxb+1) = &
-                                             xi_M*pref_gam_L*(vel_L(idx1)+s_M*(xi_L-1d0))+&
-                                             xi_P*pref_gam_R*(vel_R(idx1)+s_P*(xi_R-1d0))
+                                
+                                flux_rs${XYZ}$_vf(j, k, l, mgidxb+1) = xi_M*pref_gam_L*(vel_L(idx1)+s_M*(xi_L-1d0))+&
+                                                                       xi_P*pref_gam_R*(vel_R(idx1)+s_P*(xi_R-1d0))
 
                                 !E_REF FLUX
                                 eref_L = qL_prim_rs${XYZ}$_vf(j, k, l, mgidxe)

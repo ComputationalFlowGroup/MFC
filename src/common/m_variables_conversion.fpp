@@ -1116,7 +1116,7 @@ contains
                         call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
                                                 qK_cons_vf(alf_idx)%sf(j, k, l), &
                                                 dyn_pres_K, pi_inf_K, gamma_K, rho_K, qv_K, pres)
-                    elseif ((num_dims == 1) .and. (model_eqns == 5)) then
+                    elseif ((num_dims == 2) .and. (model_eqns == 5)) then
                            !write code for polynomial reconstruction
                            do i = 1, sys_size
                                 do q = 1, 5
@@ -1265,7 +1265,14 @@ contains
                            end do
                            !print *,'Ene = ', qK_cons_vf(E_idx)%sf(j, k, l)
                            pres = qK_prim_vf(E_idx)%sf(j ,k, l)
-                           !print * ,'pres=',j, pres
+                           qK_prim_vf(mgidxb+1)%sf(j, k, l) = qK_cons_vf(mgidxb+1)%sf(j, k, l)/qK_cons_vf(mgidxb)%sf(j, k, l)
+                           !print * ,'pref=',j, qK_prim_vf(mgidxb+1)%sf(j,k,l)
+                           ! if (j==23 .or. j==24) then 
+                           !     print *,j,'pref=',&
+                           !     qK_prim_vf(mgidxb+1)%sf(j,k,l),&
+                           !     'pbygamma',qK_cons_vf(mgidxb+1)%sf(j,k,l),&
+                           !     'gamma_inv',qK_prim_vf(mgidxb)%sf(j,k,l)
+                           ! end if 
                            !Step 5: Once the code runs create function
                            !to calculate all the primitive variables
                            !Step 6: Do it for 2D
@@ -1280,7 +1287,7 @@ contains
                             qK_prim_vf(mgidxb)%sf(j, k, l)   = qK_cons_vf(mgidxb)%sf(j, k, l) 
                             qK_prim_vf(mgidxb+1)%sf(j, k, l) = qK_cons_vf(mgidxb+1)%sf(j, k, l)/&
                                                                qK_cons_vf(mgidxb)%sf(j, k, l)
-                            qK_prim_vf(mgidxe)%sf(j, k, l)   = qK_cons_vf(mgidxe)%sf(j, k, l)/rho_K
+                            qK_prim_vf(mgidxe)%sf(j, k, l)   = qK_cons_vf(mgidxe)%sf(j, k, l)
                            !print *, 'j',j,'rho_eref',qK_cons_vf(mgidxe)%sf(j,k,l)
                            ! if (pres /= pres)  then 
                            !     print *,'j',j,'pres',pres,'energy'
@@ -1530,28 +1537,30 @@ contains
                                ! (dexp(phi*ein_cv2(i))-1d0)-dlog(dexp(phi*ein_cv2(i))-1.d0)))
                             Pref_by_gamma = Pref_by_gamma + &
                             alpha_K(i)*(pi_infs(i)+(qvs(i)**2d0)*((1d0/rho0(i))-(alpha_K(i)/alpha_rho_K(i)))/&
-                                (1d0/rho0(i)-1.51d0*(1d0/rho0(i)-alpha_K(i)/alpha_rho_K(i))))/&
-                                (mg_a(i)+(gammas(i)-mg_a(i))*(alpha_K(i)*rho0(i)/alpha_rho_K(i))**mg_b(i))
+                                (1d0/rho0(i)-1.51d0*(1d0/rho0(i)-alpha_K(i)/alpha_rho_K(i))))
                             eref_gamma = eref_gamma + alpha_rho_K(i)*pi_infs(i)+&
                                 0.5d0*alpha_K(i)*(2d0*pi_infs(i)+(qvs(i)**2d0)*((1d0/rho0(i))-(alpha_K(i)/alpha_rho_K(i)))/&
                                 (1d0/rho0(i)-1.51d0*(1d0/rho0(i)-alpha_K(i)/alpha_rho_K(i))))*(alpha_rho_K(i)/(alpha_K(i)*rho0(i))-1d0)
                         end do
                         q_prim_vf(mgidxb)%sf(j, k, l)   = gamma_inv
-                        q_prim_vf(mgidxb+1)%sf(j, k, l) = Pref_by_gamma/gamma_inv
+                        q_prim_vf(mgidxb+1)%sf(j, k, l) = Pref_by_gamma
                         q_prim_vf(mgidxe)%sf(j, k, l)   = eref_gamma
                          
                         ! Energy corresponding to Mie-Gruneisen EOS 
                         q_cons_vf(E_idx)%sf(j, k, l)    = eref_gamma +&
-                                                          gamma_inv*(q_prim_vf(E_idx)%sf(j,k,l))-Pref_by_gamma +& 
+                                                          gamma_inv*(q_prim_vf(E_idx)%sf(j,k,l)-Pref_by_gamma)+& 
                                                           dyn_pres
-                    
-!                        print *,q_cons_vf(E_idx)%sf(j, k, l),&
-!                            q_prim_vf(E_idx)%sf(j,k,l),&
+                       ! if (j==23 .or. j==24) then
+                       !     print *,j,'pref=',&
+                       !     q_prim_vf(mgidxb+1)%sf(j,k,l),&
+                       !     'pbygamma',q_prim_vf(mgidxb+1)%sf(j,k,l)*gamma_inv,&
+                       !     'gamma_inv',gamma_inv
+                       ! end if 
 !                        Pref_by_gamma-rho*q_prim_vf(mgidxe)%sf(j, k, l)&
 !                        , Pref_by_gamma, rho*q_prim_vf(mgidxe)%sf(j,k,l)
 !                        print *,'Prefbygam',Pref_by_gamma,'rho_e_ref',rho*eref_gamma,'ene',q_cons_vf(E_idx)%sf(j,k,l),'dyn_pr',dyn_pres
-                        q_cons_vf(mgidxb)%sf(j, k, l)   = q_prim_vf(mgidxb)%sf(j, k, l)
-                        q_cons_vf(mgidxb+1)%sf(j, k, l) = Pref_by_gamma
+                        q_cons_vf(mgidxb)%sf(j, k, l)   = gamma_inv
+                        q_cons_vf(mgidxb+1)%sf(j, k, l) = Pref_by_gamma*gamma_inv
                         q_cons_vf(mgidxe)%sf(j, k, l)   = eref_gamma
                         !print *, alpha_rho_K(1),alpha_K(1),rho0(1),&
                         !alpha_rho_K(2), alpha_K(2), rho0(2)

@@ -163,8 +163,8 @@ contains
                 !                 dlog(alpha_rho_K(i)/(alpha_K(i)*rho0(i)))*alpha_rho_K(i)&
                 !                 *pi_infs(i)*(qvs(i)-2d0)/rho0(i)
                 rhs_mgidx2_mix = rhs_mgidx2_mix + &
-                    ((qvs(i)/rho0(i))**2d0/(1d0/rho0(i)-1.51d0*(1d0/rho0(i)-dummy))**2d0+&
-                    2d0*((qvs(i)/rho0(i))**2d0)*1.51*(1d0/rho0(i)-dummy)/&
+                    ((qvs(i)*dummy)**2d0/(1d0/rho0(i)-1.51d0*(1d0/rho0(i)-dummy))**2d0+&
+                    2d0*((qvs(i)*dummy)**2d0)*1.51*(1d0/rho0(i)-dummy)/&
                     (1d0/rho0(i)-1.51d0*(1d0/rho0(i)-dummy))**3d0)
                                   
                 !rhs_mgidx3_mix = rhs_mgidx3_mix +&
@@ -197,11 +197,12 @@ contains
 !             Compute the three rhs for the mie-gruneisen eos as written
 !             in the overleaf
                 rhs_vf(mgidxb)%sf(k, l, q)   = rhs_vf(mgidxb)%sf(k, l, q)&
-                                            + q_prim_vf(mgidxb)%sf(k, l, q)*&
-                                            (1d0- mg_exp)*du_dx(k, l, q)
-                rhs_vf(mgidxb+1)%sf(k, l, q) = rhs_vf(mgidxb+1)%sf(k, l, q) &
-                                            +(q_prim_vf(mgidxb)%sf(k, l, q))*&
-                                            ((1d0-mg_exp)*q_cons_vf(mgidxb+1)%sf(k, l, q) - rho_K*rhs_mgidx2_mix)&
+                                            + (q_prim_vf(mgidxb)%sf(k, l, q)*&
+                                            (alpha_K(1)*(1d0-mg_b(1))+alpha_K(2)*(1d0-mg_b(2))))*du_dx(k, l, q)
+                rhs_vf(mgidxb+1)%sf(k, l, q) = rhs_vf(mgidxb+1)%sf(k, l, q)+ &
+                                            (q_cons_vf(mgidxb+1)%sf(k, l, q)*&
+                                            (alpha_K(2)*(1d0-mg_b(2))+(alpha_K(1)*(1d0-mg_b(1)))) -&
+                                            q_prim_vf(mgidxb)%sf(k,l,q)*alpha_rho_K(1)*rhs_mgidx2_mix)&
                                             *du_dx(k, l, q)
                 !if (rhs_vf(mgidxe)%sf(k,l,q) /= rhs_vf(mgidxe)%sf(k,l,q)) then
                 !  print *,'k',k, rhs_vf(mgidxe)%sf(k, l, q)      
