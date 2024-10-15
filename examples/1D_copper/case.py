@@ -4,7 +4,7 @@ import json
 
 #Numerical setup
 c_l     = 3910
-Nx      = 64
+Nx      = 96
 cfl     = 0.1
 leng    = 1.
 dx      = leng/(Nx+1)
@@ -55,7 +55,7 @@ print(json.dumps({
                     'n'                            : 0,
                     'p'                            : 0,
                     'dt'                           : mydt,
-                    't_step_start'                 : 5032170,
+                    't_step_start'                 : 0,
                     't_step_stop'                  : int(Nt),
                     't_step_save'                  : int(math.ceil(Nt/100.)),
 		    # ==========================================================

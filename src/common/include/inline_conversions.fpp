@@ -18,7 +18,8 @@
 
         !Local variables used for computation only
         real(kind(0d0)) :: rho0_mix, gamma_inf, gamma0, mg_exp, A_cv,&
-                            theta_E, logrho, phi_mix, gamma_inv, pref1, dummy
+                            theta_E, logrho, phi_mix, gamma_inv, pref1,&
+                        dummy, pref_prime
         integer :: q, r
 
         if (alt_soundspeed) then
@@ -79,18 +80,18 @@
                
                dummy = adv(q)/alpha_rho_K(q) 
                pref1 = pi_infs(q) + &
-               qvs(q)*(1d0/rho0(q)-dummy)/(1d0/rho0(q)-1.51d0*(1d0/rho0(q)-dummy))**2d0
+               (qvs(q)**2d0)*(1d0/rho0(q)-dummy)/(1d0/rho0(q)-1.51d0*(1d0/rho0(q)-dummy))**2d0
                !pi_infs(q)*dlog(alpha_rho_K(q)/(adv(q)*rho0(q)))*(1d0+0.5d0*(qvs(q)-2d0)*dlog(alpha_rho_K(q)/(adv(q)*rho0(q))))
-
+                pref_prime = ((qvs(q)*dummy)**2d0)/(1d0/rho0(q)-1.51d0*(1d0/rho0(q)-dummy))**2d0+&
+                    2d0*((qvs(q)*dummy)**2d0)*1.51*(1d0/rho0(q)-dummy)/&
+                    (1d0/rho0(q)-1.51d0*(1d0/rho0(q)-dummy))**3d0 
                gamma_inv = &
                1d0/(mg_a(q)+(gammas(q)-mg_a(q))*(dummy*rho0(q))**mg_b(q)) 
                c = c + &
                (alpha_rho_K(q)/rho)*(dummy*pres*(gamma_inv + &
                     1d0-mg_b(q)*gamma_inv) + & !(mg_b(q)-1d0)*pref1*dummy*gamma_inv + &
-                    gamma_inv*((qvs(q)/rho0(q))**2d0/(1d0/rho0(q)-1.51d0*(1d0/rho0(q)-dummy))**2d0+&
-                    2d0*((qvs(q)/rho0(q))**2d0)*1.51*(1d0/rho0(q)-dummy)/&
-                    (1d0/rho0(q)-1.51d0*(1d0/rho0(q)-dummy))**3d0)-&
-                    (pref1*dummy)) !+&
+                    gamma_inv*(pref_prime)+mg_b(q)*gamma_inv*dummy*pref1-&
+                    0.5d0*(pref1*dummy+pref_prime*(1d0/(dummy*rho0(q))-1d0))) !+&
                    ! (1d0/gamma_inv)*ein_cv1(q)*((phi_mix*ein_cv2(q))**2d0)*dexp(phi_mix*ein_cv2(q))/&
                    ! (dexp(phi_mix*ein_cv2(q))-1.0d0)**2d0)
 !             c = c + pres*gamma*adv(q)*(1d0-mg_b(q))&
