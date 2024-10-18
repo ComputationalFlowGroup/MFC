@@ -216,7 +216,7 @@ contains
                                            ! (alpha_K(1)*(1d0-mg_b(1))+alpha_K(2)*(1d0-mg_b(2))))*du_dx(k, l, q)
                 rhs_vf(mgidxb+1)%sf(k, l, q) = rhs_vf(mgidxb+1)%sf(k, l, q)+ &
                                             (q_cons_vf(mgidxb+1)%sf(k,&
-                                        l,q)*(1d0+alpha_rho_K(1)*gamma_prime*q_prim_vf(mgidxb)%sf(k,l,q))-&
+                                        l,q)*(1d0+rho_K*gamma_prime*q_prim_vf(mgidxb)%sf(k,l,q))-&
                                            ! (alpha_K(2)*(1d0-mg_b(2))+(alpha_K(1)*(1d0-mg_b(1)))) -&
                                             q_prim_vf(mgidxb)%sf(k,l,q)*rho_K*rhs_mgidx2_mix)&
                                             *du_dx(k, l, q)
@@ -225,7 +225,7 @@ contains
                 !end if
                 rhs_vf(mgidxe)%sf(k, l, q) = rhs_vf(mgidxe)%sf(k, l, q)&
                                             -0.5d0*(q_prim_vf(mgidxb+1)%sf(k,l,q)+&
-                                            alpha_rho_K(1)*rhs_mgidx2_mix*((alpha_rho_K(1)/alpha_K(1))/rho0(1)&
+                                            rho_K*rhs_mgidx2_mix*((alpha_rho_K(1)/alpha_K(1))/rho0(1)&
                                         - 1d0))*du_dx(k, l, q)
            end do
          !$acc end parallel loop
@@ -268,6 +268,7 @@ contains
              theta_E        = 0d0
              gamma_inf      = 0d0
              gamma0         = 0d0
+             gamma_prime    = 0d0
              ! STEP 3.2 : Compute mixtures in preparation for pressure and temperature
              do i = 1, num_fluids
                 rho_K          = rho_K    + q_prim_vf(i)%sf(k, l, q) 
@@ -287,11 +288,17 @@ contains
                             (1d0- (rho0_mix/rho_K)**mg_exp))
  
              do i = 1, num_fluids
-                rhs_mgidx2_mix = rhs_mgidx2_mix +&
-                                 pi_infs(i)*alpha_K(i)*rho_K/rho0(i) +&
-                                 dlog(rho_K/rho0_mix)*alpha_K(i)&
-                                 *pi_infs(i)*(qvs(i)-2d0)*rho_K/rho0(i)
-               
+               ! rhs_mgidx2_mix = rhs_mgidx2_mix +&
+               !                  pi_infs(i)*alpha_K(i)*rho_K/rho0(i) +&
+               !                  dlog(rho_K/rho0_mix)*alpha_K(i)&
+               !                  *pi_infs(i)*(qvs(i)-2d0)*rho_K/rho0(i)
+                dummy = alpha_K(i)/alpha_rho_K(i) 
+                rhs_mgidx2_mix = rhs_mgidx2_mix + &
+                    (((qvs(i)*dummy)**2d0)/(1d0/rho0(i)-1.51d0*(1d0/rho0(i)-dummy))**2d0+&
+                    2d0*((qvs(i)*dummy)**2d0)*1.51*(1d0/rho0(i)-dummy)/&
+                    (1d0/rho0(i)-1.51d0*(1d0/rho0(i)-dummy))**3d0)
+                  gamma_prime = gamma_prime - &
+                  alpha_K(i)*(mg_a(i)+(gammas(i)-mg_b(i))*(rho0(i)*dummy)**(mg_b(i)))*mg_b(i)*dummy
                 rhs_mgidx3_mix = rhs_mgidx3_mix +&
                                  (1d0/q_prim_vf(mgidxb)%sf(k, l, q))*alpha_rho_K(i)*A_cv*((theta_E*phi_mix)**2d0)&
                                  *dexp(theta_E*phi_mix)/((dexp(theta_E*phi_mix)-1d0)**2d0)
@@ -317,12 +324,25 @@ contains
                 rhs_vf(mgidxb)%sf(k, l, q)   = rhs_vf(mgidxb)%sf(k, l, q)&
                                             + q_prim_vf(mgidxb)%sf(k, l, q)*&
                                             (1d0- mg_exp)*(du_dx(k, l, q)+ dv_dy(k, l, q))
-                rhs_vf(mgidxb+1)%sf(k, l, q) = rhs_vf(mgidxb+1)%sf(k, l, q) &
-                                            -(q_cons_vf(mgidxb+1)%sf(k, l, q)*mg_exp + rhs_mgidx2_mix)&
+                !rhs_vf(mgidxb+1)%sf(k, l, q) = rhs_vf(mgidxb+1)%sf(k, l, q) &
+                !                            -(q_cons_vf(mgidxb+1)%sf(k, l, q)*mg_exp + rhs_mgidx2_mix)&
+                !                            *(du_dx(k, l, q)+dv_dy(k, l, q))
+                !rhs_vf(mgidxe)%sf(k, l, q)   = rhs_vf(mgidxe)%sf(k, l, q)&
+                !                            +(-q_prim_vf(mgidxb+1)%sf(k, l, q)+&
+                !                            rhs_mgidx3_mix)*(du_dx(k, l, q)+ dv_dy(k, l, q))
+                rhs_vf(mgidxb+1)%sf(k, l, q) = rhs_vf(mgidxb+1)%sf(k, l, q)+ &
+                                            (q_cons_vf(mgidxb+1)%sf(k,&
+                                            l,q)*(1d0+rho_K*gamma_prime*q_prim_vf(mgidxb)%sf(k,l,q))-&
+                                           ! (alpha_K(2)*(1d0-mg_b(2))+(alpha_K(1)*(1d0-mg_b(1)))) -&
+                                            q_prim_vf(mgidxb)%sf(k,l,q)*rho_K*rhs_mgidx2_mix)&
                                             *(du_dx(k, l, q)+dv_dy(k, l, q))
-                rhs_vf(mgidxe)%sf(k, l, q)   = rhs_vf(mgidxe)%sf(k, l, q)&
-                                            +(-q_prim_vf(mgidxb+1)%sf(k, l, q)+&
-                                            rhs_mgidx3_mix)*(du_dx(k, l, q)+ dv_dy(k, l, q))
+                !if (rhs_vf(mgidxe)%sf(k,l,q) /= rhs_vf(mgidxe)%sf(k,l,q)) then
+                !  print *,'k',k, rhs_vf(mgidxe)%sf(k, l, q)      
+                !end if
+                rhs_vf(mgidxe)%sf(k, l, q) = rhs_vf(mgidxe)%sf(k, l, q)&
+                                            -0.5d0*(q_prim_vf(mgidxb+1)%sf(k,l,q)+&
+                                            rho_K*rhs_mgidx2_mix*((alpha_rho_K(1)/alpha_K(1))/rho0(1)&
+                                        - 1d0))*(du_dx(k, l, q)+dv_dy(k, l, q))
                                             
 !             end if
            end do

@@ -4,15 +4,15 @@ import json
 
 #Numerical setup
 c_l     = 3910
-Nx      = 96
-cfl     = 0.1
+Nx      = 512
+cfl     = 0.08
 leng    = 1.
 dx      = leng/(Nx+1)
 mydt    = cfl*dx/c_l
-Tend    = 8.00
+Tend    = 0.5
 Nt      = int(Tend/mydt)
 #mydt   = Tend/(1.*Nt)
-vel1    = 1.0
+vel0    = 0.0
 vel2    = 0.0
 theta_0 = 298.0
 
@@ -25,13 +25,13 @@ ein_cv2_suc   = 1125        #K
 G_suc         = 8.58e9      #Pa
 c_0           = 3910      #m/s
 theta_0_suc   = 298         #K
-gamma_suc     = 1.09
+gamma_suc     = 1.96
 
 #Initial condition
 theta_0           = 298             #K
-P_0               = 1.000E5           #Pa
+P_0               = 1.000E5         #Pa
 compression_ratio = 1.1             #rho/rho_0 in the shocked region
-rho_0             = 1580.5          #kg/m^3
+rho_0             = 8924            #kg/m^3
 
 tilde_P0          = P_0/(rho_0_suc*c_0*c_0)
 
@@ -41,6 +41,12 @@ Kt0_tilde = Kt0_suc/(rho_0_suc*c_0*c_0)
 A_tilde   = ein_cv1_suc*theta_0/(c_0*c_0)
 theta_E_tilde = ein_cv2_suc/theta_0
 rho_0_tilde = rho_0/rho_0_suc
+
+#RH jump condition for shocked state
+
+xi  = 1-1/tilde_rho
+ps  = tilde_P_0 + xi/((1-1.51*xi)*(1-1.51*xi))
+vel = vel0 + math.sqrt((ps-tilde_P_0)*xi)
 
 #phi = math.exp(gamma_suc*(1-1/tilde_rho))
 # Configuring case dictionary
@@ -62,7 +68,7 @@ print(json.dumps({
 		    # ==========================================================
 
                     # Simulation Algorithm Parameters ==========================
-                    'num_patches'                  : 2,
+                    'num_patches'                  : 3,
                     'model_eqns'                   : 5,
                     'alt_soundspeed'               : 'F',
                     'num_fluids'                   : 2,
@@ -79,8 +85,8 @@ print(json.dumps({
 		            'riemann_solver'               : 2,
                     'wave_speeds'                  : 1,
                     'avg_state'                    : 2,
-                    'bc_x%beg'                     : -1,
-                    'bc_x%end'                     : -1,
+                    'bc_x%beg'                     : -6,
+                    'bc_x%end'                     : -6,
                     # ==========================================================
 
                     # Hypoplasticity ================================
@@ -98,28 +104,41 @@ print(json.dumps({
                     'patch_icpp(1)%geometry'       : 1,
                     'patch_icpp(1)%x_centroid'     : 0.5,
                     'patch_icpp(1)%length_x'       : leng,
-                    'patch_icpp(1)%vel(1)'         : vel1,
-                   # 'patch_icpp(1)%vel(2)'        : vel2,
+                    'patch_icpp(1)%vel(1)'         : vel0,
+                   #'patch_icpp(1)%vel(2)'         : vel2,
                     'patch_icpp(1)%pres'           : tilde_P0,
                     'patch_icpp(1)%alpha_rho(1)'   : (1.0-1e-6),
                     'patch_icpp(1)%alpha_rho(2)'   : (1e-6)*(1.2/8924),
                     'patch_icpp(1)%alpha(1)'       : 1.0-1e-6,
                     'patch_icpp(1)%alpha(2)'       : 1e-6,
-                   # 'patch_icpp(1)%tau_e(1)'       : 1e-16,
+                   #'patch_icpp(1)%tau_e(1)'       : 1e-16,
                     # ==========================================================
 
-                    # Patch 2 R ================================================
+                    # Patch 2: Shocked state ===================================================
                     'patch_icpp(2)%geometry'       : 1,
-                    'patch_icpp(2)%x_centroid'     : 0.5,
-                    'patch_icpp(2)%length_x'       : 0.5,
+                    'patch_icpp(2)%x_centroid'     : 0.0625,
+                    'patch_icpp(2)%length_x'       : 0.125,
                     'patch_icpp(2)%alter_patch(1)' : 'T',
-                    'patch_icpp(2)%vel(1)'         : vel1,
+                    'patch_icpp(2)%vel(1)'         : vel,
+                    'patch_icpp(2)%pres'           : ps,
+                    'patch_icpp(2)%alpha_rho(1)'   : (1.E0-(1.E-06))*tilde_rho,
+                    'patch_icpp(2)%alpha_rho(2)'   : (1.E-06)*(1.2/8924),
+                    'patch_icpp(2)%alpha(1)'       : 1.E+00-(1.E-06),
+                    'patch_icpp(2)%alpha(2)'       : 1.E-06,
+                    # ==========================================================================
+
+                    # Patch 2 R ================================================
+                    'patch_icpp(3)%geometry'       : 1,
+                    'patch_icpp(3)%x_centroid'     : 0.5,
+                    'patch_icpp(3)%length_x'       : 0.5,
+                    'patch_icpp(3)%alter_patch(1)' : 'T',
+                    'patch_icpp(3)%vel(1)'         : vel0,
                    # 'patch_icpp(2)%vel(2)'        : vel2,
-                    'patch_icpp(2)%pres'           : tilde_P0,
-                    'patch_icpp(2)%alpha_rho(1)'   : 1e-6,
-                    'patch_icpp(2)%alpha_rho(2)'   : (1.E0-1.E-6)*1.2/8924,
-                    'patch_icpp(2)%alpha(1)'       : 1.E-6,
-                    'patch_icpp(2)%alpha(2)'       : 1.0-1.E-6,
+                    'patch_icpp(3)%pres'           : tilde_P0,
+                    'patch_icpp(3)%alpha_rho(1)'   : 1e-6,
+                    'patch_icpp(3)%alpha_rho(2)'   : (1.E0-1.E-6)*1.2/8924,
+                    'patch_icpp(3)%alpha(1)'       : 1.E-6,
+                    'patch_icpp(3)%alpha(2)'       : 1.0-1.E-6,
                    # 'patch_icpp(2)%tau_e(1)'       : 1e-16,
                     # ==========================================================
     # Fluids Physical Parameters ===============================================
