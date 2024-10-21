@@ -1,5 +1,5 @@
 #:def s_compute_speed_of_sound()
-    subroutine s_compute_speed_of_sound(pres, rho, gamma, pi_inf, H, adv, vel_sum, c, alpha_rho_K, pref)
+    subroutine s_compute_speed_of_sound(pres, rho, gamma, pi_inf, H, adv, vel_sum, c, alpha_rho_K)
 #ifdef CRAY_ACC_WAR
         !DIR$ INLINEALWAYS s_compute_speed_of_sound
 #else
@@ -11,15 +11,12 @@
         real(kind(0d0)), dimension(num_fluids), intent(IN) :: adv
         real(kind(0d0)), intent(IN) :: vel_sum
         real(kind(0d0)), optional, dimension(num_fluids), intent(IN) :: alpha_rho_K
-        real(kind(0d0)), optional, intent(IN) :: pref
         real(kind(0d0)), intent(OUT) :: c
         real(kind(0d0)) :: blkmod1, blkmod2
        
 
         !Local variables used for computation only
-        real(kind(0d0)) :: rho0_mix, gamma_inf, gamma0, mg_exp, A_cv,&
-                            theta_E, logrho, phi_mix, gamma_inv, pref1,&
-                        dummy, pref_prime
+        real(kind(0d0)) :: pref, gamma_inv, xi, rho_K, pref_prime, rho_eref_prime, gamma_avg
         integer :: q, r
 
         if (alt_soundspeed) then
@@ -53,69 +50,31 @@
 
         elseif (model_eqns == 5) then
             !Note that pref and gamma are primitive state
-            !variables for Mie-Gruneisen EoS and gamma = (1/Gamma(rho)) 
-            rho0_mix      = 0d0
-            gamma_inf     = 0d0
-            gamma0        = 0d0
-            mg_exp        = 0d0
-            A_cv          = 0d0
-            theta_E       = 0d0
-            c             = 0d0
+            !variables for Mie-Gruneisen EoS and gamma = (1/Gamma(rho))
+            gamma_avg = 0d0
+            c = 0d0
             do q = 1, num_fluids
-               rho0_mix = rho0_mix   + adv(q)*rho0(q)
-               gamma_inf= gamma_inf  + adv(q)*mg_a(q)
-               gamma0   = gamma0     + adv(q)*gammas(q)
-               mg_exp   = mg_exp     + adv(q)*mg_b(q)
-               A_cv     = A_cv       + adv(q)*ein_cv1(q)
-               theta_E  = theta_E    + adv(q)*ein_cv2(q)
-            end do
-            phi_mix = ((rho0_mix/rho)**(-gamma_inf))*&
-                        dexp((gamma0 - gamma_inf)*&
-                        (1d0- (rho0_mix/rho)**mg_exp))
-            
-            do q = 1, num_fluids
-               phi_mix = &
-               ((adv(q)*rho0(q)/alpha_rho_K(q))**(-mg_a(q)))*&
-               dexp((gammas(q)-mg_a(q))*(1.0d0-(adv(q)*rho0(q)/alpha_rho_K(q))**mg_b(q)))
+               rho_K = alpha_rho_K(q)/adv(q)
+
+               xi    = 1d0 - rho0(q)/rho_K
+
+               pref  = pi_infs(q) + &
+               rho0(q)*(mg_a(q)**2d0)*xi/(1d0-mg_b(q)*xi)**2d0
+                
+               gamma_avg = gamma_avg + adv(q)/(gammas(q)*(rho0(q)/rho_K)**qvps(q))
+                
+               gamma_inv = 1d0/(gammas(q)*(rho0(q)/rho_K)**qvps(q))
+
+               pref_prime = (mg_a(q)**2d0)*((1d0-xi)**2d0)*(1d0+mg_b(q)*xi)/(1d0-mg_b(q)*xi)**3d0
                
-               dummy = adv(q)/alpha_rho_K(q) 
-               pref1 = pi_infs(q) + &
-               (qvs(q)**2d0)*(1d0/rho0(q)-dummy)/(1d0/rho0(q)-1.51d0*(1d0/rho0(q)-dummy))**2d0
-               !pi_infs(q)*dlog(alpha_rho_K(q)/(adv(q)*rho0(q)))*(1d0+0.5d0*(qvs(q)-2d0)*dlog(alpha_rho_K(q)/(adv(q)*rho0(q))))
-                pref_prime = ((qvs(q)*dummy)**2d0)/(1d0/rho0(q)-1.51d0*(1d0/rho0(q)-dummy))**2d0+&
-                    2d0*((qvs(q)*dummy)**2d0)*1.51*(1d0/rho0(q)-dummy)/&
-                    (1d0/rho0(q)-1.51d0*(1d0/rho0(q)-dummy))**3d0 
-               gamma_inv = &
-               1d0/(mg_a(q)+(gammas(q)-mg_a(q))*(dummy*rho0(q))**mg_b(q)) 
+               rho_eref_prime = 0.5d0*(pref/rho_K + pref_prime*(rho_K/rho0(q)-1d0))
+
                c = c + &
-               (alpha_rho_K(q)/rho)*(dummy*pres*(gamma_inv + &
-                    1d0-mg_b(q)*gamma_inv) + & !(mg_b(q)-1d0)*pref1*dummy*gamma_inv + &
-                    gamma_inv*(pref_prime)+mg_b(q)*gamma_inv*dummy*pref1-&
-                    0.5d0*(pref1*dummy+pref_prime*(1d0/(dummy*rho0(q))-1d0))) !+&
-                   ! (1d0/gamma_inv)*ein_cv1(q)*((phi_mix*ein_cv2(q))**2d0)*dexp(phi_mix*ein_cv2(q))/&
-                   ! (dexp(phi_mix*ein_cv2(q))-1.0d0)**2d0)
-!             c = c + pres*gamma*adv(q)*(1d0-mg_b(q))&
-!                    + pref*gamma*adv(q)*mg_b(q)&
-!                    + gamma*alpha_rho_K(q)*pi_infs(q)/rho0(q)&
-!                    + gamma*dlog(rho/rho0_mix)*alpha_rho_K(q)*pi_infs(q)*(qvs(q)-2d0)/rho0(q)&
-!                    + (1d0/gamma)*alpha_rho_K(q)*A_cv*((theta_E*phi_mix)**2d0)&
-!                    *dexp(theta_E*phi_mix)/((dexp(theta_E*phi_mix)-1d0)**2d0)
-              
-               
+               (alpha_rho_K(q)/rho)*((1d0+(1d0-qvps(q))*gamma_inv)*(pres-pref)/rho_K &
+               +pref/rho_K + pref_prime*gamma_inv - rho_eref_prime)
+
             end do 
-!            c = c + pres - pref
-!            c = c/(rho*gamma)
-            c = c/gamma
-           
-           ! if (c<0d0) then
-          !   print *,&
-          !   'c',c,'rho1',alpha_rho_K(1)/adv(1),'rho2',alpha_rho_K(2)/adv(2),'sum',adv(1)+adv(2) 
-           ! end if
-!            print *,c
-           ! if (c /=c) then
-           !     print *,'c is NaN',c,alpha_rho_K(1),alpha_rho_K(2),adv(1),adv(2),pres 
-!          !      call s_MPI_abort()
-           ! end if
+            c = c/gamma_avg
         else           
             c = ((H - 5d-1*vel_sum)/gamma)
         end if

@@ -351,8 +351,8 @@ contains
                         call s_compute_speed_of_sound(pres, rho, gamma, pi_inf, H, alpha, vel_sum, c, alpha_rho)
                     else
                         call s_compute_speed_of_sound(pres, rho,&
-                        q_prim_vf(mgidxb)%sf(j, k, l), pi_inf, H, alpha,&
-                        vel_sum, c, alpha_rho, q_prim_vf(mgidxb+1)%sf(j, k, l))
+                        0d0, pi_inf, H, alpha,&
+                        vel_sum, c, alpha_rho)
                     end if
 
                     if (c /= c) then
@@ -1344,9 +1344,9 @@ contains
                             alpha_rho_K(s) = q_cons_vf(s)%sf(j-2, k, l)
                         end do
                         call s_compute_speed_of_sound(pres, rho, &
-                        q_cons_vf(mgidxb)%sf(j - 2, k, l), pi_inf,&
+                        0d0, pi_inf,&
                         q_cons_vf(E_idx)%sf(j - 2, k, l)+pres/rho, alpha,&
-                        0d0, c, alpha_rho_K, q_cons_vf(mgidxb+1)%sf(j - 2, k, l)/q_cons_vf(mgidxb)%sf(j - 2, k, l))
+                        0d0, c, alpha_rho_K)
                     end if
 
                     accel = accel_mag(j - 2, k, l)
@@ -1438,9 +1438,9 @@ contains
                                 alpha_rho_K(s) = q_cons_vf(s)%sf(j-2, k, l)
                             end do
                             call s_compute_speed_of_sound(pres, rho,&
-                            q_cons_vf(mgidxb)%sf(j - 2, k, l), pi_inf,&
+                            0d0, pi_inf,&
                             q_cons_vf(E_idx)%sf(j - 2, k, l)+ pres/rho,&
-                            alpha, 0d0, c, alpha_rho_K, q_cons_vf(mgidxb+1)%sf(j -2, k, l)/q_cons_vf(mgidxb)%sf(j-2, k, l))
+                            alpha, 0d0, c, alpha_rho_K)
                         end if
                     end if
                 end if

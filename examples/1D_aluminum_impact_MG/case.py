@@ -3,12 +3,13 @@ import math
 import json
 
 #Numerical setup
-Nx      = 399
+Nx      = 199
 dx      = 1./(1.*(Nx+1))
-
-Tend    = 6.4E-05
-Nt      = 200
-mydt    = Tend/(1.*Nt)
+c0      = 5328
+Tend    = 50.E-6
+cfl     = 0.1
+mydt    = cfl*dx/c0
+Nt      = int(Tend/mydt)
 
 # Configuring case dictionary
 print(json.dumps({
@@ -25,25 +26,25 @@ print(json.dumps({
                     'dt'                           : mydt,
                     't_step_start'                 : 0,
                     't_step_stop'                  : int(Nt),
-                    't_step_save'                  : int(math.ceil(Nt/1.)),
+                    't_step_save'                  : int(math.ceil(Nt/50.)),
 	        	    # ==========================================================
 
                     # Simulation Algorithm Parameters ==========================
                     'num_patches'                  : 2,
-                    'model_eqns'                   : 2,
+                    'model_eqns'                   : 5,
                     'alt_soundspeed'               : 'F',
                     'num_fluids'                   : 1,
         		    'mpp_lim'                      : 'F',
 		            'mixture_err'                  : 'F',
 		            'time_stepper'                 : 3,
-                    'weno_order'                   : 3,
+                    'weno_order'                   : 5,
                     'weno_eps'                     : 1.E-16,
         		    'weno_Re_flux'                 : 'F',
         	 	    'weno_avg'                     : 'F',
                     'mapped_weno'                  : 'F',
                     'null_weights'                 : 'F',
                     'mp_weno'                      : 'F',
-        		    'riemann_solver'               : 1,
+        		    'riemann_solver'               : 2,
                     'wave_speeds'                  : 1,
                     'avg_state'                    : 2,
                     'bc_x%beg'                     : -3,
@@ -51,42 +52,46 @@ print(json.dumps({
                     # ==========================================================
 
                     # Turning on Hypoelasticity ================================
-                    'hypoelasticity'               : 'T',
+                    'hypoplasticity'               : 'F',
                     # ==========================================================
 
                     # Formatted Database Files Structure Parameters ============
                     'format'                       : 1,
                     'precision'                    : 2,
                     'prim_vars_wrt'                :'T',
-		            'parallel_io'                  :'F',
+		            'parallel_io'                  :'T',
 	                # ==========================================================
 
         		    # Patch 1 L ================================================
                     'patch_icpp(1)%geometry'       : 1,
                     'patch_icpp(1)%x_centroid'     : 0.25,
                     'patch_icpp(1)%length_x'       : 0.5,
-                    'patch_icpp(1)%vel(1)'         : 10.0,
-                    'patch_icpp(1)%pres'           : 1E+05,
-                    'patch_icpp(1)%alpha_rho(1)'   : 1000,
+                    'patch_icpp(1)%vel(1)'         : 0.0,
+                    'patch_icpp(1)%pres'           : 7.93E9,
+                    'patch_icpp(1)%alpha_rho(1)'   : 4000,
                     'patch_icpp(1)%alpha(1)'       : 1.,
-                    'patch_icpp(1)%tau_e(1)'       : 0.0,
+                    #'patch_icpp(1)%tau_e(1)'       : 0.0,
                     # ==========================================================
 
                     # Patch 2 R ================================================
                     'patch_icpp(2)%geometry'       : 1,
                     'patch_icpp(2)%x_centroid'     : 0.75,
                     'patch_icpp(2)%length_x'       : 0.5,
-                    'patch_icpp(2)%vel(1)'         : -10.0,
-                    'patch_icpp(2)%pres'           : 1E+05,
-                    'patch_icpp(2)%alpha_rho(1)'   : 1000,
+                    'patch_icpp(2)%vel(1)'         : -2000,
+                    'patch_icpp(2)%pres'           : 0.0,
+                    'patch_icpp(2)%alpha_rho(1)'   : 2785,
                     'patch_icpp(2)%alpha(1)'       : 1.,
-                    'patch_icpp(2)%tau_e(1)'       : 0.0,
+                    #'patch_icpp(2)%tau_e(1)'       : 0.0,
                     # ==========================================================
 
                     # Fluids Physical Parameters ===============================
-                    'fluid_pp(1)%gamma'            : 1.E+00/(4.4E+00-1.E+00),
-                    'fluid_pp(1)%pi_inf'           : 4.4E+00*6.E+08/(4.4E+00 - 1.E+00),
-                    'fluid_pp(1)%G'                : 0.5E+09,
+                    'fluid_pp(1)%gamma'            : 2.0,               #Gruneisen constant
+                    'fluid_pp(1)%pi_inf'           : 0.0,               #p0
+                    'fluid_pp(1)%mg_a'             : 5328,              #c0
+                    'fluid_pp(1)%mg_b'             : 1.338,             #s
+                    'fluid_pp(1)%qv'               : 0.0,               #e0
+                    'fluid_pp(1)%qvp'              : 1.0,               #Gruneisen exponent
+                    'fluid_pp(1)%rho0'             : 2785,              #reference density
 	            # ==========================================================
 }))
 # ==============================================================================

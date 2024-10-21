@@ -924,9 +924,7 @@ contains
         real(kind(0d0)) :: flux_ene_e
         real(kind(0d0)) :: zcoef, pcorr !< low Mach number correction
         
-        real(kind(0d0)) :: rho0mix, rho_mix_MG_denominator, zeta_mix, &
-                           theta_E, gamma_rho_squared_denominator, rho_mix_ratio,&
-                           rho_mix_MG, phi_mix, pres_bar, rho_K_ratio, E_mg  
+        real(kind(0d0)) :: rho_K, gamma_inv, xi, pref, pref_over_gamma, rho_eref !< Mie-gruneisen energy calculation
         real(kind(0d0)) :: rho0_L, rho0_R, eref_L, eref_R, pref_gam_L, pref_gam_R
         real(kind(0d0)), dimension(num_fluids) :: G  !Adding this line here so that I can pass my optional argument alpha_rho_K to speed of sound subroutine
 
@@ -2187,26 +2185,75 @@ contains
 
                                 ! Energy corresponding to Mie-Gruneisen EOS
 
-                                E_L = qL_prim_rs${XYZ}$_vf(j, k, l, mgidxe) +&
-                                      (pres_L-qL_prim_rs${XYZ}$_vf(j, k, l, mgidxb+1))*&
-                                      qL_prim_rs${XYZ}$_vf(j, k, l, mgidxb) +& 
-                                      5d-1*rho_L*vel_L_rms 
-                                E_R = qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxe) +&
-                                      (pres_R - qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb + 1))*&
-                                      qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb) +&
-                                      5d-1*rho_R*vel_R_rms
+                                pref_over_gamma = 0d0;rho_eref = 0d0;gamma_inv = 0d0
+                                do i = 1, num_fluids
+                                    rho_K = alpha_rho_L(i)/alpha_L(i)
+                                   
+                                    gamma_inv = gamma_inv + &
+                                    alpha_L(i)/(gammas(i)*(rho0(i)/rho_K)**(qvps(i)))
+                                   
+                                    xi = 1d0 - rho0(i)/rho_K
+
+                                    pref = pi_infs(i)+rho0(i)*(mg_a(i)**2d0)*xi&
+                                    /(1d0-mg_b(i)*xi)**2d0
+
+                                    pref_over_gamma = pref_over_gamma + &
+                                    alpha_L(i)*pref/(gammas(i)*(rho0(i)/rho_K)**(qvps(i)))
+
+                                    rho_eref = rho_eref + alpha_rho_L(i)*qvs(i)+&
+                                    0.5d0*(pref+pi_infs(i))*(alpha_rho_L(i)/rho0(i)-alpha_L(i))    
+
+                                end do
+                                 
+                                ! Energy corresponding to Mie-Gruneisen EOS 
+                                E_L    = rho_eref + &
+                                gamma_inv*pres_L - pref_over_gamma + &
+                                5d-1*rho_L*vel_L_rms
+                                !E_L = qL_prim_rs${XYZ}$_vf(j, k, l, mgidxe) +&
+                                !      (pres_L-qL_prim_rs${XYZ}$_vf(j, k, l, mgidxb+1))*&
+                                !      qL_prim_rs${XYZ}$_vf(j, k, l, mgidxb) +& 
+                                !      5d-1*rho_L*vel_L_rms 
+                                !E_R = qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxe) +&
+                                !      (pres_R - qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb + 1))*&
+                                !      qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb) +&
+                                !      5d-1*rho_R*vel_R_rms
                                 
                                 H_L = 0d0; H_R = 0d0 
+                                
+                                pref_over_gamma = 0d0;rho_eref = 0d0;gamma_inv = 0d0
+                                do i = 1, num_fluids
+                                    rho_K = alpha_rho_R(i)/alpha_R(i)
+                                   
+                                    gamma_inv = gamma_inv + &
+                                    alpha_R(i)/(gammas(i)*(rho0(i)/rho_K)**(qvps(i)))
+                                   
+                                    xi = 1d0 - rho0(i)/rho_K
+
+                                    pref = pi_infs(i)+rho0(i)*(mg_a(i)**2d0)*xi&
+                                    /(1d0-mg_b(i)*xi)**2d0
+
+                                    pref_over_gamma = pref_over_gamma + &
+                                    alpha_R(i)*pref/(gammas(i)*(rho0(i)/rho_K)**(qvps(i)))
+
+                                    rho_eref = rho_eref + alpha_rho_R(i)*qvs(i)+&
+                                    0.5d0*(pref+pi_infs(i))*(alpha_rho_R(i)/rho0(i)-alpha_R(i))    
+
+                                end do
+                                 
+                                ! Energy corresponding to Mie-Gruneisen EOS 
+                                E_R    = rho_eref + &
+                                gamma_inv*pres_R - pref_over_gamma+& 
+                                5d-1*rho_R*vel_R_rms
 
                                 @:compute_average_state()
 
                                 call s_compute_speed_of_sound(pres_L,&
-                                     rho_L, qL_prim_rs${XYZ}$_vf(j, k, l, mgidxb), pi_inf_L, H_L, alpha_L, &
-                                     vel_L_rms, c_L, alpha_rho_L, qL_prim_rs${XYZ}$_vf(j, k, l, mgidxb+1))
+                                     rho_L, 0d0, pi_inf_L, H_L, alpha_L, &
+                                     vel_L_rms, c_L, alpha_rho_L)
 
                                 call s_compute_speed_of_sound(pres_R,&
-                                     rho_R, qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb), pi_inf_R, H_R, alpha_R, &
-                                     vel_R_rms, c_R, alpha_rho_R, qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb+1))
+                                     rho_R, 0d0, pi_inf_R, H_R, alpha_R, &
+                                     vel_R_rms, c_R, alpha_rho_R)
 
                                 !Added alpha_rho_R above instead of alpha_rho_avg because of alpha_R above instead of alpha_avg
 
@@ -2360,22 +2407,22 @@ contains
 
                                 flux_src_rs${XYZ}$_vf(j, k, l, advxb) = vel_src_rs${XYZ}$_vf(j, k, l, idx1)
                                 !GAMMA FLUX
-                                flux_rs${XYZ}$_vf(j, k, l, mgidxb) = &
-                                             xi_M*qL_prim_rs${XYZ}$_vf(j, k, l, mgidxb)*(vel_L(idx1)+s_M*(xi_L-1d0))+&
-                                             xi_P*qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb)*(vel_R(idx1)+s_P*(xi_R-1d0))
+                                !flux_rs${XYZ}$_vf(j, k, l, mgidxb) = &
+                                !             xi_M*qL_prim_rs${XYZ}$_vf(j, k, l, mgidxb)*(vel_L(idx1)+s_M*(xi_L-1d0))+&
+                                !             xi_P*qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb)*(vel_R(idx1)+s_P*(xi_R-1d0))
                                 !P_REF FLUX
-                                pref_gam_L = qL_prim_rs${XYZ}$_vf(j, k, l, mgidxb+1)*qL_prim_rs${XYZ}$_vf(j, k, l, mgidxb)
-                                pref_gam_R = qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb+1)*qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb)
+                                !pref_gam_L = qL_prim_rs${XYZ}$_vf(j, k, l, mgidxb+1)*qL_prim_rs${XYZ}$_vf(j, k, l, mgidxb)
+                                !pref_gam_R = qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb+1)*qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb)
                                 
-                                flux_rs${XYZ}$_vf(j, k, l, mgidxb+1) = xi_M*pref_gam_L*(vel_L(idx1)+s_M*(xi_L-1d0))+&
-                                                                       xi_P*pref_gam_R*(vel_R(idx1)+s_P*(xi_R-1d0))
+                                !flux_rs${XYZ}$_vf(j, k, l, mgidxb+1) = xi_M*pref_gam_L*(vel_L(idx1)+s_M*(xi_L-1d0))+&
+                                !                                       xi_P*pref_gam_R*(vel_R(idx1)+s_P*(xi_R-1d0))
 
                                 !E_REF FLUX
-                                eref_L = qL_prim_rs${XYZ}$_vf(j, k, l, mgidxe)
-                                eref_R = qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxe)
-                                flux_rs${XYZ}$_vf(j, k, l, mgidxe) = &
-                                             xi_M*eref_L*(vel_L(idx1)+s_M*(xi_L-1d0))+&
-                                             xi_P*eref_R*(vel_R(idx1)+s_P*(xi_R-1d0))
+                                !eref_L = qL_prim_rs${XYZ}$_vf(j, k, l, mgidxe)
+                                !eref_R = qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxe)
+                                !flux_rs${XYZ}$_vf(j, k, l, mgidxe) = &
+                                !             xi_M*eref_L*(vel_L(idx1)+s_M*(xi_L-1d0))+&
+                                !             xi_P*eref_R*(vel_R(idx1)+s_P*(xi_R-1d0))
 
                                 ! ISOTROPIC HARDENING FLUX.
                                 if (hypoplasticity) then

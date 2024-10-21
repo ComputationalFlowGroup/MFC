@@ -160,10 +160,6 @@ contains
             pres = ((energy - dyn_p)/(1.d0 - alf) - pi_inf - qv)/gamma
         else if (model_eqns == 5) then
             pres = (energy - dyn_p + pref_over_gamma - rho_eref)/gamma
-            !if (pres /= pres) then
-            !    print *,energy, dyn_p, pref_over_gamma, rho_eref, gamma
-            !end if
-
         else
             pres = (pref + pi_inf)* &
                    (energy/ &
@@ -947,17 +943,9 @@ contains
         real(kind(0d0)), dimension(num_fluids) :: alpha_K, alpha_rho_K
         real(kind(0d0)), dimension(2) :: Re_K
         real(kind(0d0)) :: rho_K, gamma_K, pi_inf_K, qv_K, dyn_pres_K
-        !WENO primitive reconstruction
-        real(kind(0d0)), dimension(sys_size, 3) :: P0, P2, Poly_cons, Poly_prim, omega
-        !P_1 is equal to the cell average for zeta_1, zeta_2, zeta 3
-        real(kind(0d0)), dimension(sys_size) :: P1, theta
-        real(kind(0d0)), dimension(5,5) :: A0, A2, M0, M2, M3, M4
-        real(kind(0d0)), dimension(3,5) :: zeta
-        real(kind(0d0)), dimension(5) :: q_stencil, beta, zeta1, zeta2, zeta3
-        real(kind(0d0)), dimension(3) :: omega_bar, density, weights, dyn_pres
-        real(kind(0d0)), dimension(4) :: mu_bar
-        real(kind(0d0)) :: r0, r1, r2, s0, s2, s3, s4, mu_0, theta_min, zeta_i = 0.5d0*dsqrt(3.0d0/5.0d0)
-        real(kind(0d0)) :: pres_var, phi, gamma_inv, eref_gamma, pref_by_gamma
+        real(kind(0d0)) :: gamma_inv, rho_eref, pref_over_gamma, xi
+        real(kind(0d0)) :: rhoK, pref, energy 
+
         #:if MFC_CASE_OPTIMIZATION
 #ifndef MFC_SIMULATION
             real(kind(0d0)), dimension(:), allocatable :: nRtmp
@@ -1058,30 +1046,42 @@ contains
                                                 qK_cons_vf(alf_idx)%sf(j, k, l), &
                                                 dyn_pres_K, pi_inf_K, gamma_K, rho_K, qv_K, pres)
                     else
-                            call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
-                                               0d0, dyn_pres_K, & 
-                                               pi_inf_K, qK_cons_vf(mgidxb)%sf(j, k, l), rho_K, qv_K, &
-                                               pres, 0d0, 0d0, 0d0,qK_cons_vf(mgidxb+1)%sf(j, k, l),&
-                                               qK_cons_vf(mgidxe)%sf(j, k, l))
-                                           
-                            qK_prim_vf(mgidxb)%sf(j, k, l)   = qK_cons_vf(mgidxb)%sf(j, k, l) 
-                            qK_prim_vf(mgidxb+1)%sf(j, k, l) = qK_cons_vf(mgidxb+1)%sf(j, k, l)/&
-                                                               qK_cons_vf(mgidxb)%sf(j, k, l)
-                            qK_prim_vf(mgidxe)%sf(j, k, l)   = qK_cons_vf(mgidxe)%sf(j, k, l)
-                           !print *, 'j',j,'rho_eref',qK_cons_vf(mgidxe)%sf(j,k,l)
-                           ! if (pres /= pres)  then 
-                           !     print *,'j',j,'pres',pres,'energy'
-                           !     call s_mpi_abort()
-                           ! end if
-                            !$acc loop seq
-                            do i=1, sys_size
-                               if (qK_cons_vf(i)%sf(j,k,l) /= qK_cons_vf(i)%sf(j,k,l)) then
-                                   print *, 'i',i,'j k',j,k,qK_cons_vf(i)%sf(j, k, l)
-                                   call s_mpi_abort()
-                               end if 
+                           ! call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
+                           !                    0d0, dyn_pres_K, & 
+                           !                    pi_inf_K, qK_cons_vf(mgidxb)%sf(j, k, l), rho_K, qv_K, &
+                           !                    pres, 0d0, 0d0, 0d0,qK_cons_vf(mgidxb+1)%sf(j, k, l),&
+                           !                    qK_cons_vf(mgidxe)%sf(j, k, l))
+                            
+                            pref_over_gamma = 0d0;rho_eref = 0d0;gamma_inv = 0d0
+                            energy = qK_cons_vf(E_idx)%sf(j, k, l)
+                            do i = 1, num_fluids
+                                rhoK = alpha_rho_K(i)/alpha_K(i)
+                               
+                                gamma_inv = gamma_inv + &
+                                alpha_K(i)/(gammas(i)*(rho0(i)/rhoK)**(qvps(i)))
+                               
+                                xi = 1d0 - rho0(i)/rhoK
+
+                                pref = pi_infs(i)+rho0(i)*(mg_a(i)**2d0)*xi&
+                                /(1d0-mg_b(i)*xi)**2d0
+
+                                pref_over_gamma = pref_over_gamma + &
+                                alpha_K(i)*pref/(gammas(i)*(rho0(i)/rhoK)**(qvps(i)))
+
+                                rho_eref = rho_eref + alpha_rho_K(i)*qvs(i)+&
+                                0.5d0*(pref+pi_infs(i))*(alpha_rho_K(i)/rho0(i)-alpha_K(i))    
                             end do
-                    end if
-                    if (model_eqns == 5) then
+                            pres = (pref_over_gamma + energy - dyn_pres_K - rho_eref)/gamma_inv
+                            qK_prim_vf(mgidxb)%sf(j, k, l)   = gamma_inv 
+                            qK_prim_vf(mgidxb+1)%sf(j, k, l) = pref_over_gamma/gamma_inv
+                            qK_prim_vf(mgidxe)%sf(j, k, l)   = rho_eref
+                            !$acc loop seq
+                           ! do i=1, sys_size
+                           !    if (qK_cons_vf(i)%sf(j,k,l) /= qK_cons_vf(i)%sf(j,k,l)) then
+                           !        print *, 'i',i,'j k',j,k,qK_cons_vf(i)%sf(j, k, l)
+                           !        call s_mpi_abort()
+                           !    end if 
+                           ! end do
 #ifdef MFC_POST_PROCESS                        
                         call s_compute_temperature(qK_prim_vf(E_idx)%sf(j, k, l), &
                                                    qK_prim_vf(mgidxb+1)%sf(j, k, l), &
@@ -1232,9 +1232,8 @@ contains
         real(kind(0d0)), dimension(num_fluids) :: alpha_K, alpha_rho_K
         
         !Local variables used for Mie-Gruneisen EOS
-        real(kind(0d0)) :: eref_gamma, Pref_by_gamma, gamma_inv, ein_cv1_mix,&
-            theta_E_mix , mg_a_mix, mg_b_mix, rho0_mix, &
-            log_rho_mix, phi
+        real(kind(0d0)) :: rho_eref, pref_over_gamma, gamma_inv
+        real(kind(0d0)) :: rho_K, xi, pref
 
         integer :: i, j, k, l !< Generic loop iterators      
 
@@ -1282,68 +1281,36 @@ contains
                                                        (1.d0 - q_prim_vf(alf_idx)%sf(j, k, l))* &
                                                        (gamma*q_prim_vf(E_idx)%sf(j, k, l) + pi_inf)
                     else if (model_eqns == 5) then
-                        ! Calculate the extra primitive variables
-                        !   ein_cv1_mix = 0d0
-                        !   theta_E_mix = 0d0
-                        !   mg_a_mix = 0d0
-                        !   mg_b_mix = 0d0
-                        !   rho0_mix = 0d0
-                        !do i=1, num_fluids
-                        !   mg_b_mix = mg_b_mix+q_prim_vf(adv_idx%beg-1+i)%sf(j, k, l)*mg_b(i)
-                        !   mg_a_mix = mg_a_mix+q_prim_vf(adv_idx%beg-1+i)%sf(j, k, l)*mg_a(i)
-                        !   rho0_mix = rho0_mix+q_prim_vf(adv_idx%beg-1+i)%sf(j, k, l)*rho0(i)
-                        !   ein_cv1_mix = ein_cv1_mix + q_prim_vf(adv_idx%beg -1 +i)%sf(j, k, l)*ein_cv1(i)
-                        !   theta_E_mix = theta_E_mix + q_prim_vf(adv_idx%beg-1+i)%sf(j, k, l)*ein_cv2(i)
-                        !end do
-                        !   log_rho_mix = dlog(rho/rho0_mix)
-                        !   phi = ((rho0_mix/rho)**(-mg_a_mix))*dexp((gamma-mg_a_mix)*(1d0-(rho0_mix/rho)**mg_b_mix))
-                        !   gamma_inv = 1d0/(mg_a_mix+(gamma-mg_a_mix)*(rho0_mix/rho)**mg_b_mix) 
-                        !   Pref = pi_inf*log_rho_mix*(1d0+0.5d0*(qv-2d0)*log_rho_mix)
-                        !   eref = 0.5d0*pi_inf*(log_rho_mix**2d0)*(1d0+(1/3d0)*(qv-2d0)*log_rho_mix)+&
-                        !   ein_cv1_mix*(phi*theta_E_mix*dexp(phi*theta_E_mix)/(dexp(phi*theta_E_mix)-1)-dlog(dexp(phi*theta_E_mix)-1))
-                        Pref_by_gamma = 0d0;eref_gamma = 0d0;gamma_inv = 0d0
+                        pref_over_gamma = 0d0;rho_eref = 0d0;gamma_inv = 0d0
                         do i = 1, num_fluids
+                            rho_K = alpha_rho_K(i)/alpha_K(i)
+                           
                             gamma_inv = gamma_inv + &
-                            alpha_K(i)/(mg_a(i)+(gammas(i)-mg_a(i))*(alpha_K(i)*rho0(i)/alpha_rho_K(i))**mg_b(i))
-                            !phi = (alpha_K(i)*rho0(i)/alpha_rho_K(i))**(-mg_a(i))*&
-                            !    dexp((gammas(i)-mg_a(i))*(1d0-(alpha_K(i)*rho0(i)/alpha_rho_K(i))**mg_b(i)))
-                            !Pref_by_gamma = Pref_by_gamma + alpha_K(i)*pi_infs(i)*dlog(alpha_rho_K(i)/(alpha_K(i)*rho0(i)))*&
-                            !    (1d0+0.5d0*(qvs(i)-2d0)*dlog(alpha_rho_K(i)/(alpha_K(i)*rho0(i))))/&
-                            !    (mg_a(i)+(gammas(i)-mg_a(i))*(alpha_K(i)*rho0(i)/alpha_rho_K(i))**mg_b(i))
-                            !eref_gamma = eref_gamma + &
-                            !    alpha_K(i)*0.5d0*(pi_infs(i)/rho0(i))*(dlog(alpha_rho_K(i)/(alpha_K(i)*rho0(i)))**2d0)*&
-                            !    (1d0+(1d0/3d0)*(qvs(i)-2d0)*dlog(alpha_rho_K(i)/(alpha_K(i)*rho0(i)))) !+&
-                               ! ein_cv1(i)*(phi*ein_cv2(i)*dexp(phi*ein_cv2(i))/&
-                               ! (dexp(phi*ein_cv2(i))-1d0)-dlog(dexp(phi*ein_cv2(i))-1.d0)))
-                            Pref_by_gamma = Pref_by_gamma + &
-                            alpha_K(i)*(pi_infs(i)+(qvs(i)**2d0)*((1d0/rho0(i))-(alpha_K(i)/alpha_rho_K(i)))/&
-                                (1d0/rho0(i)-1.51d0*(1d0/rho0(i)-alpha_K(i)/alpha_rho_K(i))))
-                            eref_gamma = eref_gamma + alpha_rho_K(i)*pi_infs(i)+&
-                                0.5d0*alpha_K(i)*(2d0*pi_infs(i)+(qvs(i)**2d0)*((1d0/rho0(i))-(alpha_K(i)/alpha_rho_K(i)))/&
-                                (1d0/rho0(i)-1.51d0*(1d0/rho0(i)-alpha_K(i)/alpha_rho_K(i))))*(alpha_rho_K(i)/(alpha_K(i)*rho0(i))-1d0)
+                            alpha_K(i)/(gammas(i)*(rho0(i)/rho_K)**(qvps(i)))
+                           
+                            xi = 1d0 - rho0(i)/rho_K
+
+                            pref = pi_infs(i)+rho0(i)*(mg_a(i)**2d0)*xi&
+                            /(1d0-mg_b(i)*xi)**2d0
+
+                            pref_over_gamma = pref_over_gamma + &
+                            alpha_K(i)*pref/(gammas(i)*(rho0(i)/rho_K)**(qvps(i)))
+
+                            rho_eref = rho_eref + alpha_rho_K(i)*qvs(i)+&
+                            0.5d0*(pref+pi_infs(i))*(alpha_rho_K(i)/rho0(i)-alpha_K(i))    
+
                         end do
                         q_prim_vf(mgidxb)%sf(j, k, l)   = gamma_inv
-                        q_prim_vf(mgidxb+1)%sf(j, k, l) = Pref_by_gamma
-                        q_prim_vf(mgidxe)%sf(j, k, l)   = eref_gamma
+                        q_prim_vf(mgidxb+1)%sf(j, k, l) = pref_over_gamma/gamma_inv
+                        q_prim_vf(mgidxe)%sf(j, k, l)   = rho_eref
                          
                         ! Energy corresponding to Mie-Gruneisen EOS 
-                        q_cons_vf(E_idx)%sf(j, k, l)    = eref_gamma +&
-                                                          gamma_inv*(q_prim_vf(E_idx)%sf(j,k,l)-Pref_by_gamma)+& 
+                        q_cons_vf(E_idx)%sf(j, k, l)    = rho_eref +&
+                                                          gamma_inv*q_prim_vf(E_idx)%sf(j,k,l)-pref_over_gamma+& 
                                                           dyn_pres
-                       ! if (j==23 .or. j==24) then
-                       !     print *,j,'pref=',&
-                       !     q_prim_vf(mgidxb+1)%sf(j,k,l),&
-                       !     'pbygamma',q_prim_vf(mgidxb+1)%sf(j,k,l)*gamma_inv,&
-                       !     'gamma_inv',gamma_inv
-                       ! end if 
-!                        Pref_by_gamma-rho*q_prim_vf(mgidxe)%sf(j, k, l)&
-!                        , Pref_by_gamma, rho*q_prim_vf(mgidxe)%sf(j,k,l)
-!                        print *,'Prefbygam',Pref_by_gamma,'rho_e_ref',rho*eref_gamma,'ene',q_cons_vf(E_idx)%sf(j,k,l),'dyn_pr',dyn_pres
                         q_cons_vf(mgidxb)%sf(j, k, l)   = gamma_inv
-                        q_cons_vf(mgidxb+1)%sf(j, k, l) = Pref_by_gamma*gamma_inv
-                        q_cons_vf(mgidxe)%sf(j, k, l)   = eref_gamma
-                        !print *, alpha_rho_K(1),alpha_K(1),rho0(1),&
-                        !alpha_rho_K(2), alpha_K(2), rho0(2)
+                        q_cons_vf(mgidxb+1)%sf(j, k, l) = pref_over_gamma
+                        q_cons_vf(mgidxe)%sf(j, k, l)   = rho_eref
                     else
                         !Tait EOS, no conserved energy variable
                         q_cons_vf(E_idx)%sf(j, k, l) = 0.d0
@@ -1385,7 +1352,7 @@ contains
                             nbub = 3d0*q_prim_vf(alf_idx)%sf(j, k, l)/(4d0*pi*R3tmp)
                         end if
 
-                        if (j == 0 .and. k == 0 .and. l == 0) print *, 'In convert, nbub:', nbub
+                    ! if (j == 0 .and. k == 0 .and. l == 0) print *, 'In convert, nbub:', nbub
 
                         do i = bub_idx%beg, bub_idx%end
                             q_cons_vf(i)%sf(j, k, l) = q_prim_vf(i)%sf(j, k, l)*nbub
