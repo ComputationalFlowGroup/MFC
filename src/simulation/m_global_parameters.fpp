@@ -446,12 +446,10 @@ module m_global_parameters
     integer :: intxb, intxe
     integer :: bubxb, bubxe
     integer :: strxb, strxe
-    integer :: mgidxb, mgidxe
     integer :: xibeg, xiend
     integer :: plasidx
 !$acc declare create(momxb, momxe, advxb, advxe, contxb, contxe, intxb, intxe, bubxb, bubxe, strxb, strxe)
 !$acc declare create(xibeg,xiend)
-!$acc declare create(mgidxb,mgidxe)
 !$acc declare create(plasidx)
 
 #ifdef CRAY_ACC_WAR
@@ -996,9 +994,7 @@ contains
               E_idx = mom_idx%end + 1
               adv_idx%beg = E_idx + 1
               adv_idx%end = E_idx + num_fluids
-              mgidxb = adv_idx%end + 1
-              mgidxe = adv_idx%end + 3
-              sys_size = mgidxe
+              sys_size = adv_idx%end
 
               if (hypoplasticity) then
                 elasticity = .true.
@@ -1161,7 +1157,6 @@ contains
         xiend = xi_idx%end
 
         !$acc update device(momxb, momxe, advxb, advxe, contxb, contxe, bubxb, bubxe, intxb, intxe, sys_size, buff_size, E_idx, alf_idx, n_idx, adv_n, adap_dt, pi_fac, strxb, strxe, plasidx, b_size, xibeg, xiend, tensor_size)
-        !$acc update device(mgidxb,mgidxe)
         !$acc update device(m, n, p)
 
         !$acc update device(alt_soundspeed, acoustic_source, num_source)

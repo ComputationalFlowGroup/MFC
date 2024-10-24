@@ -1177,7 +1177,7 @@ contains
         real(kind(0d0)), dimension(6) :: tau_e
         real(kind(0d0)) :: G
         real(kind(0d0)) :: dyn_p
-        real(kind(0d0)), dimension(2) :: alpha_rho_K
+        real(kind(0d0)), dimension(num_fluids) :: alpha_K, alpha_rho_K
 
         integer :: i, j, k, l, s, q !< Generic loop iterator
 
@@ -1266,15 +1266,16 @@ contains
                             dyn_p, pi_inf, gamma, rho, qv, pres, &
                             q_cons_vf(stress_idx%beg)%sf(j - 2, k, l), &
                             q_cons_vf(mom_idx%beg)%sf(j - 2, k, l), G)
-                    else if (model_eqns == 5) then   
-                        call s_compute_pressure( &
-                            q_cons_vf(E_idx)%sf(j - 2, k, l), &
-                            q_cons_vf(alf_idx)%sf(j - 2, k, l), &
-                            dyn_p, pi_inf, q_cons_vf(mgidxb)%sf(j - 2, k, l), rho, qv, pres, &
-                            q_cons_vf(stress_idx%beg)%sf(j - 2, k, l), &
-                            q_cons_vf(mom_idx%beg)%sf(j - 2, k, l), G, &
-                            q_cons_vf(mgidxb+1)%sf(j-2, k, l), &
-                            q_cons_vf(mgidxe)%sf(j-2, k, l))
+                    else if (model_eqns == 5) then    
+                        do s = contxb, contxe
+                            alpha_K(s) = q_cons_vf(advxb + s - 1)%sf(j - 2, k, l)
+                            alpha_rho_K(s) = q_cons_vf(s)%sf(j - 2,k, l)
+                        end do
+                        call s_compute_pressure(q_cons_vf(E_idx)%sf(j - 2, k, l), &
+                                               0d0, dyn_p, & 
+                                               pi_inf, 0d0, rho, qv, &
+                                               pres, 0d0, 0d0, 0d0, &
+                                               alpha_K, alpha_rho_K)
                     else
                         call s_compute_pressure( &
                             q_cons_vf(1)%sf(j - 2, k, l), &
@@ -1386,14 +1387,15 @@ contains
                                 q_cons_vf(stress_idx%beg)%sf(j - 2, k - 2, l), &
                                 q_cons_vf(mom_idx%beg)%sf(j - 2, k - 2, l), G)
                         else if (model_eqns == 5) then
-                            call s_compute_pressure( &
-                                q_cons_vf(E_idx)%sf(j - 2, k - 2, l), &
-                                q_cons_vf(alf_idx)%sf(j - 2, k - 2, l), &
-                                dyn_p, pi_inf, gamma, rho, qv, pres, &
-                                q_cons_vf(stress_idx%beg)%sf(j - 2, k - 2, l), &
-                                q_cons_vf(mom_idx%beg)%sf(j - 2, k - 2, &
-                                l), G, q_cons_vf(mgidxb+1)%sf(j-2, k, l), &
-                                q_cons_vf(mgidxe)%sf(j-2, k, l))
+                            do s = contxb, contxe
+                                alpha_K(s) = q_cons_vf(advxb + s - 1)%sf(j - 2, k - 2, l)
+                                alpha_rho_K(s) = q_cons_vf(s)%sf(j - 2,k - 2, l)
+                            end do
+                            call s_compute_pressure(q_cons_vf(E_idx)%sf(j - 2, k - 2, l), &
+                                                   0d0, dyn_p, & 
+                                                   pi_inf, 0d0, rho, qv, &
+                                                   pres, 0d0, 0d0, 0d0, &
+                                                   alpha_K, alpha_rho_K)
                         else
                             call s_compute_pressure(q_cons_vf(E_idx)%sf(j - 2, k - 2, l), &
                                                     q_cons_vf(alf_idx)%sf(j - 2, k - 2, l), &

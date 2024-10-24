@@ -50,8 +50,6 @@ module m_start_up
 
     use m_hypoplastic
 
-    use m_miegruneisen
-
     use m_hyperelastic
 
     use m_phase_change          !< Phase-change module
@@ -1322,7 +1320,6 @@ contains
         if (hypoelasticity) call s_initialize_hypoelastic_module()
         if (hyperelasticity) call s_initialize_hyperelastic_module()
         if (hypoplasticity) call s_initialize_hypoplastic_module()
-        if (model_eqns == 5) call s_initialize_miegruneisen_module()
 
     end subroutine s_initialize_modules
 

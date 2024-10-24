@@ -39,11 +39,11 @@ print(json.dumps({
 		            'time_stepper'                 : 3,
                     'weno_order'                   : 5,
                     'weno_eps'                     : 1.E-16,
-        		    'weno_Re_flux'                 : 'F',
-        	 	    'weno_avg'                     : 'F',
+        		    'weno_Re_flux'                 : 'T',
+        	 	    'weno_avg'                     : 'T',
                     'mapped_weno'                  : 'F',
-                    'null_weights'                 : 'F',
-                    'mp_weno'                      : 'F',
+                    'null_weights'                 : 'T',
+                    'mp_weno'                      : 'T',
         		    'riemann_solver'               : 2,
                     'wave_speeds'                  : 1,
                     'avg_state'                    : 2,
@@ -92,6 +92,7 @@ print(json.dumps({
                     'fluid_pp(1)%qv'               : 0.0,               #e0
                     'fluid_pp(1)%qvp'              : 1.0,               #Gruneisen exponent
                     'fluid_pp(1)%rho0'             : 2785,              #reference density
-	            # ==========================================================
+                    'fluid_pp(1)%cv'               : 903,
+# ==========================================================
 }))
 # ==============================================================================

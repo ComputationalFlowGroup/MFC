@@ -21,7 +21,7 @@ Nx =1199.
 dx = 0.25/Nx #8.3e-6
 
 time_end = 0.005#50us
-cfl = 0.25
+cfl = 0.1
 
 dt = cfl * dx/c_l #5.3E-9
 Nt = int(time_end/dt)#10000
@@ -34,7 +34,7 @@ print(json.dumps({
     # Computational Domain Parameters ==========================
     'x_domain%beg'                 :  -4*D,
     'x_domain%end'                 :  20*D,
-    'y_domain%beg'                 :  0,
+    'y_domain%beg'                 : -6*D,
     'y_domain%end'                 :  6*D,
     'stretch_y'                    : 'T',
     'a_y'                          : 3.67,
@@ -47,7 +47,7 @@ print(json.dumps({
     'dt'                           : dt,
     't_step_start'                 : 0,
     't_step_stop'                  : Nt,
-    't_step_save'                  : Nt, #math.ceil(Nt/100),
+    't_step_save'                  : math.ceil(Nt/100),
     # ==========================================================
 
     # Simulation Algorithm Parameters ==========================
@@ -68,10 +68,10 @@ print(json.dumps({
     'riemann_solver'               : 2,
     'wave_speeds'                  : 1,
     'avg_state'                    : 2,
-    'bc_x%beg'                     : -6,#11,
-    'bc_x%end'                     : -6,#12
-    'bc_y%beg'                     : -2,
-    'bc_y%end'                     : -3,
+    'bc_x%beg'                     : -3,#11,was -6
+    'bc_x%end'                     : -3,#12, was -6
+    'bc_y%beg'                     : -3,#was -2
+    'bc_y%end'                     : -3,#was -3
     # ==========================================================
 
     # Formatted Database Files Structure Parameters ============
@@ -84,9 +84,9 @@ print(json.dumps({
     # Patch 1: Background  ============================
     'patch_icpp(1)%geometry'       : 3,
     'patch_icpp(1)%x_centroid'     : 8*D,
-    'patch_icpp(1)%y_centroid'     : 6*D,
+    'patch_icpp(1)%y_centroid'     : 0, #6*D,
     'patch_icpp(1)%length_x'       : 24*D,
-    'patch_icpp(1)%length_y'       : 12*D,
+    'patch_icpp(1)%length_y'       : 24*D,
     'patch_icpp(1)%vel(1)'         : 0.,
     'patch_icpp(1)%vel(2)'         : 0.E+00,
     'patch_icpp(1)%pres'           : 101325.,
@@ -100,9 +100,9 @@ print(json.dumps({
     'patch_icpp(2)%geometry'       : 3,
     'patch_icpp(2)%alter_patch(1)' : 'T',
     'patch_icpp(2)%x_centroid'     : -2.5*D,
-    'patch_icpp(2)%y_centroid'     : 6*D,
+    'patch_icpp(2)%y_centroid'     : 0, #6*D,
     'patch_icpp(2)%length_x'       : 3*D,
-    'patch_icpp(2)%length_y'       : 12*D,
+    'patch_icpp(2)%length_y'       : 24*D,
     'patch_icpp(2)%vel(1)'         : vel,
     'patch_icpp(2)%vel(2)'         : 0.E+00,
     'patch_icpp(2)%pres'           : ps,
@@ -116,7 +116,7 @@ print(json.dumps({
     'patch_icpp(3)%geometry'       : 2,
     'patch_icpp(3)%x_centroid'     : 0,
     'patch_icpp(3)%y_centroid'     : 0,
-    'patch_icpp(3)%radius'          : D/2,
+    'patch_icpp(3)%radius'          : D,
     'patch_icpp(3)%alter_patch(1)' : 'T',
     'patch_icpp(3)%vel(1)'         : 0.,
     'patch_icpp(3)%vel(2)'         : 0.E+00,

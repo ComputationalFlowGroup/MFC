@@ -17,7 +17,7 @@ dx = leng/Nx
 time_end = 5*leng/vel
 cfl = 0.1
 
-dt = cfl * dx/c_l 
+dt = cfl * dx/c_l
 Nt = int(time_end/dt)
 
 # Configuring case dictionary
@@ -37,7 +37,7 @@ print(json.dumps({
     'dt'                           : dt,
     't_step_start'                 : 0,
     't_step_stop'                  : Nt,
-    't_step_save'                  : int(Nt/20.),
+    't_step_save'                  : int(Nt/200.),
     # ==========================================================================
 
     # Simulation Algorithm Parameters ==========================================
@@ -50,7 +50,7 @@ print(json.dumps({
     'time_stepper'                 : 3,
     'weno_order'                   : 5,
     'weno_eps'                     : 1.E-16,
-    'weno_Re_flux'                 : 'F',  
+    'weno_Re_flux'                 : 'F',
     'weno_avg'                     : 'F',
     'mapped_weno'                  : 'T',
     'null_weights'                 : 'F',
@@ -58,10 +58,10 @@ print(json.dumps({
     'riemann_solver'               : 2,
     'wave_speeds'                  : 1,
     'avg_state'                    : 2,
-    'bc_x%beg'                     : -6,
-    'bc_x%end'                     : -6,
-    'bc_y%beg'                     : -6,
-    'bc_y%end'                     : -6,
+    'bc_x%beg'                     : -3,
+    'bc_x%end'                     : -3,
+    'bc_y%beg'                     : -3,
+    'bc_y%end'                     : -3,
     # ==========================================================================
 
     # Formatted Database Files Structure Parameters ============================
@@ -69,8 +69,10 @@ print(json.dumps({
     'precision'                    : 2,
     'prim_vars_wrt'                :'T',
     'parallel_io'                  :'T',
+    'fd_order'                     : 1,
+    'schlieren_wrt'                :'T',
     # ==========================================================================
-                                                                
+
     # Patch 1: Background ======================================================
     'patch_icpp(1)%geometry'       : 3,
     'patch_icpp(1)%x_centroid'     : 0.,

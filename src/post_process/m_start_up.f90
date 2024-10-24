@@ -290,38 +290,6 @@ contains
             end if
         end do
         ! ----------------------------------------------------------------------
-        ! Adding the three extra primitive variables for model eqn 5 
-        if (model_eqns==5 .and. prim_vars_wrt) then
-           q_sf = q_prim_vf(mgidxb)%sf( &
-                  -offset_x%beg:m + offset_x%end, &
-                  -offset_y%beg:n + offset_y%end, &
-                  -offset_z%beg:p + offset_z%end)
-
-           write (varname, '(A)') 'gamma_inv'
-           call s_write_variable_to_formatted_database_file(varname, t_step)
-
-           varname(:) = ' '
-
-           q_sf = q_prim_vf(mgidxb+1)%sf( &
-                  -offset_x%beg:m + offset_x%end, &
-                  -offset_y%beg:n + offset_y%end, &
-                  -offset_z%beg:p + offset_z%end)
-
-           write (varname, '(A)') 'P_ref'
-           call s_write_variable_to_formatted_database_file(varname, t_step)
-
-           varname(:) = ' '
-
-           q_sf = q_prim_vf(mgidxe)%sf( &
-                  -offset_x%beg:m + offset_x%end, &
-                  -offset_y%beg:n + offset_y%end, &
-                  -offset_z%beg:p + offset_z%end)
-
-           write (varname, '(A)') 'e_ref'
-           call s_write_variable_to_formatted_database_file(varname, t_step)
-
-           varname(:) = ' '
-        end if
         ! Adding the temperature to the formatted database file -------------------
         if (model_eqns==5 .and. prim_vars_wrt) then
            q_sf = q_prim_vf(plasidx+1)%sf( &

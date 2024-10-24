@@ -2209,14 +2209,6 @@ contains
                                 E_L    = rho_eref + &
                                 gamma_inv*pres_L - pref_over_gamma + &
                                 5d-1*rho_L*vel_L_rms
-                                !E_L = qL_prim_rs${XYZ}$_vf(j, k, l, mgidxe) +&
-                                !      (pres_L-qL_prim_rs${XYZ}$_vf(j, k, l, mgidxb+1))*&
-                                !      qL_prim_rs${XYZ}$_vf(j, k, l, mgidxb) +& 
-                                !      5d-1*rho_L*vel_L_rms 
-                                !E_R = qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxe) +&
-                                !      (pres_R - qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb + 1))*&
-                                !      qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb) +&
-                                !      5d-1*rho_R*vel_R_rms
                                 
                                 H_L = 0d0; H_R = 0d0 
                                 
@@ -2406,24 +2398,7 @@ contains
                                 end do
 
                                 flux_src_rs${XYZ}$_vf(j, k, l, advxb) = vel_src_rs${XYZ}$_vf(j, k, l, idx1)
-                                !GAMMA FLUX
-                                !flux_rs${XYZ}$_vf(j, k, l, mgidxb) = &
-                                !             xi_M*qL_prim_rs${XYZ}$_vf(j, k, l, mgidxb)*(vel_L(idx1)+s_M*(xi_L-1d0))+&
-                                !             xi_P*qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb)*(vel_R(idx1)+s_P*(xi_R-1d0))
-                                !P_REF FLUX
-                                !pref_gam_L = qL_prim_rs${XYZ}$_vf(j, k, l, mgidxb+1)*qL_prim_rs${XYZ}$_vf(j, k, l, mgidxb)
-                                !pref_gam_R = qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb+1)*qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxb)
                                 
-                                !flux_rs${XYZ}$_vf(j, k, l, mgidxb+1) = xi_M*pref_gam_L*(vel_L(idx1)+s_M*(xi_L-1d0))+&
-                                !                                       xi_P*pref_gam_R*(vel_R(idx1)+s_P*(xi_R-1d0))
-
-                                !E_REF FLUX
-                                !eref_L = qL_prim_rs${XYZ}$_vf(j, k, l, mgidxe)
-                                !eref_R = qR_prim_rs${XYZ}$_vf(j+1, k, l, mgidxe)
-                                !flux_rs${XYZ}$_vf(j, k, l, mgidxe) = &
-                                !             xi_M*eref_L*(vel_L(idx1)+s_M*(xi_L-1d0))+&
-                                !             xi_P*eref_R*(vel_R(idx1)+s_P*(xi_R-1d0))
-
                                 ! ISOTROPIC HARDENING FLUX.
                                 if (hypoplasticity) then
                                    xi_d_L = qL_prim_rs${XYZ}$_vf(j, k, l, plasidx)

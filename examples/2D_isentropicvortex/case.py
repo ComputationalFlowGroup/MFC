@@ -49,8 +49,8 @@ print(json.dumps({
     'x_domain%end'                 : 3,
     'y_domain%beg'                 : -3,
     'y_domain%end'                 : 3,
-    'stretch_x'                    : True,
-    'stretch_y'                    : True,
+    'stretch_x'                    : 'T',
+    'stretch_y'                    : 'T',
     'loops_x'                      : 2,
     'loops_y'                      : 2,
     'a_x'                          : 1.03,
@@ -97,6 +97,7 @@ print(json.dumps({
     'parallel_io'                  :'F',
     'omega_wrt(3)'                 :'T',
     'fd_order'                     : 2,
+   # 'schlieren_wrt'                :'T',
     # ==========================================================================
 
     # Patch 1 ==================================================================

@@ -137,7 +137,7 @@ contains
         !! @param alpha_K volume fraction of mixture
         !! @param alpha_rho_K conservative volume fraction of mixture
     subroutine s_compute_pressure(energy, alf, dyn_p, pi_inf, gamma, &
-        rho, qv, pres, stress, mom, G, pref_over_gamma, rho_eref)
+        rho, qv, pres, stress, mom, G, alpha_K, alpha_rho_K)
         !$acc routine seq
 
         real(kind(0d0)), intent(in) :: energy, alf
@@ -145,9 +145,10 @@ contains
         real(kind(0d0)), intent(in) :: pi_inf, gamma, rho, qv
         real(kind(0d0)), intent(out) :: pres
         real(kind(0d0)), intent(in), optional :: stress, mom, G
-        real(kind(0d0)), intent(in), optional :: pref_over_gamma, rho_eref
-
+        real(kind(0d0)), dimension(num_fluids), intent(in), optional  :: alpha_K, alpha_rho_K
         real(kind(0d0)) :: E_e, pres_sg
+        real(kind(0d0)) :: pref_over_gamma, rho_eref, gamma_inv
+        real(kind(0d0)) :: xi, rhoK, pref
         integer :: s !< Generic loop iterator
 
         ! Depending on model_eqns and bubbles, the appropriate procedure
@@ -159,7 +160,25 @@ contains
         else if ((model_eqns /= 4 .and. model_eqns /=5) .and. bubbles) then
             pres = ((energy - dyn_p)/(1.d0 - alf) - pi_inf - qv)/gamma
         else if (model_eqns == 5) then
-            pres = (energy - dyn_p + pref_over_gamma - rho_eref)/gamma
+            pref_over_gamma = 0d0;rho_eref = 0d0;gamma_inv = 0d0
+            do s = 1, num_fluids
+                rhoK = alpha_rho_K(s)/alpha_K(s)
+               
+                gamma_inv = gamma_inv + &
+                alpha_K(s)/(gammas(s)*(rho0(s)/rhoK)**(qvps(s)))
+               
+                xi = 1d0 - rho0(s)/rhoK
+
+                pref = pi_infs(s)+rho0(s)*(mg_a(s)**2d0)*xi&
+                /(1d0-mg_b(s)*xi)**2d0
+
+                pref_over_gamma = pref_over_gamma + &
+                alpha_K(s)*pref/(gammas(s)*(rho0(s)/rhoK)**(qvps(s)))
+
+                rho_eref = rho_eref + alpha_rho_K(s)*qvs(s)+&
+                0.5d0*(pref+pi_infs(s))*(alpha_rho_K(s)/rho0(s)-alpha_K(s))    
+            end do
+            pres = (pref_over_gamma + energy - dyn_p - rho_eref)/gamma_inv
         else
             pres = (pref + pi_inf)* &
                    (energy/ &
@@ -192,41 +211,40 @@ contains
         !! @param rho Density
         !! @param pres Pressure to calculate
         !! @param alpha_K volume fraction of mixture
-    subroutine s_compute_temperature(pres, Pref, gamma_inv,&
-        rho, temp, alpha_K)
-
+    subroutine s_compute_temperature(energy, dyn_pres, temp, alpha_K, alpha_rho_K)
         !$acc routine seq
-        real(kind(0d0)), intent(in) :: pres, Pref, gamma_inv, rho
+        real(kind(0d0)), intent(in) :: energy, dyn_pres
         real(kind(0d0)), intent(out) :: temp
-        real(kind(0d0)), dimension(num_fluids), intent(in), optional :: alpha_K
+        real(kind(0d0)), dimension(num_fluids), intent(in), optional :: alpha_K, alpha_rho_K
       
         ! Temporary local variables
-        real(kind(0d0)) :: log_rho_mix, rho0_mix, phi, theta_E_mix
-        real(kind(0d0)) :: denom, mg_a_mix, mg_b_mix, A_cv, gamma
+        real(kind(0d0)) :: rho_eref, xi, rhoK, pref, rho_e0, rho_cv
         integer :: i !< Generic loop iterator
 
         ! model_eqns = 5 corresponds to the Mie-Gruneisen EOS
 
         if (model_eqns .eq. 5) then
-            A_cv = 0d0
-            theta_E_mix = 0d0
-            mg_a_mix    = 0d0
-            mg_b_mix    = 0d0
-            rho0_mix    = 0d0
-            gamma       = 0d0
-            do i=1, num_fluids
-               mg_b_mix = mg_b_mix  +   alpha_K(i)*mg_b(i)
-               mg_a_mix = mg_a_mix  +   alpha_K(i)*mg_a(i)
-               rho0_mix = rho0_mix  +   alpha_K(i)*rho0(i)
-               A_cv     = A_cv + alpha_K(i)*ein_cv1(i)
-               theta_E_mix = theta_E_mix + alpha_K(i)*ein_cv2(i)
-               gamma    = gamma + alpha_K(i)*gammas(i)
+            !E-dyn_p - rho_eref = rho*e0 + rho*cv(T-T0)
+            !T = T0 + (E - dyn_p - rho_eref - rho_e0)/(rho*cv)
+            !Assuming T - T0 is what I am going to use in hypoplasticity
+            !For shock EoS
+            rho_eref = 0d0; rho_e0 = 0d0; rho_cv = 0d0
+            do i = 1, num_fluids
+                rhoK = alpha_rho_K(i)/alpha_K(i) 
+               
+                xi = 1d0 - rho0(i)/rhoK
+
+                pref = pi_infs(i)+rho0(i)*(mg_a(i)**2d0)*xi&
+                /(1d0-mg_b(i)*xi)**2d0
+
+                rho_eref = rho_eref + alpha_rho_K(i)*qvs(i)+&
+                0.5d0*(pref+pi_infs(i))*(alpha_rho_K(i)/rho0(i)-alpha_K(i)) 
+                
+                rho_e0 = rho_e0 + alpha_rho_K(i)*qvs(i)
+                rho_cv = rho_cv + alpha_rho_K(i)*cvs(i)
             end do
-            log_rho_mix = dlog(rho/rho0_mix)
-            phi = ((rho0_mix/rho)**(-mg_a_mix))*dexp((gamma-mg_a_mix)*(1d0-(rho0_mix/rho)**mg_b_mix))
-            denom = gamma_inv*(pres-pref)/(rho*phi*A_cv*theta_E_mix)+&
-                1d0/(dexp(phi*theta_E_mix)-1d0)
-            temp = (phi*theta_E_mix)/dlog(1d0 + 1d0/denom)
+            ! This is the increase in temperature from the reference
+            temp = (energy - dyn_pres - rho_eref - rho_e0)/(rho_cv)
         end if
     end subroutine s_compute_temperature
 
@@ -1046,36 +1064,12 @@ contains
                                                 qK_cons_vf(alf_idx)%sf(j, k, l), &
                                                 dyn_pres_K, pi_inf_K, gamma_K, rho_K, qv_K, pres)
                     else
-                           ! call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
-                           !                    0d0, dyn_pres_K, & 
-                           !                    pi_inf_K, qK_cons_vf(mgidxb)%sf(j, k, l), rho_K, qv_K, &
-                           !                    pres, 0d0, 0d0, 0d0,qK_cons_vf(mgidxb+1)%sf(j, k, l),&
-                           !                    qK_cons_vf(mgidxe)%sf(j, k, l))
+                        call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
+                                               0d0, dyn_pres_K, & 
+                                               pi_inf_K, 0d0, rho_K, qv_K, &
+                                               pres, 0d0, 0d0, 0d0, alpha_K, alpha_rho_K)
                             
-                            pref_over_gamma = 0d0;rho_eref = 0d0;gamma_inv = 0d0
-                            energy = qK_cons_vf(E_idx)%sf(j, k, l)
-                            do i = 1, num_fluids
-                                rhoK = alpha_rho_K(i)/alpha_K(i)
-                               
-                                gamma_inv = gamma_inv + &
-                                alpha_K(i)/(gammas(i)*(rho0(i)/rhoK)**(qvps(i)))
-                               
-                                xi = 1d0 - rho0(i)/rhoK
-
-                                pref = pi_infs(i)+rho0(i)*(mg_a(i)**2d0)*xi&
-                                /(1d0-mg_b(i)*xi)**2d0
-
-                                pref_over_gamma = pref_over_gamma + &
-                                alpha_K(i)*pref/(gammas(i)*(rho0(i)/rhoK)**(qvps(i)))
-
-                                rho_eref = rho_eref + alpha_rho_K(i)*qvs(i)+&
-                                0.5d0*(pref+pi_infs(i))*(alpha_rho_K(i)/rho0(i)-alpha_K(i))    
-                            end do
-                            pres = (pref_over_gamma + energy - dyn_pres_K - rho_eref)/gamma_inv
-                            qK_prim_vf(mgidxb)%sf(j, k, l)   = gamma_inv 
-                            qK_prim_vf(mgidxb+1)%sf(j, k, l) = pref_over_gamma/gamma_inv
-                            qK_prim_vf(mgidxe)%sf(j, k, l)   = rho_eref
-                            !$acc loop seq
+                           !!$acc loop seq
                            ! do i=1, sys_size
                            !    if (qK_cons_vf(i)%sf(j,k,l) /= qK_cons_vf(i)%sf(j,k,l)) then
                            !        print *, 'i',i,'j k',j,k,qK_cons_vf(i)%sf(j, k, l)
@@ -1083,10 +1077,9 @@ contains
                            !    end if 
                            ! end do
 #ifdef MFC_POST_PROCESS                        
-                        call s_compute_temperature(qK_prim_vf(E_idx)%sf(j, k, l), &
-                                                   qK_prim_vf(mgidxb+1)%sf(j, k, l), &
-                                                   qK_prim_vf(mgidxb)%sf(j, k, l),&
-                                                   rho_K, temp, alpha_K)
+                        call s_compute_temperature(energy, dyn_pres_K, &
+                        temp, alpha_K, alpha_rho_K)
+
                         qK_prim_vf(plasidx+1)%sf(j, k, l) = temp
 #endif
                     end if   
@@ -1300,17 +1293,11 @@ contains
                             0.5d0*(pref+pi_infs(i))*(alpha_rho_K(i)/rho0(i)-alpha_K(i))    
 
                         end do
-                        q_prim_vf(mgidxb)%sf(j, k, l)   = gamma_inv
-                        q_prim_vf(mgidxb+1)%sf(j, k, l) = pref_over_gamma/gamma_inv
-                        q_prim_vf(mgidxe)%sf(j, k, l)   = rho_eref
                          
                         ! Energy corresponding to Mie-Gruneisen EOS 
                         q_cons_vf(E_idx)%sf(j, k, l)    = rho_eref +&
                                                           gamma_inv*q_prim_vf(E_idx)%sf(j,k,l)-pref_over_gamma+& 
                                                           dyn_pres
-                        q_cons_vf(mgidxb)%sf(j, k, l)   = gamma_inv
-                        q_cons_vf(mgidxb+1)%sf(j, k, l) = pref_over_gamma
-                        q_cons_vf(mgidxe)%sf(j, k, l)   = rho_eref
                     else
                         !Tait EOS, no conserved energy variable
                         q_cons_vf(E_idx)%sf(j, k, l) = 0.d0

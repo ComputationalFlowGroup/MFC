@@ -148,12 +148,9 @@ contains
 !dyn_p, 'pi_inf ::', pi_inf, 'gamma ::', gamma, 'rho ::', rho, 'qv ::', &
 !qv, 'stress ::', stress, 'mom ::', mom, 'G ::', G, 'alpha_K ::', &
 !alpha_K, 'alpha_rho_K ::', alpha_rho_K
-                call s_compute_pressure(energy, alf, dyn_p, pi_inf, q_cons_vf(mgidxb)%sf(k, l, q), rho, 0d0, & 
-                                        pres, stress, 0d0, G, &
-                                        q_cons_vf(mgidxb+1)%sf(k, l, q), &
-                                        q_cons_vf(mgidxe)%sf(k, l, q))
-                call s_compute_temperature(pres, q_prim_vf(mgidxb+1)%sf(k, l, q), q_prim_vf(mgidxb)%sf(k, l, q),&
-                    rho, temp, alpha_K)
+                call s_compute_pressure(energy, 0d0, dyn_p, pi_inf, 0d0, rho, 0d0, &
+                                        pres, 0d0, 0d0, 0d0, alpha_K, alpha_rho_K)
+                call s_compute_temperature(energy, dyn_p, temp, alpha_K, alpha_rho_K)
 !                print *, 'pressure :: ', pres, 'temperature ::', temp
                 ! STEP 3.5 : Compute theta_m, theta_hat, and sigma_bar
                 ! compute theta_m from equation 4.10
@@ -292,12 +289,9 @@ contains
 !dyn_p, 'pi_inf ::', pi_inf, 'gamma ::', gamma, 'rho ::', rho, 'qv ::', &
 !qv, 'stress ::', stress, 'mom ::', mom, 'G ::', G, 'alpha_K ::', &
 !alpha_K, 'alpha_rho_K ::', alpha_rho_K
-                call s_compute_pressure(energy, 0d0, dyn_p, pi_inf, q_cons_vf(mgidxb)%sf(k, l, q), rho, 0d0, & 
-                                        pres, stress, 0d0, G, &
-                                        q_cons_vf(mgidxb+1)%sf(k, l, q), &
-                                        q_cons_vf(mgidxe)%sf(k, l, q))
-                call s_compute_temperature(pres, q_prim_vf(mgidxb+1)%sf(k, l,q), q_prim_vf(mgidxb)%sf(k, l, q),&
-                                        rho_K, temp, alpha_K)
+                call s_compute_pressure(energy, 0d0, dyn_p, pi_inf, 0d0, rho, 0d0, &
+                                        pres, 0d0, 0d0, 0d0, alpha_K, alpha_rho_K)
+                call s_compute_temperature(energy, dyn_p, temp, alpha_K, alpha_rho_K)
                 if (temp /=temp) then
                     print *,'temp::',temp,'pres',pres
                 end if

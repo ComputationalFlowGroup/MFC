@@ -200,14 +200,6 @@ contains
                 @:ACC_SETUP_SFs(q_prim_vf(i))
             end do
         end if
-        if (model_eqns == 5) then
-            do i = mgidxb, mgidxe
-               @:ALLOCATE(q_prim_vf(i)%sf(ix_t%beg:ix_t%end, &
-                    iy_t%beg:iy_t%end, &
-                    iz_t%beg:iz_t%end))
-               @:ACC_SETUP_SFs(q_prim_vf(i))
-            end do
-        end if
         if (hypoplasticity) then 
             @:ALLOCATE(q_prim_vf(plasidx)%sf(ix_t%beg:ix_t%end, &
                  iy_t%beg:iy_t%end, &
@@ -1037,13 +1029,7 @@ contains
                 @:DEALLOCATE(q_prim_vf(i)%sf)
             end do
         end if
-        
-        if (model_eqns == 5) then 
-            do i = mgidxb, mgidxe
-               @:DEALLOCATE(q_prim_vf(i)%sf)
-            end do
-        end if
-        
+         
         if (hypoplasticity) then 
             @:DEALLOCATE(q_prim_vf(plasidx)%sf)
         end if

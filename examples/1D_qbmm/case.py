@@ -52,7 +52,7 @@ n0      = vf0/(math.pi*4.E+00/3.E+00)
 cact    = 1475.
 t0      = x0/c0
 
-nbubbles = 1 
+nbubbles = 1
 myr0    = R0ref
 
 cfl     = 0.1
@@ -105,7 +105,7 @@ print(json.dumps({
     'time_stepper'                 : 3,
     'weno_order'                   : 5,
     'weno_eps'                     : 1.E-16,
-    'weno_Re_flux'                 : 'F',  
+    'weno_Re_flux'                 : 'F',
     'weno_avg'                     : 'F',
     'mapped_weno'                  : 'T',
     'null_weights'                 : 'F',
@@ -123,12 +123,12 @@ print(json.dumps({
     'prim_vars_wrt'                :'T',
     'parallel_io'                  :'F',
     'fd_order'                     : 1,
-    #'schlieren_wrt'                :'T',
+    'schlieren_wrt'                :'T',
     'probe_wrt'                    :'T',
     'num_probes'                   : 1,
     'probe(1)%x'                   : 0.,
     # ==========================================================
-                                                                
+
     # Patch 1 _ Background =====================================
     'patch_icpp(1)%geometry'       : 1,
     'patch_icpp(1)%x_centroid'     : 0.,

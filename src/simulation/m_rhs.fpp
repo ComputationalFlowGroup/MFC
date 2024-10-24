@@ -39,9 +39,7 @@ module m_rhs
 
     use m_hypoelastic
 
-    use m_hypoplastic
-    
-    use m_miegruneisen
+    use m_hypoplastic 
 
     use m_hyperelastic
 
@@ -953,15 +951,6 @@ contains
             if (hypoplasticity) call s_compute_hypoplastic_rhs(q_prim_qp%vf, & 
                                                                q_cons_qp%vf, & 
                                                                rhs_vf)
-            call nvtxEndRange
-            !RHS additions for Mie-Gruneisen EoS
-           ! call nvtxStartRange("RHS_Mie_Gruneisen")
-           ! if (model_eqns == 5) then
-           !     !print *,'in s_compute_rhs'
-           !     call s_compute_miegruneisen_rhs(q_prim_qp%vf, &
-           !                                     q_cons_qp%vf, rhs_vf)
-           !     !print *,'after_miegruneisen_rhs'
-           ! end if
             call nvtxEndRange
             ! RHS additions for viscosity
             call nvtxStartRange("RHS_add_phys")

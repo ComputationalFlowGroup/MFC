@@ -12,11 +12,11 @@ c_l = 3077.6       #m/s
 vel1 = 1.E0
 
 leng = 1.
-Ny = 256.
-Nx = 512.
+Ny = 250
+Nx = 400
 dx = leng/Nx
 
-time_end = 2.E-1         #5*leng/vel
+time_end = 0.01    #5*leng/vel
 cfl = 0.1
 
 dt = cfl * dx/c_l
@@ -25,7 +25,7 @@ Nt = int(time_end/dt)
 #Material parameters of sucrose (dimensional)
 Kt0_suc       = 14.3e9      #Pa
 Kt0_prime_suc = 3.75        #-
-rho_0_suc     = 1.580488803979682E3      #kg/m^3
+rho_0_suc     = 1.5805E3    #kg/m^3
 ein_cv1_suc   = 3279        #J/Kg-K
 ein_cv2_suc   = 1125        #K
 G_suc         = 8.58e9      #Pa
@@ -36,7 +36,7 @@ gamma_suc     = 1.09
 #Material parameters for air (dimensional)
 Kt0_air       = 1.013e5     #Pa
 Kt0_prime_air = 2.00        #Pa
-rho_0_air     = 0.429683187288245      #kg/m^3
+rho_0_air     = 1.2         #kg/m^3
 theta_0_air   = theta_0_suc
 ein_cv1_air   = 718         #J/Kg-K
 ein_cv2_air   = 100         #K
@@ -45,9 +45,10 @@ gamma_air     = 0.4         #n-1
 
 #Initial condition
 theta_0           = 310             #K
-P_0               = 1.013E5  #Pa
+P_0               = 1.00E5  #Pa
 compression_ratio = 1.1             #rho/rho_0 in the shocked region
 rho_suc           = 1580.5          #kg/m^3
+vel0              = 0.0E-6          #For seeding everything with some non-zero velocity
 
 #Calculate initial density of air at theta_0 and P_0
 rho_air1 = np.linspace(1.168, 15)
@@ -56,7 +57,6 @@ for rho_air in rho_air1:
     phi_air     = np.exp(gamma_air*(1-rho_0_air/rho_air))
     P_air = Kt0_air*(rho_air/rho_0_air)*math.log(rho_air/rho_0_air)+ gamma_air*rho_0_air*ein_cv1_air*ein_cv2_air*phi_air*(1/(np.exp(phi_air*ein_cv2_air/theta_0)-1)-1/(np.exp(phi_air*ein_cv2_air/theta_0_air)-1))
     P_air_values.append(P_air)
-
 #interp_function = interp1d(P_air_values, rho_air1, kind='linear', fill_value="extrapolate")
 
 rho_air_at_P_0 = np.interp(P_0,P_air_values, rho_air1, left = None,right = None, period =None)
@@ -97,14 +97,18 @@ Kt0_tilde = Kt0_suc/(rho_0_suc*c_0*c_0)
 A_tilde   = ein_cv1_suc*theta_0_suc/(c_0*c_0)
 theta_E_tilde = ein_cv2_suc/theta_0_suc
 rho_0_tilde = rho_0_suc/rho_0_suc
-phi = math.exp(gamma_suc*(1-1/tilde_rho))
-int_energy = 0.5*Kt0_tilde*pow(math.log(tilde_rho),2)*(1+(Kt0_prime_suc-2)*math.log(tilde_rho)/3)+A_tilde*(phi*theta_E_tilde*math.exp(phi*theta_E_tilde)/(math.exp(phi*theta_E_tilde)-1)-math.log(math.exp(phi*theta_E_tilde)-1))
-int_energy0 = A_tilde*(theta_E_tilde*math.exp(theta_E_tilde)/(math.exp(theta_E_tilde)-1)-math.log(math.exp(theta_E_tilde)-1))
-p_theta0 = Kt0_tilde*tilde_rho*math.log(tilde_rho)*(1+0.5*(Kt0_prime_suc-2)*math.log(tilde_rho))
-ps =(-tilde_P_0*(1-1/tilde_rho+2/gamma_suc)+(2/gamma_suc)*(-p_theta0 + gamma_suc*(int_energy-int_energy0)))/(1-1/tilde_rho-2/gamma_suc)
+#phi = math.exp(gamma_suc*(1-1/tilde_rho))
+#int_energy = 0.5*Kt0_tilde*pow(math.log(tilde_rho),2)*(1+(Kt0_prime_suc-2)*math.log(tilde_rho)/3)+A_tilde*(phi*theta_E_tilde*math.exp(phi*theta_E_tilde)/(math.exp(phi*theta_E_tilde)-1)-math.log(math.exp(phi*theta_E_tilde)-1))
+#int_energy0 = A_tilde*(theta_E_tilde*math.exp(theta_E_tilde)/(math.exp(theta_E_tilde)-1)-math.log(math.exp(theta_E_tilde)-1))
+#p_theta0 = Kt0_tilde*tilde_rho*math.log(tilde_rho)*(1+0.5*(Kt0_prime_suc-2)*math.log(tilde_rho))
+#ps =(-tilde_P_0*(1-1/tilde_rho+2/gamma_suc)+(2/gamma_suc)*(-p_theta0 + gamma_suc*(int_energy-int_energy0)))/(1-1/tilde_rho-2/gamma_suc)
 
-vel = math.sqrt((ps-tilde_P_0)*(1-1/tilde_rho))
-
+#Shock EoS
+xi = 1.0-1.0/tilde_rho
+ps = tilde_P_0 +  xi/((1.0-2.87*xi)*(1.0-2.87*xi))       #Need to fix the shock slope everywhere in the code
+vel = vel0 +  math.sqrt((ps-tilde_P_0)*xi/rho_0_tilde)
+#print('pressure=',ps*rho_0_suc*c_0*c_0*1.0E-9,'GPa')
+#print('vel=',vel*c_0,'m/s')
 
 # Configuring case dictionary
 print(json.dumps({
@@ -121,19 +125,19 @@ print(json.dumps({
     'n'                            : int(Ny),
     'p'                            : 0,
     'dt'                           : dt,
-    't_step_start'                 : 0,
+    't_step_start'                 : 67705,
     't_step_stop'                  : Nt,
-    't_step_save'                  : int(Nt/80000.),
+    't_step_save'                  : int(Nt/100.),
     # ==========================================================================
 
     # Simulation Algorithm Parameters ==========================================
     'num_patches'                  : 3,             #change this to 3 for shocked state
     'model_eqns'                   : 5,
     'alt_soundspeed'               : 'F',
-    'hypoplasticity'               : 'T',
+    'hypoplasticity'               : 'F',
     'num_fluids'                   : 2,
     'mpp_lim'                      : 'T',
-    'mixture_err'                  : 'F',
+    'mixture_err'                  : 'T',
     'time_stepper'                 : 3,
     'weno_order'                   : 5,
     'weno_eps'                     : 1.E-16,
@@ -145,10 +149,10 @@ print(json.dumps({
     'riemann_solver'               : 2,
     'wave_speeds'                  : 1,
     'avg_state'                    : 2,
-    'bc_x%beg'                     : -1,
-    'bc_x%end'                     : -1,
-    'bc_y%beg'                     : -1,
-    'bc_y%end'                     : -1,
+    'bc_x%beg'                     : -3,
+    'bc_x%end'                     : -3,
+    'bc_y%beg'                     : -3,
+    'bc_y%end'                     : -3,
     # ==========================================================================
 
     # Formatted Database Files Structure Parameters ============================
@@ -164,17 +168,13 @@ print(json.dumps({
     'patch_icpp(1)%y_centroid'     : 0.,
     'patch_icpp(1)%length_x'       : 10*leng,
     'patch_icpp(1)%length_y'       : leng,
-    'patch_icpp(1)%vel(1)'         : 1.E-06,
+    'patch_icpp(1)%vel(1)'         : vel0,
     'patch_icpp(1)%vel(2)'         : 0.E+00,
     'patch_icpp(1)%pres'           : tilde_P_0,
-    'patch_icpp(1)%alpha_rho(1)'   : (1.E+00-(1.E-06))*(1580.5/1.580488803979682E3),
-    'patch_icpp(1)%alpha_rho(2)'   : (1.E-06)*(1.168/1.580488803979682E3),
+    'patch_icpp(1)%alpha_rho(1)'   : (1.E+00-(1.E-06)),
+    'patch_icpp(1)%alpha_rho(2)'   : (1.E-06)*(1.2/1580.5),
     'patch_icpp(1)%alpha(1)'       : (1.E+00-1.E-06),
     'patch_icpp(1)%alpha(2)'       : 1.E-06,
-    'patch_icpp(1)%tau_e(1)'       : 1.E-17,
-    'patch_icpp(1)%tau_e(2)'       : 1.E-17,
-    'patch_icpp(1)%tau_e(3)'       : 1.E-17,
-    'patch_icpp(1)%tau_e(4)'       : 1.E-17,
     # ==========================================================================
 
     # Patch 2: Shocked state ===================================================
@@ -182,13 +182,13 @@ print(json.dumps({
     'patch_icpp(2)%alter_patch(1)' : 'T',
     'patch_icpp(2)%x_centroid'     : -3*leng/8.,
     'patch_icpp(2)%y_centroid'     : 0.,
-    'patch_icpp(2)%length_x'       : leng/4.,
+    'patch_icpp(2)%length_x'       : leng/4.+0.09,
     'patch_icpp(2)%length_y'       : leng,
     'patch_icpp(2)%vel(1)'         : vel,
     'patch_icpp(2)%vel(2)'         : 0.E+00,
     'patch_icpp(2)%pres'           : ps,
     'patch_icpp(2)%alpha_rho(1)'   : (1.E0-(1.E-06))*tilde_rho,
-    'patch_icpp(2)%alpha_rho(2)'   : (1.E-06)*(1.168/1.580488803979682E3),
+    'patch_icpp(2)%alpha_rho(2)'   : (1.E-06)*(1.2/1580.5),
     'patch_icpp(2)%alpha(1)'       : 1.E+00-(1.E-06),
     'patch_icpp(2)%alpha(2)'       : 1.E-06,
     # ==========================================================================
@@ -199,60 +199,58 @@ print(json.dumps({
     'patch_icpp(3)%y_centroid'     : 0.E+00,
     'patch_icpp(3)%radius'         : leng/5,
     'patch_icpp(3)%alter_patch(1)' : 'T',
-    'patch_icpp(3)%vel(1)'         : 1.E-6,
+    'patch_icpp(3)%vel(1)'         : vel0,
     'patch_icpp(3)%vel(2)'         : 0.E+00,
     'patch_icpp(3)%pres'           : tilde_P_0,
-    'patch_icpp(3)%alpha_rho(1)'   : 1.E-06*(1580.5/1.580488803979682E3),
-    'patch_icpp(3)%alpha_rho(2)'   : (1.E0-(1.E-6))*(1.168/1.580488803979682E3),
+    'patch_icpp(3)%alpha_rho(1)'   : 1.E-06,
+    'patch_icpp(3)%alpha_rho(2)'   : (1.E0-(1.E-6))*(1.2/1580.5),
     'patch_icpp(3)%alpha(1)'       : 1.E-06,
     'patch_icpp(3)%alpha(2)'       : 1.E+00-(1.E-06),
-    'patch_icpp(3)%tau_e(1)'       : 1.E-17,
-    'patch_icpp(3)%tau_e(2)'       : 1.E-17,
-    'patch_icpp(3)%tau_e(3)'       : 1.E-17,
-    'patch_icpp(3)%tau_e(4)'       : 1.E-17,
     # ==========================================================================
 
     # Fluids Physical Parameters ===============================================
-    'fluid_pp(1)%gamma'            : 1.09E0,                           # 1.E+00/(1.4E+00-1.E+00),
-    'fluid_pp(1)%pi_inf'           : Kt0_suc/(rho_0_suc*c_0*c_0),      # isothermal bulk modulus
-    'fluid_pp(2)%gamma'            : 0.4E0,                            # 1.E+00/(1.6666E+00-1.E+00),
-    'fluid_pp(2)%pi_inf'           : Kt0_air/(rho_0_suc*c_0*c_0),                              # 0.0
-    'fluid_pp(1)%qv'               : 3.75E0,                           # K'_theta0 for sucrose
-    'fluid_pp(2)%qv'               : 2.0E0,                            # K'_theta0 for air
-    'fluid_pp(1)%G'                : G_suc/(rho_0_suc*c_0*c_0),        # Shear modulus
-    'fluid_pp(2)%G'                : 1.E-5,                            # Shear modulus of air taken to be a very small value
-    'fluid_pp(1)%ein_cv(1)'        : A_tilde,                          # Can be replaced with fluid_pp(:)%cv at some point
-    'fluid_pp(2)%ein_cv(1)'        : 0.026937087111210E0,              #
-    'fluid_pp(1)%ein_cv(2)'        : theta_E_tilde,                    # Can be replaced with a scalar theta_E at some point
-    'fluid_pp(2)%ein_cv(2)'        : 100E0/298E0,                      #0.335E0,
-    'fluid_pp(1)%mg_a'             : 0.E0,                             #a_mg
-    'fluid_pp(1)%mg_b'             : 1.E0,                             #b_mg
-    'fluid_pp(2)%mg_a'             : 0.4E0,                            #a_mg
-    'fluid_pp(2)%mg_b'             : 0.E0,                             #b_mg
-    'fluid_pp(1)%rho0'             : 1.E0,                             #Non-dimensional initial density in Birch-Murnaghan cold curve
+    'fluid_pp(1)%gamma'            : 1.09E0,                            # 1.E+00/(1.4E+00-1.E+00),
+    'fluid_pp(1)%pi_inf'           : tilde_P_0,                         # isothermal bulk modulus
+    'fluid_pp(2)%gamma'            : 0.4E0,                             # 1.E+00/(1.6666E+00-1.E+00),
+    'fluid_pp(2)%pi_inf'           : 0.0,                              # 0.0
+    'fluid_pp(1)%qv'               : 0.0,                               # K'_theta0 for sucrose
+    'fluid_pp(2)%qv'               : 0.0,
+    'fluid_pp(1)%qvp'              : 1.0,
+    'fluid_pp(2)%qvp'              : 0.0,                               # K'_theta0 for air
+   # 'fluid_pp(1)%G'                : G_suc/(rho_0_suc*c_0*c_0),        # Shear modulus
+   # 'fluid_pp(2)%G'                : 1.E-5,                            # Shear modulus of air taken to be a very small value
+   # 'fluid_pp(1)%ein_cv(1)'        : A_tilde,                          # Can be replaced with fluid_pp(:)%cv at some point
+   # 'fluid_pp(2)%ein_cv(1)'        : 0.026937087111210E0,              #
+   # 'fluid_pp(1)%ein_cv(2)'        : theta_E_tilde,                    # Can be replaced with a scalar theta_E at some point
+   # 'fluid_pp(2)%ein_cv(2)'        : 100E0/298E0,                      #0.335E0,
+    'fluid_pp(1)%mg_a'             : 1.0,                               #a_mg
+    'fluid_pp(1)%mg_b'             : 2.87,                              #b_mg
+    'fluid_pp(2)%mg_a'             : 0.0,                        #a_mg
+    'fluid_pp(2)%mg_b'             : 1.00,                             #b_mg
+    'fluid_pp(1)%rho0'             : 1.E0,                              #Non-dimensional initial density in Birch-Murnaghan cold curve
     'fluid_pp(2)%rho0'             : rho_0_air/(rho_0_suc),
-    'fluid_pp(1)%jcook(1)'         : 0.0334,                           # A, Static yield strength
-    'fluid_pp(1)%jcook(2)'         : 0.0334,                           # B, Strain-Hardening coefficient
-    'fluid_pp(1)%jcook(3)'         : 0.1,                              # n, Strain-Hardening exponent
-    'fluid_pp(1)%jcook(4)'         : 0.01,                             # C, Strain-rate hardening coefficient
-    'fluid_pp(1)%jcook(5)'         : 0.45,                             # m, Thermal softening exponent
-    'fluid_pp(1)%jcook(6)'         : 1.5403,                           # theta_m, Melt temperature at ambient pressure
-    'fluid_pp(1)%jcook(7)'         : 3.24928515727,                            # Limiting strain-rate
-    'fluid_pp(1)%jcook(8)'         : 0.02,                             # Parameter in Simon-Glatzel melt relation
-    'fluid_pp(1)%jcook(9)'         : 3.25,                             # exponent in Simon-Glatzel melt relation
-    'fluid_pp(1)%jcook(10)'        : 3.2493E-7,                        # non-dimensional strain-rate limit
-    'fluid_pp(1)%jcook(11)'        : 298/theta_0_suc,                              # Reference temperature
-    'fluid_pp(2)%jcook(1)'         : 0.0334,                           # A, Static yield strength
-    'fluid_pp(2)%jcook(2)'         : 0.0334,                           # B, Strain-Hardening coefficient
-    'fluid_pp(2)%jcook(3)'         : 0.1,                              # n, Strain-Hardening exponent
-    'fluid_pp(2)%jcook(4)'         : 0.01,                             # C, Strain-rate hardening coefficient
-    'fluid_pp(2)%jcook(5)'         : 0.45,                             # m, Thermal softening exponent
-    'fluid_pp(2)%jcook(6)'         : 1.5403,                           # theta_m, Melt temperature at ambient pressure
-    'fluid_pp(2)%jcook(7)'         : 3.24928515727,                            # Limiting strain-rate
-    'fluid_pp(2)%jcook(8)'         : 0.02,                             # Parameter in Simon-Glatzel melt relation
-    'fluid_pp(2)%jcook(9)'         : 3.25,                             # exponent in Simon-Glatzel melt relation
-    'fluid_pp(2)%jcook(10)'        : 3.2493E-7,                        # non-dimensional strain-rate limitI
-    'fluid_pp(2)%jcook(11)'        : 298/theta_0_suc,                  # non-dimensionalized Reference temperature
+   # 'fluid_pp(1)%jcook(1)'         : 0.0334,                           # A, Static yield strength
+   # 'fluid_pp(1)%jcook(2)'         : 0.0334,                           # B, Strain-Hardening coefficient
+   # 'fluid_pp(1)%jcook(3)'         : 0.1,                              # n, Strain-Hardening exponent
+   # 'fluid_pp(1)%jcook(4)'         : 0.01,                             # C, Strain-rate hardening #coefficient
+   # 'fluid_pp(1)%jcook(5)'         : 0.45,                             # m, Thermal softening exponent
+   # 'fluid_pp(1)%jcook(6)'         : 1.5403,                           # theta_m, Melt temperature at ambient pressure
+   # 'fluid_pp(1)%jcook(7)'         : 3.24928515727,                            # Limiting strain-rate
+   # 'fluid_pp(1)%jcook(8)'         : 0.02,                             # Parameter in Simon-Glatzel melt relation
+   # 'fluid_pp(1)%jcook(9)'         : 3.25,                             # exponent in Simon-Glatzel melt relation
+   # 'fluid_pp(1)%jcook(10)'        : 3.2493E-7,                        # non-dimensional strain-rate limit
+   # 'fluid_pp(1)%jcook(11)'        : 298/theta_0_suc,                              # Reference temperature
+   # 'fluid_pp(2)%jcook(1)'         : 0.0334,                           # A, Static yield strength
+   # 'fluid_pp(2)%jcook(2)'         : 0.0334,                           # B, Strain-Hardening coefficient
+   # 'fluid_pp(2)%jcook(3)'         : 0.1,                              # n, Strain-Hardening exponent
+   # 'fluid_pp(2)%jcook(4)'         : 0.01,                             # C, Strain-rate hardening coefficient
+   # 'fluid_pp(2)%jcook(5)'         : 0.45,                             # m, Thermal softening exponent
+   # 'fluid_pp(2)%jcook(6)'         : 1.5403,                           # theta_m, Melt temperature at ambient pressure
+   # 'fluid_pp(2)%jcook(7)'         : 3.24928515727,                            # Limiting strain-rate
+   # 'fluid_pp(2)%jcook(8)'         : 0.02,                             # Parameter in Simon-Glatzel melt relation
+   # 'fluid_pp(2)%jcook(9)'         : 3.25,                             # exponent in Simon-Glatzel melt relation
+   # 'fluid_pp(2)%jcook(10)'        : 3.2493E-7,                        # non-dimensional strain-rate limitI
+   # 'fluid_pp(2)%jcook(11)'        : 298/theta_0_suc,                  # non-dimensionalized Reference temperature
 }))
 
 # ==============================================================================
