@@ -962,8 +962,6 @@ contains
         real(kind(0d0)), dimension(num_fluids) :: alpha_K, alpha_rho_K
         real(kind(0d0)), dimension(2) :: Re_K
         real(kind(0d0)) :: rho_K, gamma_K, pi_inf_K, qv_K, dyn_pres_K
-        real(kind(0d0)) :: gamma_inv, rho_eref, pref_over_gamma, xi
-        real(kind(0d0)) :: rhoK, pref, energy 
 
         #:if MFC_CASE_OPTIMIZATION
 #ifndef MFC_SIMULATION
@@ -1001,7 +999,7 @@ contains
             end if
         #:endif
         
-        !$acc parallel loop collapse(3) gang vector default(present) private(alpha_K, alpha_rho_K, Re_K, nRtmp, rho_K, gamma_K, pi_inf_K, qv_K, dyn_pres_K, R3tmp, G_K)
+        !$acc parallel loop collapse(3) gang vector default(present) private(alpha_K, alpha_rho_K, Re_K, nRtmp, rho_K,gamma_K,pi_inf_K, qv_K, dyn_pres_K, R3tmp, G_K,pres, temp)
         do l = izb, ize
             do k = iyb, iye
                 do j = ixb, ixe
@@ -1078,7 +1076,7 @@ contains
                            !    end if 
                            ! end do
 #ifdef MFC_POST_PROCESS                        
-                        call s_compute_temperature(energy, dyn_pres_K, &
+                        call s_compute_temperature(qK_cons_vf(E_idx)%sf(j, k, l), dyn_pres_K, &
                         temp, alpha_K, alpha_rho_K)
 
                         qK_prim_vf(plasidx+1)%sf(j, k, l) = temp

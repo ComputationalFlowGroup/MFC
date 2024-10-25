@@ -48,7 +48,7 @@
                     (rho*(1d0 - adv(num_fluids)))
             end if
 
-        elseif (model_eqns == 5) then
+        elseif ((model_eqns == 5) .and. (MGEoS_model == 1)) then
             !Note that pref and gamma are primitive state
             !variables for Mie-Gruneisen EoS and gamma = (1/Gamma(rho))
             gamma_avg = 0d0
