@@ -96,7 +96,9 @@ module m_global_parameters
     logical :: hypoelasticity  !< Turn hypoelasticity on
     logical :: hyperelasticity !< Turn hyperelasticity on
     logical :: elasticity      !< elasticity modeling, true for hyper or hypo
-    logical :: hypoplasticity 
+    logical :: hypoplasticity  !< Turn on hypoplasticity
+    integer :: MGEoS_model     !< ShockEos (1), Complete Miegruneisen,(2),
+                               !<JWLEoS(3), Cochran-Chan Eos(4)
     !> @}
 
     !> @name Annotations of the structure, i.e. the organization, of the state vectors

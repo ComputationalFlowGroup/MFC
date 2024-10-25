@@ -83,10 +83,11 @@ module m_global_parameters
     integer :: weno_order      !< Order of accuracy for the WENO reconstruction
     logical :: hypoelasticity  !< activate hypoelasticity
     logical :: hyperelasticity !< activate hyperelasticity
-    logical :: hypoplasticity      !< activate johnson-cook hypoplasticity 
+    logical :: hypoplasticity  !< activate johnson-cook hypoplasticity
     logical :: elasticity      !< elasticity modeling, true for hyper or hypo
     integer :: b_size          !< Number of components in the b tensor
     integer :: tensor_size     !< Number of components in the nonsymmetric tensor
+    integer :: MGEoS_model     !< Mie-Gruneisen model number: shockEoS=1, Complete Mie-Gruneisen = 2
 
     ! Annotations of the structure, i.e. the organization, of the state vectors
     type(int_bounds_info) :: cont_idx              !< Indexes of first & last continuity eqns.
@@ -289,6 +290,7 @@ contains
         hyperelasticity = .false.
         elasticity = .false.
         hypoplasticity = .false.
+        MGEoS_model = dflt_int
 
         bc_x%beg = dflt_int; bc_x%end = dflt_int
         bc_y%beg = dflt_int; bc_y%end = dflt_int

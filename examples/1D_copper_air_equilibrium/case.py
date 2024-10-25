@@ -83,9 +83,10 @@ print(json.dumps({
                     # ==========================================================
 
                     # Hypoplasticity ================================
-                     'hypoplasticity'               : 'F',
-                    # ==========================================================
+                     'hypoplasticity'              : 'F',
 
+                    # Mie-Gruneisen EoS model===================================
+                    'MGEoS_model'                  : 1,
                     # Formatted Database Files Structure Parameters ============
                     'format'                       : 1,
                     'precision'                    : 2,

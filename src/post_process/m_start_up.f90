@@ -75,7 +75,7 @@ contains
             R0ref, Rinit, nb, polytropic, thermal, Ca, Web, Re_inv, &
             polydisperse, poly_sigma, file_per_process, relax, &
             relax_model, cf_wrt, sigma, adv_n, ib, sim_data, &
-            hyperelasticity, hypoplasticity
+            hyperelasticity, hypoplasticity, MGEoS_model
 
         ! Inquiring the status of the post_process.inp file
         file_loc = 'post_process.inp'

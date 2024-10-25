@@ -159,7 +159,7 @@ contains
             pres = (energy - dyn_p - pi_inf - qv)/gamma
         else if ((model_eqns /= 4 .and. model_eqns /=5) .and. bubbles) then
             pres = ((energy - dyn_p)/(1.d0 - alf) - pi_inf - qv)/gamma
-        else if (model_eqns == 5) then
+        else if ((model_eqns == 5) .and. (MGEoS_model == 1)) then
             pref_over_gamma = 0d0;rho_eref = 0d0;gamma_inv = 0d0
             do s = 1, num_fluids
                 rhoK = alpha_rho_K(s)/alpha_K(s)
@@ -223,7 +223,7 @@ contains
 
         ! model_eqns = 5 corresponds to the Mie-Gruneisen EOS
 
-        if (model_eqns .eq. 5) then
+        if ((model_eqns .eq. 5) .and. (MGEoS_model .eq. 1)) then
             !E-dyn_p - rho_eref = rho*e0 + rho*cv(T-T0)
             !T = T0 + (E - dyn_p - rho_eref - rho_e0)/(rho*cv)
             !Assuming T - T0 is what I am going to use in hypoplasticity
@@ -244,8 +244,9 @@ contains
                 rho_cv = rho_cv + alpha_rho_K(i)*cvs(i)
             end do
             ! This is the increase in temperature from the reference
-            temp = (energy - dyn_pres - rho_eref - rho_e0)/(rho_cv)
         end if
+            temp = (energy - dyn_pres - rho_eref - rho_e0)/(rho_cv)
+        
     end subroutine s_compute_temperature
 
     !>  This subroutine is designed for the gamma/pi_inf model
@@ -1273,7 +1274,7 @@ contains
                         q_cons_vf(E_idx)%sf(j, k, l) = dyn_pres + &
                                                        (1.d0 - q_prim_vf(alf_idx)%sf(j, k, l))* &
                                                        (gamma*q_prim_vf(E_idx)%sf(j, k, l) + pi_inf)
-                    else if (model_eqns == 5) then
+                    else if ((model_eqns == 5) .and. (MGEoS_model == 1)) then
                         pref_over_gamma = 0d0;rho_eref = 0d0;gamma_inv = 0d0
                         do i = 1, num_fluids
                             rho_K = alpha_rho_K(i)/alpha_K(i)

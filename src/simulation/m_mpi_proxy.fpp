@@ -225,7 +225,7 @@ contains
             & 'wave_speeds', 'avg_state', 'precision', 'bc_x%beg', 'bc_x%end', &
             & 'bc_y%beg', 'bc_y%end', 'bc_z%beg', 'bc_z%end',  'fd_order',     &
             & 'num_probes', 'num_integrals', 'bubble_model', 'thermal',        &
-            & 'R0_type', 'num_source', 'relax_model', 'num_ibs']
+            & 'R0_type', 'num_source', 'relax_model','num_ibs','MGEoS_model']
             call MPI_BCAST(${VAR}$, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
         #:endfor
 
@@ -236,7 +236,7 @@ contains
             & 'polydisperse', 'qbmm', 'acoustic_source', 'probe_wrt', 'integral_wrt',   &
             & 'prim_vars_wrt', 'weno_avg', 'file_per_process', 'relax',          &
             & 'adv_n', 'adap_dt', 'ib', 'bodyForces', 'bf_x', 'bf_y', 'bf_z',    &
-            & 'hyperelasticity', 'hypoplasticity' ]
+            & 'hyperelasticity', 'hypoplasticity']
             call MPI_BCAST(${VAR}$, 1, MPI_LOGICAL, 0, MPI_COMM_WORLD, ierr)
         #:endfor
 

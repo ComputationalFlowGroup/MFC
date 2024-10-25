@@ -2184,27 +2184,27 @@ contains
                                 !E_R = gamma_R*pres_R + pi_inf_R + 5d-1*rho_R*vel_R_rms + qv_R
 
                                 ! Energy corresponding to Mie-Gruneisen EOS
-
+                                
                                 pref_over_gamma = 0d0;rho_eref = 0d0;gamma_inv = 0d0
-                                do i = 1, num_fluids
-                                    rho_K = alpha_rho_L(i)/alpha_L(i)
-                                   
-                                    gamma_inv = gamma_inv + &
-                                    alpha_L(i)/(gammas(i)*(rho0(i)/rho_K)**(qvps(i)))
-                                   
-                                    xi = 1d0 - rho0(i)/rho_K
+                                if (MGEoS_model == 1) then
+                                    do i = 1, num_fluids
+                                        rho_K = alpha_rho_L(i)/alpha_L(i)
+                                       
+                                        gamma_inv = gamma_inv + &
+                                        alpha_L(i)/(gammas(i)*(rho0(i)/rho_K)**(qvps(i)))
+                                       
+                                        xi = 1d0 - rho0(i)/rho_K
 
-                                    pref = pi_infs(i)+rho0(i)*(mg_a(i)**2d0)*xi&
-                                    /(1d0-mg_b(i)*xi)**2d0
+                                        pref = pi_infs(i)+rho0(i)*(mg_a(i)**2d0)*xi&
+                                        /(1d0-mg_b(i)*xi)**2d0
 
-                                    pref_over_gamma = pref_over_gamma + &
-                                    alpha_L(i)*pref/(gammas(i)*(rho0(i)/rho_K)**(qvps(i)))
+                                        pref_over_gamma = pref_over_gamma + &
+                                        alpha_L(i)*pref/(gammas(i)*(rho0(i)/rho_K)**(qvps(i)))
 
-                                    rho_eref = rho_eref + alpha_rho_L(i)*qvs(i)+&
-                                    0.5d0*(pref+pi_infs(i))*(alpha_rho_L(i)/rho0(i)-alpha_L(i))    
-
-                                end do
-                                 
+                                        rho_eref = rho_eref + alpha_rho_L(i)*qvs(i)+&
+                                        0.5d0*(pref+pi_infs(i))*(alpha_rho_L(i)/rho0(i)-alpha_L(i))    
+                                    end do
+                                end if
                                 ! Energy corresponding to Mie-Gruneisen EOS 
                                 E_L    = rho_eref + &
                                 gamma_inv*pres_L - pref_over_gamma + &
@@ -2213,24 +2213,25 @@ contains
                                 H_L = 0d0; H_R = 0d0 
                                 
                                 pref_over_gamma = 0d0;rho_eref = 0d0;gamma_inv = 0d0
-                                do i = 1, num_fluids
-                                    rho_K = alpha_rho_R(i)/alpha_R(i)
-                                   
-                                    gamma_inv = gamma_inv + &
-                                    alpha_R(i)/(gammas(i)*(rho0(i)/rho_K)**(qvps(i)))
-                                   
-                                    xi = 1d0 - rho0(i)/rho_K
+                                if (MGEoS_model == 1) then
+                                    do i = 1, num_fluids
+                                        rho_K = alpha_rho_R(i)/alpha_R(i)
+                                       
+                                        gamma_inv = gamma_inv + &
+                                        alpha_R(i)/(gammas(i)*(rho0(i)/rho_K)**(qvps(i)))
+                                       
+                                        xi = 1d0 - rho0(i)/rho_K
 
-                                    pref = pi_infs(i)+rho0(i)*(mg_a(i)**2d0)*xi&
-                                    /(1d0-mg_b(i)*xi)**2d0
+                                        pref = pi_infs(i)+rho0(i)*(mg_a(i)**2d0)*xi&
+                                        /(1d0-mg_b(i)*xi)**2d0
 
-                                    pref_over_gamma = pref_over_gamma + &
-                                    alpha_R(i)*pref/(gammas(i)*(rho0(i)/rho_K)**(qvps(i)))
+                                        pref_over_gamma = pref_over_gamma + &
+                                        alpha_R(i)*pref/(gammas(i)*(rho0(i)/rho_K)**(qvps(i)))
 
-                                    rho_eref = rho_eref + alpha_rho_R(i)*qvs(i)+&
-                                    0.5d0*(pref+pi_infs(i))*(alpha_rho_R(i)/rho0(i)-alpha_R(i))    
-
-                                end do
+                                        rho_eref = rho_eref + alpha_rho_R(i)*qvs(i)+&
+                                        0.5d0*(pref+pi_infs(i))*(alpha_rho_R(i)/rho0(i)-alpha_R(i))    
+                                    end do
+                                end if
                                  
                                 ! Energy corresponding to Mie-Gruneisen EOS 
                                 E_R    = rho_eref + &

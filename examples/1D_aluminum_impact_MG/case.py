@@ -54,7 +54,7 @@ print(json.dumps({
                     # Turning on Hypoelasticity ================================
                     'hypoplasticity'               : 'F',
                     # ==========================================================
-
+                    'MGEoS_model'                  : 1,
                     # Formatted Database Files Structure Parameters ============
                     'format'                       : 1,
                     'precision'                    : 2,

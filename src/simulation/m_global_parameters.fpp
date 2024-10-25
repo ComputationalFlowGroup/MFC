@@ -136,21 +136,22 @@ module m_global_parameters
 
     real(kind(0d0)) :: weno_eps       !< Binding for the WENO nonlinear weights
     real(kind(0d0)) :: teno_CT        !< Smoothness threshold for TENO
-    logical :: mp_weno        !< Monotonicity preserving (MP) WENO
-    logical :: weno_avg       ! Average left/right cell-boundary states
-    logical :: weno_Re_flux   !< WENO reconstruct velocity gradients for viscous stress tensor
-    integer :: riemann_solver !< Riemann solver algorithm
-    integer :: low_Mach       !< Low Mach number fix to HLLC Riemann solver
-    integer :: wave_speeds    !< Wave speeds estimation method
-    integer :: avg_state      !< Average state evaluation method
-    logical :: alt_soundspeed !< Alternate mixture sound speed
-    logical :: null_weights    !< Null undesired WENO weights
-    logical :: mixture_err     !< Mixture properties correction
-    logical :: hypoelasticity  !< hypoelasticity modeling
-    logical :: hyperelasticity !< hyperelasticity modeling
-    integer :: hyper_model     !< hyperelasticity solver algorithm
-    logical :: elasticity      !< elasticity modeling, true for hyper or hypo
-    logical :: hypoplasticity
+    logical :: mp_weno          !< Monotonicity preserving (MP) WENO
+    logical :: weno_avg         !< Average left/right cell-boundary states
+    logical :: weno_Re_flux     !< WENO reconstruct velocity gradients for viscous stress tensor
+    integer :: riemann_solver   !< Riemann solver algorithm
+    integer :: low_Mach         !< Low Mach number fix to HLLC Riemann solver
+    integer :: wave_speeds      !< Wave speeds estimation method
+    integer :: avg_state        !< Average state evaluation method
+    logical :: alt_soundspeed   !< Alternate mixture sound speed
+    logical :: null_weights     !< Null undesired WENO weights
+    logical :: mixture_err      !< Mixture properties correction
+    logical :: hypoelasticity   ! < hypoelasticity modeling
+    logical :: hyperelasticity  !< hyperelasticity modeling
+    integer :: hyper_model      !< hyperelasticity solver algorithm
+    logical :: elasticity       !< elasticity modeling, true for hyper or hypo
+    logical :: hypoplasticity   !< turn on hypoplasticity
+    integer :: MGEoS_model      !< shockEoS(1), complete Mie-Gruneisen(2), JWL(3), Cochran-Chan(4)
     logical :: cu_tensor
 
     logical :: bodyForces
@@ -170,7 +171,7 @@ module m_global_parameters
         !$acc declare create(num_dims, weno_polyn, weno_order, num_fluids, wenojs, mapped_weno, wenoz, teno)
     #:endif
 
-    !$acc declare create(mpp_lim, model_eqns, mixture_err, alt_soundspeed, avg_state, mp_weno, weno_eps, teno_CT, hypoelasticity,hyperelasticity, hyper_model, elasticity, low_Mach, hypoplasticity)
+    !$acc declare create(mpp_lim, model_eqns, mixture_err, alt_soundspeed, avg_state, mp_weno, weno_eps, teno_CT,hypoelasticity,hyperelasticity, hyper_model, elasticity, low_Mach, hypoplasticity, MGEoS_model)
 
     logical :: relax          !< activate phase change
     integer :: relax_model    !< Relaxation model
@@ -544,6 +545,7 @@ contains
         hyperelasticity = .false.
         elasticity = .false.
         hypoplasticity = .false.
+        MGEoS_model = dflt_int
         hyper_model = dflt_int
         weno_flat = .true.
         riemann_flat = .true.
@@ -1160,7 +1162,7 @@ contains
         !$acc update device(m, n, p)
 
         !$acc update device(alt_soundspeed, acoustic_source, num_source)
-        !$acc update device(dt, sys_size, buff_size, pref, rhoref, gamma_idx, pi_inf_idx, E_idx, alf_idx, stress_idx, mpp_lim, bubbles, hypoelasticity, alt_soundspeed, avg_state, num_fluids, model_eqns, num_dims, mixture_err, grid_geometry, cyl_coord, mp_weno, weno_eps, teno_CT, hyperelasticity, hyper_model, elasticity, xi_idx, low_Mach, hypoplasticity)
+        !$acc update device(dt, sys_size, buff_size, pref, rhoref, gamma_idx, pi_inf_idx, E_idx, alf_idx, stress_idx, mpp_lim, bubbles, hypoelasticity, alt_soundspeed, avg_state, num_fluids, model_eqns, num_dims, mixture_err, grid_geometry,cyl_coord, mp_weno, weno_eps, teno_CT, hyperelasticity, hyper_model, elasticity, xi_idx, low_Mach, hypoplasticity, MGEoS_model)
 
         #:if not MFC_CASE_OPTIMIZATION
             !$acc update device(wenojs, mapped_weno, wenoz, teno)
