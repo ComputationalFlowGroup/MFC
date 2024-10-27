@@ -243,8 +243,8 @@ contains
                 rho_e0 = rho_e0 + alpha_rho_K(i)*qvs(i)
                 rho_cv = rho_cv + alpha_rho_K(i)*cvs(i)
             end do
-            ! This is the increase in temperature from the reference
         end if
+            ! This is the increase in temperature from the reference
             temp = (energy - dyn_pres - rho_eref - rho_e0)/(rho_cv)
         
     end subroutine s_compute_temperature

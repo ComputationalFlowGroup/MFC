@@ -52,7 +52,7 @@ print(json.dumps({
                     # ==========================================================
 
                     # Turning on Hypoelasticity ================================
-                    'hypoplasticity'               : 'F',
+                    'hypoplasticity'               : 'T',
                     # ==========================================================
                     'MGEoS_model'                  : 1,
                     # Formatted Database Files Structure Parameters ============
@@ -77,7 +77,7 @@ print(json.dumps({
                     'patch_icpp(2)%geometry'       : 1,
                     'patch_icpp(2)%x_centroid'     : 0.75,
                     'patch_icpp(2)%length_x'       : 0.5,
-                    'patch_icpp(2)%vel(1)'         : -2000,
+                    'patch_icpp(2)%vel(1)'         : -700,
                     'patch_icpp(2)%pres'           : 0.0,
                     'patch_icpp(2)%alpha_rho(1)'   : 2785,
                     'patch_icpp(2)%alpha(1)'       : 1.,
@@ -85,14 +85,28 @@ print(json.dumps({
                     # ==========================================================
 
                     # Fluids Physical Parameters ===============================
-                    'fluid_pp(1)%gamma'            : 2.0,               #Gruneisen constant
-                    'fluid_pp(1)%pi_inf'           : 0.0,               #p0
-                    'fluid_pp(1)%mg_a'             : 5328,              #c0
-                    'fluid_pp(1)%mg_b'             : 1.338,             #s
-                    'fluid_pp(1)%qv'               : 0.0,               #e0
-                    'fluid_pp(1)%qvp'              : 1.0,               #Gruneisen exponent
-                    'fluid_pp(1)%rho0'             : 2785,              #reference density
-                    'fluid_pp(1)%cv'               : 903,
+                    # Johnson-cook material parameters are taken from https://doi.org/10.1115/1.4027793
+                    # Parameters are for Aluminum A356
+                    # Simon-Glatzel parameters taken from https://doi.org/10.1016/S0925-8388(00)00736-2
+                    'fluid_pp(1)%gamma'            : 2.0,               # Gruneisen constant
+                    'fluid_pp(1)%pi_inf'           : 0.0,               # p0
+                    'fluid_pp(1)%mg_a'             : 5328.0,            # c0
+                    'fluid_pp(1)%mg_b'             : 1.338,             # s
+                    'fluid_pp(1)%qv'               : 0.0,               # e0
+                    'fluid_pp(1)%qvp'              : 1.0,               # Gruneisen exponent
+                    'fluid_pp(1)%rho0'             : 2785.0,            # reference density
+                    'fluid_pp(1)%cv'               : 903.0,             # specific heat capacity
+                    'fluid_pp(1)%jcook(1)'         : 270.E6,            # A, Static yield strength
+                    'fluid_pp(1)%jcook(2)'         : 155.E6,            # B, Strain-Hardening coefficient
+                    'fluid_pp(1)%jcook(3)'         : 0.28,              # n, Strain-Hardening exponent
+                    'fluid_pp(1)%jcook(4)'         : 0.018,             # C, Strain-rate hardening coefficient
+                    'fluid_pp(1)%jcook(5)'         : 1.43,              # m, Thermal softening exponent
+                    'fluid_pp(1)%jcook(6)'         : 746.0,             # theta_m, Melt temperature at ambient #pressure
+                    'fluid_pp(1)%jcook(7)'         : 1.0E7,             # Limiting strain-rate
+                    'fluid_pp(1)%jcook(8)'         : 7.6E9,             # Parameter in Simon-Glatzel melt relation
+                    'fluid_pp(1)%jcook(9)'         : 0.615,             # exponent in Simon-Glatzel melt relation
+                    'fluid_pp(1)%jcook(10)'        : 1.0,               # non-dimensional strain-rate limit
+                    'fluid_pp(1)%jcook(11)'        : 298.0,              # Reference temperature
 # ==========================================================
 }))
 # ==============================================================================
