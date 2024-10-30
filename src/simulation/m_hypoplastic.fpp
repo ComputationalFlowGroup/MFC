@@ -102,7 +102,8 @@ contains
         real(kind(0d0)) :: energy, alf, dyn_p, pi_inf
         real(kind(0d0)) ::  gamma, rho, pres, stress, mom, temp, G
         real(kind(0d0)), dimension(num_fluids) ::  alpha_K, alpha_rho_K
-        real(kind(0d0)) :: theta_m, tempref, theta_hat, sigma_bar, dp_JC, d_p
+        real(kind(0d0)) :: theta_m, tempref, theta_hat, sigma_bar,&
+        dp_JC, d_p, equiv_tens_stress
         if (num_dims == 1) then
             ! For quasi-1D case
             du_dx(:,:,:) = 0d0
@@ -162,35 +163,43 @@ contains
                 elseif (temp .le. theta_m) then
                    theta_hat = (temp - tempref)/(theta_m - tempref)
                 else
-                   theta_hat = 1d0 + sgm_eps
+                   theta_hat = 1d0 + verysmall
                 end if
+                
 !                print *, 'I got here E' 
                 !could alternatively compute subtract tempref in both temp subroutine and theta_m
                 ! compute sigma_bar = sqrt(3/2) * | S | 
-                sigma_bar = dsqrt(1.5d0)*q_prim_vf(strxb)%sf(k, l, q)
-!                print *, 'sigma_bar ::', sigma_bar
+                sigma_bar = dsqrt(1.5d0)*abs(q_prim_vf(strxb)%sf(k, l, q))
+               ! print *, 'sigma_bar ::', sigma_bar
 
                 ! STEP 3.6 : Compute d^p and update rhs
                 ! compute d^p_JC from equation 4.7
                 ! d0 = 1 s^-1, jcook(4) = C, jcook(1) = A, jcook(2) = B,
                 ! jcook(10) = d0 = R_tilde nondimensionally
-                dp_JC = jcook10(1) * dexp((1d0/jcook4(1)) * (sigma_bar / &
-                     ((jcook1(1) + jcook2(1)*q_prim_vf(plasidx)%sf(k, l, q)**jcook3(1)) &
-                     *(1d0 - theta_hat**jcook5(1))) - 1d0))
+                equiv_tens_stress = (jcook1(1) + &
+                jcook2(1)*q_prim_vf(plasidx)%sf(k, l, q)**jcook3(1))*(1d0 - theta_hat**jcook5(1))
+                dp_JC = jcook10(1) * dexp((1d0/jcook4(1)) * (sigma_bar/equiv_tens_stress - 1d0))
+                print *,'theta_hat ::',theta_hat,'inside exp ::', (1d0/jcook4(1)) * (sigma_bar/equiv_tens_stress - 1d0)
+                !print *, sigma_bar, jcook1(1) +&
+                !jcook2(1)*q_prim_vf(plasidx)%sf(k, l, q)**jcook3(1),&
+                !(1d0 - theta_hat**jcook5(1))
+                !if (dp_JC .gt. sgm_eps) then
+               ! print *, dp_JC
+                !end if
                 ! compute d^p from equation 4.6
                 ! jcook(7) = d^p_lim
-                if (sigma_bar .gt. 1d0*verysmall) then
+                !if (sigma_bar .gt. sgm_eps) then
                     d_p = ((1d0/dp_JC) + (1d0/jcook7(1)))**(-1d0)
                     ! compute D^p using equation 4.5
                     do i = strxb, strxe
                         Dp(i-strxb + 1) = 1.5d0*(d_p/sigma_bar) * q_prim_vf(i)%sf(k, l, q)
                     end do
-!                 print *, 'I got here F' 
-                else
-                    d_p   = 0d0
-                    Dp(:) = 0d0
+                 !print *, 'I got here F' 
+                !else
+                !    d_p   = 0d0
+                !    Dp(:) = 0d0
 !                 print *, 'I got here G' 
-                end if
+                !end if
 
                 ! STEP 4: Compute rhs source terms
                 devdtensor(1) = 0.5d0*du_dx(k, l, q) 
@@ -198,7 +207,11 @@ contains
                 do i = strxb, strxe
                     rhs_vf(i)%sf(k, l, q) = rhs_vf(i)%sf(k, l, q) + & 
                                                 2d0*rho_K*G_K*(devdtensor(i-strxb+1)- Dp(i-strxb+1))
-                end do 
+                end do
+                if (d_p .gt. sgm_eps) then
+                    print *, d_p
+                end if
+                !print *, rho_K
                 ! STEP 5: Compute hardening rhs term
                 rhs_vf(plasidx)%sf(k, l, q) = rhs_vf(plasidx)%sf(k, l, q) + rho_K*d_p
             end if
@@ -315,7 +328,7 @@ contains
         !    end if
         !  end do
         else if (num_dims == 2) then
-         compute velocity gradients and rho_K and G_K        
+        ! compute velocity gradients and rho_K and G_K        
         du_dx(:, :, :) = 0d0; du_dy(:, :, :) = 0d0
         dv_dx(:, :, :) = 0d0; dv_dy(:, :, :) = 0d0
         q = 0        

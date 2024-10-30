@@ -3,7 +3,7 @@ import math
 import json
 
 #Numerical setup
-Nx      = 199
+Nx      = 99
 dx      = 1./(1.*(Nx+1))
 c0      = 5328
 Tend    = 50.E-6
@@ -26,7 +26,7 @@ print(json.dumps({
                     'dt'                           : mydt,
                     't_step_start'                 : 0,
                     't_step_stop'                  : int(Nt),
-                    't_step_save'                  : int(math.ceil(Nt/50.)),
+                    't_step_save'                  : int(math.ceil(Nt/100.)),
 	        	    # ==========================================================
 
                     # Simulation Algorithm Parameters ==========================
@@ -39,8 +39,8 @@ print(json.dumps({
 		            'time_stepper'                 : 3,
                     'weno_order'                   : 5,
                     'weno_eps'                     : 1.E-16,
-        		    'weno_Re_flux'                 : 'T',
-        	 	    'weno_avg'                     : 'T',
+        		    'weno_Re_flux'                 : 'F',
+        	 	    'weno_avg'                     : 'F',
                     'mapped_weno'                  : 'F',
                     'null_weights'                 : 'T',
                     'mp_weno'                      : 'T',
@@ -52,7 +52,7 @@ print(json.dumps({
                     # ==========================================================
 
                     # Turning on Hypoelasticity ================================
-                    'hypoplasticity'               : 'T',
+                    'hypoplasticity'               : 'F',
                     # ==========================================================
                     'MGEoS_model'                  : 1,
                     # Formatted Database Files Structure Parameters ============
@@ -66,22 +66,22 @@ print(json.dumps({
                     'patch_icpp(1)%geometry'       : 1,
                     'patch_icpp(1)%x_centroid'     : 0.25,
                     'patch_icpp(1)%length_x'       : 0.5,
-                    'patch_icpp(1)%vel(1)'         : 0.0,
-                    'patch_icpp(1)%pres'           : 7.93E9,
+                    'patch_icpp(1)%vel(1)'         : 2726.91,
+                    'patch_icpp(1)%pres'           : 6.816e10,
                     'patch_icpp(1)%alpha_rho(1)'   : 4000,
                     'patch_icpp(1)%alpha(1)'       : 1.,
-                    #'patch_icpp(1)%tau_e(1)'       : 0.0,
+                   #'patch_icpp(1)%tau_e(1)'       : 1.E-16,
                     # ==========================================================
 
                     # Patch 2 R ================================================
                     'patch_icpp(2)%geometry'       : 1,
                     'patch_icpp(2)%x_centroid'     : 0.75,
                     'patch_icpp(2)%length_x'       : 0.5,
-                    'patch_icpp(2)%vel(1)'         : -700,
+                    'patch_icpp(2)%vel(1)'         : 0.0,
                     'patch_icpp(2)%pres'           : 0.0,
                     'patch_icpp(2)%alpha_rho(1)'   : 2785,
                     'patch_icpp(2)%alpha(1)'       : 1.,
-                    #'patch_icpp(2)%tau_e(1)'       : 0.0,
+                   #'patch_icpp(2)%tau_e(1)'       : 1.E-16,
                     # ==========================================================
 
                     # Fluids Physical Parameters ===============================
@@ -96,6 +96,7 @@ print(json.dumps({
                     'fluid_pp(1)%qvp'              : 1.0,               # Gruneisen exponent
                     'fluid_pp(1)%rho0'             : 2785.0,            # reference density
                     'fluid_pp(1)%cv'               : 903.0,             # specific heat capacity
+                    'fluid_pp(1)%G'                : 25.E9,             # 25 GPa shear modulus
                     'fluid_pp(1)%jcook(1)'         : 270.E6,            # A, Static yield strength
                     'fluid_pp(1)%jcook(2)'         : 155.E6,            # B, Strain-Hardening coefficient
                     'fluid_pp(1)%jcook(3)'         : 0.28,              # n, Strain-Hardening exponent
@@ -104,7 +105,7 @@ print(json.dumps({
                     'fluid_pp(1)%jcook(6)'         : 746.0,             # theta_m, Melt temperature at ambient #pressure
                     'fluid_pp(1)%jcook(7)'         : 1.0E7,             # Limiting strain-rate
                     'fluid_pp(1)%jcook(8)'         : 7.6E9,             # Parameter in Simon-Glatzel melt relation
-                    'fluid_pp(1)%jcook(9)'         : 0.615,             # exponent in Simon-Glatzel melt relation
+                    'fluid_pp(1)%jcook(9)'         : 1/0.615,             # exponent in Simon-Glatzel melt relation
                     'fluid_pp(1)%jcook(10)'        : 1.0,               # non-dimensional strain-rate limit
                     'fluid_pp(1)%jcook(11)'        : 298.0,              # Reference temperature
 # ==========================================================

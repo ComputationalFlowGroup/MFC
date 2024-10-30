@@ -485,12 +485,12 @@ contains
                 call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
                                  'qv must be non-negative. Exiting ...')
             end if 
-            do j = 1, 2
-              if (fluid_pp(i)%ein_cv(j) < 0d0) then
-                call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
-                                 'ein_cv must be positive. Exiting ...')
-              end if
-          end do           
+           ! do j = 1, 2
+           !   if (fluid_pp(i)%ein_cv(j) < 0d0) then
+           !     call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
+           !                      'ein_cv must be positive. Exiting ...')
+           !   end if
+           ! end do           
        end do
     end subroutine s_check_inputs_mie_gruneisen_eos
 

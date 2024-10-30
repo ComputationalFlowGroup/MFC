@@ -12,11 +12,11 @@ c_l = 3077.6       #m/s
 vel1 = 1.E0
 
 leng = 1.
-Ny = 512.
-Nx = 1024.
+Ny = 256.
+Nx = 512.
 dx = leng/Nx
 
-time_end = 0.08    #5*leng/vel
+time_end = 1E-3    #5*leng/vel
 cfl = 0.1
 
 dt = cfl * dx/c_l
@@ -125,7 +125,7 @@ print(json.dumps({
     'n'                            : int(Ny),
     'p'                            : 0,
     'dt'                           : dt,
-    't_step_start'                 : 226899,
+    't_step_start'                 : 0,
     't_step_stop'                  : Nt,
     't_step_save'                  : int(Nt/100.),
     # ==========================================================================
@@ -135,6 +135,7 @@ print(json.dumps({
     'model_eqns'                   : 5,
     'alt_soundspeed'               : 'F',
     'hypoplasticity'               : 'F',
+    'MGEoS_model'                  : 1,
     'num_fluids'                   : 2,
     'mpp_lim'                      : 'F',
     'mixture_err'                  : 'F',
@@ -143,9 +144,9 @@ print(json.dumps({
     'weno_eps'                     : 1.E-16,
     'weno_Re_flux'                 : 'F',
     'weno_avg'                     : 'F',
-    'mapped_weno'                  : 'T',
-    'null_weights'                 : 'F',
-    'mp_weno'                      : 'F',
+    'mapped_weno'                  : 'F',
+    'null_weights'                 : 'T',
+    'mp_weno'                      : 'T',
     'riemann_solver'               : 2,
     'wave_speeds'                  : 1,
     'avg_state'                    : 2,
@@ -170,15 +171,11 @@ print(json.dumps({
     'patch_icpp(1)%length_y'       : leng,
     'patch_icpp(1)%vel(1)'         : vel0,
     'patch_icpp(1)%vel(2)'         : 0.E+00,
-    'patch_icpp(1)%pres'           : tilde_P_0,
-    'patch_icpp(1)%alpha_rho(1)'   : (1.E+00-(1.E-06)),
-    'patch_icpp(1)%alpha_rho(2)'   : (1.E-06)*(1.2/1.5805E3),
-    'patch_icpp(1)%alpha(1)'       : (1.E+00-1.E-06),
-    'patch_icpp(1)%alpha(2)'       : 1.E-06,
-   # 'patch_icpp(1)%tau_e(1)'       : 1.E-17,
-   # 'patch_icpp(1)%tau_e(2)'       : 1.E-17,
-   # 'patch_icpp(1)%tau_e(3)'       : 1.E-17,
-   # 'patch_icpp(1)%tau_e(4)'       : 1.E-17,
+    'patch_icpp(1)%pres'           : P_0,
+    'patch_icpp(1)%alpha_rho(1)'   : (1.E+00-(1.E-07))*1580.5,
+    'patch_icpp(1)%alpha_rho(2)'   : (1.E-07)*1.2,
+    'patch_icpp(1)%alpha(1)'       : (1.E+00-1.E-07),
+    'patch_icpp(1)%alpha(2)'       : 1.E-07,
     # ==========================================================================
 
     # Patch 2: Shocked state ===================================================
@@ -188,13 +185,13 @@ print(json.dumps({
     'patch_icpp(2)%y_centroid'     : 0.,
     'patch_icpp(2)%length_x'       : leng/4.+0.09,
     'patch_icpp(2)%length_y'       : leng,
-    'patch_icpp(2)%vel(1)'         : vel,
-    'patch_icpp(2)%vel(2)'         : 0.E+00,
-    'patch_icpp(2)%pres'           : ps,
-    'patch_icpp(2)%alpha_rho(1)'   : (1.E0-(1.E-06))*tilde_rho,
-    'patch_icpp(2)%alpha_rho(2)'   : (1.E-06)*(1.2/1580.5),
-    'patch_icpp(2)%alpha(1)'       : 1.E+00-(1.E-06),
-    'patch_icpp(2)%alpha(2)'       : 1.E-06,
+    'patch_icpp(2)%vel(1)'         : 59.337,
+    'patch_icpp(2)%vel(2)'         : 0.0,
+    'patch_icpp(2)%pres'           : 303.804E6,
+    'patch_icpp(2)%alpha_rho(1)'   : (1.E0-(1.E-07))*1610,
+    'patch_icpp(2)%alpha_rho(2)'   : (1.E-07)*1.5,
+    'patch_icpp(2)%alpha(1)'       : 1.E+00-(1.E-07),
+    'patch_icpp(2)%alpha(2)'       : 1.E-07,
     # ==========================================================================
 
     # Patch 3: Bubble ==========================================================
@@ -205,38 +202,30 @@ print(json.dumps({
     'patch_icpp(3)%alter_patch(1)' : 'T',
     'patch_icpp(3)%vel(1)'         : vel0,
     'patch_icpp(3)%vel(2)'         : 0.E+00,
-    'patch_icpp(3)%pres'           : tilde_P_0,
-    'patch_icpp(3)%alpha_rho(1)'   : 1.E-06,
-    'patch_icpp(3)%alpha_rho(2)'   : (1.E0-(1.E-6))*(1.2/1580.5),
-    'patch_icpp(3)%alpha(1)'       : 1.E-06,
-    'patch_icpp(3)%alpha(2)'       : 1.E+00-(1.E-06),
-    #'patch_icpp(3)%tau_e(1)'       : 1.E-17,
-    #'patch_icpp(3)%tau_e(2)'       : 1.E-17,
-    #'patch_icpp(3)%tau_e(3)'       : 1.E-17,
-    #'patch_icpp(3)%tau_e(4)'       : 1.E-17,
+    'patch_icpp(3)%pres'           : P_0,
+    'patch_icpp(3)%alpha_rho(1)'   : (1.E-07)*1580.5,
+    'patch_icpp(3)%alpha_rho(2)'   : (1.E0-(1.E-7))*1.2,
+    'patch_icpp(3)%alpha(1)'       : 1.E-07,
+    'patch_icpp(3)%alpha(2)'       : 1.E+00-(1.E-07),
     # ==========================================================================
 
     # Fluids Physical Parameters ===============================================
-    'fluid_pp(1)%gamma'            : 1.09E0,                           # 1.E+00/(1.4E+00-1.E+00),
-    'fluid_pp(1)%pi_inf'           : tilde_P_0,      # isothermal bulk modulus
-    'fluid_pp(2)%gamma'            : 0.4E0,                            # 1.E+00/(1.6666E+00-1.E+00),
-    'fluid_pp(2)%pi_inf'           : tilde_P_0,                              # 0.0
-    'fluid_pp(1)%qv'               : 0.0,                           # K'_theta0 for sucrose
-    'fluid_pp(2)%qv'               : 0.0,
-    'fluid_pp(1)%qvp'              : 1.00,                                                        # K'_theta0 for air
-    'fluid_pp(2)%qvp'              : 0.00,
-   # 'fluid_pp(1)%G'                : G_suc/(rho_0_suc*c_0*c_0),        # Shear modulus
-   # 'fluid_pp(2)%G'                : 1.E-5,                            # Shear modulus of air taken to be a very small value
-   # 'fluid_pp(1)%ein_cv(1)'        : A_tilde,                          # Can be replaced with fluid_pp(:)%cv at some point
-   # 'fluid_pp(2)%ein_cv(1)'        : 0.026937087111210E0,              #
-   # 'fluid_pp(1)%ein_cv(2)'        : theta_E_tilde,                    # Can be replaced with a scalar theta_E at some point
-   # 'fluid_pp(2)%ein_cv(2)'        : 100E0/298E0,                      #0.335E0,
-    'fluid_pp(1)%mg_a'             : 1.0,                             #a_mg
-    'fluid_pp(1)%mg_b'             : 2.87,                             #b_mg
-    'fluid_pp(2)%mg_a'             : 237/3077.6,                            #a_mg
-    'fluid_pp(2)%mg_b'             : 1.058,                             #b_mg
-    'fluid_pp(1)%rho0'             : 1.E0,                             #Non-dimensional initial density in Birch-Murnaghan cold curve
-    'fluid_pp(2)%rho0'             : rho_0_air/(rho_0_suc),
+                    'fluid_pp(1)%gamma'            : 1.09,              # Gruneisen constant
+                    'fluid_pp(1)%pi_inf'           : P_0,               # p0
+                    'fluid_pp(1)%mg_a'             : 3077.6,            # c0
+                    'fluid_pp(1)%mg_b'             : 2.71,              # s
+                    'fluid_pp(1)%qv'               : 0.0,               # e0
+                    'fluid_pp(1)%qvp'              : 1.0,               # Gruneisen exponent
+                    'fluid_pp(1)%rho0'             : 1580.5,            # reference density
+                    'fluid_pp(1)%cv'               : 3000,              # specific heat capacity
+                    'fluid_pp(2)%gamma'            : 0.4,               # Gruneisen constant
+                    'fluid_pp(2)%pi_inf'           : P_0,               # p0
+                    'fluid_pp(2)%mg_a'             : 233,               # c0
+                    'fluid_pp(2)%mg_b'             : 1.058,             # s
+                    'fluid_pp(2)%qv'               : 0.0,               # e0
+                    'fluid_pp(2)%qvp'              : 0.0,               # Gruneisen exponent
+                    'fluid_pp(2)%rho0'             : 1.2,               # reference density
+                    'fluid_pp(2)%cv'               : 1000,              # specific heat capacity
    # 'fluid_pp(1)%jcook(1)'         : 0.0334,                           # A, Static yield strength
    # 'fluid_pp(1)%jcook(2)'         : 0.0334,                           # B, Strain-Hardening coefficient
    # 'fluid_pp(1)%jcook(3)'         : 0.1,                              # n, Strain-Hardening exponent

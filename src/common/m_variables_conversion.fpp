@@ -998,7 +998,6 @@ contains
                 allocate (nRtmp(0))
             end if
         #:endif
-        
         !$acc parallel loop collapse(3) gang vector default(present) private(alpha_K, alpha_rho_K, Re_K, nRtmp, rho_K,gamma_K,pi_inf_K, qv_K, dyn_pres_K, R3tmp, G_K,pres, temp)
         do l = izb, ize
             do k = iyb, iye
@@ -1160,7 +1159,7 @@ contains
                         end do
                         qK_prim_vf(plasidx)%sf(j, k, l) = qK_cons_vf(plasidx)%sf(j, k, l)/rho_K
                     end if
-
+                   !print *, qK_prim_vf(plasidx)%sf(j, k, l)
                     if (hyperelasticity) then
                         !$acc loop seq
                         do i = xibeg, xiend
@@ -1369,9 +1368,10 @@ contains
                             end if
                         end do
                     end if
-
+                
                     if (hypoplasticity) then 
-                      q_cons_vf(plasidx)%sf(j, k, l) = rho*q_prim_vf(plasidx)%sf(j, k, l) 
+                     !q_cons_vf(plasidx)%sf(j, k, l) = rho*q_prim_vf(plasidx)%sf(j, k, l) 
+                      q_cons_vf(plasidx)%sf(j, k, l) = rho*sgm_eps 
                     end if 
   
                     ! using \rho xi as the conservative formulation stated in Kamrin et al. JFM 2022

@@ -48,6 +48,7 @@ xi  = 1-1/tilde_rho
 ps  = tilde_P_0 + xi/((1-1.51*xi)*(1-1.51*xi))
 vel = vel0 + math.sqrt((ps-tilde_P_0)*xi)
 
+print(ps)
 #phi = math.exp(gamma_suc*(1-1/tilde_rho))
 # Configuring case dictionary
 print(json.dumps({
@@ -78,15 +79,15 @@ print(json.dumps({
                     'weno_order'                   : 5,
                     'weno_eps'                     : 1.E-16,
 		            'weno_Re_flux'                 : 'F',
-                    'weno_avg'                     : 'T',
+                    'weno_avg'                     : 'F',
                     'mapped_weno'                  : 'T',
                     'null_weights'                 : 'T',
                     'mp_weno'                      : 'T',
 		            'riemann_solver'               : 2,
                     'wave_speeds'                  : 1,
                     'avg_state'                    : 2,
-                    'bc_x%beg'                     : -6,
-                    'bc_x%end'                     : -6,
+                    'bc_x%beg'                     : -3,
+                    'bc_x%end'                     : -3,
                     # ==========================================================
 
                     # Hypoplasticity ================================
@@ -105,13 +106,11 @@ print(json.dumps({
                     'patch_icpp(1)%x_centroid'     : 0.5,
                     'patch_icpp(1)%length_x'       : leng,
                     'patch_icpp(1)%vel(1)'         : vel0,
-                   #'patch_icpp(1)%vel(2)'         : vel2,
                     'patch_icpp(1)%pres'           : tilde_P0,
                     'patch_icpp(1)%alpha_rho(1)'   : (1.0-1e-6),
                     'patch_icpp(1)%alpha_rho(2)'   : (1e-6)*(1.2/8924),
                     'patch_icpp(1)%alpha(1)'       : 1.0-1e-6,
                     'patch_icpp(1)%alpha(2)'       : 1e-6,
-                   #'patch_icpp(1)%tau_e(1)'       : 1e-16,
                     # ==========================================================
 
                     # Patch 2: Shocked state ===================================================
@@ -133,35 +132,46 @@ print(json.dumps({
                     'patch_icpp(3)%length_x'       : 0.5,
                     'patch_icpp(3)%alter_patch(1)' : 'T',
                     'patch_icpp(3)%vel(1)'         : vel0,
-                   # 'patch_icpp(2)%vel(2)'        : vel2,
                     'patch_icpp(3)%pres'           : tilde_P0,
-                    'patch_icpp(3)%alpha_rho(1)'   : 1e-6,
+                    'patch_icpp(3)%alpha_rho(1)'   : 1.E-6,
                     'patch_icpp(3)%alpha_rho(2)'   : (1.E0-1.E-6)*1.2/8924,
                     'patch_icpp(3)%alpha(1)'       : 1.E-6,
                     'patch_icpp(3)%alpha(2)'       : 1.0-1.E-6,
-                   # 'patch_icpp(2)%tau_e(1)'       : 1e-16,
-                    # ==========================================================
-    # Fluids Physical Parameters ===============================================
-    'fluid_pp(1)%gamma'            : 1.96E0,                           # 1.E+00/(1.4E+00-1.E+00),
-    'fluid_pp(1)%pi_inf'           : 1.0E5/(rho_0_suc*c_0*c_0),        # isothermal bulk modulus
-    'fluid_pp(2)%gamma'            : 0.4E0,                            # 1.E+00/(1.6666E+00-1.E+00),
-   # 'fluid_pp(2)%pi_inf'           : 4.1110986919636283842*1.013e5/(rho_0_suc*c_0*c_0),      # 0.0
-    'fluid_pp(2)%pi_inf'           : 0.0*1.013e5/(rho_0_suc*c_0*c_0),      # 0.0
-    'fluid_pp(1)%qv'               : 3910/(c_0),                           # K'_theta0 for sucrose
-    'fluid_pp(2)%qv'               : 0.0,                                   #
+                     # Fluids Physical Parameters =====================================
+                    'fluid_pp(1)%gamma'            : 1.96E0,                           # 1.E+00/(1.4E+00-1.E+00),
+                    'fluid_pp(2)%gamma'            : 0.4E0,                            # 1.E+00/(1.6666E+00-1.E+00),
+                    'fluid_pp(1)%pi_inf'           : tilde_P0,                              # isothermal bulk modulus
+                    'fluid_pp(2)%pi_inf'           : 0.0*1.013e5/(rho_0_suc*c_0*c_0),      # 0.0
+                    'fluid_pp(1)%mg_a'             : 1.0,                           # K'_theta0 for sucrose
+                    'fluid_pp(1)%mg_b'             : 1.51,                                   #
+                    'fluid_pp(2)%mg_a'             : 0.0,       #237/3910,
+                    'fluid_pp(2)%mg_b'             : 1.058,
+                    'fluid_pp(1)%qv'               : 0.0,
+                    'fluid_pp(2)%qv'               : 0.0,
+                    'fluid_pp(1)%qvp'              : 1.0,
+                    'fluid_pp(2)%qvp'              : 0.0,
+                    'fluid_pp(1)%rho0'             : 1.0,    #Non-dimensional initial density in Birch-Murnaghan cold curve
+                    'fluid_pp(2)%rho0'             : 1.2/8924,
+   # 'fluid_pp(1)%gamma'            : 1.96E0,                           # 1.E+00/(1.4E+00-1.E+00),
+   # 'fluid_pp(1)%pi_inf'           : 1.0E5/(rho_0_suc*c_0*c_0),        # isothermal bulk modulus
+   # 'fluid_pp(2)%gamma'            : 0.4E0,                            # 1.E+00/(1.6666E+00-1.E+00),
+   #'fluid_pp(2)%pi_inf'           : 4.1110986919636283842*1.013e5/(rho_0_suc*c_0*c_0),      # 0.0
+   # 'fluid_pp(2)%pi_inf'           : 0.0*1.013e5/(rho_0_suc*c_0*c_0),      # 0.0
+   # 'fluid_pp(1)%qv'               : 3910/(c_0),                           # K'_theta0 for sucrose
+   # 'fluid_pp(2)%qv'               : 0.0,                                   #
    # 'fluid_pp(1)%G'                : G_suc/(rho_0_suc*c_0*c_0),        # Shear modulus
    # 'fluid_pp(2)%G'                : 0.0, #0.0E-9/(rho_0_suc*c_0*c_0),       # Shear modulus of air taken to be a very small value
-    'fluid_pp(1)%ein_cv(1)'        : A_tilde,                          # Can be replaced with fluid_pp(:)%cv at some point
-    'fluid_pp(2)%ein_cv(1)'        : 0.026937087111210E0,              #
-    'fluid_pp(1)%ein_cv(2)'        : theta_E_tilde,                    # Can be replaced with a scalar theta_E at some point
-    'fluid_pp(2)%ein_cv(2)'        : 100E0/298E0, #0.335E0,
-    'fluid_pp(1)%mg_a'             : 0.E0,                             #a_mg
-    'fluid_pp(1)%mg_b'             : 1.E0,                             #b_mg
-    'fluid_pp(2)%mg_a'             : 0.4E0,                            #a_mg
-    'fluid_pp(2)%mg_b'             : 0.E0,                             #b_mg
+   # 'fluid_pp(1)%ein_cv(1)'        : A_tilde,                          # Can be replaced with fluid_pp(:)%cv at some point
+   # 'fluid_pp(2)%ein_cv(1)'        : 0.026937087111210E0,              #
+   # 'fluid_pp(1)%ein_cv(2)'        : theta_E_tilde,                    # Can be replaced with a scalar theta_E at some point
+   # 'fluid_pp(2)%ein_cv(2)'        : 100E0/298E0, #0.335E0,
+   # 'fluid_pp(1)%mg_a'             : 1.0,                             #a_mg
+   # 'fluid_pp(1)%mg_b'             : ,                             #b_mg
+   # 'fluid_pp(2)%mg_a'             : 0.4E0,                            #a_mg
+   # 'fluid_pp(2)%mg_b'             : 0.E0,                             #b_mg
    #'fluid_pp(1)%rho0'             : 1580.5/1580.5,       #Non-dimensional initial density in Birch-Murnaghan cold curve
-   'fluid_pp(2)%rho0'               : 1.2/8924,
-   'fluid_pp(1)%rho0'               : 1,       #Non-dimensional initial density in Birch-Murnaghan cold curve
+  # 'fluid_pp(2)%rho0'               : 1.2/8924,
+  # 'fluid_pp(1)%rho0'               : 1,       #Non-dimensional initial density in Birch-Murnaghan cold curve
    # 'fluid_pp(2)%rho0'             : 0.429683187295/1580.5,
    # 'fluid_pp(1)%jcook(1)'         : 0.0334,                           # A, Static yield strength
    # 'fluid_pp(1)%jcook(2)'         : 0.0334,                           # B, Strain-Hardening coefficient
