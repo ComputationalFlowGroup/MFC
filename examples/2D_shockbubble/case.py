@@ -3,18 +3,18 @@
 import math
 import json
 
-ps  = 248758.567
+ps  = 1.E9 #248758.567
 gam = 1.4
-rho = 1.
+rho = 6.803 #1
 c_l = math.sqrt( 1.4*ps/rho )
-vel = 230.
+vel = 1808.0 #230
 
 leng = 1.
 Ny = 100.
 Nx = Ny*3
 dx = leng/Nx
 
-time_end = 5*leng/vel
+time_end = (5/3)*leng/vel
 cfl = 0.1
 
 dt = cfl * dx/c_l
@@ -79,7 +79,7 @@ print(json.dumps({
     'patch_icpp(1)%y_centroid'     : 0.,
     'patch_icpp(1)%length_x'       : 10*leng,
     'patch_icpp(1)%length_y'       : leng,
-    'patch_icpp(1)%vel(1)'         : vel,
+    'patch_icpp(1)%vel(1)'         : 0.0,
     'patch_icpp(1)%vel(2)'         : 0.E+00,
     'patch_icpp(1)%pres'           : 101325.,
     'patch_icpp(1)%alpha_rho(1)'   : 1.29,
@@ -98,7 +98,7 @@ print(json.dumps({
     'patch_icpp(2)%vel(1)'         : vel,
     'patch_icpp(2)%vel(2)'         : 0.E+00,
     'patch_icpp(2)%pres'           : ps,
-    'patch_icpp(2)%alpha_rho(1)'   : 2.4,
+    'patch_icpp(2)%alpha_rho(1)'   : rho, #2.4,
     'patch_icpp(2)%alpha_rho(2)'   : 0.E+00,
     'patch_icpp(2)%alpha(1)'       : 1.E+00,
     'patch_icpp(2)%alpha(2)'       : 0.E+00,

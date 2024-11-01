@@ -3,7 +3,7 @@ import math
 import json
 
 #Numerical setup
-c_l     = 3910
+c_l     = 1
 Nx      = 256
 cfl     = 0.1
 leng    = 1.
@@ -15,6 +15,7 @@ Nt      = int(Tend/mydt)
 vel1    = 1.0
 vel2    = 0.0
 theta_0 = 298.0
+eps = 1E-16
 
 Kt0_suc       = 14.3e9      #Pa
 Kt0_prime_suc = 3.75        #-
@@ -100,10 +101,10 @@ print(json.dumps({
                     'patch_icpp(1)%length_x'       : leng,
                     'patch_icpp(1)%vel(1)'         : vel1,
                     'patch_icpp(1)%pres'           : tilde_P0,
-                    'patch_icpp(1)%alpha_rho(1)'   : (1.0-1.E-6),
-                    'patch_icpp(1)%alpha_rho(2)'   : (1.E-6)*(1.2/8924),
-                    'patch_icpp(1)%alpha(1)'       : 1.0-1.E-6,
-                    'patch_icpp(1)%alpha(2)'       : 1.E-6,
+                    'patch_icpp(1)%alpha_rho(1)'   : (1.0-eps),
+                    'patch_icpp(1)%alpha_rho(2)'   : eps*(1.2/8924),
+                    'patch_icpp(1)%alpha(1)'       : 1.0-eps,
+                    'patch_icpp(1)%alpha(2)'       : eps,
                     # ==========================================================
 
                     # Patch 2 R ================================================
@@ -113,10 +114,10 @@ print(json.dumps({
                     'patch_icpp(2)%alter_patch(1)' : 'T',
                     'patch_icpp(2)%vel(1)'         : vel1,
                     'patch_icpp(2)%pres'           : tilde_P0,
-                    'patch_icpp(2)%alpha_rho(1)'   : 1.E-6,
-                    'patch_icpp(2)%alpha_rho(2)'   : (1.0-1.E-6)*1.2/8924,
-                    'patch_icpp(2)%alpha(1)'       : 1.E-6,
-                    'patch_icpp(2)%alpha(2)'       : 1.0-1.E-6,
+                    'patch_icpp(2)%alpha_rho(1)'   : eps,
+                    'patch_icpp(2)%alpha_rho(2)'   : (1.0-eps)*1.2/8924,
+                    'patch_icpp(2)%alpha(1)'       : eps,
+                    'patch_icpp(2)%alpha(2)'       : 1.0-eps,
                     # ==========================================================
                     # Fluids Physical Parameters ===============================================
                     'fluid_pp(1)%gamma'            : 1.96E0,                           # 1.E+00/(1.4E+00-1.E+00),

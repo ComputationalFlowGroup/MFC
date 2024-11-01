@@ -431,6 +431,11 @@ contains
                     else
                         !1D
                         icfl_sf(j, k, l) = (dt/dx(j))*(abs(vel(1)) + c)
+                        
+                        !if (c .ge. 5000d0) then
+                        !    print *,'vel:',vel(1),'c:',c,'dt:',dt,'dx(j):',dx(j)
+                       !     call s_mpi_abort()
+                        !end if
 
                         if (any(Re_size > 0)) then
 

@@ -4,8 +4,8 @@ import json
 
 #Numerical setup
 c_l     = 3077.6
-Nx      = 199
-cfl     = 0.2
+Nx      = 99
+cfl     = 0.1
 leng    = 2.
 dx      = leng/(Nx+1)
 mydt    = cfl*dx/c_l
@@ -16,7 +16,7 @@ vel1    = 1.0
 vel2    = 0.0
 theta_0 = 298.0
 
-
+eps = 0.0
 Kt0_suc       = 14.3e9      #Pa
 Kt0_prime_suc = 3.75        #-
 rho_0_suc     = 1580.5      #kg/m^3
@@ -87,10 +87,10 @@ print(json.dumps({
                     'patch_icpp(1)%length_x'       : leng,
                     'patch_icpp(1)%vel(1)'         : 0.0,
                     'patch_icpp(1)%pres'           : P_0,
-                    'patch_icpp(1)%alpha_rho(1)'   : (1.0-(1.E-7))*1580.5,
-                    'patch_icpp(1)%alpha_rho(2)'   : (1.E-7)*1.2,
-                    'patch_icpp(1)%alpha(1)'       : 1.0-(1.E-7),
-                    'patch_icpp(1)%alpha(2)'       : 1.E-7,
+                    'patch_icpp(1)%alpha_rho(1)'   : (1.0-eps)*1580.5,
+                    'patch_icpp(1)%alpha_rho(2)'   : (eps)*1.2,
+                    'patch_icpp(1)%alpha(1)'       : 1.0-eps,
+                    'patch_icpp(1)%alpha(2)'       : eps,
                     # Shocked State ============================================
                     'patch_icpp(2)%geometry'       : 1,
                     'patch_icpp(2)%x_centroid'     : 0.125,
@@ -98,10 +98,10 @@ print(json.dumps({
                     'patch_icpp(2)%alter_patch(1)' : 'T',
                     'patch_icpp(2)%vel(1)'         : 59.337,
                     'patch_icpp(2)%pres'           : 303.804E6,
-                    'patch_icpp(2)%alpha_rho(1)'   : (1.E0-(1.E-7))*1610,
-                    'patch_icpp(2)%alpha_rho(2)'   : (1.E-7)*1.5,
-                    'patch_icpp(2)%alpha(1)'       : 1.0-(1.E-7),
-                    'patch_icpp(2)%alpha(2)'       : 1.E-7,
+                    'patch_icpp(2)%alpha_rho(1)'   : (1.E0-eps)*1610,
+                    'patch_icpp(2)%alpha_rho(2)'   : eps*1.5,
+                    'patch_icpp(2)%alpha(1)'       : 1.0-eps,
+                    'patch_icpp(2)%alpha(2)'       : eps,
                     # Patch 2 R ================================================
                     'patch_icpp(3)%geometry'       : 1,
                     'patch_icpp(3)%x_centroid'     : 1.0,
@@ -109,10 +109,10 @@ print(json.dumps({
                     'patch_icpp(3)%alter_patch(1)' : 'T',
                     'patch_icpp(3)%vel(1)'         : 0.0,
                     'patch_icpp(3)%pres'           : P_0,
-                    'patch_icpp(3)%alpha_rho(1)'   : (1e-7)*1580.5,
-                    'patch_icpp(3)%alpha_rho(2)'   : (1.E0-(1.E-7))*1.2,
-                    'patch_icpp(3)%alpha(1)'       : 1.E-7,
-                    'patch_icpp(3)%alpha(2)'       : 1.0-(1.E-7),
+                    'patch_icpp(3)%alpha_rho(1)'   : eps*1580.5,
+                    'patch_icpp(3)%alpha_rho(2)'   : (1.E0-eps)*1.2,
+                    'patch_icpp(3)%alpha(1)'       : eps,
+                    'patch_icpp(3)%alpha(2)'       : 1.0-eps,
                     # ==========================================================
                     # Fluids Physical Parameters ===============================================
                     'fluid_pp(1)%gamma'            : 1.09,              # Gruneisen constant
@@ -124,11 +124,11 @@ print(json.dumps({
                     'fluid_pp(1)%rho0'             : 1580.5,            # reference density
                     'fluid_pp(1)%cv'               : 3000,              # specific heat capacity
                     'fluid_pp(2)%gamma'            : 0.4,               # Gruneisen constant
-                    'fluid_pp(2)%pi_inf'           : 0.0,               # p0
-                    'fluid_pp(2)%mg_a'             : 0.0,               # c0
+                    'fluid_pp(2)%pi_inf'           : P_0,               # p0
+                    'fluid_pp(2)%mg_a'             : 233,               # c0
                     'fluid_pp(2)%mg_b'             : 1.058,             # s
                     'fluid_pp(2)%qv'               : 0.0,               # e0
-                    'fluid_pp(2)%qvp'              : 0.0,               # Gruneisen exponent
+                    'fluid_pp(2)%qvp'              : 1E-4,               # Gruneisen exponent
                     'fluid_pp(2)%rho0'             : 1.2,               # reference density
                     'fluid_pp(2)%cv'               : 1000,              # specific heat capacity
 }))

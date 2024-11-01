@@ -13,15 +13,16 @@ vel1 = 1.E0
 
 leng = 1.
 Ny = 256.
-Nx = 512.
+Nx = 512
 dx = leng/Nx
 
-time_end = 1E-3    #5*leng/vel
+time_end = 5E-4    #5*leng/vel
 cfl = 0.1
 
 dt = cfl * dx/c_l
 Nt = int(time_end/dt)
 
+eps = 1E-6
 #Material parameters of sucrose (dimensional)
 Kt0_suc       = 14.3e9      #Pa
 Kt0_prime_suc = 3.75        #-
@@ -104,11 +105,15 @@ rho_0_tilde = rho_0_suc/rho_0_suc
 #ps =(-tilde_P_0*(1-1/tilde_rho+2/gamma_suc)+(2/gamma_suc)*(-p_theta0 + gamma_suc*(int_energy-int_energy0)))/(1-1/tilde_rho-2/gamma_suc)
 
 #Shock EoS
-xi = 1.0-1.0/tilde_rho
-ps = tilde_P_0 +  xi/pow(1-2.87*xi,2)       #Need to fix the shock slope everywhere in the code
-vel = vel0 +  math.sqrt((ps-tilde_P_0)*xi/rho_0_tilde)
+#xi = 1.0-1.0/tilde_rho
+#ps = tilde_P_0 +  xi/pow(1-2.87*xi,2)       #Need to fix the shock slope everywhere in the code
+#vel = vel0 +  math.sqrt((ps-tilde_P_0)*xi/rho_0_tilde)
 #print('pressure=',ps*rho_0_suc*c_0*c_0*1.0E-9,'GPa')
 #print('vel=',vel*c_0,'m/s')
+vel = 60.0
+Us = c_l+ 1.104*vel
+rho1 = 1580.5*Us/(Us-vel)
+ps = P_0 + 1580.5*Us*vel
 
 # Configuring case dictionary
 print(json.dumps({
@@ -137,7 +142,7 @@ print(json.dumps({
     'hypoplasticity'               : 'F',
     'MGEoS_model'                  : 1,
     'num_fluids'                   : 2,
-    'mpp_lim'                      : 'F',
+    'mpp_lim'                      : 'T',
     'mixture_err'                  : 'F',
     'time_stepper'                 : 3,
     'weno_order'                   : 5,
@@ -172,10 +177,10 @@ print(json.dumps({
     'patch_icpp(1)%vel(1)'         : vel0,
     'patch_icpp(1)%vel(2)'         : 0.E+00,
     'patch_icpp(1)%pres'           : P_0,
-    'patch_icpp(1)%alpha_rho(1)'   : (1.E+00-(1.E-07))*1580.5,
-    'patch_icpp(1)%alpha_rho(2)'   : (1.E-07)*1.2,
-    'patch_icpp(1)%alpha(1)'       : (1.E+00-1.E-07),
-    'patch_icpp(1)%alpha(2)'       : 1.E-07,
+    'patch_icpp(1)%alpha_rho(1)'   : (1.E+00-eps)*1580.5,
+    'patch_icpp(1)%alpha_rho(2)'   : eps*1.2,
+    'patch_icpp(1)%alpha(1)'       : (1.E+00-eps),
+    'patch_icpp(1)%alpha(2)'       : eps,
     # ==========================================================================
 
     # Patch 2: Shocked state ===================================================
@@ -183,15 +188,15 @@ print(json.dumps({
     'patch_icpp(2)%alter_patch(1)' : 'T',
     'patch_icpp(2)%x_centroid'     : -3*leng/8.,
     'patch_icpp(2)%y_centroid'     : 0.,
-    'patch_icpp(2)%length_x'       : leng/4.+0.09,
+    'patch_icpp(2)%length_x'       : leng/4.,
     'patch_icpp(2)%length_y'       : leng,
-    'patch_icpp(2)%vel(1)'         : 59.337,
+    'patch_icpp(2)%vel(1)'         : vel,
     'patch_icpp(2)%vel(2)'         : 0.0,
-    'patch_icpp(2)%pres'           : 303.804E6,
-    'patch_icpp(2)%alpha_rho(1)'   : (1.E0-(1.E-07))*1610,
-    'patch_icpp(2)%alpha_rho(2)'   : (1.E-07)*1.5,
-    'patch_icpp(2)%alpha(1)'       : 1.E+00-(1.E-07),
-    'patch_icpp(2)%alpha(2)'       : 1.E-07,
+    'patch_icpp(2)%pres'           : ps,
+    'patch_icpp(2)%alpha_rho(1)'   : (1.E0-eps)*rho1,
+    'patch_icpp(2)%alpha_rho(2)'   : eps*1.2,
+    'patch_icpp(2)%alpha(1)'       : 1.E+00-eps,
+    'patch_icpp(2)%alpha(2)'       : eps,
     # ==========================================================================
 
     # Patch 3: Bubble ==========================================================
@@ -203,27 +208,27 @@ print(json.dumps({
     'patch_icpp(3)%vel(1)'         : vel0,
     'patch_icpp(3)%vel(2)'         : 0.E+00,
     'patch_icpp(3)%pres'           : P_0,
-    'patch_icpp(3)%alpha_rho(1)'   : (1.E-07)*1580.5,
-    'patch_icpp(3)%alpha_rho(2)'   : (1.E0-(1.E-7))*1.2,
-    'patch_icpp(3)%alpha(1)'       : 1.E-07,
-    'patch_icpp(3)%alpha(2)'       : 1.E+00-(1.E-07),
+    'patch_icpp(3)%alpha_rho(1)'   : eps*1580.5,
+    'patch_icpp(3)%alpha_rho(2)'   : (1.E0-eps)*1.2,
+    'patch_icpp(3)%alpha(1)'       : eps,
+    'patch_icpp(3)%alpha(2)'       : 1.E+00-eps,
     # ==========================================================================
 
     # Fluids Physical Parameters ===============================================
                     'fluid_pp(1)%gamma'            : 1.09,              # Gruneisen constant
                     'fluid_pp(1)%pi_inf'           : P_0,               # p0
                     'fluid_pp(1)%mg_a'             : 3077.6,            # c0
-                    'fluid_pp(1)%mg_b'             : 2.71,              # s
+                    'fluid_pp(1)%mg_b'             : 1.104,             # s
                     'fluid_pp(1)%qv'               : 0.0,               # e0
                     'fluid_pp(1)%qvp'              : 1.0,               # Gruneisen exponent
                     'fluid_pp(1)%rho0'             : 1580.5,            # reference density
                     'fluid_pp(1)%cv'               : 3000,              # specific heat capacity
                     'fluid_pp(2)%gamma'            : 0.4,               # Gruneisen constant
-                    'fluid_pp(2)%pi_inf'           : P_0,               # p0
-                    'fluid_pp(2)%mg_a'             : 233,               # c0
-                    'fluid_pp(2)%mg_b'             : 1.058,             # s
+                    'fluid_pp(2)%pi_inf'           : 0.0,               # p0
+                    'fluid_pp(2)%mg_a'             : 0.0,               # c0
+                    'fluid_pp(2)%mg_b'             : 0.0,               # s
                     'fluid_pp(2)%qv'               : 0.0,               # e0
-                    'fluid_pp(2)%qvp'              : 0.0,               # Gruneisen exponent
+                    'fluid_pp(2)%qvp'              : 1.E-4,             # Gruneisen exponent
                     'fluid_pp(2)%rho0'             : 1.2,               # reference density
                     'fluid_pp(2)%cv'               : 1000,              # specific heat capacity
    # 'fluid_pp(1)%jcook(1)'         : 0.0334,                           # A, Static yield strength
