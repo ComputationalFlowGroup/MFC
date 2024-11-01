@@ -16,7 +16,7 @@ Ny = 256.
 Nx = 512
 dx = leng/Nx
 
-time_end = 5E-4    #5*leng/vel
+time_end = 2.5E-4    #5*leng/vel
 cfl = 0.1
 
 dt = cfl * dx/c_l
@@ -49,7 +49,7 @@ theta_0           = 310             #K
 P_0               = 1.00E5  #Pa
 compression_ratio = 1.2             #rho/rho_0 in the shocked region
 rho_suc           = 1580.5          #kg/m^3
-vel0              = 1.0E-6          #For seeding everything with some non-zero velocity
+vel0              = 0.0          #For seeding everything with some non-zero velocity
 
 #Calculate initial density of air at theta_0 and P_0
 rho_air1 = np.linspace(1.168, 15)
@@ -110,7 +110,7 @@ rho_0_tilde = rho_0_suc/rho_0_suc
 #vel = vel0 +  math.sqrt((ps-tilde_P_0)*xi/rho_0_tilde)
 #print('pressure=',ps*rho_0_suc*c_0*c_0*1.0E-9,'GPa')
 #print('vel=',vel*c_0,'m/s')
-vel = 60.0
+vel = 200
 Us = c_l+ 1.104*vel
 rho1 = 1580.5*Us/(Us-vel)
 ps = P_0 + 1580.5*Us*vel
@@ -123,7 +123,7 @@ print(json.dumps({
 
     # Computational Domain Parameters ==========================================
     'x_domain%beg'                 :  -leng/2.,
-    'x_domain%end'                 :  leng/2,
+    'x_domain%end'                 :  leng/2.,
     'y_domain%beg'                 :  -leng/2.,
     'y_domain%end'                 :  leng/2.,
     'm'                            : int(Nx),

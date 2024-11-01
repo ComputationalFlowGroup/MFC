@@ -2192,7 +2192,7 @@ contains
                                        
                                         !gamma_inv = gamma_inv + &
                                         !alpha_L(i)/(gammas(i)*(rho0(i)/rho_K)**(qvps(i)))
-                                        if (alpha_L(i) .gt. 1d-16) then
+                                        if (alpha_L(i) .gt. 1d-6) then
                                         gamma_inv = gamma_inv + &
                                             alpha_L(i)*(alpha_rho_L(i)/alpha_L(i))**qvps(i)/(gammas(i)*rho0(i)**qvps(i))
                                         !xi = 1d0 - rho0(i)/rho_K
@@ -2245,7 +2245,7 @@ contains
                                        
                                         !gamma_inv = gamma_inv + &
                                         !alpha_R(i)/(gammas(i)*(rho0(i)/rho_K)**(qvps(i)))
-                                        if (alpha_R(i) .gt. 1d-16) then
+                                        if (alpha_R(i) .gt. 1d-6) then
                                             gamma_inv = gamma_inv + &
                                             alpha_R(i)*((alpha_rho_R(i)/alpha_R(i))**qvps(i))/(gammas(i)*rho0(i)**qvps(i))
                                         

@@ -56,7 +56,7 @@
             c = 0d0
             do q = 1, num_fluids
                !rho_K = alpha_rho_K(q)/adv(q)
-               if (adv(q) .gt. 1d-12) then
+               if (adv(q) .gt. 1d-6) then
                xi    = 1d0 - rho0(q)*adv(q)/alpha_rho_K(q)
             !   if (xi .lt. 0d0) then 
             !       print *,'xi :', xi
