@@ -314,6 +314,9 @@ contains
                     if (model_eqns /= 5) then
                         call s_compute_speed_of_sound(pres, rho, gamma, pi_inf, H, alpha, vel_sum, c, alpha_rho)
                     else
+                        do i= 1, num_fluids
+                            alpha_rho(i) = q_prim_vf(i)%sf(j, k, l)
+                        end do
                         call s_compute_speed_of_sound(pres, rho,&
                         0d0, pi_inf, H, alpha,&
                         vel_sum, c, alpha_rho)

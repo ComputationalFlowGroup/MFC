@@ -619,15 +619,19 @@ contains
         
         integer :: i, j, k, l, q !< Generic loop iterator
         ! Stage 1 of 3 =====================================================
+        print *,'stage 1 of 3, m_time_stepper'
         if (.not. adap_dt) then
             call cpu_time(start)
             call nvtxStartRange("Time_Step")
         end if
         call s_compute_rhs(q_cons_ts(1)%vf, q_prim_vf, rhs_vf, pb_ts(1)%sf, rhs_pb, mv_ts(1)%sf, rhs_mv, t_step, time_avg)
+        
+        print *, 'after stage 1'
         if (run_time_info) then
             call s_write_run_time_information(q_prim_vf, t_step)
         end if
 
+        print *, 'after_run_time_info'
         if (probe_wrt) then
             call s_time_step_cycling(t_step)
         end if
@@ -934,7 +938,7 @@ contains
         real(kind(0d0)), dimension(num_dims) :: vel        !< Cell-avg. velocity
         real(kind(0d0)) :: vel_sum    !< Cell-avg. velocity sum
         real(kind(0d0)) :: pres       !< Cell-avg. pressure
-        real(kind(0d0)), dimension(num_fluids) :: alpha      !< Cell-avg. volume fraction
+        real(kind(0d0)), dimension(num_fluids) :: alpha, alpha_rho   !< Cell-avg. volume fraction
         real(kind(0d0)) :: gamma      !< Cell-avg. sp. heat ratio
         real(kind(0d0)) :: pi_inf     !< Cell-avg. liquid stiffness function
         real(kind(0d0)) :: c          !< Cell-avg. sound speed
@@ -961,9 +965,16 @@ contains
                     call s_compute_enthalpy(q_prim_vf, pres, rho, gamma, pi_inf, Re, H, alpha, vel, vel_sum, j, k, l)
 
                     ! Compute mixture sound speed
-                    call s_compute_speed_of_sound(pres, rho, gamma, pi_inf, H, alpha, vel_sum, c)
-
-                    call s_compute_dt_from_cfl(vel, c, max_dt, rho, Re, j, k, l)
+                    if (model_eqns /= 5) then
+                        call s_compute_speed_of_sound(pres, rho, gamma, pi_inf, H, alpha, vel_sum, c)
+                    else
+                        do i = 1, num_fluids
+                            alpha_rho(i) = q_prim_vf(i)%sf(j, k, l)
+                        end do
+                        call s_compute_speed_of_sound(pres, rho, gamma, &
+                        pi_inf, H, alpha, vel_sum, c, alpha_rho)
+                    end if
+                        call s_compute_dt_from_cfl(vel, c, max_dt, rho, Re, j, k, l)
                 end do
             end do
         end do
