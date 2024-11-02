@@ -166,7 +166,7 @@ contains
                
                 !gamma_inv = gamma_inv + &
                 !alpha_K(s)/(gammas(s)*(rho0(s)*alpha_K(s)/(alpha_rho_K(s)))**(qvps(s)))
-                if (alpha_K(s) .gt. 1d-6) then
+                if (alpha_K(s) .gt. 1d-8) then
                 gamma_inv = gamma_inv + &
                 alpha_K(s)*((alpha_rho_K(s))/alpha_K(s))**qvps(s)/(gammas(s)*rho0(s)**qvps(s))
 

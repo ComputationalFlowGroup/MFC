@@ -726,7 +726,7 @@ contains
         real(kind(0d0)), dimension(0:m, 0:n, 0:p) :: nbub
         integer :: ndirs
 
-        real(kind(0d0)) :: mytime, sound
+        real(kind(0d0)) :: sound
         real(kind(0d0)) :: start, finish
         real(kind(0d0)) :: s2, const_sos, s1
 
@@ -804,8 +804,12 @@ contains
         call nvtxStartRange("RHS-ELASTIC")
         if (hyperelasticity) call s_hyperelastic_rmt_stress_update(num_dims, q_cons_qp%vf, q_prim_qp%vf)
         call nvtxEndRange
-
-        if (t_step == t_step_stop) return
+        
+        if (cfl_dt) then
+            if (mytime >= t_stop) return
+        else
+            if (t_step == t_step_stop) return
+        end if
         ! ==================================================================
 
         if (qbmm) call s_mom_inv(q_cons_qp%vf, q_prim_qp%vf, mom_sp, mom_3d, pb, rhs_pb, mv, rhs_mv, ix, iy, iz, nbub)

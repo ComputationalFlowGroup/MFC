@@ -47,7 +47,7 @@ contains
             & 'loops_x', 'loops_y', 'loops_z', 'model_eqns', 'num_fluids',     &
             & 'weno_order', 'precision', 'perturb_flow_fluid', &
             & 'perturb_sph_fluid', 'num_patches', 'thermal', 'nb', 'dist_type',&
-            & 'R0_type', 'relax_model', 'num_ibs','MGEoS_model' ]
+            & 'R0_type', 'relax_model', 'num_ibs','MGEoS_model','n_start' ]
             call MPI_BCAST(${VAR}$, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
         #:endfor
 
@@ -55,8 +55,8 @@ contains
             & 'cyl_coord','mpp_lim','hypoelasticity', 'relax',                 &
             & 'parallel_io', 'perturb_flow', 'vel_profile', 'instability_wave',&
             & 'perturb_sph', 'bubbles', 'polytropic', 'polydisperse', 'qbmm',  &
-            & 'file_per_process', 'adv_n', 'ib', 'hyperelasticity',            & 
-            & 'hypoplasticity']
+            & 'file_per_process', 'adv_n', 'ib', 'hyperelasticity','hypoplasticity', &
+            & 'cfl_adap_dt', 'cfl_const_dt', 'cfl_dt']
             call MPI_BCAST(${VAR}$, 1, MPI_LOGICAL, 0, MPI_COMM_WORLD, ierr)
         #:endfor
         call MPI_BCAST(fluid_rho(1), num_fluids_max, MPI_LOGICAL, 0, MPI_COMM_WORLD, ierr)

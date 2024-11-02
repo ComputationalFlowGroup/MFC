@@ -16,13 +16,13 @@ Ny = 256.
 Nx = 512
 dx = leng/Nx
 
-time_end = 2.5E-4    #5*leng/vel
+time_end = 1E-5    #5*leng/vel
 cfl = 0.1
 
 dt = cfl * dx/c_l
 Nt = int(time_end/dt)
 
-eps = 1E-6
+eps = 1E-8
 #Material parameters of sucrose (dimensional)
 Kt0_suc       = 14.3e9      #Pa
 Kt0_prime_suc = 3.75        #-

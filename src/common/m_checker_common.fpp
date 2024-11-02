@@ -1,7 +1,7 @@
 !>
 !!@file m_checker_common.f90
 !!@brief Contains module m_checker_common
-
+#:include 'macros.fpp'
 !> @brief The purpose of the module is to check for compatible input files for.
 !!              inputs common to pre-processing, post-processing and simulation
 module m_checker_common
@@ -61,14 +61,16 @@ contains
     !> Checks constraints on the time-stepping parameters.
         !! Called by s_check_inputs_common for simulation and post-processing
     subroutine s_check_inputs_time_stepping
-        if (t_step_start < 0) then
-            call s_mpi_abort('t_step_start must be non-negative. Exiting ...')
-        elseif (t_step_stop <= t_step_start) then
-            call s_mpi_abort('t_step_stop must be greater than t_step_start. '// &
-                             'Exiting ...')
-        elseif (t_step_save > t_step_stop - t_step_start) then
-            call s_mpi_abort('t_step_save must be less or equal to '// &
-                             '(t_step_stop - t_step_start). Exiting ...')
+        if (cfl_dt) then
+            @:PROHIBIT(cfl_target < 0 .or. cfl_target > 1d0)
+            @:PROHIBIT(t_stop <= 0)
+            @:PROHIBIT(t_save <= 0)
+            @:PROHIBIT(t_save > t_stop)
+            @:PROHIBIT(n_start < 0)
+        else
+            @:PROHIBIT(t_step_start < 0)
+            @:PROHIBIT(t_step_stop <= t_step_start)
+            @:PROHIBIT(t_step_save > t_step_stop - t_step_start)
         end if
     end subroutine s_check_inputs_time_stepping
 

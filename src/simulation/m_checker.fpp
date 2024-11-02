@@ -3,7 +3,7 @@
 !! @brief Contains module m_checker
 
 #:include 'case.fpp'
-
+#:include 'macros.fpp'
 !> @brief The purpose of the module is to check for compatible input files
 module m_checker
 
@@ -145,16 +145,10 @@ contains
 
     !> Checks constraints on time stepping parameters
     subroutine s_check_inputs_time_stepping
-        if (dt <= 0) then
-            call s_mpi_abort('dt must be positive. Exiting ...')
+        if (.not. cfl_dt) then
+            @:PROHIBIT(dt <= 0)
         end if
-
-        if (time_stepper < 1 .or. time_stepper > 5) then
-            if (time_stepper /= 23) then
-                call s_mpi_abort('time_stepper must be between 1 and 5. '// &
-                                 'Exiting ...')
-            end if
-        end if
+        @:PROHIBIT(time_stepper < 1 .or. time_stepper > 5)
     end subroutine s_check_inputs_time_stepping
 
     !> Checks constraints on parameters related to 6-equation model

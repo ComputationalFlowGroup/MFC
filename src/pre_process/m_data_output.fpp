@@ -236,6 +236,8 @@ contains
         inquire (FILE=trim(file_loc), EXIST=file_exist)
 
         if (.not. file_exist) call s_create_directory(trim(t_step_dir))
+        
+        if (cfl_dt) t_step = n_start
 
         !1D
         if (n == 0 .and. p == 0) then
@@ -531,7 +533,11 @@ contains
             end if
 
             ! Open the file to write all flow variables
-            write (file_loc, '(I0,A,i7.7,A)') t_step_start, '_', proc_rank, '.dat'
+            if (cfl_dt) then 
+                write (file_loc, '(I0,A,i7.7,A)') n_start, '-', proc_rank, '.dat'
+            else
+                write (file_loc, '(I0,A,i7.7,A)') t_step_start, '_', proc_rank, '.dat'
+            end if
             file_loc = trim(restart_dir)//'/lustre_0'//trim(mpiiofs)//trim(file_loc)
             inquire (FILE=trim(file_loc), EXIST=file_exist)
             if (file_exist .and. proc_rank == 0) then
@@ -591,7 +597,11 @@ contains
             end if
 
             ! Open the file to write all flow variables
-            write (file_loc, '(I0,A)') t_step_start, '.dat'
+            if (cfl_dt) then 
+                write (file_loc, '(I0,A)') n_start, '.dat'
+            else
+                write (file_loc, '(I0,A)') t_step_start, '.dat'
+            end if
             file_loc = trim(restart_dir)//trim(mpiiofs)//trim(file_loc)
             inquire (FILE=trim(file_loc), EXIST=file_exist)
             if (file_exist .and. proc_rank == 0) then
