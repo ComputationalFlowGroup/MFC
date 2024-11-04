@@ -619,19 +619,19 @@ contains
         
         integer :: i, j, k, l, q !< Generic loop iterator
         ! Stage 1 of 3 =====================================================
-        print *,'stage 1 of 3, m_time_stepper'
+        !print *,'stage 1 of 3, m_time_stepper'
         if (.not. adap_dt) then
             call cpu_time(start)
             call nvtxStartRange("Time_Step")
         end if
         call s_compute_rhs(q_cons_ts(1)%vf, q_prim_vf, rhs_vf, pb_ts(1)%sf, rhs_pb, mv_ts(1)%sf, rhs_mv, t_step, time_avg)
         
-        print *, 'after stage 1'
+        !print *, 'after stage 1'
         if (run_time_info) then
             call s_write_run_time_information(q_prim_vf, t_step)
         end if
 
-        print *, 'after_run_time_info'
+        !print *, 'after_run_time_info'
         if (probe_wrt) then
             call s_time_step_cycling(t_step)
         end if

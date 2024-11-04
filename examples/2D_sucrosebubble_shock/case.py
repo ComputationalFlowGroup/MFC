@@ -16,13 +16,13 @@ Ny = 256.
 Nx = 512
 dx = leng/Nx
 
-time_end = 1E-5    #5*leng/vel
-cfl = 0.1
+time_end = 0.7E-3    #5*leng/vel
+cfl = 0.001
 
 dt = cfl * dx/c_l
 Nt = int(time_end/dt)
 
-eps = 1E-6
+eps = 1E-12
 #Material parameters of sucrose (dimensional)
 Kt0_suc       = 14.3e9      #Pa
 Kt0_prime_suc = 3.75        #-
@@ -130,14 +130,14 @@ print(json.dumps({
     'n'                            : int(Ny),
     'p'                            : 0,
     'dt'                           : dt,
-   # 't_step_start'                 : 0,
-   # 't_step_stop'                  : Nt,
-   # 't_step_save'                  : int(Nt/2),
-    'cfl_adap_dt'                  : 'T',
-    'cfl_target'                   : 0.3,
-    'n_start'                      : 0,
-    't_save'                       : 10*dt,
-    't_stop'                       : time_end,
+    't_step_start'                 : 5355,
+    't_step_stop'                  : Nt,
+    't_step_save'                  : int((Nt-5355)/10000),
+   # 'cfl_adap_dt'                  : 'T',
+   # 'cfl_target'                   : 0.3,
+   # 'n_start'                      : 0,
+   # 't_save'                       : 10*dt,
+   # 't_stop'                       : time_end,
     # ==========================================================================
 
     # Simulation Algorithm Parameters ==========================================

@@ -779,7 +779,7 @@ contains
                 end do
             end do
         end if
-        print *, "I got here A"
+       ! print *, "I got here A"
         if (model_eqns == 5) then
             call nvtxStartRange("RHS-CONS-BUFFER")
             call s_populate_primitive_variables_buffers(q_cons_qp%vf, pb, mv)
@@ -787,19 +787,19 @@ contains
         end if
         
         call nvtxStartRange("RHS-CONVERT")
-        print *, "I got here B"
+       ! print *, "I got here B"
         call s_convert_conservative_to_primitive_variables( &
             q_cons_qp%vf, &
             q_prim_qp%vf, &
             gm_alpha_qp%vf, &
             ix, iy, iz)
         call nvtxEndRange
-        print *, "I got here B+"
+       ! print *, "I got here B+"
 
         call nvtxStartRange("RHS-MPI")
         call s_populate_primitive_variables_buffers(q_prim_qp%vf, pb, mv)
         call nvtxEndRange
-        print *, "I got here C"
+       ! print *, "I got here C"
 
         call nvtxStartRange("RHS-ELASTIC")
         if (hyperelasticity) call s_hyperelastic_rmt_stress_update(num_dims, q_cons_qp%vf, q_prim_qp%vf)
@@ -916,7 +916,7 @@ contains
             ix%end = m; iy%end = n; iz%end = p
             ! ===============================================================
             ! Computing Riemann Solver Flux and Source Flux =================
-            print *, 'before riemann solver'
+         !   print *, 'before riemann solver'
             call nvtxStartRange("RHS_riemann_solver")
             call s_riemann_solver(qR_rsx_vf, qR_rsy_vf, qR_rsz_vf, &
                                   dqR_prim_dx_n(id)%vf, &
@@ -934,7 +934,7 @@ contains
                                   flux_gsrc_n(id)%vf, &
                                   id, ix, iy, iz)
             call nvtxEndRange
-            print *, 'After riemann solver'
+        !    print *, 'After riemann solver'
             ! ===============================================================
             ! Additional physics and source terms ===========================
             ! RHS addition for advection source
@@ -1056,7 +1056,7 @@ contains
 
         call nvtxEndRange
 
-        print *, 'before s_compute_rhs ends :1059'
+       ! print *, 'before s_compute_rhs ends :1059'
     end subroutine s_compute_rhs
 
     subroutine s_compute_advection_source_term(idir, rhs_vf, q_cons_vf, q_prim_vf, flux_src_n_vf)
