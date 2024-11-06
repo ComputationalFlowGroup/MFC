@@ -624,6 +624,7 @@ contains
             call cpu_time(start)
             call nvtxStartRange("Time_Step")
         end if
+        !print *, q_cons_ts(1)%vf(4)%sf(2,0,0)
         call s_compute_rhs(q_cons_ts(1)%vf, q_prim_vf, rhs_vf, pb_ts(1)%sf, rhs_pb, mv_ts(1)%sf, rhs_mv, t_step, time_avg)
         
         !print *, 'after stage 1'
@@ -920,6 +921,7 @@ contains
 
         ix%beg = 0; iy%beg = 0; iz%beg = 0
         ix%end = m; iy%end = n; iz%end = p
+
         call s_convert_conservative_to_primitive_variables( &
             q_cons_ts(1)%vf, &
             q_prim_vf, &
@@ -951,7 +953,10 @@ contains
 
         ix%beg = 0; iy%beg = 0; iz%beg = 0
         ix%end = m; iy%end = n; iz%end = p
-
+        
+        if (model_eqns == 5) then
+            call s_populate_primitive_variables_buffers(q_cons_ts(1)%vf)
+        end if
         call s_convert_conservative_to_primitive_variables( &
             q_cons_ts(1)%vf, &
             q_prim_vf, &

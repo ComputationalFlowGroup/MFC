@@ -31,7 +31,7 @@ contains
     subroutine s_populate_primitive_variables_buffers(q_prim_vf, pb, mv)
 
         type(scalar_field), dimension(sys_size), intent(inout) :: q_prim_vf
-        real(kind(0d0)), dimension(startx:, starty:, startz:, 1:, 1:), intent(inout) :: pb, mv
+        real(kind(0d0)),optional, dimension(startx:, starty:, startz:, 1:, 1:), intent(inout) :: pb, mv
 
         integer :: bc_loc, bc_dir
 

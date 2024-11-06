@@ -2097,9 +2097,6 @@ contains
                                 pres_L = qL_prim_rs${XYZ}$_vf(j, k, l, E_idx)
                                 pres_R = qR_prim_rs${XYZ}$_vf(j + 1, k, l, E_idx)
                                 
-                                if (pres_L /= pres_L) then 
-                                    print *, pres_L 
-                                end if 
                                 rho_L = 0d0
                                 rho0_L = 0d0
                                 gamma_L = 0d0
@@ -2192,7 +2189,7 @@ contains
                                        
                                         !gamma_inv = gamma_inv + &
                                         !alpha_L(i)/(gammas(i)*(rho0(i)/rho_K)**(qvps(i)))
-                                        if (alpha_L(i) .gt. 1d-8) then
+                        !                if (alpha_L(i) .gt. 1d-8) then
                                         gamma_inv = gamma_inv + &
                                             alpha_L(i)*(alpha_rho_L(i)/alpha_L(i))**qvps(i)/(gammas(i)*rho0(i)**qvps(i))
                                         !xi = 1d0 - rho0(i)/rho_K
@@ -2205,10 +2202,10 @@ contains
                                                 pref = pi_infs(i)+rho0(i)*(mg_a(i)**2d0)*xi&
                                                 /(1d0-mg_b(i)*xi)**2d0
                                                 
-                                                if (pref .gt. 1d-16) then
+                         !                       if (pref .gt. 1d-16) then
                                                 pref_over_gamma = pref_over_gamma + &
                                                     pref*alpha_L(i)*((alpha_rho_L(i))/alpha_L(i))**qvps(i)/(gammas(i)*rho0(i)**qvps(i))
-                                                end if
+                         !                       end if
 
                                                 if ((pref_over_gamma .lt. 0d0) .or. (pref .lt. 0d0) .or. (pref_over_gamma /= pref_over_gamma)) then 
                                                 print &
@@ -2217,12 +2214,12 @@ contains
                                                 call s_mpi_abort('left')
                                                 end if
                                                 
-                                                if (pref .gt. 1d-16) then
+                         !                       if (pref .gt. 1d-16) then
                                                     rho_eref = rho_eref + alpha_rho_L(i)*qvs(i)+&
                                                     0.5d0*(pref+pi_infs(i))*(alpha_rho_L(i)/rho0(i)-alpha_L(i))   
-                                                end if
+                         !                       end if
                                             
-                                        end if
+                         !               end if
                                     end do
                                 end if
                                 ! Energy corresponding to Mie-Gruneisen EOS 
@@ -2245,7 +2242,7 @@ contains
                                        
                                         !gamma_inv = gamma_inv + &
                                         !alpha_R(i)/(gammas(i)*(rho0(i)/rho_K)**(qvps(i)))
-                                        if (alpha_R(i) .gt. 1d-8) then
+                         !               if (alpha_R(i) .gt. 1d-8) then
                                             gamma_inv = gamma_inv + &
                                             alpha_R(i)*((alpha_rho_R(i)/alpha_R(i))**qvps(i))/(gammas(i)*rho0(i)**qvps(i))
                                         
@@ -2259,10 +2256,10 @@ contains
                                             /(1d0-mg_b(i)*xi)**2d0
                                         
 
-                                            if (pref .gt. 1d-16) then
+                            !                if (pref .gt. 1d-16) then
                                                 pref_over_gamma = pref_over_gamma + &
                                                 pref*alpha_R(i)*(((alpha_rho_R(i))/alpha_R(i))**qvps(i))/(gammas(i)*rho0(i)**qvps(i))
-                                            end if
+                            !                end if
 
                                             if ((pref_over_gamma .lt. 0d0) .or. (pref .lt. 0d0) .or. (pref_over_gamma /= pref_over_gamma)) then 
                                             print &
@@ -2271,12 +2268,12 @@ contains
                                             call s_mpi_abort('Right')
                                             end if
                                         
-                                            if (pref .gt. 1d-16) then 
+                           !                 if (pref .gt. 1d-16) then 
                                             rho_eref = rho_eref + alpha_rho_R(i)*qvs(i)+&
                                             0.5d0*(pref+pi_infs(i))*(alpha_rho_R(i)/rho0(i)-alpha_R(i))    
-                                            end if
+                           !                 end if
                                         
-                                        end if
+                          !              end if
                                     end do
                                 end if
                                  

@@ -16,7 +16,7 @@ vel1    = 1.0
 vel2    = 0.0
 theta_0 = 298.0
 
-eps = 0.0
+eps = 1.E-6
 Kt0_suc       = 14.3e9      #Pa
 Kt0_prime_suc = 3.75        #-
 rho_0_suc     = 1580.5      #kg/m^3
@@ -49,6 +49,11 @@ print(json.dumps({
                     't_step_start'                 : 0,
                     't_step_stop'                  : int(Nt),
                     't_step_save'                  : int(math.ceil((Nt)/100.)),
+                #    'cfl_adap_dt'                  : 'T',
+                #    'cfl_target'                   : 0.1,
+                #    'n_start'                      : 0,
+                #    't_save'                       : 10*mydt,
+                #    't_stop'                       : Tend,
 		    # ==========================================================
 
                     # Simulation Algorithm Parameters ==========================
@@ -124,9 +129,9 @@ print(json.dumps({
                     'fluid_pp(1)%rho0'             : 1580.5,            # reference density
                     'fluid_pp(1)%cv'               : 3000,              # specific heat capacity
                     'fluid_pp(2)%gamma'            : 0.4,               # Gruneisen constant
-                    'fluid_pp(2)%pi_inf'           : P_0,               # p0
-                    'fluid_pp(2)%mg_a'             : 233,               # c0
-                    'fluid_pp(2)%mg_b'             : 1.058,             # s
+                    'fluid_pp(2)%pi_inf'           : 0.0,               # p0
+                    'fluid_pp(2)%mg_a'             : 0.0,               # c0
+                    'fluid_pp(2)%mg_b'             : 0.0,             # s
                     'fluid_pp(2)%qv'               : 0.0,               # e0
                     'fluid_pp(2)%qvp'              : 1E-4,               # Gruneisen exponent
                     'fluid_pp(2)%rho0'             : 1.2,               # reference density

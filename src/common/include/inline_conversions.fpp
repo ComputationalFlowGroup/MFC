@@ -56,7 +56,7 @@
             c = 0d0
             do q = 1, num_fluids
                !rho_K = alpha_rho_K(q)/adv(q)
-               if (adv(q) .gt. 1d-8) then
+!               if (adv(q) .gt. 1d-8) then
                xi    = 1d0 - rho0(q)*adv(q)/alpha_rho_K(q)
             !   if (xi .lt. 0d0) then 
             !       print *,'xi :', xi
@@ -110,9 +110,9 @@
                 (MPa)',pres/1d6,&
                     'gamma',gam,'adv(i)',adv(q),'q',q,'xi',xi
             end if
-            else
-                c = c + 0d0
-            end if
+ !           else
+ !               c = c + 0d0
+ !           end if
 
             end do 
             !c = c/gamma_avg

@@ -40,6 +40,8 @@ contains
         real(kind(0d0)), dimension(2) :: Re
         integer :: i, j, k, l
 
+        !Temporary variables for MG EoS
+        real(kind(0d0)) :: gamma_inv, pref_over_gamma, rho_eref, xi, pref
         do i = 1, num_fluids
             alpha_rho(i) = q_prim_vf(i)%sf(j, k, l)
             alpha(i) = q_prim_vf(E_idx + i)%sf(j, k, l)
@@ -62,7 +64,29 @@ contains
 
         pres = q_prim_vf(E_idx)%sf(j, k, l)
 
-        E = gamma*pres + pi_inf + 5d-1*rho*vel_sum + qv
+        if (model_eqns /= 5) then
+            E = gamma*pres + pi_inf + 5d-1*rho*vel_sum + qv
+        else if (MGEoS_model == 1) then
+            pref_over_gamma = 0d0;rho_eref = 0d0;gamma_inv = 0d0
+            do i = 1, num_fluids
+                gamma_inv = gamma_inv + &
+                    alpha(i)*(alpha_rho(i)/alpha(i))**qvps(i)/(gammas(i)*rho0(i)**qvps(i))
+              
+                xi = 1d0 - rho0(i)*alpha(i)/alpha_rho(i)
+
+                pref = pi_infs(i)+rho0(i)*(mg_a(i)**2d0)*xi&
+                /(1d0-mg_b(i)*xi)**2d0
+
+                pref_over_gamma = pref_over_gamma + &
+                   pref*alpha(i)*(alpha_rho(i)/alpha(i))**qvps(i)/(gammas(i)*rho0(i)**qvps(i))
+
+                rho_eref = rho_eref + alpha_rho(i)*qvs(i)+&
+                0.5d0*(pref+pi_infs(i))*(alpha_rho(i)/rho0(i)-alpha(i))
+            end do
+             
+            ! Energy corresponding to Mie-Gruneisen EOS 
+            E = rho_eref + gamma_inv*q_prim_vf(E_idx)%sf(j,k,l)-pref_over_gamma+ 5d-1*rho*vel_sum
+        end if
 
         H = (E + pres)/rho
 
