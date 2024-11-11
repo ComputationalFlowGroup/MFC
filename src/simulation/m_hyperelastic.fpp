@@ -533,12 +533,12 @@ stop
         #:endfor
         
         ! need trace(btensor*btensor)
-        trace_bsq = btensor(1)%sf(j, k, l)^2 + btensor(3)%sf(j, k, l)^2 &
-                    + btensor(6)%sf(j, k, l)^2 + 2*btensor(2)%sf(j, k, l)^2 &
-                    + 2*btensor(4)%sf(j, k, l)^2 + 2*btensor(5)%sf(j, k, l)^2
+        trace_bsq = btensor(1)%sf(j, k, l)**2 + btensor(3)%sf(j, k, l)**2 &
+                    + btensor(6)%sf(j, k, l)**2 + 2*btensor(2)%sf(j, k, l)**2 &
+                    + 2*btensor(4)%sf(j, k, l)**2 + 2*btensor(5)%sf(j, k, l)**2
       
         ! von Mises stress
-        sigma_e = (G/btensor(b_size)%sf(j, k, l))^2 * (trace_bsq - (1d0/3d0)*trace^2)
+        sigma_e = (G/btensor(b_size)%sf(j, k, l))**2 * (trace_bsq - (1d0/3d0)*trace**2)
 
         ! saving von Mises stress in q_prim_vf, only to be called by post_process
         q_prim_vf(xiend + 1)%sf(j, k, l) = sigma_e
