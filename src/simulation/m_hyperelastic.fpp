@@ -511,6 +511,40 @@ stop
 
     end subroutine s_neoHookean_cauchy_solver_3D
 
+    !> The following subroutine handles the calculation of the von Mises stress
+       !! assuming a Neo-Hookean material model.
+    subroutine s_vonMises_stress_neoHookean_3D(btensor, q_prim_vf, G, j, k, l)
+        !$acc routine seq
+        type(scalar_field), dimension(sys_size), intent(inout) :: q_prim_vf
+        type(scalar_field), dimension(b_size), intent(inout) :: btensor
+        real(kind(0d0)), intent(in) :: G
+        integer, intent(in) :: j, k, l
+        real(kind(0d0)) :: trace, trace_bsq, sigma_e
+
+        real(kind(0d0)) :: f13 = 1d0/3d0
+        integer :: i !< Generic loop iterators
+            
+        ! tensor is the symmetric tensor & calculate the trace of the tensor
+        trace = btensor(1)%sf(j, k, l) + btensor(3)%sf(j, k, l) + btensor(6)%sf(j, k, l)
+
+        ! calculate the deviatoric of the tensor
+        #:for IJ in [1,3,6]
+           btensor(${IJ}$)%sf(k, k, l) = btensor(${IJ}$)%sf(j, k, l) - f13*trace 
+        #:endfor
+        
+        ! need trace(btensor*btensor)
+        trace_bsq = btensor(1)%sf(j, k, l)^2 + btensor(3)%sf(j, k, l)^2 &
+                    + btensor(6)%sf(j, k, l)^2 + 2*btensor(2)%sf(j, k, l)^2 &
+                    + 2*btensor(4)%sf(j, k, l)^2 + 2*btensor(5)%sf(j, k, l)^2
+      
+        ! von Mises stress
+        sigma_e = (G/btensor(b_size)%sf(j, k, l))^2 * (trace_bsq - (1d0/3d0)*trace^2)
+
+        ! saving von Mises stress in q_prim_vf, only to be called by post_process
+        q_prim_vf(xiend + 1)%sf(j, k, l) = sigma_e
+
+    end subroutine s_vonMises_stress_neoHookean_3D
+
     !>  The following subroutines handle the calculation of the btensor
         !! for a Mooney Rivlin material model.
         !! The calculation of the btensor takes qprimvf.
