@@ -55,39 +55,26 @@
             gamma_avg = 0d0
             c = 0d0
             do q = 1, num_fluids
-               !rho_K = alpha_rho_K(q)/adv(q)
-!               if (adv(q) .gt. 1d-8) then
-               xi    = 1d0 - rho0(q)*adv(q)/alpha_rho_K(q)
-            !   if (xi .lt. 0d0) then 
-            !       print *,'xi :', xi
-            !   end if
-               if (xi .le. 1d-16) then 
-                   xi = 1d-16
-               end if
+               
+               rho_K = alpha_rho_K(q)/adv(q)
+
+               xi    = 1d0 - rho0(q)/rho_K
+
                pref  = pi_infs(q) + &
                rho0(q)*(mg_a(q)**2d0)*xi/(1d0-mg_b(q)*xi)**2d0
                 
-               gamma_avg = gamma_avg + &
-               adv(q)*((alpha_rho_K(q))/(adv(q)*rho0(q)))**qvps(q)/gammas(q)
+               gamma_avg = gamma_avg + adv(q)/(gammas(q)*(rho0(q)/rho_K)**qvps(q))
                 
-               gamma_inv = &
-               (alpha_rho_K(q)/(adv(q)*rho0(q)))**qvps(q)/gammas(q)
-               
-               gam = &
-               gammas(q)*(adv(q)*rho0(q)/(alpha_rho_K(q)))**qvps(q)
+               gamma_inv = 1d0/(gammas(q)*(rho0(q)/rho_K)**qvps(q))
 
-               pref_prime  = &
-               (mg_a(q)**2d0)*((rho0(q)*adv(q)/alpha_rho_K(q))**2d0)*(1d0+mg_b(q)*xi)/(1d0-mg_b(q)*xi)**3d0
+               pref_prime = (mg_a(q)**2d0)*((1d0-xi)**2d0)*(1d0+mg_b(q)*xi)/(1d0-mg_b(q)*xi)**3d0
                
-               if ((1d0 - mg_b(q)*xi) .lt. 1d-16) then 
-                   pref_prime = 0d0
-                   pref = pi_infs(q)
-               end if
+               rho_eref_prime = 0.5d0*(pref/rho_K + pref_prime*(rho_K/rho0(q)-1d0))
 
-               rho_eref_prime = &
-               0.5d0*(pref*adv(q)/alpha_rho_K(q) + &
-               pref_prime*(alpha_rho_K(q)/(adv(q)*rho0(q))-1d0))
-               
+               c = c + &
+               (alpha_rho_K(q)/rho)*((1d0+(1d0-qvps(q))*gamma_inv)*(pres-pref)/rho_K &
+               +pref/rho_K + pref_prime*gamma_inv - rho_eref_prime)
+
                !Mie-gruneisen sound-speed mixture
                !c = c + &
                !(alpha_rho_K(q)/rho)*((1d0+(1d0-qvps(q))*gamma_inv)*(pres-pref)*(adv(q)/(alpha_rho_K(q)+sgm_eps)) &
@@ -100,24 +87,22 @@
               !  pref_prime*gamma_inv - rho_eref_prime+sgm_eps)/gamma_inv)
                
                !Frozen speed of sound
-              c = c + &
-               alpha_rho_K(q)*((gam+(1d0-qvps(q)))*(pres-pref)*(adv(q)/(alpha_rho_K(q))) &
-               +gam*pref*adv(q)/alpha_rho_K(q) + &
-                pref_prime - rho_eref_prime*gam)
-            if (c /= c .or. (c .lt. -1d-16)) then
-                print &
-                *,'c:',c,'alpha_rho_K(i)',alpha_rho_K(q),'pref_prime',pref_prime,'rho_eref_prime',rho_eref_prime,'pres &
-                (MPa)',pres/1d6,&
-                    'gamma',gam,'adv(i)',adv(q),'q',q,'xi',xi
-            end if
- !           else
- !               c = c + 0d0
- !           end if
+               !c = c + &
+              ! alpha_rho_K(q)*((gam+(1d0-qvps(q)))*(pres-pref)*(adv(q)/(alpha_rho_K(q))) &
+              ! +gam*pref*adv(q)/alpha_rho_K(q) + &
+              !  pref_prime - rho_eref_prime*gam)
+                
+                if (c /= c .or. (c .lt. -1d-16)) then
+                    print &
+                    *,'c:',c,'alpha_rho_K(i)',alpha_rho_K(q),'pref_prime',pref_prime,'rho_eref_prime',rho_eref_prime,'pres &
+                    (MPa)',pres/1d6,&
+                        'gamma',gam,'adv(i)',adv(q),'q',q,'xi',xi
+                end if
 
             end do 
-            !c = c/gamma_avg
+            c = c/gamma_avg
             !c = 1d0/(rho*c)
-            c = c/rho
+            !c = c/rho
         else           
             c = ((H - 5d-1*vel_sum)/gamma)
         end if

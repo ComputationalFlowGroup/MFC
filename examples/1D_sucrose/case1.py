@@ -68,7 +68,7 @@ print(json.dumps({
                     'weno_eps'                     : 1.E-16,
 		            'weno_Re_flux'                 : 'F',
                     'weno_avg'                     : 'F',
-                    'mapped_weno'                  : 'T',
+                    'mapped_weno'                  : 'F',
                     'null_weights'                 : 'T',
                     'mp_weno'                      : 'T',
 		            'riemann_solver'               : 2,
@@ -123,7 +123,7 @@ print(json.dumps({
                     'fluid_pp(1)%gamma'            : 1.09,              # Gruneisen constant
                     'fluid_pp(1)%pi_inf'           : P_0,               # p0
                     'fluid_pp(1)%mg_a'             : 3077.6,            # c0
-                    'fluid_pp(1)%mg_b'             : 2.71,              # s
+                    'fluid_pp(1)%mg_b'             : 1.104,              # s
                     'fluid_pp(1)%qv'               : 0.0,               # e0
                     'fluid_pp(1)%qvp'              : 1.0,               # Gruneisen exponent
                     'fluid_pp(1)%rho0'             : 1580.5,            # reference density

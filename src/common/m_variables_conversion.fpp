@@ -162,34 +162,24 @@ contains
         else if ((model_eqns == 5) .and. (MGEoS_model == 1)) then
             pref_over_gamma = 0d0;rho_eref = 0d0;gamma_inv = 0d0
             do s = 1, num_fluids
-                gamma_inv = gamma_inv + &
-                alpha_K(s)*(alpha_rho_K(s)/alpha_K(s))**qvps(s)/(gammas(s)*rho0(s)**qvps(s))
+                rhoK = alpha_rho_K(s)/alpha_K(s)
 
-                xi = 1d0 - rho0(s)*alpha_K(s)/alpha_rho_K(s)
-                
+                gamma_inv = gamma_inv + &
+                alpha_K(s)*(rhoK/rho0(s))**qvps(s)/gammas(s)
+
+                xi = 1d0 - rho0(s)/rhoK
+                  
                 pref = pi_infs(s)+rho0(s)*(mg_a(s)**2d0)*xi&
                 /(1d0-mg_b(s)*xi)**2d0
                     
                 pref_over_gamma = pref_over_gamma + &
-                pref*alpha_K(s)*(alpha_rho_K(s)/alpha_K(s))**qvps(s)/(gammas(s)*rho0(s)**qvps(s))
+                pref*alpha_K(s)*(rhoK/rho0(s))**qvps(s)/gammas(s)
 
-                if (pref_over_gamma .lt. 0d0) then
-                    print *, &
-                    'pref_over_gamma',pref_over_gamma,'pref',pref,&
-                    'xi',xi,'1d0-mg_b(s)*xi',1d0-mg_b(s)*xi
-                    call s_mpi_abort()
-                end if
                 rho_eref = rho_eref + alpha_rho_K(s)*qvs(s)+&
                 0.5d0*(pref+pi_infs(s))*(alpha_rho_K(s)/rho0(s)-alpha_K(s))
             end do
             pres = (pref_over_gamma + energy - dyn_p - rho_eref)/gamma_inv
-            if (pres /= pres .or. (pres .le. 0d0)) then 
-                print *, 'pres:',pres,'energy:',energy,'dyn_p:',dyn_p,&
-                'rho_eref:',rho_eref,'pref_over_gamma:',pref_over_gamma,&
-                'rho',rho,'alf(1)',alpha_K(1),'alf(2)',alpha_K(2),'alpha_rho_K(1)',alpha_rho_K(1),&
-                'alpha_rho_K(2)',alpha_rho_K(2)
-               call s_mpi_abort('in s_compute_pressure')
-            end if
+           
         else
             pres = (pref + pi_inf)* &
                    (energy/ &
@@ -1073,7 +1063,6 @@ contains
                                                 qK_cons_vf(alf_idx)%sf(j, k, l), &
                                                 dyn_pres_K, pi_inf_K, gamma_K, rho_K, qv_K, pres)
                     else
-                        print *,'j::',j
                        call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
                                                0d0, dyn_pres_K, & 
                                                pi_inf_K, 0d0, rho_K, qv_K, &
@@ -1187,22 +1176,9 @@ contains
                     if (.not. f_is_default(sigma)) then
                         qK_prim_vf(c_idx)%sf(j, k, l) = qK_cons_vf(c_idx)%sf(j, k, l)
                     end if
-#ifdef MFC_SIMULATION
-                    !if (qK_prim_vf(12)%sf(j, k, l)/= qK_prim_vf(12)%sf(j,k,l)) then
-                        !print *,j,'prim' 
-                    !do i=1, sys_size
-                    !    print *,j,qK_prim_vf(12)%sf(j,k,l)
-                    !end if
-                    !end do
-                    !print *,'cons'
-                    !do i=1, sys_size
-                    !    print *,qK_cons_vf(i)%sf(j,k,l)
-                    !end do
-#endif
                 end do
             end do
         end do
-        !print *, maxval(qK_prim_vf(E_idx)%sf(ixb:ixe,0,0))
         !$acc end parallel loop
     end subroutine s_convert_conservative_to_primitive_variables ! ---------
 
@@ -1286,20 +1262,18 @@ contains
                     else if ((model_eqns == 5) .and. (MGEoS_model == 1)) then
                         pref_over_gamma = 0d0;rho_eref = 0d0;gamma_inv = 0d0
                         do i = 1, num_fluids
-                            !rho_K = alpha_rho_K(i)/alpha_K(i)
+                            rho_K = alpha_rho_K(i)/alpha_K(i)
                            
-                            !gamma_inv = gamma_inv + &
-                            !alpha_K(i)/(gammas(i)*(rho0(i)/rho_K)**(qvps(i)))
                             gamma_inv = gamma_inv + &
-                                alpha_K(i)*(alpha_rho_K(i)/alpha_K(i))**qvps(i)/(gammas(i)*rho0(i)**qvps(i))
+                            alpha_K(i)/(gammas(i)*(rho0(i)/rho_K)**(qvps(i)))
                             
-                            xi = 1d0 - rho0(i)*alpha_K(i)/alpha_rho_K(i)
+                            xi = 1d0 - rho0(i)/rho_K
 
                             pref = pi_infs(i)+rho0(i)*(mg_a(i)**2d0)*xi&
                             /(1d0-mg_b(i)*xi)**2d0
 
                             pref_over_gamma = pref_over_gamma + &
-                               pref*alpha_K(i)*(alpha_rho_K(i)/alpha_K(i))**qvps(i)/(gammas(i)*rho0(i)**qvps(i))
+                               pref*alpha_K(i)*(rho_K/rho0(i))**qvps(i)/gammas(i)
 
                             rho_eref = rho_eref + alpha_rho_K(i)*qvs(i)+&
                             0.5d0*(pref+pi_infs(i))*(alpha_rho_K(i)/rho0(i)-alpha_K(i))
@@ -1310,11 +1284,6 @@ contains
                         q_cons_vf(E_idx)%sf(j, k, l)    = rho_eref +&
                                                           gamma_inv*q_prim_vf(E_idx)%sf(j,k,l)-pref_over_gamma+& 
                                                           dyn_pres
-!                        if (q_cons_vf(E_idx)%sf(j, k, l) /= q_cons_vf(E_idx)%sf(j, k, l)) then
-!                            print &
-!                            *,'rho_eref',rho_eref,'pref_over_gamma',pref_over_gamma,'gamma_inv',gamma_inv,&
-!                            'E',q_cons_vf(E_idx)%sf(j, k, l)
-!                        end if
                     else
                         !Tait EOS, no conserved energy variable
                         q_cons_vf(E_idx)%sf(j, k, l) = 0.d0

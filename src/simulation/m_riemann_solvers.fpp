@@ -2185,43 +2185,25 @@ contains
                                 pref_over_gamma = 0d0;rho_eref = 0d0;gamma_inv = 0d0
                                 if (MGEoS_model == 1) then
                                     do i = 1, num_fluids
-                                        !rho_K = alpha_rho_L(i)/alpha_L(i)
-                                       
-                                        !gamma_inv = gamma_inv + &
-                                        !alpha_L(i)/(gammas(i)*(rho0(i)/rho_K)**(qvps(i)))
-                        !                if (alpha_L(i) .gt. 1d-8) then
-                                        gamma_inv = gamma_inv + &
-                                            alpha_L(i)*(alpha_rho_L(i)/alpha_L(i))**qvps(i)/(gammas(i)*rho0(i)**qvps(i))
-                                        !xi = 1d0 - rho0(i)/rho_K
-                                        xi = 1d0 - &
-                                        rho0(i)*alpha_L(i)/(alpha_rho_L(i))
-                                        
-                                            if (xi .lt. 1d-16) then
-                                                xi = 1d-16
-                                            end if
-                                                pref = pi_infs(i)+rho0(i)*(mg_a(i)**2d0)*xi&
-                                                /(1d0-mg_b(i)*xi)**2d0
-                                                
-                         !                       if (pref .gt. 1d-16) then
-                                                pref_over_gamma = pref_over_gamma + &
-                                                    pref*alpha_L(i)*((alpha_rho_L(i))/alpha_L(i))**qvps(i)/(gammas(i)*rho0(i)**qvps(i))
-                         !                       end if
+                                        rho_K = alpha_rho_L(i)/alpha_L(i)
 
-                                                if ((pref_over_gamma .lt. 0d0) .or. (pref .lt. 0d0) .or. (pref_over_gamma /= pref_over_gamma)) then 
-                                                print &
-                                                *,'pref',pref,'rho_K',alpha_rho_L(i)/alpha_L(i),'i',i,'pref_gamma',pref_over_gamma,'xi',xi,&
-                                                'alpha_rho_L(i)',alpha_rho_L(i)
-                                                call s_mpi_abort('left')
-                                                end if
+                                        gamma_inv = gamma_inv + &
+                                            alpha_L(i)*(rho_K/rho0(i))**qvps(i)/gammas(i)
+                                        
+                                        xi = 1d0 - rho0(i)/rho_K
                                                 
-                         !                       if (pref .gt. 1d-16) then
-                                                    rho_eref = rho_eref + alpha_rho_L(i)*qvs(i)+&
-                                                    0.5d0*(pref+pi_infs(i))*(alpha_rho_L(i)/rho0(i)-alpha_L(i))   
-                         !                       end if
+                                        pref = pi_infs(i)+rho0(i)*(mg_a(i)**2d0)*xi&
+                                        /(1d0-mg_b(i)*xi)**2d0
+                                        
+                                        pref_over_gamma = pref_over_gamma + &
+                                            pref*alpha_L(i)*(rho_K/rho0(i))**qvps(i)/gammas(i) 
+
+                                        rho_eref = rho_eref + alpha_rho_L(i)*qvs(i)+&
+                                        0.5d0*(pref+pi_infs(i))*(alpha_rho_L(i)/rho0(i)-alpha_L(i))   
                                             
-                         !               end if
                                     end do
                                 end if
+
                                 ! Energy corresponding to Mie-Gruneisen EOS 
                                 E_L    = rho_eref + &
                                 gamma_inv*pres_L - pref_over_gamma + &
@@ -2238,42 +2220,21 @@ contains
                                 pref_over_gamma = 0d0;rho_eref = 0d0;gamma_inv = 0d0
                                 if (MGEoS_model == 1) then
                                     do i = 1, num_fluids
-                                        !rho_K = alpha_rho_R(i)/alpha_R(i)
+                                        rho_K = alpha_rho_R(i)/alpha_R(i)
                                        
-                                        !gamma_inv = gamma_inv + &
-                                        !alpha_R(i)/(gammas(i)*(rho0(i)/rho_K)**(qvps(i)))
-                         !               if (alpha_R(i) .gt. 1d-8) then
-                                            gamma_inv = gamma_inv + &
-                                            alpha_R(i)*((alpha_rho_R(i)/alpha_R(i))**qvps(i))/(gammas(i)*rho0(i)**qvps(i))
+                                        gamma_inv = gamma_inv + &
+                                        alpha_R(i)/(gammas(i)*(rho0(i)/rho_K)**(qvps(i)))
+                                    
+                                        xi = 1d0 - rho0(i)/rho_K
                                         
-                                            xi = 1d0 - &
-                                            rho0(i)*alpha_R(i)/(alpha_rho_R(i))
-                                        
-                                            if (xi .lt. 1d-16) then
-                                                xi = 1d-16
-                                            end if
-                                            pref = pi_infs(i)+rho0(i)*(mg_a(i)**2d0)*xi&
-                                            /(1d0-mg_b(i)*xi)**2d0
-                                        
+                                        pref = pi_infs(i)+rho0(i)*(mg_a(i)**2d0)*xi&
+                                        /(1d0-mg_b(i)*xi)**2d0
+                                            
+                                        pref_over_gamma = pref_over_gamma + &
+                                        pref*alpha_R(i)*(rho_K/rho0(i))**qvps(i)/gammas(i)
 
-                            !                if (pref .gt. 1d-16) then
-                                                pref_over_gamma = pref_over_gamma + &
-                                                pref*alpha_R(i)*(((alpha_rho_R(i))/alpha_R(i))**qvps(i))/(gammas(i)*rho0(i)**qvps(i))
-                            !                end if
-
-                                            if ((pref_over_gamma .lt. 0d0) .or. (pref .lt. 0d0) .or. (pref_over_gamma /= pref_over_gamma)) then 
-                                            print &
-                                            *,'pref',pref,'rho_K',alpha_rho_R(i)/alpha_R(i),'i',i,'pref_gamma',pref_over_gamma,'xi',xi,&
-                                            'ratio',rho0(i)*alpha_R(i)/(alpha_rho_R(i)),sgm_eps,'alpha_rho_R(i)',alpha_rho_R(i)
-                                            call s_mpi_abort('Right')
-                                            end if
-                                        
-                           !                 if (pref .gt. 1d-16) then 
-                                            rho_eref = rho_eref + alpha_rho_R(i)*qvs(i)+&
-                                            0.5d0*(pref+pi_infs(i))*(alpha_rho_R(i)/rho0(i)-alpha_R(i))    
-                           !                 end if
-                                        
-                          !              end if
+                                        rho_eref = rho_eref + alpha_rho_R(i)*qvs(i)+&
+                                        0.5d0*(pref+pi_infs(i))*(alpha_rho_R(i)/rho0(i)-alpha_R(i)) 
                                     end do
                                 end if
                                  
