@@ -1112,9 +1112,15 @@ contains
  
         if (cfl_dt) then
            if (cfl_const_dt .and. t_step == 1) call s_compute_dt()
+
            if (cfl_adap_dt) call s_compute_dt()
+
            if (t_step == 0) dt_init = dt
-           if (dt < 1d-3*dt_init) call s_mpi_abort("Delta t has become too small")
+
+           if (dt < 1d-3*dt_init .and. cfl_adap_dt .and. proc_rank == 0) then
+              print*, "Delta t = ", dt
+              call s_mpi_abort("Delta t has become too small")
+           end if
         end if
 
         if (cfl_dt) then
@@ -1138,6 +1144,7 @@ contains
                   t_step - t_step_start + 1, &
                   t_step_stop - t_step_start + 1, &
                   t_step
+            end if
         end if
 
         if (probe_wrt) then
@@ -1275,7 +1282,6 @@ contains
          else
              io_time_avg = (abs(finish - start) + io_time_avg*(nt - 1))/nt
          end if
-      end if
 
     end subroutine s_save_data
 

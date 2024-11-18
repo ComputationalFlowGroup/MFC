@@ -14,7 +14,6 @@ module m_sim_helpers
   s_compute_stability_from_dt, &
   s_compute_dt_from_cfl
 
-
 contains
 
      !> Computes enthalpy

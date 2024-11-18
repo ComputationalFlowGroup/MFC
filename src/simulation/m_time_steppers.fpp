@@ -3,7 +3,7 @@
 !! @brief Contains module m_time_steppers
 
 #:include 'macros.fpp'
-
+#:include 'inline_conversions.fpp'
 !> @brief The following module features a variety of time-stepping schemes.
 !!              Currently, it includes the following Runge-Kutta (RK) algorithms:
 !!                   1) 1st Order TVD RK
@@ -40,6 +40,7 @@ module m_time_steppers
     use m_nvtx
 
     use m_body_forces
+ 
     ! ==========================================================================
 
     implicit none
@@ -935,7 +936,7 @@ contains
     end subroutine s_adaptive_dt_bubble ! ------------------------------
 
     subroutine s_compute_dt()
-        !$acc routine seq
+
         real(kind(0d0)) :: rho        !< Cell-avg. density
         real(kind(0d0)), dimension(num_dims) :: vel        !< Cell-avg. velocity
         real(kind(0d0)) :: vel_sum    !< Cell-avg. velocity sum
@@ -960,7 +961,6 @@ contains
            gm_alpha_qp%vf, &
            ix, iy, iz)
         
-        !$acc parallel loop collapse(3) gang vector default(present), private(vel, alpha, Re)
         do l = 0, p
            do k = 0, n
               do j = 0, m
@@ -976,9 +976,9 @@ contains
            end do
         end do
 
-   !     !$acc kernels
+        !$acc kernels
         dt_local = minval(max_dt)
-   !     !$acc end kernels
+        !$acc end kernels
 
         if (num_procs == 1) then
             dt = dt_local
