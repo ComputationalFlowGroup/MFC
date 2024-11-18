@@ -17,7 +17,7 @@ Nx = 768*2
 dx = leng/Nx
 
 time_end = 0.001   #5*leng/vel
-cfl = 0.001
+cfl = 0.1
 #dt = 1.0E-12
 dt = cfl * dx/c_l
 #Nt = int(time_end/dt)
@@ -81,10 +81,15 @@ print(json.dumps({
     'm'                            : int(Nx),
     'n'                            : int(Ny),
     'p'                            : 0,
-    'dt'                           : dt,
-    't_step_start'                 : 0,
-    't_step_stop'                  : 9000,
-    't_step_save'                  : int(50),
+    #'dt'                           : dt,
+    #'t_step_start'                 : 0,
+    #'t_step_stop'                  : 9000,
+    #'t_step_save'                  : int(50),
+    'cfl_adap_dt'                  : 'T',
+    'cfl_target'                   : 0.5,
+    'n_start'                      : 0,
+    't_save'                       : 4.014757E-01,
+    't_stop'                       : 4.014757E-01,
     # ==========================================================================
 
     # Simulation Algorithm Parameters ==========================================

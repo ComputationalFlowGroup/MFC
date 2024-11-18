@@ -71,9 +71,13 @@
                
                rho_eref_prime = 0.5d0*(pref/rho_K + pref_prime*(rho_K/rho0(q)-1d0))
 
-               c = c + &
-               (alpha_rho_K(q)/rho)*((1d0+(1d0-qvps(q))*gamma_inv)*(pres-pref)/rho_K &
-               +pref/rho_K + pref_prime*gamma_inv - rho_eref_prime)
+               if (rho_K .ge. rho0(q)) then
+                    c = c + &
+                    (alpha_rho_K(q)/rho)*((1d0+(1d0-qvps(q))*gamma_inv)*(pres-pref)/rho_K &
+                    +pref/rho_K + pref_prime*gamma_inv - rho_eref_prime)
+               else 
+                   c = c + (alpha_rho_K(q)/rho)*(mg_a(q)**2d0)*gamma_inv
+               end if
 
                !Mie-gruneisen sound-speed mixture
                !c = c + &
@@ -96,7 +100,8 @@
                     print &
                     *,'c:',c,'alpha_rho_K(i)',alpha_rho_K(q),'pref_prime',pref_prime,'rho_eref_prime',rho_eref_prime,'pres &
                     (MPa)',pres/1d6,&
-                        'gamma',gam,'adv(i)',adv(q),'q',q,'xi',xi
+                        'gamma_inv',gamma_inv,'adv(i)',adv(q),'q',q,'xi',xi
+                    print *,'rho_K',rho_K
                 end if
 
             end do 
