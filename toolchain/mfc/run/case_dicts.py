@@ -50,6 +50,8 @@ COMMON = {
     'relax_model': ParamType.INT,
     'sigma': ParamType.REAL,
     'adv_n': ParamType.LOG,
+    'cfl_adap_dt': ParamType.LOG,
+    'cfl_const_dt': ParamType.LOG,
 }
 
 PRE_PROCESS = COMMON.copy()
@@ -79,6 +81,9 @@ PRE_PROCESS.update({
     'ib': ParamType.LOG,
     'num_ibs': ParamType.INT,
     'pre_stress': ParamType.LOG,
+    'cfl_dt': ParamType.LOG,
+    'n_start': ParamType.INT,
+    'n_start_old': ParamType.INT
 })
 
 for ib_id in range(1, 10+1):
@@ -162,6 +167,8 @@ for p_id in range(1, 10+1):
         for alter_id in range(1, p_id):
             PRE_PROCESS[f'patch_icpp({p_id})%alter_patch({alter_id})'] = ParamType.LOG
 
+    PRE_PROCESS[f'patch_icpp({p_id})%cf_val'] = ParamType.REAL.analytic()
+
 # NOTE: Currently unused.
 # for f_id in range(1, 10+1):
 #     PRE_PROCESS.append(f"spec_pp({f_id})")
@@ -212,6 +219,10 @@ SIMULATION.update({
     'adap_dt': ParamType.LOG,
     'ib': ParamType.LOG,
     'num_ibs': ParamType.INT,
+    'n_start': ParamType.INT, 
+    't_stop': ParamType.REAL,
+    't_save': ParamType.REAL,
+    'cfl_target': ParamType.REAL,
     'low_Mach': ParamType.INT,
 })
 
@@ -329,7 +340,11 @@ POST_PROCESS.update({
     'qm_wrt': ParamType.LOG,
     'cf_wrt': ParamType.LOG,
     'sim_data': ParamType.LOG,
-    'ib': ParamType.LOG
+    'ib': ParamType.LOG,
+    'cfl_target': ParamType.REAL,
+    't_save': ParamType.REAL,
+    't_stop': ParamType.REAL,
+    'n_start': ParamType.INT,
 })
 
 for cmp_id in range(1,3+1):
