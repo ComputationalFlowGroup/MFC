@@ -1,0 +1,5 @@
+Equations: 
+ * Momentum:            3  3
+ * Advection:           5  6
+ * Continuity:          1  2
+ * Stress:              7  7

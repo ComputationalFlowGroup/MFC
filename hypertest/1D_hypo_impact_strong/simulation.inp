@@ -1,0 +1,37 @@
+&user_inputs
+run_time_info = T
+x_domain%beg = 0.0
+x_domain%end = 1.0
+m = 201
+n = 0
+p = 0
+dt = 1.025e-08
+t_step_start = 0
+t_step_stop = 4000
+t_step_save = 20
+model_eqns = 2
+alt_soundspeed = F
+num_fluids = 1
+mpp_lim = F
+mixture_err = F
+time_stepper = 3
+weno_order = 5
+weno_eps = 1e-16
+weno_Re_flux = F
+weno_avg = F
+mapped_weno = F
+null_weights = F
+mp_weno = T
+riemann_solver = 2
+wave_speeds = 1
+avg_state = 2
+bc_x%beg = -3
+bc_x%end = -3
+hypoelasticity = T
+precision = 2
+prim_vars_wrt = T
+parallel_io = F
+fluid_pp(1)%gamma = 0.2941176470588235
+fluid_pp(1)%pi_inf = 776470588.235294
+fluid_pp(1)%G = 10000000000.0
+&end/
