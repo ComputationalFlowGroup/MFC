@@ -319,7 +319,7 @@ contains
         do l = 0, p
             do k = 0, n
                 do j = 0, m
-                    !$acc loop seq
+        !            !$acc loop seq
                     call s_compute_enthalpy(q_prim_vf, pres, rho, gamma, pi_inf, Re, H, alpha, vel, vel_sum, j, k, l)
                     ! Compute mixture sound speed
                     call s_compute_speed_of_sound(pres, rho, gamma, pi_inf, H, alpha, vel_sum, c, alpha_rho)

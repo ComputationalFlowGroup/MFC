@@ -14,6 +14,7 @@ module m_sim_helpers
   s_compute_stability_from_dt, &
   s_compute_dt_from_cfl
 
+
 contains
 
      !> Computes enthalpy
@@ -38,8 +39,9 @@ contains
          real(kind(0d0)), dimension(num_dims) :: vel
          real(kind(0d0)) :: rho, gamma, pi_inf, qv, vel_sum, E, H, pres
          real(kind(0d0)), dimension(2) :: Re
+         real(kind(0d0)) :: G, Gs
          integer :: i, j, k, l
-  
+ 
          do i = 1, num_fluids
              alpha_rho(i) = q_prim_vf(i)%sf(j, k, l)
              alpha(i) = q_prim_vf(E_idx + i)%sf(j, k, l)
@@ -54,13 +56,11 @@ contains
              call s_convert_species_to_mixture_variables_acc(rho, gamma, pi_inf, qv, alpha, alpha_rho, Re, j, k, l)
          end if
 
-   !      !$acc loop seq
          do i = 1, num_dims
              vel(i) = q_prim_vf(contxe + i)%sf(j, k, l)
          end do
 
          vel_sum = 0d0
-   !     !$acc loop seq
          do i = 1, num_dims
               vel_sum = vel_sum + vel(i)**2d0
          end do
@@ -97,7 +97,7 @@ contains
               !! Modified dtheta accounting for Fourier filtering in azimuthal direction.
          integer :: j, k, l
          integer :: Nfq
-         real(kind(0d0)), dimension(2) :: Re_l
+         real(kind(0d0)), dimension(2) :: Re_l, Re
 
 
          if (grid_geometry == 3) then
