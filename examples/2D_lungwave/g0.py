@@ -4,8 +4,11 @@ import math
 import json
 
 pi = 3.141592653589
-# material parameters
 
+#primitive vartiables
+patmos = 101325. #pa
+
+# material parameters
 
 #patterson 2018
 #material1 :: gas
@@ -25,12 +28,9 @@ Cv_g = Cp_g/gammag
 gammal = 5.5
 Bl = 492.E+06
 rhol = 996.0
-c_l = 1540#1648.7
-G_l = 1.0E4
+G_l = 0*1.0E4
 Cv_l = 1816
-
-#primitive vartiables
-patmos = 101325. #pa
+c_l = math.sqrt(gammal*(patmos+Bl)/rhol) #1540#1648.7
 
 #problem specific variable
 lambda_wave = 200.E-6
@@ -86,6 +86,19 @@ time_end = 5E-6
 frames = 100
 time_save = time_end/frames
 cfl = 0.25
+
+#### shock state
+g_r = gammal
+g_l = gammal
+p_r = patmos
+p_l = P_amp
+B_r = Bl
+B_l = Bl
+r_r = rhol
+c_r = c_l
+
+rho_shock_l = (((g_r+1)/(g_r-1))*((p_l+B_r)/(p_r+B_r)) + 1)/((g_r+1)/(g_r-1) + (p_l+B_r)/(p_r+B_r))*r_r
+ushock_l = (c_r/g_r)*((p_l/p_r) - 1)*(p_r/(p_r+B_r))/(math.sqrt(((g_r+1)/(2*g_r))*((p_l/p_r) - 1)*(p_r/(p_r+B_r))+1))
 
 # Configuring case dictionary
 print(json.dumps({
@@ -190,17 +203,17 @@ print(json.dumps({
     # Patch 3: Shocked Lung ====================================================
     'patch_icpp(3)%geometry'       : 9,
     'patch_icpp(3)%alter_patch(2)' : 'T',
-    'patch_icpp(3)%x_centroid'     : 7.65E-3,
+    'patch_icpp(3)%x_centroid'     : 8E-3,
     'patch_icpp(3)%y_centroid'     : 0.,
     'patch_icpp(3)%z_centroid'     : 0.,
     'patch_icpp(3)%length_x'       : 15.2E-3,#dlengx,
     'patch_icpp(3)%length_y'       : dlengy,  
     'patch_icpp(3)%length_z'       : dlengz,                 
-    'patch_icpp(3)%vel(1)'         : 0.E+00,
+    'patch_icpp(3)%vel(1)'         : -ushock_l,
     'patch_icpp(3)%vel(2)'         : 0.E+00,
     'patch_icpp(3)%vel(3)'         : 0.E+00,
     'patch_icpp(3)%pres'           : P_amp, 
-    'patch_icpp(3)%alpha_rho(1)'   : rhol_n*alphal_back,
+    'patch_icpp(3)%alpha_rho(1)'   : rho_shock_l*alphal_back,
     'patch_icpp(3)%alpha_rho(2)'   : rhog_n*alphag_back,            
     'patch_icpp(3)%alpha(1)'       : alphal_back,
     'patch_icpp(3)%alpha(2)'       : alphag_back,
