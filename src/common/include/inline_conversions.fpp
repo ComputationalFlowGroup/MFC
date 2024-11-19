@@ -76,7 +76,10 @@
                     (alpha_rho_K(q)/rho)*((1d0+(1d0-qvps(q))*gamma_inv)*(pres-pref)/rho_K &
                     +pref/rho_K + pref_prime*gamma_inv - rho_eref_prime)
                else 
-                   c = c + (alpha_rho_K(q)/rho)*(mg_a(q)**2d0)*gamma_inv
+                   c = c + &
+                   (alpha_rho_K(q)/rho)*(pres/rho_K*(gamma_inv + 1d0) - &
+                    pref*gamma_inv/rho_K + &
+                    qvps(q)+0.5d0*(pi_infs(q)+pref)*(1d0/rho0(q)-1d0/rho_K)+(mg_a(q)**2d0)*gamma_inv)
                end if
 
                !Mie-gruneisen sound-speed mixture

@@ -171,12 +171,18 @@ contains
                   
                 pref = pi_infs(s)+rho0(s)*(mg_a(s)**2d0)*xi&
                 /(1d0-mg_b(s)*xi)**2d0
-                    
-                pref_over_gamma = pref_over_gamma + &
-                pref*alpha_K(s)*(rhoK/rho0(s))**qvps(s)/gammas(s)
+                   
+                if (rhoK .ge. rho0(s)) then
+                    pref_over_gamma = pref_over_gamma + &
+                    pref*alpha_K(s)*(rhoK/rho0(s))**qvps(s)/gammas(s)
 
-                rho_eref = rho_eref + alpha_rho_K(s)*qvs(s)+&
-                0.5d0*(pref+pi_infs(s))*(alpha_rho_K(s)/rho0(s)-alpha_K(s))
+                    rho_eref = rho_eref + alpha_rho_K(s)*qvs(s)+&
+                    0.5d0*(pref+pi_infs(s))*(alpha_rho_K(s)/rho0(s)-alpha_K(s))
+                else
+                    pref_over_gamma = pref_over_gamma + &
+                        alpha_K(s)*(mg_a(s)**2d0)*(rhoK-rho0(s))*(rhoK/rho0(s))**qvps(s)/gammas(s)
+
+                end if
             end do
             pres = (pref_over_gamma + energy - dyn_p - rho_eref)/gamma_inv
            

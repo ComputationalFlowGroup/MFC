@@ -2194,13 +2194,18 @@ contains
                                                 
                                         pref = pi_infs(i)+rho0(i)*(mg_a(i)**2d0)*xi&
                                         /(1d0-mg_b(i)*xi)**2d0
-                                        
-                                        pref_over_gamma = pref_over_gamma + &
-                                            pref*alpha_L(i)*(rho_K/rho0(i))**qvps(i)/gammas(i) 
+                                    
+                                        if (rho_K .ge. rho0(i)) then
+                                            pref_over_gamma = pref_over_gamma + &
+                                                pref*alpha_L(i)*(rho_K/rho0(i))**qvps(i)/gammas(i) 
 
-                                        rho_eref = rho_eref + alpha_rho_L(i)*qvs(i)+&
-                                        0.5d0*(pref+pi_infs(i))*(alpha_rho_L(i)/rho0(i)-alpha_L(i))   
-                                            
+                                            rho_eref = rho_eref + alpha_rho_L(i)*qvs(i)+&
+                                            0.5d0*(pref+pi_infs(i))*(alpha_rho_L(i)/rho0(i)-alpha_L(i))  
+                                        else
+                                            pref_over_gamma = pref_over_gamma + &
+                                            alpha_L(i)*(mg_a(i)**2d0)*(rho_K - &
+                                            rho0(i))*(rho_K/rho0(i))**qvps(i)/gammas(i)
+                                        end if  
                                     end do
                                 end if
 
@@ -2229,12 +2234,18 @@ contains
                                         
                                         pref = pi_infs(i)+rho0(i)*(mg_a(i)**2d0)*xi&
                                         /(1d0-mg_b(i)*xi)**2d0
-                                            
-                                        pref_over_gamma = pref_over_gamma + &
-                                        pref*alpha_R(i)*(rho_K/rho0(i))**qvps(i)/gammas(i)
+                                    
+                                        if (rho_K .ge. rho0(i)) then         
+                                            pref_over_gamma = pref_over_gamma + &
+                                            pref*alpha_R(i)*(rho_K/rho0(i))**qvps(i)/gammas(i)
 
-                                        rho_eref = rho_eref + alpha_rho_R(i)*qvs(i)+&
-                                        0.5d0*(pref+pi_infs(i))*(alpha_rho_R(i)/rho0(i)-alpha_R(i)) 
+                                            rho_eref = rho_eref + alpha_rho_R(i)*qvs(i)+&
+                                            0.5d0*(pref+pi_infs(i))*(alpha_rho_R(i)/rho0(i)-alpha_R(i)) 
+                                        else
+                                            pref_over_gamma = pref_over_gamma + &
+                                            alpha_R(i)*(mg_a(i)**2d0)*(rho_K - &
+                                            rho0(i))*(rho_K/rho0(i))**qvps(i)/gammas(i)
+                                        end if
                                     end do
                                 end if
                                  
