@@ -22,7 +22,7 @@ cfl = 0.1
 dt = cfl * dx/c_l
 #Nt = int(time_end/dt)
 Nt = 20000
-eps = 1E-6
+eps = 1E-5
 
 #Material parameters of sucrose (dimensional)
 Kt0_suc       = 14.3e9      #Pa
@@ -86,10 +86,10 @@ print(json.dumps({
     #'t_step_stop'                  : 9000,
     #'t_step_save'                  : int(50),
     'cfl_adap_dt'                  : 'T',
-    'cfl_target'                   : 0.5,
+    'cfl_target'                   : 0.1,
     'n_start'                      : 0,
-    't_save'                       : 4.014757E-01,
-    't_stop'                       : 4.014757E-01,
+    't_save'                       : 4.E-02,
+    't_stop'                       : 4.,
     # ==========================================================================
 
     # Simulation Algorithm Parameters ==========================================
@@ -100,7 +100,7 @@ print(json.dumps({
     'MGEoS_model'                  : 1,
     'num_fluids'                   : 2,
     'mpp_lim'                      : 'T',
-    'mixture_err'                  : 'T',
+    'mixture_err'                  : 'F',
     'time_stepper'                 : 3,
     'weno_order'                   : 5,
     'weno_eps'                     : 1.E-16,
@@ -124,6 +124,7 @@ print(json.dumps({
     'prim_vars_wrt'                :'T',
     'parallel_io'                  :'T',
     'E_wrt'                        :'T',
+    'c_wrt'                        :'T',
     # ==========================================================================
 
     # Patch 1: Background ======================================================
@@ -132,10 +133,10 @@ print(json.dumps({
     'patch_icpp(1)%y_centroid'     : 0.,
     'patch_icpp(1)%length_x'       : 10*leng,
     'patch_icpp(1)%length_y'       : 10*leng,
-    'patch_icpp(1)%vel(1)'         : 1.E-7,
+    'patch_icpp(1)%vel(1)'         : 0.0,
     'patch_icpp(1)%vel(2)'         : 0.0,
     'patch_icpp(1)%pres'           : P_0,
-    'patch_icpp(1)%alpha_rho(1)'   : (1.E+00-eps)*1.5805,
+    'patch_icpp(1)%alpha_rho(1)'   : (1.E+00-eps)*1580.5106E-3,
     'patch_icpp(1)%alpha_rho(2)'   : eps*0.0012,
     'patch_icpp(1)%alpha(1)'       : (1.E+00-eps),
     'patch_icpp(1)%alpha(2)'       : eps,
@@ -163,10 +164,10 @@ print(json.dumps({
     'patch_icpp(3)%y_centroid'     : 0.E+00,
     'patch_icpp(3)%radius'         : leng/7.0,
     'patch_icpp(3)%alter_patch(1)' : 'T',
-    'patch_icpp(3)%vel(1)'         : 1.0E-7,
+    'patch_icpp(3)%vel(1)'         : 0.0,
     'patch_icpp(3)%vel(2)'         : 0.E+00,
     'patch_icpp(3)%pres'           : P_0,
-    'patch_icpp(3)%alpha_rho(1)'   : eps*1580.5E-3,
+    'patch_icpp(3)%alpha_rho(1)'   : eps*1580.5106E-3,
     'patch_icpp(3)%alpha_rho(2)'   : (1.E0-eps)*1.2E-3,
     'patch_icpp(3)%alpha(1)'       : eps,
     'patch_icpp(3)%alpha(2)'       : 1.E+00-eps,
@@ -174,7 +175,7 @@ print(json.dumps({
 
     # Fluids Physical Parameters ===============================================
                     'fluid_pp(1)%gamma'            : 1.09,              # Gruneisen constant
-                    'fluid_pp(1)%pi_inf'           : P_0,               # p0
+                    'fluid_pp(1)%pi_inf'           : 0.0,               # p0
                     'fluid_pp(1)%mg_a'             : 3077.6E-3,            # c0
                     'fluid_pp(1)%mg_b'             : 1.104,             # s
                     'fluid_pp(1)%qv'               : 0.0,               # e0

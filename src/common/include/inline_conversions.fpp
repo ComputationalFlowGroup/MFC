@@ -99,13 +99,13 @@
               ! +gam*pref*adv(q)/alpha_rho_K(q) + &
               !  pref_prime - rho_eref_prime*gam)
                 
-                if (c /= c .or. (c .lt. -1d-16)) then
-                    print &
-                    *,'c:',c,'alpha_rho_K(i)',alpha_rho_K(q),'pref_prime',pref_prime,'rho_eref_prime',rho_eref_prime,'pres &
-                    (MPa)',pres/1d6,&
-                        'gamma_inv',gamma_inv,'adv(i)',adv(q),'q',q,'xi',xi
-                    print *,'rho_K',rho_K
-                end if
+!                if (c /= c .or. (c .lt. -1d-16)) then
+!                    print &
+!                    *,'c:',c,'alpha_rho_K(i)',alpha_rho_K(q),'pref_prime',pref_prime,'rho_eref_prime',rho_eref_prime,'pres &
+!                    (MPa)',pres/1d6,&
+!                        'gamma_inv',gamma_inv,'adv(i)',adv(q),'q',q,'xi',xi
+!                    print *,'rho_K',rho_K
+!                end if
 
             end do 
             c = c/gamma_avg
