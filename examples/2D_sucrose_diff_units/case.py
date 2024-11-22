@@ -12,8 +12,8 @@ rho = 1.
 c_l = 3.0776       #mm/us
 
 leng = 14.0        #mm
-Ny = 2048
-Nx = 3096
+Ny = 1024
+Nx = 1536
 dx = leng/Nx
 
 time_end = 0.001   #5*leng/vel
