@@ -187,7 +187,7 @@ contains
         character(LEN=name_len), intent(inout) :: varname
         real(kind(0d0)), intent(inout) :: pres, c, H
         real(kind(0d0)), dimension(num_fluids) :: alpha_K, alpha_rho_K
-
+        real(kind(0d0)) :: rho_avg
         integer :: i, j, k, l
 
         ! Opening a new formatted database file
@@ -503,9 +503,11 @@ contains
             do k = -offset_z%beg, p + offset_z%end
                 do j = -offset_y%beg, n + offset_y%end
                     do i = -offset_x%beg, m + offset_x%end
+                        rho_avg = 0d0
                         do l = 1, adv_idx%end - E_idx
                             alpha_K(l) = q_prim_vf(E_idx + l)%sf(i, j, k)
                             alpha_rho_K(l) = q_prim_vf(l)%sf(i, j, k)
+                            rho_avg = rho_avg + alpha_rho_K(l)
                         end do
 
                         pres = q_prim_vf(E_idx)%sf(i, j, k)
@@ -513,7 +515,7 @@ contains
                         H = ((gamma_sf(i, j, k) + 1d0)*pres + &
                              pi_inf_sf(i, j, k))/rho_sf(i, j, k)
 
-                        call s_compute_speed_of_sound(pres, rho_sf(i, j, k), &
+                        call s_compute_speed_of_sound(pres, rho_avg, &
                                                       gamma_sf(i, j, k), pi_inf_sf(i, j, k), &
                                                       H, alpha_K, 0d0, c, alpha_rho_K)
 

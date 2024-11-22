@@ -12,8 +12,8 @@ rho = 1.
 c_l = 3.0776       #mm/us
 
 leng = 14.0        #mm
-Ny = 1024
-Nx = 768*2
+Ny = 2048
+Nx = 3096
 dx = leng/Nx
 
 time_end = 0.001   #5*leng/vel
@@ -60,8 +60,8 @@ vel0              = 1.0E-6          #For seeding everything with some non-zero v
 #print('vel=',vel*c_0,'m/s')
 vel = 0.200                      #mm/us
 Us = c_l+ 1.104*vel              #mm/us
-rho1 = 1.5805*Us/(Us-vel)        #density
-ps = P_0 + 1.5805*Us*vel         #GPa
+rho1 = 1.5805106*Us/(Us-vel)        #density
+ps = P_0 + 1.5805106*Us*vel         #GPa
 
 #print(vel)
 #print(Us)
@@ -74,10 +74,10 @@ print(json.dumps({
     # ==========================================================================
 
     # Computational Domain Parameters ==========================================
-    'x_domain%beg'                 :  -leng/2.,
+    'x_domain%beg'                 :  -3*leng/4.,
     'x_domain%end'                 : 0.625*leng,
-    'y_domain%beg'                 :  -leng/2.,
-    'y_domain%end'                 :  leng/2.,
+    'y_domain%beg'                 :  -3*leng/4.,
+    'y_domain%end'                 :  3*leng/4.,
     'm'                            : int(Nx),
     'n'                            : int(Ny),
     'p'                            : 0,
@@ -88,8 +88,8 @@ print(json.dumps({
     'cfl_adap_dt'                  : 'T',
     'cfl_target'                   : 0.1,
     'n_start'                      : 0,
-    't_save'                       : 4.E-02,
-    't_stop'                       : 4.,
+    't_save'                       : 4.E-03,
+    't_stop'                       : 4.0,
     # ==========================================================================
 
     # Simulation Algorithm Parameters ==========================================
@@ -165,7 +165,7 @@ print(json.dumps({
     'patch_icpp(3)%radius'         : leng/7.0,
     'patch_icpp(3)%alter_patch(1)' : 'T',
     'patch_icpp(3)%vel(1)'         : 0.0,
-    'patch_icpp(3)%vel(2)'         : 0.E+00,
+    'patch_icpp(3)%vel(2)'         : 0.0,
     'patch_icpp(3)%pres'           : P_0,
     'patch_icpp(3)%alpha_rho(1)'   : eps*1580.5106E-3,
     'patch_icpp(3)%alpha_rho(2)'   : (1.E0-eps)*1.2E-3,
@@ -187,7 +187,7 @@ print(json.dumps({
                     'fluid_pp(2)%mg_a'             : 0.0,               # c0
                     'fluid_pp(2)%mg_b'             : 0.0,               # s
                     'fluid_pp(2)%qv'               : 0.0,               # e0
-                    'fluid_pp(2)%qvp'              : 0.0,             # Gruneisen exponent
+                    'fluid_pp(2)%qvp'              : 1.E-4,             # Gruneisen exponent
                     'fluid_pp(2)%rho0'             : 1.2E-3,               # reference density
                     'fluid_pp(2)%cv'               : 1000E-6,              # specific heat capacity
    # 'fluid_pp(1)%jcook(1)'         : 0.0334,                           # A, Static yield strength
