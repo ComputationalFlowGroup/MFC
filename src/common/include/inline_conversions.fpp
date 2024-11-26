@@ -64,23 +64,23 @@
                rho0(q)*(mg_a(q)**2d0)*xi/(1d0-mg_b(q)*xi)**2d0
                 
                gamma_avg = gamma_avg + adv(q)/(gammas(q)*(rho0(q)/rho_K)**qvps(q))
-                
+               
                gamma_inv = 1d0/(gammas(q)*(rho0(q)/rho_K)**qvps(q))
-
+               gam = 1d0/gamma_inv
                pref_prime = (mg_a(q)**2d0)*((1d0-xi)**2d0)*(1d0+mg_b(q)*xi)/(1d0-mg_b(q)*xi)**3d0
                
                rho_eref_prime = 0.5d0*(pref/rho_K + pref_prime*(rho_K/rho0(q)-1d0))
 
-               if (rho_K .ge. rho0(q)) then
-                    c = c + &
-                    (alpha_rho_K(q)/rho)*((1d0+(1d0-qvps(q))*gamma_inv)*(pres-pref)/rho_K &
-                    +pref/rho_K + pref_prime*gamma_inv - rho_eref_prime)
-               else 
-                   c = c + &
-                   (alpha_rho_K(q)/rho)*(pres/rho_K*(gamma_inv + 1d0) - &
-                    pref*gamma_inv/rho_K + &
-                    qvps(q)+0.5d0*(pi_infs(q)+pref)*(1d0/rho0(q)-1d0/rho_K)+(mg_a(q)**2d0)*gamma_inv)
-               end if
+            !   if (rho_K .ge. rho0(q)) then
+            !        c = c + &
+            !        (alpha_rho_K(q)/rho)*((1d0+(1d0-qvps(q))*gamma_inv)*(pres-pref)/rho_K &
+            !        +pref/rho_K + pref_prime*gamma_inv - rho_eref_prime)
+            !   else 
+            !       c = c + &
+            !       (alpha_rho_K(q)/rho)*(pres/rho_K*(gamma_inv + 1d0) - &
+            !        pref*gamma_inv/rho_K + &
+            !        qvps(q)+0.5d0*(pi_infs(q)+pref)*(1d0/rho0(q)-1d0/rho_K)+(mg_a(q)**2d0)*gamma_inv)
+            !   end if
 
                !Mie-gruneisen sound-speed mixture
                !c = c + &
@@ -89,15 +89,15 @@
               
               !Bubbles sound-speed mixture
               !c = c + &
-              ! (adv(q)**2d0/(alpha_rho_K(q)+sgm_eps))/(((1d0+(1d0-qvps(q))*gamma_inv)*(pres-pref)*(adv(q)/(alpha_rho_K(q)+sgm_eps)) &
-              ! +pref*adv(q)/(alpha_rho_K(q)+sgm_eps) + &
-              !  pref_prime*gamma_inv - rho_eref_prime+sgm_eps)/gamma_inv)
+              ! (adv(q)**2d0/(alpha_rho_K(q)))/(((1d0+(1d0-qvps(q))*gamma_inv)*(pres-pref)*(adv(q)/(alpha_rho_K(q))) &
+              ! +pref*adv(q)/(alpha_rho_K(q)) + &
+              !  pref_prime*gamma_inv - rho_eref_prime)/gamma_inv)
                
                !Frozen speed of sound
-               !c = c + &
-              ! alpha_rho_K(q)*((gam+(1d0-qvps(q)))*(pres-pref)*(adv(q)/(alpha_rho_K(q))) &
-              ! +gam*pref*adv(q)/alpha_rho_K(q) + &
-              !  pref_prime - rho_eref_prime*gam)
+               c = c + &
+               alpha_rho_K(q)*((gam+(1d0-qvps(q)))*(pres-pref)*(adv(q)/(alpha_rho_K(q))) &
+               +gam*pref*adv(q)/alpha_rho_K(q) + &
+                pref_prime - rho_eref_prime*gam)
                 
 !                if (c /= c .or. (c .lt. -1d-16)) then
 !                    print &
@@ -108,9 +108,9 @@
 !                end if
 
             end do 
-            c = c/gamma_avg
-            !c = 1d0/(rho*c)
-            !c = c/rho
+            !c = c/gamma_avg
+!            c = 1d0/(rho*c)
+            c = c/rho
         else           
             c = ((H - 5d-1*vel_sum)/gamma)
         end if

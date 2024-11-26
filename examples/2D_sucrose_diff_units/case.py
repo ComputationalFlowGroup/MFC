@@ -11,9 +11,9 @@ rho = 1.
 #c_l = math.sqrt( 1.4*ps/rho )
 c_l = 3.0776       #mm/us
 
-leng = 14.0        #mm
-Ny = 1024
-Nx = 1536
+leng = 2.0        #mm
+Ny = 512
+Nx = 768
 dx = leng/Nx
 
 time_end = 0.001   #5*leng/vel
@@ -22,7 +22,7 @@ cfl = 0.1
 dt = cfl * dx/c_l
 #Nt = int(time_end/dt)
 Nt = 20000
-eps = 1E-5
+eps = 1E-6
 
 #Material parameters of sucrose (dimensional)
 Kt0_suc       = 14.3e9      #Pa
@@ -47,7 +47,7 @@ gamma_air     = 0.4         #n-1
 
 #Initial condition
 theta_0           = 310             #K
-P_0               = 1.00E-4         #GPa
+P_0               = 1.0040000406510039E-004         #GPa
 compression_ratio = 1.2             #rho/rho_0 in the shocked region
 rho_suc           = 1580.5          #kg/m^3
 vel0              = 1.0E-6          #For seeding everything with some non-zero velocity
@@ -75,7 +75,7 @@ print(json.dumps({
 
     # Computational Domain Parameters ==========================================
     'x_domain%beg'                 :  -3*leng/4.,
-    'x_domain%end'                 : 0.625*leng,
+    'x_domain%end'                 :  leng,
     'y_domain%beg'                 :  -3*leng/4.,
     'y_domain%end'                 :  3*leng/4.,
     'm'                            : int(Nx),
@@ -86,9 +86,9 @@ print(json.dumps({
     #'t_step_stop'                  : 9000,
     #'t_step_save'                  : int(50),
     'cfl_adap_dt'                  : 'T',
-    'cfl_target'                   : 0.1,
+    'cfl_target'                   : 0.2,
     'n_start'                      : 0,
-    't_save'                       : 4.E-03,
+    't_save'                       : 4.E-02,
     't_stop'                       : 4.0,
     # ==========================================================================
 
@@ -102,14 +102,14 @@ print(json.dumps({
     'mpp_lim'                      : 'T',
     'mixture_err'                  : 'F',
     'time_stepper'                 : 3,
-    'weno_order'                   : 5,
-    'weno_eps'                     : 1.E-16,
+    'weno_order'                   : 3,
+    'weno_eps'                     : 1.E-40,
     'weno_Re_flux'                 : 'F',
     'weno_avg'                     : 'F',
     'mapped_weno'                  : 'T',
     'null_weights'                 : 'T',
-    'mp_weno'                      : 'T',
-    'riemann_solver'               : 2,
+    'mp_weno'                      : 'F',
+    'riemann_solver'               : 1,
     'wave_speeds'                  : 1,
     'avg_state'                    : 2,
     'bc_x%beg'                     : -3,
@@ -147,7 +147,7 @@ print(json.dumps({
     'patch_icpp(2)%alter_patch(1)' : 'T',
     'patch_icpp(2)%x_centroid'     : -2.5625*leng,
     'patch_icpp(2)%y_centroid'     : 0.,
-    'patch_icpp(2)%length_x'       : 4.8*leng,
+    'patch_icpp(2)%length_x'       : 4.0*leng,
     'patch_icpp(2)%length_y'       : 10*leng,
     'patch_icpp(2)%vel(1)'         : vel,
     'patch_icpp(2)%vel(2)'         : 0.0,
@@ -162,8 +162,11 @@ print(json.dumps({
     'patch_icpp(3)%geometry'       : 2,
     'patch_icpp(3)%x_centroid'     : 0.E+00,
     'patch_icpp(3)%y_centroid'     : 0.E+00,
-    'patch_icpp(3)%radius'         : leng/7.0,
+    'patch_icpp(3)%radius'         : leng/2.0,
     'patch_icpp(3)%alter_patch(1)' : 'T',
+    'patch_icpp(3)%smoothen'       : 'T',
+    'patch_icpp(3)%smooth_coeff'   : 1.00,
+    'patch_icpp(3)%smooth_patch_id' : 1,
     'patch_icpp(3)%vel(1)'         : 0.0,
     'patch_icpp(3)%vel(2)'         : 0.0,
     'patch_icpp(3)%pres'           : P_0,
@@ -187,7 +190,7 @@ print(json.dumps({
                     'fluid_pp(2)%mg_a'             : 0.0,               # c0
                     'fluid_pp(2)%mg_b'             : 0.0,               # s
                     'fluid_pp(2)%qv'               : 0.0,               # e0
-                    'fluid_pp(2)%qvp'              : 1.E-4,             # Gruneisen exponent
+                    'fluid_pp(2)%qvp'              : 0.0,             # Gruneisen exponent
                     'fluid_pp(2)%rho0'             : 1.2E-3,               # reference density
                     'fluid_pp(2)%cv'               : 1000E-6,              # specific heat capacity
    # 'fluid_pp(1)%jcook(1)'         : 0.0334,                           # A, Static yield strength

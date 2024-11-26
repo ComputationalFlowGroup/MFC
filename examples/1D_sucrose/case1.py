@@ -4,12 +4,12 @@ import json
 
 #Numerical setup
 c_l     = 3077.6
-Nx      = 99
+Nx      = 4098
 cfl     = 0.1
 leng    = 2.
 dx      = leng/(Nx+1)
 mydt    = cfl*dx/c_l
-Tend    = 2E-3
+Tend    = 8E-3
 Nt      = int(Tend/mydt)
 #mydt   = Tend/(1.*Nt)
 vel1    = 1.0
@@ -46,14 +46,14 @@ print(json.dumps({
                     'n'                            : 0,
                     'p'                            : 0,
                     'dt'                           : mydt,
-                    't_step_start'                 : 0,
-                    't_step_stop'                  : int(Nt),
-                    't_step_save'                  : int(math.ceil((Nt)/100.)),
-                #    'cfl_adap_dt'                  : 'T',
-                #    'cfl_target'                   : 0.1,
-                #    'n_start'                      : 0,
-                #    't_save'                       : 10*mydt,
-                #    't_stop'                       : Tend,
+                #    't_step_start'                 : 0,
+                #    't_step_stop'                  : int(Nt),
+                #    't_step_save'                  : int(math.ceil((Nt)/100.)),
+                    'cfl_adap_dt'                  : 'T',
+                    'cfl_target'                   : 0.1,
+                    'n_start'                      : 0,
+                    't_save'                       : 2.0E-4,
+                    't_stop'                       : Tend,
 		    # ==========================================================
 
                     # Simulation Algorithm Parameters ==========================
@@ -71,7 +71,7 @@ print(json.dumps({
                     'mapped_weno'                  : 'F',
                     'null_weights'                 : 'T',
                     'mp_weno'                      : 'T',
-		            'riemann_solver'               : 2,
+		            'riemann_solver'               : 1,
                     'wave_speeds'                  : 1,
                     'avg_state'                    : 2,
                     'bc_x%beg'                     : -3,

@@ -332,6 +332,8 @@ contains
         real(kind(0d0)) :: rho_Star, E_Star, p_Star, p_K_Star
         real(kind(0d0)) :: Ms_L, Ms_R, pres_SL, pres_SR
         real(kind(0d0)) :: alpha_L_sum, alpha_R_sum
+        real(kind(0d0)) :: pref_over_gamma, rho_eref, gamma_inv
+        real(kind(0d0)) :: rho_K, xi, pref
 
         integer :: i, j, k, l, q !< Generic loop iterators
 
@@ -517,10 +519,89 @@ contains
                                   tau_e_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, strxb - 1 + i)
                                end do
                              end if
+                            
+                            if (model_eqns /= 5) then
+                                E_L = gamma_L*pres_L + pi_inf_L + 5d-1*rho_L*vel_L_rms + qv_L
+                                E_R = gamma_R*pres_R + pi_inf_R + 5d-1*rho_R*vel_R_rms + qv_R
+                            else
+                                pref_over_gamma = 0d0;rho_eref = 0d0;gamma_inv = 0d0
+                                if (MGEoS_model == 1) then
+                                    do i = 1, num_fluids
+                                        rho_K = alpha_rho_L(i)/alpha_L(i)
 
-                            E_L = gamma_L*pres_L + pi_inf_L + 5d-1*rho_L*vel_L_rms + qv_L
-                            E_R = gamma_R*pres_R + pi_inf_R + 5d-1*rho_R*vel_R_rms + qv_R
+                                        gamma_inv = gamma_inv + &
+                                            alpha_L(i)*(rho_K/rho0(i))**qvps(i)/gammas(i)
+                                        
+                                        xi = 1d0 - rho0(i)/rho_K
+                                                
+                                        pref = pi_infs(i)+rho0(i)*(mg_a(i)**2d0)*xi&
+                                        /(1d0-mg_b(i)*xi)**2d0
+                                    
+                                        if (rho_K .ge. rho0(i)) then
+                                            pref_over_gamma = pref_over_gamma + &
+                                                pref*alpha_L(i)*(rho_K/rho0(i))**qvps(i)/gammas(i) 
 
+                                            rho_eref = rho_eref + alpha_rho_L(i)*qvs(i)+&
+                                            0.5d0*(pref+pi_infs(i))*(alpha_rho_L(i)/rho0(i)-alpha_L(i))  
+                                        else
+                                            pref_over_gamma = pref_over_gamma + &
+                                            alpha_L(i)*(mg_a(i)**2d0)*(rho_K - &
+                                            rho0(i))*(rho_K/rho0(i))**qvps(i)/gammas(i)
+                                        end if  
+                                    end do
+                                end if
+
+                                ! Energy corresponding to Mie-Gruneisen EOS 
+                                E_L    = rho_eref + &
+                                gamma_inv*pres_L - pref_over_gamma + &
+                                5d-1*rho_L*vel_L_rms
+                                
+                                if (E_L /= E_L) then 
+                                    print *,'rho_eref',rho_eref,'pres_R',pres_L,&
+                                    'pref_over_gamma',pref_over_gamma,&
+                                    'rho_R',rho_L,'vel_rms',vel_L_rms
+                                end if
+                                 
+                                pref_over_gamma = 0d0;rho_eref = 0d0;gamma_inv = 0d0
+                                if (MGEoS_model == 1) then
+                                    do i = 1, num_fluids
+                                        rho_K = alpha_rho_R(i)/alpha_R(i)
+                                       
+                                        gamma_inv = gamma_inv + &
+                                        alpha_R(i)/(gammas(i)*(rho0(i)/rho_K)**(qvps(i)))
+                                    
+                                        xi = 1d0 - rho0(i)/rho_K
+                                        
+                                        pref = pi_infs(i)+rho0(i)*(mg_a(i)**2d0)*xi&
+                                        /(1d0-mg_b(i)*xi)**2d0
+                                    
+                                        if (rho_K .ge. rho0(i)) then         
+                                            pref_over_gamma = pref_over_gamma + &
+                                            pref*alpha_R(i)*(rho_K/rho0(i))**qvps(i)/gammas(i)
+
+                                            rho_eref = rho_eref + alpha_rho_R(i)*qvs(i)+&
+                                            0.5d0*(pref+pi_infs(i))*(alpha_rho_R(i)/rho0(i)-alpha_R(i)) 
+                                        else
+                                            pref_over_gamma = pref_over_gamma + &
+                                            alpha_R(i)*(mg_a(i)**2d0)*(rho_K - &
+                                            rho0(i))*(rho_K/rho0(i))**qvps(i)/gammas(i)
+                                        end if
+                                    end do
+                                end if
+                                 
+                                ! Energy corresponding to Mie-Gruneisen EOS 
+                                E_R    = rho_eref + &
+                                gamma_inv*pres_R - pref_over_gamma+& 
+                                5d-1*rho_R*vel_R_rms
+                               
+                                if (E_R /= E_R) then 
+                                    print *,'rho_eref',rho_eref,'pres_R',pres_R,&
+                                    'pref_over_gamma',pref_over_gamma,&
+                                    'rho_R',rho_R,'vel_rms',vel_R_rms
+                                end if
+
+                            end if
+                            
                             ! Enthalpy with elastic energy
                             H_L = (E_L + pres_L)/rho_L
                             H_R = (E_R + pres_R)/rho_R
@@ -528,17 +609,17 @@ contains
                             @:compute_average_state()
 
                             call s_compute_speed_of_sound(pres_L, rho_L, gamma_L, pi_inf_L, H_L, alpha_L, &
-                                                          vel_L_rms, c_L)
+                                                          vel_L_rms, c_L, alpha_rho_L)
 
                             call s_compute_speed_of_sound(pres_R, rho_R, gamma_R, pi_inf_R, H_R, alpha_R, &
-                                                          vel_R_rms, c_R)
+                                                          vel_R_rms, c_R, alpha_rho_R)
 
                             !> The computation of c_avg does not require all the variables, and therefore the non '_avg'
                             ! variables are placeholders to call the subroutine.
-
-                            call s_compute_speed_of_sound(pres_R, rho_avg, gamma_avg, pi_inf_R, H_avg, alpha_R, &
+                            if (model_eqns /= 5) then
+                                call s_compute_speed_of_sound(pres_R, rho_avg, gamma_avg, pi_inf_R, H_avg, alpha_R, &
                                                           vel_avg_rms, c_avg)
-
+                            end if
                             !SGR added Gs to all of the above speed of sound clacs
 
                             if (any(Re_size > 0)) then
@@ -2260,6 +2341,9 @@ contains
                                     'rho_R',rho_R,'vel_rms',vel_R_rms
                                 end if
 
+                                H_L = (E_L + pres_L)/rho_L
+                                H_R = (E_R + pres_R)/rho_R
+                                
                                 @:compute_average_state()
 
                                 call s_compute_speed_of_sound(pres_L,&
