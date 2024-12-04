@@ -237,9 +237,9 @@ contains
             !For shock EoS
             rho_eref = 0d0; rho_e0 = 0d0; rho_cv = 0d0
             do i = 1, num_fluids
-                !rhoK = alpha_rho_K(i)/alpha_K(i) 
+                rhoK = alpha_rho_K(i)/alpha_K(i) 
                
-                xi = 1d0 - rho0(i)*alpha_K(i)/(alpha_rho_K(i)+sgm_eps)
+                xi = 1d0 - rho0(i)/rhoK
 
                 pref = pi_infs(i)+rho0(i)*(mg_a(i)**2d0)*xi&
                 /(1d0-mg_b(i)*xi)**2d0

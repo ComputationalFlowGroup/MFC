@@ -14,8 +14,8 @@ Ny = 100.
 Nx = Ny*3
 dx = leng/Nx
 
-time_end = (5/3)*leng/vel
-cfl = 0.1
+time_end = leng/vel
+cfl = 0.2
 
 dt = cfl * dx/c_l
 Nt = int(time_end/dt)
@@ -37,7 +37,7 @@ print(json.dumps({
     'dt'                           : dt,
     't_step_start'                 : 0,
     't_step_stop'                  : Nt,
-    't_step_save'                  : int(Nt/200.),
+    't_step_save'                  : int(Nt/50.),
     # ==========================================================================
 
     # Simulation Algorithm Parameters ==========================================
@@ -71,6 +71,8 @@ print(json.dumps({
     'parallel_io'                  :'T',
     'fd_order'                     : 1,
     'schlieren_wrt'                :'T',
+    'schlieren_alpha(1)'           : 20.0,
+    'schlieren_alpha(2)'           : 0.25,
     # ==========================================================================
 
     # Patch 1: Background ======================================================
