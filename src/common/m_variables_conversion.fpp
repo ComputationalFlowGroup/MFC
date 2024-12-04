@@ -225,7 +225,8 @@ contains
         real(kind(0d0)), dimension(num_fluids), intent(in), optional :: alpha_K, alpha_rho_K
       
         ! Temporary local variables
-        real(kind(0d0)) :: rho_eref, xi, rhoK, pref, rho_e0, rho_cv
+        real(kind(0d0)) :: rho_eref, xi, rhoK, pref, rho_cv, T0
+        real(kind(0d0)), dimension(num_fluids) :: ref_temp
         integer :: i !< Generic loop iterator
 
         ! model_eqns = 5 corresponds to the Mie-Gruneisen EOS
@@ -235,7 +236,9 @@ contains
             !T = T0 + (E - dyn_p - rho_eref - rho_e0)/(rho*cv)
             !Assuming T - T0 is what I am going to use in hypoplasticity
             !For shock EoS
-            rho_eref = 0d0; rho_e0 = 0d0; rho_cv = 0d0
+            rho_eref = 0d0; rho_cv = 0d0;
+            ref_temp(1) = 298; ref_temp(2) = 0;
+            T0 = 0d0
             do i = 1, num_fluids
                 rhoK = alpha_rho_K(i)/alpha_K(i) 
                
@@ -247,13 +250,12 @@ contains
                 rho_eref = rho_eref + alpha_rho_K(i)*qvs(i)+&
                 0.5d0*(pref+pi_infs(i))*(alpha_rho_K(i)/rho0(i)-alpha_K(i)) 
                 
-                rho_e0 = rho_e0 + alpha_rho_K(i)*qvs(i)
                 rho_cv = rho_cv + alpha_rho_K(i)*cvs(i)
+                T0 = T0 + alpha_K(i)*ref_temp(i)
             end do
         end if
             ! This is the increase in temperature from the reference
-            temp = (energy - dyn_pres - rho_eref - rho_e0)/(rho_cv)
-        
+            temp = T0 + (energy - dyn_pres - rho_eref)/(rho_cv)
     end subroutine s_compute_temperature
 
     !>  This subroutine is designed for the gamma/pi_inf model
@@ -750,8 +752,6 @@ contains
         @:ALLOCATE_GLOBAL(rho0   (1:num_fluids))
         @:ALLOCATE_GLOBAL(mg_a   (1:num_fluids))
         @:ALLOCATE_GLOBAL(mg_b   (1:num_fluids))
-        @:ALLOCATE_GLOBAL(ein_cv1(1:num_fluids))
-        @:ALLOCATE_GLOBAL(ein_cv2(1:num_fluids))
         #:for VAR in range(1,12)
           @:ALLOCATE_GLOBAL(jcook${VAR}$(1:num_fluids))          
         #:endfor 
@@ -759,8 +759,6 @@ contains
         @:ALLOCATE(rho0   (1:num_fluids))
         @:ALLOCATE(mg_a   (1:num_fluids))
         @:ALLOCATE(mg_b   (1:num_fluids))
-        @:ALLOCATE(ein_cv1(1:num_fluids))
-        @:ALLOCATE(ein_cv2(1:num_fluids))
         #:for VAR in range(1,12)
           @:ALLOCATE(jcook${VAR}$(1:num_fluids))          
         #:endfor 
@@ -769,10 +767,10 @@ contains
             rho0(i) = fluid_pp(i)%rho0  
             mg_a(i) = fluid_pp(i)%mg_a
             mg_b(i) = fluid_pp(i)%mg_b
-            ein_cv1(i) = fluid_pp(i)%ein_cv(1)
-            ein_cv2(i) = fluid_pp(i)%ein_cv(2)
+            cvs(i)  = fluid_pp(i)%cv
+            jcook11(i) = fluid_pp(i)%jcook(11) 
         end do
-!$acc update device(rho0, mg_a, mg_b, ein_cv1, ein_cv2)
+!$acc update device(rho0, mg_a, mg_b)
         end if
  
         if (hypoplasticity) then    
@@ -783,7 +781,7 @@ contains
           end do
 !$acc update device(jcook1,jcook2,jcook3,jcook4,jcook5,jcook6,jcook7,jcook8,jcook9,jcook10,jcook11)
         end if
-
+        print *, fluid_pp(1)%jcook(1)
 #ifdef MFC_SIMULATION
         if (any(Re_size > 0)) then
             @:ALLOCATE_GLOBAL(Res(1:2, 1:maxval(Re_size)))

@@ -141,7 +141,7 @@ print(json.dumps({
     'patch_icpp(1)%vel(2)'         : 0.0,
     'patch_icpp(1)%pres'           : P_0,
     'patch_icpp(1)%alpha_rho(1)'   : (1.E+00-eps)*1580.5106E-3,
-    'patch_icpp(1)%alpha_rho(2)'   : eps*0.0012,
+    'patch_icpp(1)%alpha_rho(2)'   : eps*0.00116,
     'patch_icpp(1)%alpha(1)'       : (1.E+00-eps),
     'patch_icpp(1)%alpha(2)'       : eps,
     # ==========================================================================
@@ -157,7 +157,7 @@ print(json.dumps({
     'patch_icpp(2)%vel(2)'         : 0.0,
     'patch_icpp(2)%pres'           : ps,
     'patch_icpp(2)%alpha_rho(1)'   : (1.E0-eps)*rho1,
-    'patch_icpp(2)%alpha_rho(2)'   : eps*1.2E-3,
+    'patch_icpp(2)%alpha_rho(2)'   : eps*1.16E-3,
     'patch_icpp(2)%alpha(1)'       : 1.E+00-eps,
     'patch_icpp(2)%alpha(2)'       : eps,
     # ==========================================================================
@@ -175,7 +175,7 @@ print(json.dumps({
     'patch_icpp(3)%vel(2)'         : 0.0,
     'patch_icpp(3)%pres'           : P_0,
     'patch_icpp(3)%alpha_rho(1)'   : eps*1580.5106E-3,
-    'patch_icpp(3)%alpha_rho(2)'   : (1.E0-eps)*1.2E-3,
+    'patch_icpp(3)%alpha_rho(2)'   : (1.E0-eps)*1.16E-3,
     'patch_icpp(3)%alpha(1)'       : eps,
     'patch_icpp(3)%alpha(2)'       : 1.E+00-eps,
     # ==========================================================================
@@ -195,30 +195,10 @@ print(json.dumps({
                     'fluid_pp(2)%mg_b'             : 0.0,               # s
                     'fluid_pp(2)%qv'               : 0.0,               # e0
                     'fluid_pp(2)%qvp'              : 0.0,             # Gruneisen exponent
-                    'fluid_pp(2)%rho0'             : 1.2E-3,               # reference density
-                    'fluid_pp(2)%cv'               : 1000E-6,              # specific heat capacity
-   # 'fluid_pp(1)%jcook(1)'         : 0.0334,                           # A, Static yield strength
-   # 'fluid_pp(1)%jcook(2)'         : 0.0334,                           # B, Strain-Hardening coefficient
-   # 'fluid_pp(1)%jcook(3)'         : 0.1,                              # n, Strain-Hardening exponent
-   # 'fluid_pp(1)%jcook(4)'         : 0.01,                             # C, Strain-rate hardening #coefficient
-   # 'fluid_pp(1)%jcook(5)'         : 0.45,                             # m, Thermal softening exponent
-   # 'fluid_pp(1)%jcook(6)'         : 1.5403,                           # theta_m, Melt temperature at ambient pressure
-   # 'fluid_pp(1)%jcook(7)'         : 3.24928515727,                            # Limiting strain-rate
-   # 'fluid_pp(1)%jcook(8)'         : 0.02,                             # Parameter in Simon-Glatzel melt relation
-   # 'fluid_pp(1)%jcook(9)'         : 3.25,                             # exponent in Simon-Glatzel melt relation
-   # 'fluid_pp(1)%jcook(10)'        : 3.2493E-7,                        # non-dimensional strain-rate limit
-   # 'fluid_pp(1)%jcook(11)'        : 298/theta_0_suc,                              # Reference temperature
-   # 'fluid_pp(2)%jcook(1)'         : 0.0334,                           # A, Static yield strength
-   # 'fluid_pp(2)%jcook(2)'         : 0.0334,                           # B, Strain-Hardening coefficient
-   # 'fluid_pp(2)%jcook(3)'         : 0.1,                              # n, Strain-Hardening exponent
-   # 'fluid_pp(2)%jcook(4)'         : 0.01,                             # C, Strain-rate hardening coefficient
-   # 'fluid_pp(2)%jcook(5)'         : 0.45,                             # m, Thermal softening exponent
-   # 'fluid_pp(2)%jcook(6)'         : 1.5403,                           # theta_m, Melt temperature at ambient pressure
-   # 'fluid_pp(2)%jcook(7)'         : 3.24928515727,                            # Limiting strain-rate
-   # 'fluid_pp(2)%jcook(8)'         : 0.02,                             # Parameter in Simon-Glatzel melt relation
-   # 'fluid_pp(2)%jcook(9)'         : 3.25,                             # exponent in Simon-Glatzel melt relation
-   # 'fluid_pp(2)%jcook(10)'        : 3.2493E-7,                        # non-dimensional strain-rate limitI
-   # 'fluid_pp(2)%jcook(11)'        : 298/theta_0_suc,                  # non-dimensionalized Reference temperature
+                    'fluid_pp(2)%rho0'             : 1.16E-3,               # reference density
+                    'fluid_pp(2)%cv'               : 718E-6,              # specific heat capacity
+                    'fluid_pp(1)%jcook(11)'        : 298.0,
+                    'fluid_pp(2)%jcook(11)'        : 0.0,
 }))
 
 # ==============================================================================

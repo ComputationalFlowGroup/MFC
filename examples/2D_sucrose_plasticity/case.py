@@ -185,30 +185,30 @@ print(json.dumps({
                     'fluid_pp(2)%rho0'             : 1.2E-3,            # reference density
                     'fluid_pp(2)%cv'               : 1000E-6,           # specific heat capacity
     # Plasticity parameters =====================================================
-                    'fluid_pp(1)%G'                : 8.5,               # shear modulus of sucrose
-                    'fluid_pp(1)%jcook(1)'         : 0.5,               # A, Static yield strength
-                    'fluid_pp(1)%jcook(2)'         : 0.5,               # B, Strain-Hardening coefficient
-                    'fluid_pp(1)%jcook(3)'         : 0.1,               # n, Strain-Hardening exponent
-                    'fluid_pp(1)%jcook(4)'         : 0.01,              # C, Strain-rate hardening #coefficient
-                    'fluid_pp(1)%jcook(5)'         : 0.45,              # m, Thermal softening exponent
-                    'fluid_pp(1)%jcook(6)'         : 459,               # theta_m, Melt temperature at ambient pressure
-                    'fluid_pp(1)%jcook(7)'         : 10,                # Limiting strain-rate
-                    'fluid_pp(1)%jcook(8)'         : 0.3,               # Parameter in Simon-Glatzel melt relation
-                    'fluid_pp(1)%jcook(9)'         : 3.25,              # exponent in Simon-Glatzel melt relation
+                    'fluid_pp(1)%G'                : 8.5E0,               # shear modulus of sucrose
+                    'fluid_pp(1)%jcook(1)'         : 0.5E0,               # A, Static yield strength
+                    'fluid_pp(1)%jcook(2)'         : 0.5E0,               # B, Strain-Hardening coefficient
+                    'fluid_pp(1)%jcook(3)'         : 0.1E0,               # n, Strain-Hardening exponent
+                    'fluid_pp(1)%jcook(4)'         : 0.01E0,              # C, Strain-rate hardening #coefficient
+                    'fluid_pp(1)%jcook(5)'         : 0.45E0,              # m, Thermal softening exponent
+                    'fluid_pp(1)%jcook(6)'         : 459E0,               # theta_m, Melt temperature at ambient pressure
+                    'fluid_pp(1)%jcook(7)'         : 10E0,                # Limiting strain-rate
+                    'fluid_pp(1)%jcook(8)'         : 0.3E0,               # Parameter in Simon-Glatzel melt relation
+                    'fluid_pp(1)%jcook(9)'         : 3.25E0,              # exponent in Simon-Glatzel melt relation
                     'fluid_pp(1)%jcook(10)'        : 1E-6,              # non-dimensional strain-rate limit
-                    'fluid_pp(1)%jcook(11)'        : 298,               # Reference temperature
-                    'fluid_pp(2)%G'                : 0.0,               # shear modulus of air
-                    'fluid_pp(2)%jcook(1)'         : 0.5,               # A, Static yield strength
-                    'fluid_pp(2)%jcook(2)'         : 0.5,               # B, Strain-Hardening coefficient
-                    'fluid_pp(2)%jcook(3)'         : 0.1,               # n, Strain-Hardening exponent
-                    'fluid_pp(2)%jcook(4)'         : 0.01,              # C, Strain-rate hardening coefficient
-                    'fluid_pp(2)%jcook(5)'         : 0.45,              # m, Thermal softening exponent
-                    'fluid_pp(2)%jcook(6)'         : 459,               # theta_m, Melt temperature at ambient pressure
-                    'fluid_pp(2)%jcook(7)'         : 10,                # Limiting strain-rate
-                    'fluid_pp(2)%jcook(8)'         : 0.02,              # Parameter in Simon-Glatzel melt relation
-                    'fluid_pp(2)%jcook(9)'         : 3.25,              # exponent in Simon-Glatzel melt relation
+                    'fluid_pp(1)%jcook(11)'        : 298E0,               # Reference temperature
+                    'fluid_pp(2)%G'                : 0.0E0,               # shear modulus of air
+                    'fluid_pp(2)%jcook(1)'         : 0.5E0,               # A, Static yield strength
+                    'fluid_pp(2)%jcook(2)'         : 0.5E0,               # B, Strain-Hardening coefficient
+                    'fluid_pp(2)%jcook(3)'         : 0.1E0,               # n, Strain-Hardening exponent
+                    'fluid_pp(2)%jcook(4)'         : 0.01E0,              # C, Strain-rate hardening coefficient
+                    'fluid_pp(2)%jcook(5)'         : 0.45E0,              # m, Thermal softening exponent
+                    'fluid_pp(2)%jcook(6)'         : 459E0,               # theta_m, Melt temperature at ambient pressure
+                    'fluid_pp(2)%jcook(7)'         : 10E0,                # Limiting strain-rate
+                    'fluid_pp(2)%jcook(8)'         : 0.3E0,               # Parameter in Simon-Glatzel melt relation
+                    'fluid_pp(2)%jcook(9)'         : 3.25E0,              # exponent in Simon-Glatzel melt relation
                     'fluid_pp(2)%jcook(10)'        : 1E-6,              # non-dimensional strain-rate limitI
-                    'fluid_pp(2)%jcook(11)'        : 298,               # non-dimensionalized Reference temperature
+                    'fluid_pp(2)%jcook(11)'        : 0E0,               # non-dimensionalized Reference temperature
 }))
 
 # ==============================================================================
