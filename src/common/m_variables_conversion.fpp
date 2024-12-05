@@ -254,6 +254,9 @@ contains
                 T0 = T0 + alpha_K(i)*ref_temp(i)
             end do
         end if
+            print *, 'fluid_pp(1)%jcook(1)',fluid_pp(1)%jcook(1) 
+            print *, 'jcook11',jcook11(1)
+            print *, 'rho0(1)', rho0(1),'mg_a(1)',mg_a(1)
             ! This is the increase in temperature from the reference
             temp = T0 + (energy - dyn_pres - rho_eref)/(rho_cv)
     end subroutine s_compute_temperature
@@ -770,7 +773,7 @@ contains
             cvs(i)  = fluid_pp(i)%cv
             jcook11(i) = fluid_pp(i)%jcook(11) 
         end do
-!$acc update device(rho0, mg_a, mg_b)
+!$acc update device(rho0, mg_a, mg_b, jcook11)
         end if
  
         if (hypoplasticity) then    
@@ -1004,6 +1007,7 @@ contains
             end if
         #:endif
         
+        print *,'fluid_pp(1)%jcook(1) before',fluid_pp(1)%jcook(1)
         !$acc parallel loop collapse(3) gang vector default(present) private(alpha_K, alpha_rho_K, Re_K, nRtmp, rho_K,gamma_K,pi_inf_K, qv_K, dyn_pres_K, R3tmp, G_K,pres, temp)
         do l = izb, ize
             do k = iyb, iye
@@ -1079,7 +1083,8 @@ contains
                                    call s_mpi_abort()
                                end if 
                             end do
-#ifdef MFC_POST_PROCESS                        
+
+#ifdef MFC_POST_PROCESS  
                         call s_compute_temperature(qK_cons_vf(E_idx)%sf(j, k, l), dyn_pres_K, &
                         temp, alpha_K, alpha_rho_K)
 
@@ -1219,7 +1224,7 @@ contains
         real(kind(0d0)) :: rho_K, xi, pref
 
         integer :: i, j, k, l !< Generic loop iterators      
-
+        print *, 'fluid_pp(i)%jcook(1) in convert_primitive_to_conser',fluid_pp(1)%jcook(1)
 #ifndef MFC_SIMULATION
         ! Converting the primitive variables to the conservative variables
         do l = 0, p

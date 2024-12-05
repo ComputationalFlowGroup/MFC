@@ -75,8 +75,8 @@ print(json.dumps({
     'cfl_adap_dt'                  : 'T',
     'cfl_target'                   : 0.2,
     'n_start'                      : 0,
-    't_save'                       : 4.E-02,
-    't_stop'                       : 4.0,
+    't_save'                       : 4.E-5,
+    't_stop'                       : 4.0E-4,
     # ==========================================================================
 
     # Simulation Algorithm Parameters ==========================================
@@ -89,14 +89,14 @@ print(json.dumps({
     'mpp_lim'                      : 'T',
     'mixture_err'                  : 'F',
     'time_stepper'                 : 3,
-    'weno_order'                   : 3,
+    'weno_order'                   : 1,
     'weno_eps'                     : 1.E-40,
     'weno_Re_flux'                 : 'F',
     'weno_avg'                     : 'F',
     'mapped_weno'                  : 'F',
     'null_weights'                 : 'F',
     'mp_weno'                      : 'F',
-    'riemann_solver'               : 1,
+    'riemann_solver'               : 2,
     'wave_speeds'                  : 1,
     'avg_state'                    : 2,
     'bc_x%beg'                     : -3,

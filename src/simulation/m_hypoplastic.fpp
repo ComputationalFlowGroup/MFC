@@ -405,6 +405,7 @@ contains
                 call s_compute_pressure(energy, 0d0, dyn_p, pi_inf, 0d0, rho, 0d0, &
                                         pres, 0d0, 0d0, 0d0, alpha_K, alpha_rho_K)
                 call s_compute_temperature(energy, dyn_p, temp, alpha_K, alpha_rho_K)
+                print *, 'temp in hypo',temp
                 if (temp /=temp) then
                     print *,'temp::',temp,'pres',pres
                 end if

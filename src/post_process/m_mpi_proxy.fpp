@@ -214,13 +214,18 @@ contains
         call MPI_BCAST(alpha_wrt(1), num_fluids_max, MPI_LOGICAL, 0, MPI_COMM_WORLD, ierr)
 
         do i = 1, num_fluids_max
-            #:for VAR in [ 'gamma','pi_inf','cv', 'qv', 'qvp', 'G', 'rho0', 'mg_a', 'mg_b' ]
+            #:for VAR in [ 'gamma','pi_inf','cv', 'qv', 'qvp', 'G', 'rho0', 'mg_a']
                 call MPI_BCAST(fluid_pp(i)%${VAR}$, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
             #:endfor
             call MPI_BCAST(fluid_pp(i)%ein_cv(1), 2, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
-            call MPI_BCAST(fluid_pp(i)%ein_cv(2), 2, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
         end do
 
+        if (hypoplasticity) then 
+          do i = 1, num_fluids_max
+            call MPI_BCAST(fluid_pp(i)%jcook(1), 11, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+          end do
+        end if 
+        
         #:for VAR in [ 'pref', 'rhoref', 'R0ref', 'Rinit', 'poly_sigma', 'Web', 'Ca', &
             & 'Re_inv', 'sigma', 't_save', 't_stop' ]
             call MPI_BCAST(${VAR}$, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
