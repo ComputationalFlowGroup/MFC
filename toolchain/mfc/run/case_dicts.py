@@ -373,6 +373,9 @@ for f_id in range(1,10+1):
     for ein_cv_id in [1, 2]:
         POST_PROCESS[f"fluid_pp({f_id})%ein_cv({ein_cv_id})"] = ParamType.REAL
 
+    for jcook_id in range(1,11+1) :
+        POST_PROCESS[f"fluid_pp({f_id})%jcook({jcook_id})"] = ParamType.REAL
+
 
 ALL = COMMON.copy()
 ALL.update(PRE_PROCESS)

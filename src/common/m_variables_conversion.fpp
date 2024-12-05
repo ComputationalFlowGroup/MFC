@@ -251,7 +251,8 @@ contains
                 0.5d0*(pref+pi_infs(i))*(alpha_rho_K(i)/rho0(i)-alpha_K(i)) 
                 
                 rho_cv = rho_cv + alpha_rho_K(i)*cvs(i)
-                T0 = T0 + alpha_K(i)*ref_temp(i)
+                !T0 = T0 + alpha_K(i)*ref_temp(i)
+                T0 = T0 + alpha_K(i)*jcook11(i)
             end do
         end if
            ! This is the increase in temperature from the reference
