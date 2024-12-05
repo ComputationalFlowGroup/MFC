@@ -254,10 +254,7 @@ contains
                 T0 = T0 + alpha_K(i)*ref_temp(i)
             end do
         end if
-            print *, 'fluid_pp(1)%jcook(1)',fluid_pp(1)%jcook(1) 
-            print *, 'jcook11',jcook11(1)
-            print *, 'rho0(1)', rho0(1),'mg_a(1)',mg_a(1)
-            ! This is the increase in temperature from the reference
+           ! This is the increase in temperature from the reference
             temp = T0 + (energy - dyn_pres - rho_eref)/(rho_cv)
     end subroutine s_compute_temperature
 
@@ -784,7 +781,6 @@ contains
           end do
 !$acc update device(jcook1,jcook2,jcook3,jcook4,jcook5,jcook6,jcook7,jcook8,jcook9,jcook10,jcook11)
         end if
-        print *, fluid_pp(1)%jcook(1)
 #ifdef MFC_SIMULATION
         if (any(Re_size > 0)) then
             @:ALLOCATE_GLOBAL(Res(1:2, 1:maxval(Re_size)))
@@ -1007,7 +1003,6 @@ contains
             end if
         #:endif
         
-        print *,'fluid_pp(1)%jcook(1) before',fluid_pp(1)%jcook(1)
         !$acc parallel loop collapse(3) gang vector default(present) private(alpha_K, alpha_rho_K, Re_K, nRtmp, rho_K,gamma_K,pi_inf_K, qv_K, dyn_pres_K, R3tmp, G_K,pres, temp)
         do l = izb, ize
             do k = iyb, iye
@@ -1169,7 +1164,6 @@ contains
                         end do
                         qK_prim_vf(plasidx)%sf(j, k, l) = qK_cons_vf(plasidx)%sf(j, k, l)/rho_K
                     end if
-                   !print *, qK_prim_vf(plasidx)%sf(j, k, l)
                     if (hyperelasticity) then
                         !$acc loop seq
                         do i = xibeg, xiend
@@ -1224,7 +1218,7 @@ contains
         real(kind(0d0)) :: rho_K, xi, pref
 
         integer :: i, j, k, l !< Generic loop iterators      
-        print *, 'fluid_pp(i)%jcook(1) in convert_primitive_to_conser',fluid_pp(1)%jcook(1)
+
 #ifndef MFC_SIMULATION
         ! Converting the primitive variables to the conservative variables
         do l = 0, p
