@@ -335,7 +335,11 @@ contains
         real(kind(0d0)) :: pref_over_gamma, rho_eref, gamma_inv
         real(kind(0d0)) :: rho_K, xi, pref
 
+        real(kind(0d0)) :: xi_d_L, xi_d_R
+        real(kind(0d0)) :: rho0_L, rho0_R
+
         integer :: i, j, k, l, q !< Generic loop iterators
+        integer :: idx1
 
         ! Populating the buffers of the left and right Riemann problem
         ! states variables, based on the choice of boundary conditions
@@ -356,12 +360,13 @@ contains
             flux_vf, flux_src_vf, &
             flux_gsrc_vf, &
             norm_dir, ix, iy, iz)
+        idx1 = 1; if (dir_idx(1) == 2) idx1 = 2; if (dir_idx(1) == 3) idx1 = 3
         #:for NORM_DIR, XYZ in [(1, 'x'), (2, 'y'), (3, 'z')]
 
             if (norm_dir == ${NORM_DIR}$) then
                 !$acc parallel loop collapse(3) gang vector default(present) private(alpha_rho_L, alpha_rho_R, &
                 !$acc vel_L, vel_R, alpha_L, alpha_R, vel_avg, tau_e_L, tau_e_R, G_L, G_R, Re_L, Re_R, &
-                !$acc rho_avg, h_avg, gamma_avg, s_L, s_R, s_S, xi_field_L, xi_field_R)
+                !$acc rho_avg, h_avg, gamma_avg, s_L, s_R, s_S, xi_field_L, xi_field_R, xi_d_L, xi_d_R)
                 do l = is3%beg, is3%end
                     do k = is2%beg, is2%end
                         do j = is1%beg, is1%end
@@ -395,11 +400,13 @@ contains
                             pres_R = qR_prim_rs${XYZ}$_vf(j + 1, k, l, E_idx)
 
                             rho_L = 0d0
+                            rho0_L = 0d0
                             gamma_L = 0d0
                             pi_inf_L = 0d0
                             qv_L = 0d0
 
                             rho_R = 0d0
+                            rho0_R = 0d0
                             gamma_R = 0d0
                             pi_inf_R = 0d0
                             qv_R = 0d0
@@ -438,6 +445,9 @@ contains
                                 gamma_R = gamma_R + alpha_R(i)*gammas(i)
                                 pi_inf_R = pi_inf_R + alpha_R(i)*pi_infs(i)
                                 qv_R = qv_R + alpha_rho_R(i)*qvs(i)
+
+                                rho0_L = rho0_L + qL_prim_rs${XYZ}$_vf(j, k, l, E_idx + i)*rho0(i)
+                                rho0_R = rho0_R + qR_prim_rs${XYZ}$_vf(j, k, l, E_idx + i)*rho0(i)
                             end do
 
                             if (any(Re_size > 0)) then
@@ -551,6 +561,35 @@ contains
                                     end do
                                 end if
 
+                                ! ENERGY ADJUSTMENTS FOR HYPOELASTIC ENERGY
+                                if (hypoplasticity) then
+                                    !$acc loop seq
+                                   do i = 1, strxe - strxb + 1
+                                        tau_e_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, strxb - 1 + i)
+                                        tau_e_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, strxb - 1 + i)
+                                   end do
+                                    G_L = 0d0
+                                    G_R = 0d0
+                                    !$acc loop seq
+                                    do i = 1, num_fluids
+                                        G_L = G_L + alpha_L(i)*Gs(i)
+                                        G_R = G_R + alpha_R(i)*Gs(i)
+                                    end do
+                                    !$acc loop seq
+                                    do i = 1, strxe - strxb + 1
+                                        ! Elastic contribution to energy if G large enough
+                                        if ((G_L > verysmall) .and. (G_R > verysmall)) then
+                                            E_L = E_L + (tau_e_L(i)*tau_e_L(i))/(4d0*G_L)
+                                            E_R = E_R + (tau_e_R(i)*tau_e_R(i))/(4d0*G_R)
+                                            ! Additional terms in 2D and 3D
+                                            if ((i == 2) .or. (i == 4) .or. (i == 5)) then
+                                                E_L = E_L + (tau_e_L(i)*tau_e_L(i))/(4d0*G_L)
+                                                E_R = E_R + (tau_e_R(i)*tau_e_R(i))/(4d0*G_R)
+                                            end if
+                                        end if
+                                    end do
+                                end if
+
                                 ! Energy corresponding to Mie-Gruneisen EOS 
                                 E_L    = rho_eref + &
                                 gamma_inv*pres_L - pref_over_gamma + &
@@ -630,7 +669,19 @@ contains
                             end if
 
                             if (wave_speeds == 1) then
-                                if (elasticity) then
+                                if (hypoplasticity) then
+                                        s_L = min(vel_L(dir_idx(1)) - sqrt(c_L*c_L + &
+                                       (((4d0*G_L)/3d0) )/rho_L), vel_R(dir_idx(1)) - sqrt(c_R*c_R + &
+                                       (((4d0*G_R)/3d0) )/rho_R))
+                                       s_R = max(vel_R(dir_idx(1)) + sqrt(c_R*c_R + &
+                                       (((4d0*G_R)/3d0) )/rho_R), vel_L(dir_idx(1)) + sqrt(c_L*c_L + &
+                                       (((4d0*G_L)/3d0) )/rho_L))
+                                       s_S = (pres_R - (rho_R/rho0_R)*tau_e_R(dir_idx_tau(1)) - pres_L + &
+                                             (rho_L/rho0_L)*tau_e_L(dir_idx_tau(1)) + rho_L*vel_L(idx1)*(s_L - vel_L(idx1)) - &
+                                              rho_R*vel_R(idx1)*(s_R - vel_R(idx1)))/(rho_L*(s_L - vel_L(idx1)) - &
+                                                                                       rho_R*(s_R - vel_R(idx1)))
+
+                                elseif (elasticity) then
                                     s_L = min(vel_L(dir_idx(1)) - sqrt(c_L*c_L + &
                                                                        (((4d0*G_L)/3d0) + &
                                                                         tau_e_L(dir_idx_tau(1)))/rho_L) &
@@ -805,7 +856,20 @@ contains
                                 end do
                             end if
 
-                            ! Advection
+                            ! HYPOPLASTIC STRESS EVOLUTION FLUX.
+                            if (hypoplasticity) then
+                                !$acc loop seq
+                                do i = 1, strxe - strxb + 1
+                                   ! flux_rs${XYZ}$_vf(j, k, l, strxb - 1 + i) = &
+                                   !     xi_M*(s_S/(s_L - s_S))*(s_L*rho_L*tau_e_L(i) - rho_L*vel_L(idx1)*tau_e_L(i)) + &
+                                   !     xi_P*(s_S/(s_R - s_S))*(s_R*rho_R*tau_e_R(i) - rho_R*vel_R(idx1)*tau_e_R(i))                                 
+                                     flux_rs${XYZ}$_vf(j, k, l, strxb - 1 + i) = &
+                                          xi_M*(rho_L*tau_e_L(i)*vel_L(idx1)+s_M*(xi_L*rho_L*tau_e_L(i)-rho_L*tau_e_L(i)))+&
+                                          xi_P*(rho_R*tau_e_R(i)*vel_R(idx1)+s_P*(xi_R*rho_R*tau_e_R(i)-rho_R*tau_e_R(i)))
+                                end do
+                            end if
+
+                            !else! Advection
                             !$acc loop seq
                             do i = advxb, advxe
                                 flux_rs${XYZ}$_vf(j, k, l, i) = &
@@ -817,6 +881,23 @@ contains
                                      - s_P*qL_prim_rs${XYZ}$_vf(j, k, l, i)) &
                                     /(s_M - s_P)
                             end do
+
+                            ! ISOTROPIC HARDENING FLUX.
+                            if (hypoplasticity) then
+                                xi_d_L = qL_prim_rs${XYZ}$_vf(j, k, l, plasidx)
+                                xi_d_R = qR_prim_rs${XYZ}$_vf(j + 1, k, l, plasidx)
+                                ! flux_rs${XYZ}$_vf(j, k, l, plasidx) = &
+                                !          xi_M*(s_S/(s_L - s_S))*(s_L*rho_L*xi_d_L &
+                                !          - rho_L*vel_L(idx1)*xi_d_L) + &
+                                !          xi_P*(s_S/(s_R - s_S))*(s_R*rho_R*xi_d_R &
+                                !          - rho_R*vel_R(idx1)*xi_d_R)
+                                !  if(flux_rs${XYZ}$_vf(j,k,l,plasidx)/=flux_rs${XYZ}$_vf(j,k,l,plasidx)) then
+                                !      print *, 's_S',s_S,'s_L',s_L,'s_R',s_R,'vel_L',vel_L(idx1),'vel_R',vel_R(idx1),'xi_L',xi_d_L,'xi_d_R',xi_d_R,'rho_L',rho_L,'rho_R',rho_R
+                                !  end if
+                                flux_rs${XYZ}$_vf(j, k, l, plasidx) = &
+                                         xi_M*(rho_L*xi_d_L*vel_L(idx1)+s_M*(xi_L*rho_L*xi_d_L-rho_L*xi_d_L))+&
+                                         xi_P*(rho_R*xi_d_R*vel_R(idx1)+s_P*(xi_R*rho_R*xi_d_R-rho_R*xi_d_R))
+                            end if
 
                             ! Xi field
                             if ( hyperelasticity ) then
