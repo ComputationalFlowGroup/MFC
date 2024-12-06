@@ -2380,9 +2380,7 @@ contains
                                     print *,'rho_eref',rho_eref,'pres_R',pres_L,&
                                     'pref_over_gamma',pref_over_gamma,&
                                     'rho_R',rho_L,'vel_rms',vel_L_rms
-                                end if
-                                
-                                H_L = 0d0; H_R = 0d0 
+                                end if 
                                 
                                 pref_over_gamma = 0d0;rho_eref = 0d0;gamma_inv = 0d0
                                 if (MGEoS_model == 1) then

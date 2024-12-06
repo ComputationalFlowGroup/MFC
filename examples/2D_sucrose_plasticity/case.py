@@ -75,8 +75,8 @@ print(json.dumps({
     'cfl_adap_dt'                  : 'T',
     'cfl_target'                   : 0.2,
     'n_start'                      : 0,
-    't_save'                       : 4.E-5,
-    't_stop'                       : 4.0E-4,
+    't_save'                       : 1.E-4,
+    't_stop'                       : 1.E-3,
     # ==========================================================================
 
     # Simulation Algorithm Parameters ==========================================
@@ -128,7 +128,7 @@ print(json.dumps({
     'patch_icpp(1)%vel(2)'         : 0.0,
     'patch_icpp(1)%pres'           : P_0,
     'patch_icpp(1)%alpha_rho(1)'   : (1.E+00-eps)*1580.5106E-3,
-    'patch_icpp(1)%alpha_rho(2)'   : eps*0.0012,
+    'patch_icpp(1)%alpha_rho(2)'   : eps*0.00117,
     'patch_icpp(1)%alpha(1)'       : (1.E+00-eps),
     'patch_icpp(1)%alpha(2)'       : eps,
     # ==========================================================================
@@ -144,7 +144,7 @@ print(json.dumps({
     'patch_icpp(2)%vel(2)'         : 0.0,
     'patch_icpp(2)%pres'           : ps,
     'patch_icpp(2)%alpha_rho(1)'   : (1.E0-eps)*rho1,
-    'patch_icpp(2)%alpha_rho(2)'   : eps*1.2E-3,
+    'patch_icpp(2)%alpha_rho(2)'   : eps*1.17E-3,
     'patch_icpp(2)%alpha(1)'       : 1.E+00-eps,
     'patch_icpp(2)%alpha(2)'       : eps,
     # ==========================================================================
@@ -162,7 +162,7 @@ print(json.dumps({
     'patch_icpp(3)%vel(2)'         : 0.0,
     'patch_icpp(3)%pres'           : P_0,
     'patch_icpp(3)%alpha_rho(1)'   : eps*1580.5106E-3,
-    'patch_icpp(3)%alpha_rho(2)'   : (1.E0-eps)*1.2E-3,
+    'patch_icpp(3)%alpha_rho(2)'   : (1.E0-eps)*1.17E-3,
     'patch_icpp(3)%alpha(1)'       : eps,
     'patch_icpp(3)%alpha(2)'       : 1.E+00-eps,
     # ==========================================================================
@@ -182,8 +182,8 @@ print(json.dumps({
                     'fluid_pp(2)%mg_b'             : 0.0,               # s
                     'fluid_pp(2)%qv'               : 0.0,               # e0
                     'fluid_pp(2)%qvp'              : 0.0,               # Gruneisen exponent
-                    'fluid_pp(2)%rho0'             : 1.2E-3,            # reference density
-                    'fluid_pp(2)%cv'               : 1000E-6,           # specific heat capacity
+                    'fluid_pp(2)%rho0'             : 1.17E-3,            # reference density
+                    'fluid_pp(2)%cv'               : 718.0E-6,           # specific heat capacity
     # Plasticity parameters =====================================================
                     'fluid_pp(1)%G'                : 8.5E0,               # shear modulus of sucrose
                     'fluid_pp(1)%jcook(1)'         : 0.5E0,               # A, Static yield strength

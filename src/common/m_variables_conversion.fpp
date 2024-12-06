@@ -226,7 +226,6 @@ contains
       
         ! Temporary local variables
         real(kind(0d0)) :: rho_eref, xi, rhoK, pref, rho_cv, T0
-        real(kind(0d0)), dimension(num_fluids) :: ref_temp
         integer :: i !< Generic loop iterator
 
         ! model_eqns = 5 corresponds to the Mie-Gruneisen EOS
@@ -237,7 +236,6 @@ contains
             !Assuming T - T0 is what I am going to use in hypoplasticity
             !For shock EoS
             rho_eref = 0d0; rho_cv = 0d0;
-            ref_temp(1) = 298; ref_temp(2) = 0;
             T0 = 0d0
             do i = 1, num_fluids
                 rhoK = alpha_rho_K(i)/alpha_K(i) 
@@ -251,11 +249,11 @@ contains
                 0.5d0*(pref+pi_infs(i))*(alpha_rho_K(i)/rho0(i)-alpha_K(i)) 
                 
                 rho_cv = rho_cv + alpha_rho_K(i)*cvs(i)
-                !T0 = T0 + alpha_K(i)*ref_temp(i)
+                
                 T0 = T0 + alpha_K(i)*jcook11(i)
             end do
         end if
-           ! This is the increase in temperature from the reference
+           ! Temperature in Kelvin
             temp = T0 + (energy - dyn_pres - rho_eref)/(rho_cv)
     end subroutine s_compute_temperature
 

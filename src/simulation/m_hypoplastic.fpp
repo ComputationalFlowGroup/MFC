@@ -405,11 +405,12 @@ contains
                 call s_compute_pressure(energy, 0d0, dyn_p, pi_inf, 0d0, rho, 0d0, &
                                         pres, 0d0, 0d0, 0d0, alpha_K, alpha_rho_K)
                 call s_compute_temperature(energy, dyn_p, temp, alpha_K, alpha_rho_K)
-                print *, 'temp in hypo',temp
+                
                 if (temp /=temp) then
                     print *,'temp::',temp,'pres',pres
                 end if
-!                print *, 'pressure :: ', pres, 'temperature ::', temp
+
+!               print *, 'pressure :: ', pres, 'temperature ::', temp
                 ! STEP 3.5 : Compute theta_m, theta_hat, and sigma_bar
                 ! compute theta_m from equation 4.10
                 ! jcook(6) = theta_m0, jcook(8) = pres_init, jcook(9) = d, assuming presref = 0
