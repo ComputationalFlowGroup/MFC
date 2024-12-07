@@ -2434,14 +2434,6 @@ contains
                                      vel_R_rms, c_R, alpha_rho_R)
 
                                 !Added alpha_rho_R above instead of alpha_rho_avg because of alpha_R above instead of alpha_avg
-
-                                !TODO SRIJAN ADD PRINT STATEMENTS FOR
-                                !BOTH LEFT, RIGHT, and AVERAGE states
-                                !print*,"rho_L :: ",rho_L,', rho_R :: ',rho_R  
-                                !print*,"p_L :: ",pres_L,', p_R :: ',pres_R
-                                !print*,"E_L :: ",E_L,', E_R :: ',E_R
-                                !print*,"c_L :: ",c_L,', c_R :: ',c_R
-
                                     !pcorr = 0d0
 
                                 if (wave_speeds == 1) then

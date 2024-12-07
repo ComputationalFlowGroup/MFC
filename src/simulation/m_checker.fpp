@@ -385,11 +385,6 @@ contains
         character(len=5) :: iStr, jStr
         integer :: i, j
 
-        if (riemann_solver /= 2) then
-            call s_mpi_abort('hyperelasticity requires HLLC '// &
-                             '(riemann_solver = 2) Riemann solver. '// &
-                             'Exiting ...')
-        end if
         do i = 1, num_fluids
             call s_int_to_str(i, iStr)
           do j = 1, 10 ! TODO, NO HARDCODING!
