@@ -6,7 +6,6 @@
 !!              initial mean flow fields.
 module m_perturbation
 
-    ! Dependencies =============================================================
     use m_derived_types         ! Definitions of the derived types
 
     use m_global_parameters     ! Global parameters for the code
@@ -17,8 +16,6 @@ module m_perturbation
     ! complex general matrix
 
     use ieee_arithmetic
-
-    ! ==========================================================================
 
     implicit none
 
@@ -174,7 +171,7 @@ contains
             end do
         end do
 
-    end subroutine s_superposition_instability_wave ! ----------------------
+    end subroutine s_superposition_instability_wave
 
     !>  This subroutine computes equilibrium bubble radius of the perturbed pressure field
     subroutine s_compute_equilibrium_state(fP, fR0, fR)
@@ -226,7 +223,7 @@ contains
     subroutine s_instability_wave(alpha, beta, wave, shift)
         real(wp), intent(in) :: alpha, beta !<  spatial wavenumbers
         real(wp), dimension(mixlayer_nvar, 0:m, 0:n, 0:p), intent(inout) :: wave !< instability wave
-        real(wp) :: shift !< phase shift
+        real(wp), intent(in) :: shift !< phase shift
         real(wp), dimension(0:nbp - 1) :: u_mean !<  mean density and velocity profiles
         real(wp) :: rho_mean, p_mean !< mean density and pressure
         real(wp), dimension(0:nbp - 1, 0:nbp - 1) :: d !< differential operator in y dir
@@ -500,8 +497,8 @@ contains
         real(wp) :: ang, norm
         real(wp) :: tr, ti, cr, ci !< temporary memory
         real(wp) :: xratio
-        integer idx
-        integer i, j, k
+        integer :: idx
+        integer :: i, j, k
 
         xratio = mixlayer_vel_coef
 

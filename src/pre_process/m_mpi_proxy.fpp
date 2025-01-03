@@ -9,7 +9,6 @@
 !!              communication goals.
 module m_mpi_proxy
 
-    ! Dependencies =============================================================
 #ifdef MFC_MPI
     use mpi                     !< Message passing interface (MPI) module
 #endif
@@ -19,7 +18,6 @@ module m_mpi_proxy
     use m_global_parameters     !< Global parameters for the code
 
     use m_mpi_common
-    ! ==========================================================================
 
     implicit none
 
@@ -174,7 +172,7 @@ contains
         ! equivalent piece of the computational domain. Note that explicit
         ! type-casting is omitted here for code legibility purposes.
 
-        ! Generating 3D Cartesian Processor Topology =======================
+        ! Generating 3D Cartesian Processor Topology
 
         if (n > 0) then
 
@@ -297,7 +295,7 @@ contains
                 if (proc_rank == 0 .and. ierr == -1) then
                     print '(A)', 'Unable to decompose computational '// &
                         'domain for selected number of '// &
-                        'processors. Exiting ...'
+                        'processors. Exiting.'
                     call MPI_ABORT(MPI_COMM_WORLD, 1, ierr)
                 end if
 
@@ -312,9 +310,9 @@ contains
                 call MPI_CART_COORDS(MPI_COMM_CART, proc_rank, 3, &
                                      proc_coords, ierr)
 
-                ! END: Generating 3D Cartesian Processor Topology ==================
+                ! END: Generating 3D Cartesian Processor Topology
 
-                ! Sub-domain Global Parameters in z-direction ======================
+                ! Sub-domain Global Parameters in z-direction
 
                 ! Number of remaining cells after majority is distributed
                 rem_cells = mod(p + 1, num_procs_z)
@@ -359,9 +357,7 @@ contains
                     end if
                 end if
 
-                ! ==================================================================
-
-                ! Generating 2D Cartesian Processor Topology =======================
+                ! Generating 2D Cartesian Processor Topology
 
             else
 
@@ -410,7 +406,7 @@ contains
                 if (proc_rank == 0 .and. ierr == -1) then
                     print '(A)', 'Unable to decompose computational '// &
                         'domain for selected number of '// &
-                        'processors. Exiting ...'
+                        'processors. Exiting.'
                     call MPI_ABORT(MPI_COMM_WORLD, 1, ierr)
                 end if
 
@@ -427,9 +423,9 @@ contains
 
             end if
 
-            ! END: Generating 2D Cartesian Processor Topology ==================
+            ! END: Generating 2D Cartesian Processor Topology
 
-            ! Sub-domain Global Parameters in y-direction ======================
+            ! Sub-domain Global Parameters in y-direction
 
             ! Number of remaining cells after majority has been distributed
             rem_cells = mod(n + 1, num_procs_y)
@@ -474,9 +470,7 @@ contains
                 end if
             end if
 
-            ! ==================================================================
-
-            ! Generating 1D Cartesian Processor Topology =======================
+            ! Generating 1D Cartesian Processor Topology
 
         else
 
@@ -496,9 +490,7 @@ contains
 
         end if
 
-        ! ==================================================================
-
-        ! Sub-domain Global Parameters in x-direction ======================
+        ! Sub-domain Global Parameters in x-direction
 
         ! Number of remaining cells after majority has been distributed
         rem_cells = mod(m + 1, num_procs_x)
@@ -542,8 +534,6 @@ contains
                 start_idx(1) = (m + 1)*proc_coords(1) + rem_cells
             end if
         end if
-
-        ! ==================================================================
 
 #endif
 

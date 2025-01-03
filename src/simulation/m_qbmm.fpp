@@ -8,8 +8,6 @@
 !> @brief This module is used to compute moment inversion via qbmm
 module m_qbmm
 
-    ! Dependencies =============================================================
-
     use m_derived_types        !< Definitions of the derived types
 
     use m_global_parameters    !< Definitions of the global parameters
@@ -21,8 +19,6 @@ module m_qbmm
     use m_helper_basic           !< Functions to compare floating point numbers
 
     use m_helper
-
-    ! ==========================================================================
 
     implicit none
 
@@ -679,7 +675,7 @@ contains
 
         end if
 
-    end subroutine
+    end subroutine s_compute_qbmm_rhs
 
 !Coefficient array for non-polytropic model (pb and mv values are accounted in wght_pb and wght_mv)
 
@@ -827,7 +823,7 @@ contains
         real(wp), dimension(startx:, starty:, startz:, 1:, 1:), intent(inout) :: pb, rhs_pb
         real(wp), dimension(startx:, starty:, startz:, 1:, 1:), intent(inout) :: mv, rhs_mv
         type(int_bounds_info), intent(in) :: ix, iy, iz
-        real(wp), dimension(startx:, starty:, startz:) :: nbub_sc !> Unused Variable not sure what to put as intent
+        real(wp), dimension(startx:, starty:, startz:), intent(inout) :: nbub_sc
 
         real(wp), dimension(nmom) :: moms, msum
         real(wp), dimension(nnode, nb) :: wght, abscX, abscY, wght_pb, wght_mv, wght_ht, ht

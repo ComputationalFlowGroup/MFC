@@ -5,8 +5,6 @@
 
 module m_helper
 
-    ! Dependencies =============================================================
-
     use m_derived_types        !< Definitions of the derived types
 
     use m_global_parameters    !< Definitions of the global parameters
@@ -14,8 +12,6 @@ module m_helper
     use m_mpi_common           !< MPI modules
 
     use ieee_arithmetic        !< For checking NaN
-
-    ! ==========================================================================
 
     implicit none
 
@@ -105,7 +101,7 @@ contains
         end do
         write (*, fmt="(A1)") " "
 
-    end subroutine
+    end subroutine s_print_2D_array
 
     !> Initializes non-polydisperse bubble modeling
     subroutine s_initialize_nonpoly
@@ -248,11 +244,11 @@ contains
     subroutine s_int_to_str(i, res)
 
         integer, intent(in) :: i
-        character(len=*), intent(out) :: res
+        character(len=*), intent(inout) :: res
 
         write (res, '(I0)') i
         res = trim(res)
-    end subroutine
+    end subroutine s_int_to_str
 
     !> Computes the Simpson weights for quadrature
     subroutine s_simpson
@@ -458,15 +454,15 @@ contains
     subroutine s_prohibit_abort(condition, message)
         character(len=*), intent(in) :: condition, message
 
-        print *, ""
-        print *, "===================================================================================================="
-        print *, "                                          CASE FILE ERROR                                           "
-        print *, "----------------------------------------------------------------------------------------------------"
+        print *, "    "
+        print *, "    "
+        print *, "    CASE FILE ERROR    "
+        print *, "    "
         print *, "Prohibited condition: ", trim(condition)
         if (len_trim(message) > 0) then
             print *, "Note: ", trim(message)
         end if
-        print *, "===================================================================================================="
+        print *, "    "
         print *, ""
         call s_mpi_abort
     end subroutine s_prohibit_abort

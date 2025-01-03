@@ -9,9 +9,6 @@
 !!              the flow variable(s) that were chosen by the user to be included.
 module m_data_output
 
-    ! Dependencies =============================================================
-    ! USE f90_unix_proc         ! NAG Compiler Library of UNIX system commands
-
     use m_derived_types         ! Definitions of the derived types
 
     use m_global_parameters     ! Global parameters for the code
@@ -23,7 +20,6 @@ module m_data_output
     use m_compile_specific
 
     use m_helper
-    ! ==========================================================================
 
     implicit none
 
@@ -57,6 +53,7 @@ module m_data_output
     real(wp), allocatable, dimension(:, :, :), public :: q_sf
     real(wp), allocatable, dimension(:, :, :) :: q_root_sf
     real(wp), allocatable, dimension(:, :, :) :: cyl_q_sf
+
     ! Single precision storage for flow variables
     real(sp), allocatable, dimension(:, :, :), public :: q_sf_s
     real(sp), allocatable, dimension(:, :, :) :: q_root_sf_s
@@ -115,7 +112,7 @@ module m_data_output
 
 contains
 
-    subroutine s_initialize_data_output_module() ! ----------------------------
+    subroutine s_initialize_data_output_module()
         ! Description: Computation of parameters, allocation procedures, and/or
         !              any other tasks needed to properly setup the module
 
@@ -214,8 +211,7 @@ contains
             end if
         end if
 
-        ! Generating Silo-HDF5 Directory Tree ==============================
-
+        ! Generating Silo-HDF5 Directory Tree
         if (format == 1) then
 
             ! Creating the directory associated with the local process
@@ -227,10 +223,6 @@ contains
 
             file_loc = trim(proc_rank_dir)//'/.'
 
-            !INQUIRE( DIRECTORY = TRIM(file_loc), & ! Intel compiler
-            !EXIST     = dir_check       )
-            ! INQUIRE( FILE      = TRIM(file_loc), & ! NAG/PGI/GCC compiler
-            !           EXIST     = dir_check       )
             call my_inquire(file_loc, dir_check)
             if (dir_check .neqv. .true.) then
                 call s_create_directory(trim(proc_rank_dir))
@@ -243,10 +235,6 @@ contains
 
                 file_loc = trim(rootdir)//'/.'
 
-                !INQUIRE( DIRECTORY = TRIM(file_loc), & ! Intel compiler
-                !        EXIST     = dir_check       )
-                !  INQUIRE( FILE      = TRIM(file_loc), & ! NAG/PGI/GCC compiler
-                !           EXIST     = dir_check       )
                 call my_inquire(file_loc, dir_check)
                 if (dir_check .neqv. .true.) then
                     call s_create_directory(trim(rootdir))
@@ -254,9 +242,7 @@ contains
 
             end if
 
-            ! ==================================================================
-
-            ! Generating Binary Directory Tree =================================
+            ! Generating Binary Directory Tree
 
         else
 
@@ -269,10 +255,6 @@ contains
 
             file_loc = trim(proc_rank_dir)//'/.'
 
-            !INQUIRE( DIRECTORY = TRIM(file_loc), & ! Intel compiler
-            !       EXIST     = dir_check       )
-            !  INQUIRE( FILE      = TRIM(file_loc), & ! NAG/PGI/GCC compiler
-            !           EXIST     = dir_check       )
             call my_inquire(file_loc, dir_check)
 
             if (dir_check .neqv. .true.) then
@@ -286,10 +268,6 @@ contains
 
                 file_loc = trim(rootdir)//'/.'
 
-                !INQUIRE( DIRECTORY = TRIM(file_loc), & ! Intel compiler
-                !        EXIST     = dir_check       )
-                !  INQUIRE( FILE      = TRIM(file_loc), & ! NAG/PGI/GCC compiler
-                !        EXIST     = dir_check       )
                 call my_inquire(file_loc, dir_check)
 
                 if (dir_check .neqv. .true.) then
@@ -310,8 +288,6 @@ contains
             end if
         end if
 
-        ! ==================================================================
-
         ! Contrary to the Silo-HDF5 database format, handles of the Binary
         ! database master/root and slave/local process files are perfectly
         ! static throughout post-process. Hence, they are set here so that
@@ -321,7 +297,7 @@ contains
             dbfile = 1
         end if
 
-        ! Querying Number of Flow Variable(s) in Binary Output =============
+        ! Querying Number of Flow Variable(s) in Binary Output
 
         if (format == 2) then
 
@@ -433,9 +409,9 @@ contains
 
         end if
 
-        ! END: Querying Number of Flow Variable(s) in Binary Output ========
+        ! END: Querying Number of Flow Variable(s) in Binary Output
 
-    end subroutine s_initialize_data_output_module ! --------------------------
+    end subroutine s_initialize_data_output_module
 
     subroutine s_define_output_region
 
@@ -473,7 +449,7 @@ contains
 
     end subroutine s_define_output_region
 
-    subroutine s_open_formatted_database_file(t_step) ! --------------------
+    subroutine s_open_formatted_database_file(t_step)
         ! Description: This subroutine opens a new formatted database file, or
         !              replaces an old one, and readies it for the data storage
         !              of the grid and the flow variable(s) associated with the
@@ -491,7 +467,7 @@ contains
         ! Generic string used to store the location of a particular file
         character(LEN=len_trim(case_dir) + 3*name_len) :: file_loc
 
-        ! Silo-HDF5 Database Format ========================================
+        ! Silo-HDF5 Database Format
 
         if (format == 1) then
 
@@ -512,7 +488,7 @@ contains
             if (dbfile == -1) then
                 call s_mpi_abort('Unable to create Silo-HDF5 database '// &
                                  'slave file '//trim(file_loc)//'. '// &
-                                 'Exiting ...')
+                                 'Exiting.')
             end if
 
             ! Next, analogous steps to the ones above are carried out by the
@@ -530,14 +506,12 @@ contains
                 if (dbroot == -1) then
                     call s_mpi_abort('Unable to create Silo-HDF5 database '// &
                                      'master file '//trim(file_loc)//'. '// &
-                                     'Exiting ...')
+                                     'Exiting.')
                 end if
 
             end if
 
-            ! ==================================================================
-
-            ! Binary Database Format ===========================================
+            ! Binary Database Format
 
         else
 
@@ -556,7 +530,7 @@ contains
             ! is not the case, the post-process exits.
             if (err /= 0) then
                 call s_mpi_abort('Unable to create Binary database slave '// &
-                                 'file '//trim(file_loc)//'. Exiting ...')
+                                 'file '//trim(file_loc)//'. Exiting.')
             end if
 
             ! Further defining the structure of the formatted database slave
@@ -586,7 +560,7 @@ contains
                 if (err /= 0) then
                     call s_mpi_abort('Unable to create Binary database '// &
                                      'master file '//trim(file_loc)// &
-                                     '. Exiting ...')
+                                     '. Exiting.')
                 end if
 
                 if (output_partial_domain) then
@@ -599,11 +573,9 @@ contains
 
         end if
 
-        ! END: Binary Database Format ======================================
+    end subroutine s_open_formatted_database_file
 
-    end subroutine s_open_formatted_database_file ! ------------------------
-
-    subroutine s_open_intf_data_file() ! ------------------------
+    subroutine s_open_intf_data_file()
 
         character(LEN=path_len + 3*name_len) :: file_path !<
               !! Relative path to a file in the case directory
@@ -617,9 +589,9 @@ contains
               POSITION='append', &
               STATUS='unknown')
 
-    end subroutine s_open_intf_data_file ! ---------------------------------------
+    end subroutine s_open_intf_data_file
 
-    subroutine s_open_energy_data_file() ! ------------------------
+    subroutine s_open_energy_data_file()
 
         character(LEN=path_len + 3*name_len) :: file_path !<
               !! Relative path to a file in the case directory
@@ -633,9 +605,9 @@ contains
               POSITION='append', &
               STATUS='unknown')
 
-    end subroutine s_open_energy_data_file ! ----------------------------------------
+    end subroutine s_open_energy_data_file
 
-    subroutine s_open_kymo_data_file() ! ------------------------
+    subroutine s_open_kymo_data_file()
         ! Time-step that is currently being post-processed
 
         ! Relative path to a file in the case directory
@@ -652,9 +624,9 @@ contains
               POSITION='append', &
               STATUS='unknown')
 
-    end subroutine s_open_kymo_data_file ! ----------------------------------------
+    end subroutine s_open_kymo_data_file
 
-    subroutine s_write_grid_to_formatted_database_file(t_step) ! -----------
+    subroutine s_write_grid_to_formatted_database_file(t_step)
         ! Description: The general objective of this subroutine is to write the
         !              necessary grid data to the formatted database file, for
         !              the current time-step, t_step. The local processor will
@@ -687,7 +659,7 @@ contains
         ! Generic loop iterator
         integer :: i
 
-        ! Silo-HDF5 Database Format ========================================
+        ! Silo-HDF5 Database Format
 
         if (format == 1 .and. n > 0) then
 
@@ -787,9 +759,9 @@ contains
                 end if
             #:endfor
 
-            ! END: Silo-HDF5 Database Format ===================================
+            ! END: Silo-HDF5 Database Format
 
-            ! Binary Database Format ===========================================
+            ! Binary Database Format
 
         elseif (format == 2) then
 
@@ -861,9 +833,7 @@ contains
 
         end if
 
-        ! ==================================================================
-
-    end subroutine s_write_grid_to_formatted_database_file ! ---------------
+    end subroutine s_write_grid_to_formatted_database_file
 
     subroutine s_write_variable_to_formatted_database_file(varname, t_step)
         ! Description: The goal of this subroutine is to write to the formatted
@@ -900,7 +870,7 @@ contains
         integer :: i, j, k
         real(wp) :: start, finish
 
-        ! Silo-HDF5 Database Format ========================================
+        ! Silo-HDF5 Database Format
 
         if (format == 1) then
 
@@ -1087,9 +1057,9 @@ contains
 
             end if
 
-            ! END: Silo-HDF5 Database Format ===================================
+            ! END: Silo-HDF5 Database Format
 
-            ! Binary Database Format ===========================================
+            ! Binary Database Format
 
         else
 
@@ -1124,9 +1094,7 @@ contains
 
         end if
 
-        ! ==================================================================
-
-    end subroutine s_write_variable_to_formatted_database_file ! -----------
+    end subroutine s_write_variable_to_formatted_database_file
 
     !>  Subroutine that writes the post processed results in the folder 'lag_bubbles_data'
             !!  @param t_step Current time step
@@ -1163,7 +1131,7 @@ contains
                 close (9)
             end if
         else
-            print '(A)', trim(file_loc)//' is missing. Exiting ...'
+            print '(A)', trim(file_loc)//' is missing. Exiting.'
             call s_mpi_abort
         end if
 
@@ -1324,7 +1292,7 @@ contains
             end do
         end if
 
-    end subroutine s_write_intf_data_file ! -----------------------------------
+    end subroutine s_write_intf_data_file
 
     subroutine s_write_energy_data_file(q_prim_vf, q_cons_vf)
         type(scalar_field), dimension(sys_size), intent(IN) :: q_prim_vf, q_cons_vf
@@ -1462,7 +1430,7 @@ contains
 
     end subroutine s_write_kymo_data_file
 
-    subroutine s_close_formatted_database_file() ! -------------------------
+    subroutine s_close_formatted_database_file()
         ! Description: The purpose of this subroutine is to close any formatted
         !              database file(s) that may be opened at the time-step that
         !              is currently being post-processed. The root process must
@@ -1487,19 +1455,19 @@ contains
 
         end if
 
-    end subroutine s_close_formatted_database_file ! -----------------------
+    end subroutine s_close_formatted_database_file
 
-    subroutine s_close_intf_data_file() ! -----------------------
+    subroutine s_close_intf_data_file()
 
         close (211)
 
-    end subroutine s_close_intf_data_file !---------------------
+    end subroutine s_close_intf_data_file
 
-    subroutine s_close_energy_data_file() ! -----------------------
+    subroutine s_close_energy_data_file()
 
         close (251)
 
-    end subroutine s_close_energy_data_file !---------------------
+    end subroutine s_close_energy_data_file
 
     subroutine s_close_kymo_data_file()
 
@@ -1507,7 +1475,7 @@ contains
 
     end subroutine s_close_kymo_data_file
 
-    subroutine s_finalize_data_output_module() ! -------------------------
+    subroutine s_finalize_data_output_module()
         ! Description: Deallocation procedures for the module
 
         ! Deallocating the generic storage employed for the flow variable(s)
@@ -1531,6 +1499,6 @@ contains
             deallocate (dims)
         end if
 
-    end subroutine s_finalize_data_output_module ! -----------------------
+    end subroutine s_finalize_data_output_module
 
 end module m_data_output

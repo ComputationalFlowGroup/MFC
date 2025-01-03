@@ -8,7 +8,6 @@
 !!          goals for the simulation.
 module m_mpi_common
 
-    ! Dependencies =============================================================
 #ifdef MFC_MPI
     use mpi                    !< Message passing interface (MPI) module
 #endif
@@ -16,7 +15,6 @@ module m_mpi_common
     use m_derived_types        !< Definitions of the derived types
 
     use m_global_parameters    !< Definitions of the global parameters
-    ! ==========================================================================
 
     implicit none
 
@@ -46,7 +44,7 @@ contains
 
         ! Checking whether the MPI environment has been properly initialized
         if (ierr /= MPI_SUCCESS) then
-            print '(A)', 'Unable to initialize MPI environment. Exiting ...'
+            print '(A)', 'Unable to initialize MPI environment. Exiting.'
             call MPI_ABORT(MPI_COMM_WORLD, 1, ierr)
         end if
 
@@ -236,7 +234,6 @@ contains
 
     subroutine s_mpi_gather_data(my_vector, counts, gathered_vector, root)
 
-        implicit none
         integer, intent(in) :: counts          ! Array of vector lengths for each process
         real(wp), intent(in), dimension(counts) :: my_vector   ! Input vector on each process
         integer, intent(in) :: root               ! Rank of the root process

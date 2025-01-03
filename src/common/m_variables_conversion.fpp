@@ -12,7 +12,6 @@
 !!              pressure and temperature.
 module m_variables_conversion
 
-    ! Dependencies =============================================================
     use m_derived_types        !< Definitions of the derived types
 
     use m_global_parameters    !< Definitions of the global parameters
@@ -26,8 +25,6 @@ module m_variables_conversion
     use m_thermochem, only: &
         num_species, get_temperature, get_pressure, gas_constant, &
         get_mixture_molecular_weight, get_mixture_energy_mass
-
-    ! ==========================================================================
 
     implicit none
 
@@ -1215,7 +1212,7 @@ contains
         end do
         !$acc end parallel loop
 
-    end subroutine s_convert_conservative_to_primitive_variables ! ---------
+    end subroutine s_convert_conservative_to_primitive_variables
 
     !>  The following procedure handles the conversion between
         !!      the primitive variables and the conservative variables.
@@ -1241,7 +1238,7 @@ contains
         real(wp) :: dyn_pres
         real(wp) :: nbub, R3, vftmp, R3tmp
         real(wp), dimension(nb) :: Rtmp
-        real(wp) :: G = 0._wp
+        real(wp) :: G
         real(wp), dimension(2) :: Re_K
         real(wp), dimension(num_fluids) :: alpha_K, alpha_rho_K
 
@@ -1254,6 +1251,8 @@ contains
 
         real(wp), dimension(num_species) :: Ys
         real(wp) :: e_mix, mix_mol_weight, T
+
+        G = 0._wp
 
 #ifndef MFC_SIMULATION
         ! Converting the primitive variables to the conservative variables
@@ -1433,7 +1432,7 @@ contains
         if (proc_rank == 0) then
             call s_mpi_abort('Conversion from primitive to '// &
                              'conservative variables not '// &
-                             'implemented. Exiting ...')
+                             'implemented. Exiting.')
         end if
 #endif
     end subroutine s_convert_primitive_to_conservative_variables
@@ -1571,7 +1570,7 @@ contains
 #endif
     end subroutine s_convert_primitive_to_flux_variables
 
-    subroutine s_finalize_variables_conversion_module() ! ------------------
+    subroutine s_finalize_variables_conversion_module()
 
         integer :: i !< Generic loop iterators
 

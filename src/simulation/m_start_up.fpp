@@ -18,7 +18,6 @@
 !!              setting up the time stepping, domain decomposition and I/O procedures.
 module m_start_up
 
-    ! Dependencies =============================================================
     use m_derived_types        !< Definitions of the derived types
 
     use m_global_parameters    !< Definitions of the global parameters
@@ -84,8 +83,6 @@ module m_start_up
 
     use m_body_forces
 
-    ! ==========================================================================
-
     implicit none
 
     private; public :: s_read_input_file, &
@@ -130,7 +127,7 @@ contains
     subroutine s_read_input_file
 
         ! Relative path to the input file provided by the user
-        character(LEN=name_len) :: file_path = './simulation.inp'
+        character(LEN=name_len), parameter :: file_path = './simulation.inp'
 
         logical :: file_exist !<
             !! Logical used to check the existence of the input file
@@ -195,7 +192,7 @@ contains
                 read (1, fmt='(A)') line
                 print *, 'Invalid line in namelist: '//trim(line)
                 call s_mpi_abort('Invalid line in simulation.inp. It is '// &
-                                 'likely due to a datatype mismatch. Exiting ...')
+                                 'likely due to a datatype mismatch. Exiting.')
             end if
 
             close (1)
@@ -214,7 +211,7 @@ contains
             if (cfl_adap_dt .or. cfl_const_dt .or. rkck_adap_dt) cfl_dt = .true.
 
         else
-            call s_mpi_abort(trim(file_path)//' is missing. Exiting ...')
+            call s_mpi_abort(trim(file_path)//' is missing. Exiting.')
         end if
 
     end subroutine s_read_input_file
@@ -230,15 +227,14 @@ contains
         ! Logical used to check the existence of the current directory file
         logical :: file_exist
 
-        ! Logistics ========================================================
+        ! Logistics
         file_path = trim(case_dir)//'/.'
 
         call my_inquire(file_path, file_exist)
 
         if (file_exist .neqv. .true.) then
-            call s_mpi_abort(trim(file_path)//' is missing. Exiting ...')
+            call s_mpi_abort(trim(file_path)//' is missing. Exiting.')
         end if
-        ! ==================================================================
 
         call s_check_inputs_common()
         call s_check_inputs()
@@ -280,10 +276,10 @@ contains
         call my_inquire(file_path, file_exist)
 
         if (file_exist .neqv. .true.) then
-            call s_mpi_abort(trim(file_path)//' is missing. Exiting ...')
+            call s_mpi_abort(trim(file_path)//' is missing. Exiting.')
         end if
 
-        ! Cell-boundary Locations in x-direction ===========================
+        ! Cell-boundary Locations in x-direction
         file_path = trim(t_step_dir)//'/x_cb.dat'
 
         inquire (FILE=trim(file_path), EXIST=file_exist)
@@ -295,7 +291,7 @@ contains
                   STATUS='old')
             read (2) x_cb(-1:m); close (2)
         else
-            call s_mpi_abort(trim(file_path)//' is missing. Exiting ...')
+            call s_mpi_abort(trim(file_path)//' is missing. Exiting.')
         end if
 
         dx(0:m) = x_cb(0:m) - x_cb(-1:m - 1)
@@ -308,9 +304,8 @@ contains
                 end if
             end do
         end if
-        ! ==================================================================
 
-        ! Cell-boundary Locations in y-direction ===========================
+        ! Cell-boundary Locations in y-direction
         if (n > 0) then
 
             file_path = trim(t_step_dir)//'/y_cb.dat'
@@ -324,16 +319,15 @@ contains
                       STATUS='old')
                 read (2) y_cb(-1:n); close (2)
             else
-                call s_mpi_abort(trim(file_path)//' is missing. Exiting ...')
+                call s_mpi_abort(trim(file_path)//' is missing. Exiting.')
             end if
 
             dy(0:n) = y_cb(0:n) - y_cb(-1:n - 1)
             y_cc(0:n) = y_cb(-1:n - 1) + dy(0:n)/2._wp
 
         end if
-        ! ==================================================================
 
-        ! Cell-boundary Locations in z-direction ===========================
+        ! Cell-boundary Locations in z-direction
         if (p > 0) then
 
             file_path = trim(t_step_dir)//'/z_cb.dat'
@@ -347,14 +341,13 @@ contains
                       STATUS='old')
                 read (2) z_cb(-1:p); close (2)
             else
-                call s_mpi_abort(trim(file_path)//' is missing. Exiting ...')
+                call s_mpi_abort(trim(file_path)//' is missing. Exiting.')
             end if
 
             dz(0:p) = z_cb(0:p) - z_cb(-1:p - 1)
             z_cc(0:p) = z_cb(-1:p - 1) + dz(0:p)/2._wp
 
         end if
-        ! ==================================================================
 
         do i = 1, sys_size
             write (file_path, '(A,I0,A)') &
@@ -367,7 +360,7 @@ contains
                       STATUS='old')
                 read (2) q_cons_vf(i)%sf(0:m, 0:n, 0:p); close (2)
             else
-                call s_mpi_abort(trim(file_path)//' is missing. Exiting ...')
+                call s_mpi_abort(trim(file_path)//' is missing. Exiting.')
             end if
         end do
 
@@ -386,7 +379,7 @@ contains
                                   STATUS='old')
                             read (2) pb_ts(1)%sf(0:m, 0:n, 0:p, r, i); close (2)
                         else
-                            call s_mpi_abort(trim(file_path)//' is missing. Exiting ...')
+                            call s_mpi_abort(trim(file_path)//' is missing. Exiting.')
                         end if
                     end do
                 end do
@@ -402,16 +395,14 @@ contains
                                   STATUS='old')
                             read (2) mv_ts(1)%sf(0:m, 0:n, 0:p, r, i); close (2)
                         else
-                            call s_mpi_abort(trim(file_path)//' is missing. Exiting ...')
+                            call s_mpi_abort(trim(file_path)//' is missing. Exiting.')
                         end if
                     end do
                 end do
             end if
         end if
-        ! ==================================================================
 
-        ! Read IBM Data ====================================================
-
+        ! Read IBM Data
         if (ib) then
             ! Read IB markers
             write (file_path, '(A,I0,A)') &
@@ -424,7 +415,7 @@ contains
                         STATUS='old')
                 read (2) ib_markers%sf(0:m, 0:n, 0:p); close (2)
             else
-                call s_mpi_abort(trim(file_path)//' is missing. Exiting ...')
+                call s_mpi_abort(trim(file_path)//' is missing. Exiting.')
             end if
 
             ! Read Levelset
@@ -439,7 +430,7 @@ contains
                 read (2) levelset%sf(0:m, 0:n, 0:p, 1:num_ibs); close (2)
                 ! print*, 'check', STL_levelset(106, 50, 0, 1)
             else
-                call s_mpi_abort(trim(file_path)//' is missing. Exiting ...')
+                call s_mpi_abort(trim(file_path)//' is missing. Exiting.')
             end if
 
             ! Read Levelset Norm
@@ -453,7 +444,7 @@ contains
                         STATUS='old')
                 read (2) levelset_norm%sf(0:m, 0:n, 0:p, 1:num_ibs, 1:3); close (2)
             else
-                call s_mpi_abort(trim(file_path)//' is missing. Exiting ...')
+                call s_mpi_abort(trim(file_path)//' is missing. Exiting.')
             end if
 
             do i = 1, num_ibs
@@ -471,7 +462,7 @@ contains
                               STATUS='old')
                         read (2) airfoil_grid_u; close (2)
                     else
-                        call s_mpi_abort(trim(file_path)//' is missing. Exiting ...')
+                        call s_mpi_abort(trim(file_path)//' is missing. Exiting.')
                     end if
 
                     write (file_path, '(A)') &
@@ -484,7 +475,7 @@ contains
                               STATUS='old')
                         read (2) airfoil_grid_l; close (2)
                     else
-                        call s_mpi_abort(trim(file_path)//' is missing. Exiting ...')
+                        call s_mpi_abort(trim(file_path)//' is missing. Exiting.')
                     end if
                 end if
             end do
@@ -533,7 +524,7 @@ contains
             call MPI_FILE_READ(ifile, x_cb_glb, data_size, mpi_p, status, ierr)
             call MPI_FILE_CLOSE(ifile, ierr)
         else
-            call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting...')
+            call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting.')
         end if
 
         ! Assigning local cell boundary locations
@@ -564,7 +555,7 @@ contains
                 call MPI_FILE_READ(ifile, y_cb_glb, data_size, mpi_p, status, ierr)
                 call MPI_FILE_CLOSE(ifile, ierr)
             else
-                call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting...')
+                call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting.')
             end if
 
             ! Assigning local cell boundary locations
@@ -585,7 +576,7 @@ contains
                     call MPI_FILE_READ(ifile, z_cb_glb, data_size, mpi_p, status, ierr)
                     call MPI_FILE_CLOSE(ifile, ierr)
                 else
-                    call s_mpi_abort('File '//trim(file_loc)//'is missing. Exiting...')
+                    call s_mpi_abort('File '//trim(file_loc)//'is missing. Exiting.')
                 end if
 
                 ! Assigning local cell boundary locations
@@ -683,7 +674,7 @@ contains
                                            MPI_INTEGER, status, ierr)
 
                     else
-                        call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting...')
+                        call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting.')
                     end if
 
                     ! Read Levelset
@@ -703,7 +694,7 @@ contains
                                            mpi_p, status, ierr)
 
                     else
-                        call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting...')
+                        call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting.')
                     end if
 
                     ! Read Levelset Norm
@@ -723,13 +714,13 @@ contains
                                            mpi_p, status, ierr)
 
                     else
-                        call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting...')
+                        call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting.')
                     end if
 
                 end if
 
             else
-                call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting...')
+                call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting.')
             end if
         else
 
@@ -832,7 +823,7 @@ contains
                                            MPI_INTEGER, status, ierr)
 
                     else
-                        call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting...')
+                        call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting.')
                     end if
 
                     ! Read Levelset
@@ -852,7 +843,7 @@ contains
                                            mpi_p, status, ierr)
 
                     else
-                        call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting...')
+                        call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting.')
                     end if
 
                     ! Read Levelset Norm
@@ -872,13 +863,13 @@ contains
                                            mpi_p, status, ierr)
 
                     else
-                        call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting...')
+                        call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting.')
                     end if
 
                 end if
 
             else
-                call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting...')
+                call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting.')
             end if
 
         end if
@@ -954,7 +945,7 @@ contains
 
         integer :: i !< Generic loop iterator
 
-        ! Population of Buffers in x-direction =============================
+        ! Population of Buffers in x-direction
 
         ! Populating cell-width distribution buffer, at the beginning of the
         ! coordinate direction, based on the selected boundary condition. In
@@ -1018,9 +1009,9 @@ contains
             x_cc(m + i) = x_cc(m + (i - 1)) + (dx(m + (i - 1)) + dx(m + i))/2._wp
         end do
 
-        ! END: Population of Buffers in x-direction ========================
+        ! END: Population of Buffers in x-direction
 
-        ! Population of Buffers in y-direction =============================
+        ! Population of Buffers in y-direction
 
         ! Populating cell-width distribution buffer, at the beginning of the
         ! coordinate direction, based on the selected boundary condition. In
@@ -1086,9 +1077,9 @@ contains
             y_cc(n + i) = y_cc(n + (i - 1)) + (dy(n + (i - 1)) + dy(n + i))/2._wp
         end do
 
-        ! END: Population of Buffers in y-direction ========================
+        ! END: Population of Buffers in y-direction
 
-        ! Population of Buffers in z-direction =============================
+        ! Population of Buffers in z-direction
 
         ! Populating cell-width distribution buffer, at the beginning of the
         ! coordinate direction, based on the selected boundary condition. In
@@ -1154,7 +1145,7 @@ contains
             z_cc(p + i) = z_cc(p + (i - 1)) + (dz(p + (i - 1)) + dz(p + i))/2._wp
         end do
 
-        ! END: Population of Buffers in z-direction ========================
+        ! END: Population of Buffers in z-direction
 
     end subroutine s_populate_grid_variables_buffers
 

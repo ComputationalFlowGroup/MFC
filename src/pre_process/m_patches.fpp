@@ -10,7 +10,6 @@
 
 module m_patches
 
-    ! Dependencies =============================================================
     use m_model                 ! Subroutine(s) related to STL files
 
     use m_derived_types         ! Definitions of the derived types
@@ -26,7 +25,6 @@ module m_patches
     use m_assign_variables
 
     use m_mpi_common
-    ! ==========================================================================
 
     implicit none
 
@@ -1119,14 +1117,12 @@ contains
                     ! Updating the patch identities bookkeeping variable
                     if (1._wp - eta < 1e-16_wp) patch_id_fp(i, j, 0) = patch_id
 
-                    ! Assign Parameters =========================================================
+                    ! Assign Parameters
                     q_prim_vf(mom_idx%beg)%sf(i, j, 0) = U0*sin(x_cc(i)/L0)*cos(y_cc(j)/L0)
                     q_prim_vf(mom_idx%end)%sf(i, j, 0) = -U0*cos(x_cc(i)/L0)*sin(y_cc(j)/L0)
                     q_prim_vf(E_idx)%sf(i, j, 0) = patch_icpp(patch_id)%pres + (cos(2*x_cc(i))/L0 + &
                                                                                 cos(2*y_cc(j))/L0)* &
                                                    (q_prim_vf(1)%sf(i, j, 0)*U0*U0)/16
-                    ! ================================================================================
-
                 end if
             end do
         end do
@@ -1410,7 +1406,7 @@ contains
 
         integer, intent(IN) :: patch_id
         integer, intent(INOUT), dimension(0:m, 0:n, 0:p) :: patch_id_fp
-        type(scalar_field), dimension(1:sys_size) :: q_prim_vf
+        type(scalar_field), dimension(1:sys_size), intent(inout) :: q_prim_vf
 
         real(wp) :: r, x_p, eps, phi
         real(wp), dimension(2:9) :: as, Ps
@@ -1420,7 +1416,7 @@ contains
         integer :: i, j, k !< generic loop iterators
 
         real(wp) :: epsilon, beta
-        complex(wp) :: cmplx_i = (0._wp, 1._wp)
+        complex(wp), parameter :: cmplx_i = (0._wp, 1._wp)
         complex(wp) :: H
 
         ! Transferring the patch's centroid and radius information
@@ -2020,7 +2016,7 @@ contains
         end if
 
         if (proc_rank == 0) then
-            print *, " * Transforming model..."
+            print *, " * Transforming model."
         end if
 
         transform = f_create_transform_matrix(params)
@@ -2050,7 +2046,7 @@ contains
         ! Interpolate the STL model along the edges (2D) and on triangle facets (3D)
         if (interpolate) then
             if (proc_rank == 0) then
-                print *, ' * Interpolating STL vertices...'
+                print *, ' * Interpolating STL vertices.'
             end if
 
             if (p > 0) then
@@ -2206,7 +2202,7 @@ contains
 
         if (proc_rank == 0) then
             print *, ""
-            print *, " * Cleaning up..."
+            print *, " * Cleaning up."
         end if
 
         call s_model_free(model)
