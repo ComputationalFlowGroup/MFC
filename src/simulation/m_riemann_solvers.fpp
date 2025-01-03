@@ -333,6 +333,7 @@ contains
         real(wp) :: s_L, s_R, s_M, s_P, s_S
         real(wp) :: xi_M, xi_P
 
+        real(wp) :: xi_L, xi_R
         real(wp) :: ptilde_L, ptilde_R
         real(wp) :: vel_L_rms, vel_R_rms, vel_avg_rms
         real(wp) :: Ms_L, Ms_R, pres_SL, pres_SR
@@ -617,7 +618,7 @@ contains
                                                               pref*alpha_L(i)*(rho_K/rho0(i))**qvps(i)/gammas(i)
 
                                             rho_eref = rho_eref + alpha_rho_L(i)*qvs(i) + &
-                                                       0.5._wp*(pref + pi_infs(i))*(alpha_rho_L(i)/rho0(i) - alpha_L(i))
+                                                       0.5_wp*(pref + pi_infs(i))*(alpha_rho_L(i)/rho0(i) - alpha_L(i))
                                         else
                                             pref_over_gamma = pref_over_gamma + &
                                                               alpha_L(i)*(mg_a(i)**2._wp)*(rho_K - &
@@ -645,7 +646,7 @@ contains
                                                               pref*alpha_R(i)*(rho_K/rho0(i))**qvps(i)/gammas(i)
 
                                             rho_eref = rho_eref + alpha_rho_R(i)*qvs(i) + &
-                                                       0.5._wp*(pref + pi_infs(i))*(alpha_rho_R(i)/rho0(i) - alpha_R(i))
+                                                       0.5_wp*(pref + pi_infs(i))*(alpha_rho_R(i)/rho0(i) - alpha_R(i))
                                         else
                                             pref_over_gamma = pref_over_gamma + &
                                                               alpha_R(i)*(mg_a(i)**2._wp)*(rho_K - &
@@ -1139,7 +1140,7 @@ contains
                     !$acc private(vel_L, vel_R, vel_K_Star, Re_L, Re_R, rho_avg, h_avg, gamma_avg,  &
                     !$acc s_L, s_R, s_S, vel_avg_rms, alpha_L, alpha_R, Ys_L, Ys_R, Xs_L, Xs_R,     &
                     !$acc Gamma_iL, Gamma_iR, Cp_iL, Cp_iR, Yi_avg, Phi_avg, h_iL, h_iR, h_avg_2,   &
-                    !$acc tau_e_L, tau_e_R, G_L, G_R, flux_ene_e, xi_field_L, xi_field_R)
+                    !$acc tau_e_L, tau_e_R, G_L, G_R, flux_ene_e, xi_field_L, xi_field_R, xi_L, xi_R)
                     do l = is3%beg, is3%end
                         do k = is2%beg, is2%end
                             do j = is1%beg, is1%end
@@ -2390,7 +2391,7 @@ contains
                                                               pref*alpha_L(i)*(rho_K/rho0(i))**qvps(i)/gammas(i)
 
                                             rho_eref = rho_eref + alpha_rho_L(i)*qvs(i) + &
-                                                       0.5._wp*(pref + pi_infs(i))*(alpha_rho_L(i)/rho0(i) - alpha_L(i))
+                                                       0.5_wp*(pref + pi_infs(i))*(alpha_rho_L(i)/rho0(i) - alpha_L(i))
                                         else
                                             pref_over_gamma = pref_over_gamma + &
                                                               alpha_L(i)*(mg_a(i)**2._wp)*(rho_K - &
@@ -2434,11 +2435,11 @@ contains
 
                                 call s_compute_speed_of_sound(pres_L, &
                                                               rho_L, 0._wp, pi_inf_L, H_L, alpha_L, &
-                                                              vel_L_rms, c_L, alpha_rho_L)
+                                                              vel_L_rms, 0._wp, c_L, alpha_rho_L)
 
                                 call s_compute_speed_of_sound(pres_R, &
                                                               rho_R, 0._wp, pi_inf_R, H_R, alpha_R, &
-                                                              vel_R_rms, c_R, alpha_rho_R)
+                                                              vel_R_rms, 0._wp, c_R, alpha_rho_R)
 
                                 !Added alpha_rho_R above instead of alpha_rho_avg because of alpha_R above instead of alpha_avg
                                 if (wave_speeds == 1) then

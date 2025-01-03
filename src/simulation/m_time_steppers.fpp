@@ -174,9 +174,9 @@ contains
             end do
         end if
         if (hypoplasticity) then
-            @:ALLOCATE(q_prim_vf(plasidx)%sf(ix_t%beg:ix_t%end, &
-                iy_t%beg:iy_t%end, &
-                iz_t%beg:iz_t%end))
+            @:ALLOCATE(q_prim_vf(plasidx)%sf(idwbuff(1)%beg:idwbuff(1)%end, &
+                idwbuff(2)%beg:idwbuff(2)%end, &
+                idwbuff(3)%beg:idwbuff(3)%end))
             @:ACC_SETUP_SFs(q_prim_vf(plasidx))
         end if
 
@@ -859,7 +859,7 @@ contains
         if (adv_n) call s_comp_alpha_from_n(q_cons_ts(1)%vf)
 
         call nvtxStartRange("RHS-ELASTIC")
-        if (hyperelasticity) call s_hyperelastic_rmt_stress_update(num_dims, q_cons_ts(1)%vf, q_prim_vf)
+          if (hyperelasticity) call s_hyperelastic_rmt_stress_update(q_cons_ts(1)%vf, q_prim_vf)
         call nvtxEndRange
 
         if (ib) then
@@ -966,7 +966,7 @@ contains
 
                     ! Compute mixture sound speed
                     if (model_eqns /= 5) then
-                        call s_compute_speed_of_sound(pres, rho, gamma, pi_inf, H, alpha, vel_sum, c)
+                        call s_compute_speed_of_sound(pres, rho, gamma, pi_inf, H, alpha, vel_sum, 0._wp, c)
                     else
                         call s_compute_speed_of_sound(pres, rho, gamma, pi_inf, H, alpha, vel_sum, 0._wp, c)
                     end if

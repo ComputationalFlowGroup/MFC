@@ -164,14 +164,15 @@ contains
 
             if ((model_eqns == 5) .and. (MGEoS_model == 1)) then
 
-                pref_over_gamma = 0._wp; rho_eref = 0._wp; gamma_inv = 0._wp
+                pref_over_gamma = 0._wp
+                rho_eref = 0._wp
+                gamma_inv = 0._wp
 
                 do s = 1, num_fluids
 
                     rhoK = alpha_rho_K(s)/alpha_K(s)
 
-                    gamma_inv = gamma_inv + &
-                                alpha_K(s)*(rhoK/rho0(s))**qvps(s)/gammas(s)
+                    gamma_inv = gamma_inv + alpha_K(s)*(rhoK/rho0(s))**qvps(s)/gammas(s)
 
                     xi = 1._wp - rho0(s)/rhoK
 
@@ -1595,7 +1596,7 @@ contains
     end subroutine s_finalize_variables_conversion_module
 
 #ifndef MFC_PRE_PROCESS
-    pure subroutine s_compute_speed_of_sound(pres, rho, gamma, pi_inf, H, adv, vel_sum, c_c, c)
+    pure subroutine s_compute_speed_of_sound(pres, rho, gamma, pi_inf, H, adv, vel_sum, c_c, c, alpha_rho_K)
 #ifdef _CRAYFTN
         !DIR$ INLINEALWAYS s_compute_speed_of_sound
 #else
@@ -1609,11 +1610,15 @@ contains
         real(wp), intent(in) :: vel_sum
         real(wp), intent(in) :: c_c
         real(wp), intent(out) :: c
+        real(wp), optional, dimension(num_fluids), intent(in) :: alpha_rho_K
 
         real(wp) :: blkmod1, blkmod2
         real(wp) :: Tolerance
 
-        integer :: q
+        real(wp) :: pref, gamma_inv, xi, rho_K, pref_prime
+        real(wp) :: rho_eref_prime, gamma_avg, gam
+
+        integer :: q, r
 
         if (chemistry) then
             if (avg_state == 1 .and. abs(c_c) > Tolerance) then
@@ -1648,8 +1653,43 @@ contains
                         (pres + pi_inf/(gamma + 1._wp))/ &
                         (rho*(1._wp - adv(num_fluids)))
                 end if
+            elseif ((model_eqns == 5) .and. (MGEoS_model == 1)) then
+            !Note that pref and gamma are primitive state
+            !variables for Mie-Gruneisen EoS and gamma = (1/Gamma(rho))
+            gamma_avg = 0._wp
+            c = 0._wp
+            do q = 1, num_fluids
+               
+               rho_K = alpha_rho_K(q)/adv(q)
+
+               xi    = 1._wp - rho0(q)/rho_K
+
+               pref  = pi_infs(q) + &
+               rho0(q)*(mg_a(q)**2._wp)*xi/(1._wp-mg_b(q)*xi)**2._wp
+                
+               gamma_avg = gamma_avg + adv(q)/(gammas(q)*(rho0(q)/rho_K)**qvps(q))
+               
+               gamma_inv = 1._wp/(gammas(q)*(rho0(q)/rho_K)**qvps(q))
+               gam = 1._wp/gamma_inv
+               pref_prime = (mg_a(q)**2._wp)*((1._wp-xi)**2._wp)*(1._wp+mg_b(q)*xi)/(1._wp-mg_b(q)*xi)**3._wp
+               
+               rho_eref_prime = 0.5_wp*(pref/rho_K + pref_prime*(rho_K/rho0(q)-1d0))
+
+               if (rho_K .ge. rho0(q)) then
+                    c = c + (alpha_rho_K(q)/rho)*((1._wp+(1._wp-qvps(q))*gamma_inv)*(pres-pref)/rho_K &
+                    +pref/rho_K + pref_prime*gamma_inv - rho_eref_prime)
+               else 
+                   c = c + (alpha_rho_K(q)/rho)*(pres/rho_K*(gamma_inv + 1._wp) - &
+                    pref*gamma_inv/rho_K + &
+                    qvps(q)+0.5_wp*(pi_infs(q)+pref)*(1._wp/rho0(q)-1._wp/rho_K)+(mg_a(q)**2._wp)*gamma_inv)
+               end if
+            end do 
+            c = c/gamma_avg
+
             else
-                c = ((H - 5e-1*vel_sum)/gamma)
+
+                c = ((H - 0.5_wp*vel_sum)/gamma)
+
             end if
 
             if (mixture_err .and. c < 0._wp) then

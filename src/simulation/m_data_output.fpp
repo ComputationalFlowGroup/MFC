@@ -269,12 +269,13 @@ contains
         real(wp) :: vel_sum    !< Cell-avg. velocity sum
         real(wp) :: pres       !< Cell-avg. pressure
         real(wp), dimension(num_fluids) :: alpha      !< Cell-avg. volume fraction
+        real(wp), dimension(num_fluids) :: alpha_rho  !< Cell-avg. density fraction
         real(wp) :: gamma      !< Cell-avg. sp. heat ratio
         real(wp) :: pi_inf     !< Cell-avg. liquid stiffness function
         real(wp) :: c          !< Cell-avg. sound speed
         real(wp) :: H          !< Cell-avg. enthalpy
         real(wp), dimension(2) :: Re         !< Cell-avg. Reynolds numbers
-        integer :: j, k, l
+        integer :: j, k, l, i
 
         ! Computing Stability Criteria at Current Time-step ================
         !$acc parallel loop collapse(3) gang vector default(present) private(vel, alpha, Re)
@@ -1178,24 +1179,21 @@ contains
 
                     if (elasticity .and. (model_eqns /= 5)) then
                         call s_compute_pressure( &
-                            q_cons_vf(1)%sf(j - 2, k, l), &
+                            q_cons_vf(E_idx)%sf(j - 2, k, l), &
                             q_cons_vf(alf_idx)%sf(j - 2, k, l), &
-                            dyn_p, pi_inf, gamma, rho, qv, rhoYks(:), pres, T, &
-                            q_cons_vf(stress_idx%beg)%sf(j - 2, k, l), &
-                            q_cons_vf(mom_idx%beg)%sf(j - 2, k, l), G)
+                            dyn_p, pi_inf, gamma, rho, qv, rhoYks(:), pres, T, 0._wp, 0._wp, G)
                     else if (model_eqns == 5) then
                         do s = contxb, contxe
-                            alpha_K(s) = q_cons_vf(advxb + s - 1)%sf(j - 2, k, l)
                             alpha_rho_K(s) = q_cons_vf(s)%sf(j - 2, k, l)
+                            alpha_K(s) = q_cons_vf(advxb + s - 1)%sf(j - 2, k, l)
                         end do
                         call s_compute_pressure(q_cons_vf(E_idx)%sf(j - 2, k, l), &
                                                 0._wp, dyn_p, &
-                                                pi_inf, 0._wp, rho, qv, &
-                                                pres, 0._wp, 0._wp, 0._wp, &
-                                                alpha_K, alpha_rho_K)
+                                                pi_inf, 0._wp, rho, qv, rhoYks(:), &
+                                                pres, T, 0._wp, 0._wp, G, alpha_K, alpha_rho_K)
                     else
                         call s_compute_pressure( &
-                            q_cons_vf(1)%sf(j - 2, k, l), &
+                            q_cons_vf(E_idx)%sf(j - 2, k, l), &
                             q_cons_vf(alf_idx)%sf(j - 2, k, l), &
                             dyn_p, pi_inf, gamma, rho, qv, rhoYks(:), pres, T)
                     end if
@@ -1261,8 +1259,8 @@ contains
                         do s = contxb, contxe
                             alpha_rho_K(s) = q_cons_vf(s)%sf(j - 2, k, l)
                         end do
-                        call s_compute_speed_of_sound(pres, rho, 0._wp, pi_inf, q_cons_vf(E_idx)%sf(j - 2, k, l) + pres/rho, &
-                                                      alpha, 0._wp, c, alpha_rho_K)
+                        call s_compute_speed_of_sound(pres, rho, gamma, pi_inf, q_cons_vf(E_idx)%sf(j - 2, k, l) + pres/rho, &
+                                                      alpha, 0._wp, 0._wp, c, alpha_rho_K)
                     end if
 
                     accel = accel_mag(j - 2, k, l)
@@ -1310,7 +1308,9 @@ contains
                                 pres, &
                                 T, &
                                 q_cons_vf(stress_idx%beg)%sf(j - 2, k - 2, l), &
-                                q_cons_vf(mom_idx%beg)%sf(j - 2, k - 2, l), G)
+                                q_cons_vf(mom_idx%beg)%sf(j - 2, k - 2, l), & 
+                                G)
+
                         else if (model_eqns == 5) then
                             do s = contxb, contxe
                                 alpha_K(s) = q_cons_vf(advxb + s - 1)%sf(j - 2, k - 2, l)
@@ -1318,8 +1318,8 @@ contains
                             end do
                             call s_compute_pressure(q_cons_vf(E_idx)%sf(j - 2, k - 2, l), &
                                                     0._wp, dyn_p, &
-                                                    pi_inf, 0._wp, rho, qv, 0._wp, &
-                                                    pres, 0._wp, 0._wp, 0._wp, &
+                                                    pi_inf, 0._wp, rho, qv, rhoYks(:), &
+                                                    pres, T, 0._wp, 0._wp, 0._wp, &
                                                     alpha_K, alpha_rho_K)
                         else
                             call s_compute_pressure(q_cons_vf(E_idx)%sf(j - 2, k - 2, l), &
@@ -1365,8 +1365,8 @@ contains
                             do s = contxb, contxe
                                 alpha_rho_K(s) = q_cons_vf(s)%sf(j - 2, k, l)
                             end do
-                            call s_compute_speed_of_sound(pres, rho, 0._wp, pi_inf, q_cons_vf(E_idx)%sf(j - 2, k, l) + pres/rho, &
-                                                          alpha, 0._wp, c, alpha_rho_K)
+                            call s_compute_speed_of_sound(pres, rho, gamma, pi_inf, & 
+                                                          q_cons_vf(E_idx)%sf(j - 2, k, l) + pres/rho, alpha, 0._wp, 0._wp, c, alpha_rho_K)
                         end if
                     end if
                 end if

@@ -15,7 +15,7 @@ module m_hypoplastic
 
     use m_variables_conversion !< State variables type conversion procedures
 
-    use m_helper
+    use m_finite_differences
 
     ! ==========================================================================
 
@@ -32,8 +32,8 @@ module m_hypoplastic
     real(wp), allocatable, dimension(:, :, :) :: dv_dx, dv_dy
     !$acc declare create(du_dx,du_dy,dv_dx,dv_dy)
 
-    real(wp), allocatable, dimension(:, :) :: fd_coeff_x, fd_coeff_y
-    !$acc declare create(fd_coeff_x,fd_coeff_y)
+    real(wp), allocatable, dimension(:, :) :: fd_coeff_x, fd_coeff_y, fd_coeff_z
+    !$acc declare create(fd_coeff_x,fd_coeff_y,fd_coeff_z)
 
 contains
     !>   The following subroutine handles the hypoelastic evolution
@@ -53,18 +53,27 @@ contains
         !$acc update device(Gs)
 
         @:ALLOCATE(fd_coeff_x(-fd_number:fd_number, 0:m))
-        @:ALLOCATE(fd_coeff_y(-fd_number:fd_number, 0:n))
+        if (n > 0) then
+            @:ALLOCATE(fd_coeff_y(-fd_number:fd_number, 0:n))
+        end if
+        if (p > 0) then
+            @:ALLOCATE(fd_coeff_z(-fd_number:fd_number, 0:p))
+        end if
 
         ! Computing centered finite difference coefficients
         call s_compute_finite_difference_coefficients(m, x_cc, fd_coeff_x, buff_size, &
                                                       fd_number, fd_order)
         !$acc update device(fd_coeff_x)
-        if (num_dims /= 1) then
-
+        if (n > 0) then
             call s_compute_finite_difference_coefficients(n, y_cc, fd_coeff_y, buff_size, &
                                                           fd_number, fd_order)
+            !$acc update device(fd_coeff_y)
         end if
-        !$acc update device(fd_coeff_y)
+        if (p > 0) then
+            call s_compute_finite_difference_coefficients(p, z_cc, fd_coeff_z, buff_size, &
+                                                          fd_number, fd_order)
+            !$acc update device(fd_coeff_z)
+        end if
 
     end subroutine s_initialize_hypoplastic_module
 
@@ -88,9 +97,14 @@ contains
         real(wp), dimension(num_fluids) :: alpha_K, alpha_rho_K
         real(wp) :: theta_m, tempref, theta_hat, sigma_bar, &
                     dp_JC, d_p, equiv_tens_stress
+
+        du_dx(:, :, :) = 0._wp
+        du_dy(:, :, :) = 0._wp
+        dv_dx(:, :, :) = 0._wp
+        dv_dy(:, :, :) = 0._wp
+
         if (num_dims == 1) then
             ! For quasi-1D case
-            du_dx(:, :, :) = 0._wp
             l = 0
             q = 0
             !$acc parallel loop collapse(1) gang vector default (present)
@@ -192,10 +206,7 @@ contains
 
         else if (num_dims == 2) then
             ! compute velocity gradients and rho_K and G_K
-            du_dx(:, :, :) = 0._wp; du_dy(:, :, :) = 0._wp
-            dv_dx(:, :, :) = 0._wp; dv_dy(:, :, :) = 0._wp
             q = 0
-
             !$acc parallel loop collapse(2) gang vector default(present)
             do l = 0, n
                 do k = 0, m
