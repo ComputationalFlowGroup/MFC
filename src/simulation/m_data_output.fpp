@@ -278,7 +278,7 @@ contains
         integer :: j, k, l, i
 
         ! Computing Stability Criteria at Current Time-step ================
-        !$acc parallel loop collapse(3) gang vector default(present) private(vel, alpha, Re)
+        !$acc parallel loop collapse(3) gang vector default(present) private(vel, alpha, Re, alpha_rho)
         do l = 0, p
             do k = 0, n
                 do j = 0, m
@@ -1308,7 +1308,7 @@ contains
                                 pres, &
                                 T, &
                                 q_cons_vf(stress_idx%beg)%sf(j - 2, k - 2, l), &
-                                q_cons_vf(mom_idx%beg)%sf(j - 2, k - 2, l), & 
+                                q_cons_vf(mom_idx%beg)%sf(j - 2, k - 2, l), &
                                 G)
 
                         else if (model_eqns == 5) then
@@ -1365,7 +1365,7 @@ contains
                             do s = contxb, contxe
                                 alpha_rho_K(s) = q_cons_vf(s)%sf(j - 2, k, l)
                             end do
-                            call s_compute_speed_of_sound(pres, rho, gamma, pi_inf, & 
+                            call s_compute_speed_of_sound(pres, rho, gamma, pi_inf, &
                                                           q_cons_vf(E_idx)%sf(j - 2, k, l) + pres/rho, alpha, 0._wp, 0._wp, c, alpha_rho_K)
                         end if
                     end if

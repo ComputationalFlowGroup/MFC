@@ -136,7 +136,7 @@ contains
                     !STEP 3.4 : Compute mixture pressure and temperature
                     call s_compute_pressure(energy, 0._wp, dyn_p, pi_inf, 0._wp, rho, 0._wp, &
                                             0._wp, pres, 0._wp, 0._wp, 0._wp, 0._wp, alpha_K, alpha_rho_K)
-                   
+
                     call s_compute_temperature(energy, dyn_p, temp, alpha_K, alpha_rho_K)
                     ! STEP 3.5 : Compute theta_m, theta_hat, and sigma_bar
                     ! compute theta_m from equation 4.10

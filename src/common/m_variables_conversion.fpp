@@ -1654,37 +1654,37 @@ contains
                         (rho*(1._wp - adv(num_fluids)))
                 end if
             elseif ((model_eqns == 5) .and. (MGEoS_model == 1)) then
-            !Note that pref and gamma are primitive state
-            !variables for Mie-Gruneisen EoS and gamma = (1/Gamma(rho))
-            gamma_avg = 0._wp
-            c = 0._wp
-            do q = 1, num_fluids
-               
-               rho_K = alpha_rho_K(q)/adv(q)
+                !Note that pref and gamma are primitive state
+                !variables for Mie-Gruneisen EoS and gamma = (1/Gamma(rho))
+                gamma_avg = 0._wp
+                c = 0._wp
+                do q = 1, num_fluids
 
-               xi    = 1._wp - rho0(q)/rho_K
+                    rho_K = alpha_rho_K(q)/adv(q)
 
-               pref  = pi_infs(q) + &
-               rho0(q)*(mg_a(q)**2._wp)*xi/(1._wp-mg_b(q)*xi)**2._wp
-                
-               gamma_avg = gamma_avg + adv(q)/(gammas(q)*(rho0(q)/rho_K)**qvps(q))
-               
-               gamma_inv = 1._wp/(gammas(q)*(rho0(q)/rho_K)**qvps(q))
-               gam = 1._wp/gamma_inv
-               pref_prime = (mg_a(q)**2._wp)*((1._wp-xi)**2._wp)*(1._wp+mg_b(q)*xi)/(1._wp-mg_b(q)*xi)**3._wp
-               
-               rho_eref_prime = 0.5_wp*(pref/rho_K + pref_prime*(rho_K/rho0(q)-1d0))
+                    xi = 1._wp - rho0(q)/rho_K
 
-               if (rho_K .ge. rho0(q)) then
-                    c = c + (alpha_rho_K(q)/rho)*((1._wp+(1._wp-qvps(q))*gamma_inv)*(pres-pref)/rho_K &
-                    +pref/rho_K + pref_prime*gamma_inv - rho_eref_prime)
-               else 
-                   c = c + (alpha_rho_K(q)/rho)*(pres/rho_K*(gamma_inv + 1._wp) - &
-                    pref*gamma_inv/rho_K + &
-                    qvps(q)+0.5_wp*(pi_infs(q)+pref)*(1._wp/rho0(q)-1._wp/rho_K)+(mg_a(q)**2._wp)*gamma_inv)
-               end if
-            end do 
-            c = c/gamma_avg
+                    pref = pi_infs(q) + &
+                           rho0(q)*(mg_a(q)**2._wp)*xi/(1._wp - mg_b(q)*xi)**2._wp
+
+                    gamma_avg = gamma_avg + adv(q)/(gammas(q)*(rho0(q)/rho_K)**qvps(q))
+
+                    gamma_inv = 1._wp/(gammas(q)*(rho0(q)/rho_K)**qvps(q))
+                    gam = 1._wp/gamma_inv
+                    pref_prime = (mg_a(q)**2._wp)*((1._wp - xi)**2._wp)*(1._wp + mg_b(q)*xi)/(1._wp - mg_b(q)*xi)**3._wp
+
+                    rho_eref_prime = 0.5_wp*(pref/rho_K + pref_prime*(rho_K/rho0(q) - 1d0))
+
+                    if (rho_K >= rho0(q)) then
+                        c = c + (alpha_rho_K(q)/rho)*((1._wp + (1._wp - qvps(q))*gamma_inv)*(pres - pref)/rho_K &
+                                                      + pref/rho_K + pref_prime*gamma_inv - rho_eref_prime)
+                    else
+                        c = c + (alpha_rho_K(q)/rho)*(pres/rho_K*(gamma_inv + 1._wp) - &
+                                                      pref*gamma_inv/rho_K + &
+                                                      qvps(q) + 0.5_wp*(pi_infs(q) + pref)*(1._wp/rho0(q) - 1._wp/rho_K) + (mg_a(q)**2._wp)*gamma_inv)
+                    end if
+                end do
+                c = c/gamma_avg
 
             else
 
