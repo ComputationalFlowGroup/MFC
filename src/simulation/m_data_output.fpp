@@ -1318,7 +1318,7 @@ contains
                             end do
                             call s_compute_pressure(q_cons_vf(E_idx)%sf(j - 2, k - 2, l), &
                                                     0._wp, dyn_p, &
-                                                    pi_inf, 0._wp, rho, qv, &
+                                                    pi_inf, 0._wp, rho, qv, 0._wp, &
                                                     pres, 0._wp, 0._wp, 0._wp, &
                                                     alpha_K, alpha_rho_K)
                         else

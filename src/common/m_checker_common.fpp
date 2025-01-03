@@ -192,228 +192,227 @@ contains
                 call s_int_to_str(j, jStr)
                 @:PROHIBIT( .not. f_is_default(fluid_pp(i)%jcook(j)) .and. fluid_pp(i)%jcook(j) <= 0._wp, &
                     'fluid_pp('//trim(iStr)//')%'//'jcook('//trim(jStr)//') must be positive and present')
-                end if
             end do
-            end do
-            end subroutine s_check_inputs_hypoplasticity
+        end do
+    end subroutine s_check_inputs_hypoplasticity
 
-            !> Checks constraints on dimensionality and the number of cells for the grid.
+    !> Checks constraints on dimensionality and the number of cells for the grid.
         !! Called by s_check_inputs_common for all three stages
-            subroutine s_check_inputs_simulation_domain
-                @:PROHIBIT(m == dflt_int, "m must be set")
-                @:PROHIBIT(n == dflt_int, "n must be set")
-                @:PROHIBIT(p == dflt_int, "p must be set")
-                @:PROHIBIT(m <= 0)
-                @:PROHIBIT(n < 0)
-                @:PROHIBIT(p < 0)
-                @:PROHIBIT(cyl_coord .and. p > 0 .and. mod(p, 2) /= 1, "p must be odd for cylindrical coordinates")
-                @:PROHIBIT(n == 0 .and. p > 0, "p must be 0 if n = 0")
-            end subroutine s_check_inputs_simulation_domain
+    subroutine s_check_inputs_simulation_domain
+        @:PROHIBIT(m == dflt_int, "m must be set")
+        @:PROHIBIT(n == dflt_int, "n must be set")
+        @:PROHIBIT(p == dflt_int, "p must be set")
+        @:PROHIBIT(m <= 0)
+        @:PROHIBIT(n < 0)
+        @:PROHIBIT(p < 0)
+        @:PROHIBIT(cyl_coord .and. p > 0 .and. mod(p, 2) /= 1, "p must be odd for cylindrical coordinates")
+        @:PROHIBIT(n == 0 .and. p > 0, "p must be 0 if n = 0")
+    end subroutine s_check_inputs_simulation_domain
 
-            !> Checks constraints on model equations and number of fluids in the flow.
+    !> Checks constraints on model equations and number of fluids in the flow.
         !! Called by s_check_inputs_common for all three stages
-            subroutine s_check_inputs_model_eqns_and_num_fluids
-                @:PROHIBIT(all(model_eqns /= (/1, 2, 3, 4/)), "model_eqns must be 1, 2, 3, or 4")
-                @:PROHIBIT(num_fluids /= dflt_int .and. num_fluids < 1, "num_fluids must be positive")
-                @:PROHIBIT(model_eqns == 1 .and. num_fluids /= dflt_int, "num_fluids is not supported for model_eqns = 1")
-                @:PROHIBIT(model_eqns == 2 .and. num_fluids == dflt_int, "5-equation model (model_eqns = 2) requires num_fluids to be set")
-                @:PROHIBIT(model_eqns == 3 .and. num_fluids == dflt_int, "6-equation model (model_eqns = 3) requires num_fluids to be set")
-                @:PROHIBIT(model_eqns == 1 .and. mpp_lim)
-                @:PROHIBIT(num_fluids == 1 .and. mpp_lim)
-                @:PROHIBIT(model_eqns == 3 .and. cyl_coord .and. p /= 0, &
-                    "6-equation model (model_eqns = 3) does not support cylindrical coordinates (cyl_coord = T and p != 0)")
-            end subroutine s_check_inputs_model_eqns_and_num_fluids
+    subroutine s_check_inputs_model_eqns_and_num_fluids
+        @:PROHIBIT(all(model_eqns /= (/1, 2, 3, 4/)), "model_eqns must be 1, 2, 3, or 4")
+        @:PROHIBIT(num_fluids /= dflt_int .and. num_fluids < 1, "num_fluids must be positive")
+        @:PROHIBIT(model_eqns == 1 .and. num_fluids /= dflt_int, "num_fluids is not supported for model_eqns = 1")
+        @:PROHIBIT(model_eqns == 2 .and. num_fluids == dflt_int, "5-equation model (model_eqns = 2) requires num_fluids to be set")
+        @:PROHIBIT(model_eqns == 3 .and. num_fluids == dflt_int, "6-equation model (model_eqns = 3) requires num_fluids to be set")
+        @:PROHIBIT(model_eqns == 1 .and. mpp_lim)
+        @:PROHIBIT(num_fluids == 1 .and. mpp_lim)
+        @:PROHIBIT(model_eqns == 3 .and. cyl_coord .and. p /= 0, &
+            "6-equation model (model_eqns = 3) does not support cylindrical coordinates (cyl_coord = T and p != 0)")
+    end subroutine s_check_inputs_model_eqns_and_num_fluids
 
-            !> Checks constraints regarding WENO order.
+    !> Checks constraints regarding WENO order.
         !! Called by s_check_inputs_common for all three stages
-            subroutine s_check_inputs_weno
-                @:PROHIBIT(all(weno_order /= (/1, 3, 5, 7/)), "weno_order must be 1, 3, 5, or 7")
-                @:PROHIBIT(m + 1 < weno_order, "m must be at least weno_order - 1")
-                @:PROHIBIT(n > 0 .and. n + 1 < weno_order, "n must be at least weno_order - 1")
-                @:PROHIBIT(p > 0 .and. p + 1 < weno_order, "p must be at least weno_order - 1")
-            end subroutine s_check_inputs_weno
+    subroutine s_check_inputs_weno
+        @:PROHIBIT(all(weno_order /= (/1, 3, 5, 7/)), "weno_order must be 1, 3, 5, or 7")
+        @:PROHIBIT(m + 1 < weno_order, "m must be at least weno_order - 1")
+        @:PROHIBIT(n > 0 .and. n + 1 < weno_order, "n must be at least weno_order - 1")
+        @:PROHIBIT(p > 0 .and. p + 1 < weno_order, "p must be at least weno_order - 1")
+    end subroutine s_check_inputs_weno
 
-            !> Checks constraints on the boundary conditions in the x-direction.
+    !> Checks constraints on the boundary conditions in the x-direction.
         !! Called by s_check_inputs_common for all three stages
-            subroutine s_check_inputs_bc
-                logical :: skip_check !< Flag to skip the check when iterating over
+    subroutine s_check_inputs_bc
+        logical :: skip_check !< Flag to skip the check when iterating over
         !! x, y, and z directions, for special treatment of cylindrical coordinates
 
-                #:for X, VAR in [('x', 'm'), ('y', 'n'), ('z', 'p')]
-                    #:for BOUND in ['beg', 'end']
-                        @:PROHIBIT(${VAR}$ == 0 .and. bc_${X}$%${BOUND}$ /= dflt_int, "bc_${X}$%${BOUND}$ is not supported for ${VAR}$ = 0")
-                        @:PROHIBIT(${VAR}$ > 0 .and. bc_${X}$%${BOUND}$ == dflt_int, "${VAR}$ != 0 but bc_${X}$%${BOUND}$ is not set")
-                        @:PROHIBIT((bc_${X}$%beg == -1 .and. bc_${X}$%end /= -1) .or. &
-                            (bc_${X}$%end == -1 .and. bc_${X}$%beg /= -1), &
-                            "bc_${X}$%beg and bc_${X}$%end must be both periodic (= -1) or both non-periodic")
+        #:for X, VAR in [('x', 'm'), ('y', 'n'), ('z', 'p')]
+            #:for BOUND in ['beg', 'end']
+                @:PROHIBIT(${VAR}$ == 0 .and. bc_${X}$%${BOUND}$ /= dflt_int, "bc_${X}$%${BOUND}$ is not supported for ${VAR}$ = 0")
+                @:PROHIBIT(${VAR}$ > 0 .and. bc_${X}$%${BOUND}$ == dflt_int, "${VAR}$ != 0 but bc_${X}$%${BOUND}$ is not set")
+                @:PROHIBIT((bc_${X}$%beg == -1 .and. bc_${X}$%end /= -1) .or. &
+                    (bc_${X}$%end == -1 .and. bc_${X}$%beg /= -1), &
+                    "bc_${X}$%beg and bc_${X}$%end must be both periodic (= -1) or both non-periodic")
 
-                        ! For cylindrical coordinates, y and z directions use a different check
-                        #:if (X == 'y') or (X == 'z')
-                            skip_check = cyl_coord
-                        #:else
-                            skip_check = .false.
-                        #:endif
+                ! For cylindrical coordinates, y and z directions use a different check
+                #:if (X == 'y') or (X == 'z')
+                    skip_check = cyl_coord
+                #:else
+                    skip_check = .false.
+                #:endif
 
-                        if (.not. skip_check) then
-                            @:PROHIBIT(bc_${X}$%${BOUND}$ /= dflt_int .and. (bc_${X}$%${BOUND}$ > -1 .or. bc_${X}$%${BOUND}$ < -16), &
-                                "bc_${X}$%${BOUND}$ must be between -1 and -16")
+                if (.not. skip_check) then
+                    @:PROHIBIT(bc_${X}$%${BOUND}$ /= dflt_int .and. (bc_${X}$%${BOUND}$ > -1 .or. bc_${X}$%${BOUND}$ < -16), &
+                        "bc_${X}$%${BOUND}$ must be between -1 and -16")
 
-                            @:PROHIBIT(bc_${X}$%${BOUND}$ /= dflt_int .and. bc_${X}$%${BOUND}$ == -14, &
-                                "bc_${X}$%${BOUND}$ must not be -14 for non-cylindrical coordinates")
-                        end if
+                    @:PROHIBIT(bc_${X}$%${BOUND}$ /= dflt_int .and. bc_${X}$%${BOUND}$ == -14, &
+                        "bc_${X}$%${BOUND}$ must not be -14 for non-cylindrical coordinates")
+                end if
 
-                    #:endfor
-                #:endfor
+            #:endfor
+        #:endfor
 
-                @:PROHIBIT(any((/bc_x%beg, bc_x%end, bc_y%beg, bc_y%end, bc_z%beg, bc_z%end/) == -13), &
-                    "Boundary condition -13 is not supported")
+        @:PROHIBIT(any((/bc_x%beg, bc_x%end, bc_y%beg, bc_y%end, bc_z%beg, bc_z%end/) == -13), &
+            "Boundary condition -13 is not supported")
 
-                ! Check for y and z directions for cylindrical coordinates
-                @: PROHIBIT(cyl_coord .and. n == 0, "n must be positive (2D or 3D) for cylindrical coordinates")
-                @: PROHIBIT(cyl_coord .and. p == 0 .and. bc_y%beg /= -2, "bc_y%beg must be -2 for 2D cylindrical coordinates (p = 0)")
-                @: PROHIBIT(cyl_coord .and. p > 0 .and. bc_y%beg /= -14, "bc_y%beg must be -14 for 3D cylindrical coordinates (p > 0)")
-                @: PROHIBIT(cyl_coord .and. (bc_y%end > -1 .or. bc_y%end < -16), "bc_y%end must be between -1 and -16")
-                @: PROHIBIT(cyl_coord .and. bc_y%end == -14, "bc_y%end must not be -14")
+        ! Check for y and z directions for cylindrical coordinates
+        @: PROHIBIT(cyl_coord .and. n == 0, "n must be positive (2D or 3D) for cylindrical coordinates")
+        @: PROHIBIT(cyl_coord .and. p == 0 .and. bc_y%beg /= -2, "bc_y%beg must be -2 for 2D cylindrical coordinates (p = 0)")
+        @: PROHIBIT(cyl_coord .and. p > 0 .and. bc_y%beg /= -14, "bc_y%beg must be -14 for 3D cylindrical coordinates (p > 0)")
+        @: PROHIBIT(cyl_coord .and. (bc_y%end > -1 .or. bc_y%end < -16), "bc_y%end must be between -1 and -16")
+        @: PROHIBIT(cyl_coord .and. bc_y%end == -14, "bc_y%end must not be -14")
 
-                ! Check for y and z directions for 3D cylindrical coordinates
-                @: PROHIBIT(cyl_coord .and. p > 0 .and. (bc_z%beg /= -1 .and. bc_z%beg /= -2), &
-                    "bc_z%beg must be -1 or -2 for 3D cylindrical coordinates")
+        ! Check for y and z directions for 3D cylindrical coordinates
+        @: PROHIBIT(cyl_coord .and. p > 0 .and. (bc_z%beg /= -1 .and. bc_z%beg /= -2), &
+            "bc_z%beg must be -1 or -2 for 3D cylindrical coordinates")
 
-                @: PROHIBIT(cyl_coord .and. p > 0 .and. (bc_z%end /= -1 .and. bc_z%end /= -2), &
-                    "bc_z%end must be -1 or -2 for 3D cylindrical coordinates")
-            end subroutine s_check_inputs_bc
+        @: PROHIBIT(cyl_coord .and. p > 0 .and. (bc_z%end /= -1 .and. bc_z%end /= -2), &
+            "bc_z%end must be -1 or -2 for 3D cylindrical coordinates")
+    end subroutine s_check_inputs_bc
 
-            !> Checks constraints on the stiffened equation of state fluids parameters.
+    !> Checks constraints on the stiffened equation of state fluids parameters.
         !! Called by s_check_inputs_common for all three stages
-            subroutine s_check_inputs_stiffened_eos
-                character(len=5) :: iStr !< for int to string conversion
-                integer :: bub_fac !< For allowing an extra fluid_pp if there are subgrid bubbles_euler
-                integer :: i
+    subroutine s_check_inputs_stiffened_eos
+        character(len=5) :: iStr !< for int to string conversion
+        integer :: bub_fac !< For allowing an extra fluid_pp if there are subgrid bubbles_euler
+        integer :: i
 
-                bub_fac = 0
-                if (bubbles_euler .and. (num_fluids == 1)) bub_fac = 1
+        bub_fac = 0
+        if (bubbles_euler .and. (num_fluids == 1)) bub_fac = 1
 
-                do i = 1, num_fluids
-                    call s_int_to_str(i, iStr)
-                    @:PROHIBIT(.not. f_is_default(fluid_pp(i)%gamma) .and. fluid_pp(i)%gamma <= 0._wp, &
-                        "fluid_pp("//trim(iStr)//")%gamma must be positive")
+        do i = 1, num_fluids
+            call s_int_to_str(i, iStr)
+            @:PROHIBIT(.not. f_is_default(fluid_pp(i)%gamma) .and. fluid_pp(i)%gamma <= 0._wp, &
+                "fluid_pp("//trim(iStr)//")%gamma must be positive")
 
-                    @:PROHIBIT(model_eqns == 1 .and. (.not. f_is_default(fluid_pp(i)%gamma)), &
-                        "model_eqns = 1 does not support fluid_pp("//trim(iStr)//")%gamma")
+            @:PROHIBIT(model_eqns == 1 .and. (.not. f_is_default(fluid_pp(i)%gamma)), &
+                "model_eqns = 1 does not support fluid_pp("//trim(iStr)//")%gamma")
 
-                    @:PROHIBIT((i <= num_fluids + bub_fac .and. fluid_pp(i)%gamma <= 0._wp) .or. &
-                        (i > num_fluids + bub_fac .and. (.not. f_is_default(fluid_pp(i)%gamma))), &
-                        "for fluid_pp("//trim(iStr)//")%gamma")
+            @:PROHIBIT((i <= num_fluids + bub_fac .and. fluid_pp(i)%gamma <= 0._wp) .or. &
+                (i > num_fluids + bub_fac .and. (.not. f_is_default(fluid_pp(i)%gamma))), &
+                "for fluid_pp("//trim(iStr)//")%gamma")
 
-                    @:PROHIBIT(.not. f_is_default(fluid_pp(i)%pi_inf) .and. fluid_pp(i)%pi_inf < 0._wp, &
-                        "fluid_pp("//trim(iStr)//")%pi_inf must be non-negative")
+            @:PROHIBIT(.not. f_is_default(fluid_pp(i)%pi_inf) .and. fluid_pp(i)%pi_inf < 0._wp, &
+                "fluid_pp("//trim(iStr)//")%pi_inf must be non-negative")
 
-                    @:PROHIBIT(model_eqns == 1 .and. (.not. f_is_default(fluid_pp(i)%pi_inf)), &
-                        "model_eqns = 1 does not support fluid_pp("//trim(iStr)//")%pi_inf")
+            @:PROHIBIT(model_eqns == 1 .and. (.not. f_is_default(fluid_pp(i)%pi_inf)), &
+                "model_eqns = 1 does not support fluid_pp("//trim(iStr)//")%pi_inf")
 
-                    @:PROHIBIT((i <= num_fluids + bub_fac .and. fluid_pp(i)%pi_inf < 0._wp) .or. &
-                        (i > num_fluids + bub_fac .and. (.not. f_is_default(fluid_pp(i)%pi_inf))), &
-                        "for fluid_pp("//trim(iStr)//")%pi_inf")
+            @:PROHIBIT((i <= num_fluids + bub_fac .and. fluid_pp(i)%pi_inf < 0._wp) .or. &
+                (i > num_fluids + bub_fac .and. (.not. f_is_default(fluid_pp(i)%pi_inf))), &
+                "for fluid_pp("//trim(iStr)//")%pi_inf")
 
-                    @:PROHIBIT(fluid_pp(i)%cv < 0._wp, &
-                        "fluid_pp("//trim(iStr)//")%cv must be positive")
-                end do
-            end subroutine s_check_inputs_stiffened_eos
+            @:PROHIBIT(fluid_pp(i)%cv < 0._wp, &
+                "fluid_pp("//trim(iStr)//")%cv must be positive")
+        end do
+    end subroutine s_check_inputs_stiffened_eos
 
-            !> Checks constraints on the stiffened equation of state fluids parameters.
+    !> Checks constraints on the stiffened equation of state fluids parameters.
         !! Called by s_check_inputs_common for all three stages
-            subroutine s_check_inputs_mie_gruneisen_eos
-                character(len=5) :: iStr !< for int to string conversion
-                integer :: i, j
+    subroutine s_check_inputs_mie_gruneisen_eos
+        character(len=5) :: iStr !< for int to string conversion
+        integer :: i, j
 
-                do i = 1, num_fluids
-                    call s_int_to_str(i, iStr)
-                    if (.not. f_is_default(fluid_pp(i)%gamma) &
-                        .and. &
-                        fluid_pp(i)%gamma <= 0._wp) then
-                        call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
-                                         'gamma must be positive. Exiting ...')
-                    elseif (.not. f_is_default(fluid_pp(i)%pi_inf) &
-                            .and. &
-                            fluid_pp(i)%pi_inf < 0._wp) then
-                        call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
-                                         'pi_inf must be non-negative. Exiting ...')
-                    elseif (.not. f_is_default(fluid_pp(i)%rho0) &
-                            .and. &
-                            fluid_pp(i)%rho0 < 0._wp) then
-                        call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
-                                         'rho0 must be non-negative. Exiting ...')
-                    elseif (.not. f_is_default(fluid_pp(i)%qv) &
-                            .and. &
-                            fluid_pp(i)%qv < 0._wp) then
-                        call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
-                                         'qv must be non-negative. Exiting ...')
-                    end if
-                end do
-            end subroutine s_check_inputs_mie_gruneisen_eos
+        do i = 1, num_fluids
+            call s_int_to_str(i, iStr)
+            if (.not. f_is_default(fluid_pp(i)%gamma) &
+                .and. &
+                fluid_pp(i)%gamma <= 0._wp) then
+                call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
+                                 'gamma must be positive. Exiting ...')
+            elseif (.not. f_is_default(fluid_pp(i)%pi_inf) &
+                    .and. &
+                    fluid_pp(i)%pi_inf < 0._wp) then
+                call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
+                                 'pi_inf must be non-negative. Exiting ...')
+            elseif (.not. f_is_default(fluid_pp(i)%rho0) &
+                    .and. &
+                    fluid_pp(i)%rho0 < 0._wp) then
+                call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
+                                 'rho0 must be non-negative. Exiting ...')
+            elseif (.not. f_is_default(fluid_pp(i)%qv) &
+                    .and. &
+                    fluid_pp(i)%qv < 0._wp) then
+                call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
+                                 'qv must be non-negative. Exiting ...')
+            end if
+        end do
+    end subroutine s_check_inputs_mie_gruneisen_eos
 
-            !> Checks constraints on the surface tension parameters.
+    !> Checks constraints on the surface tension parameters.
         !! Called by s_check_inputs_common for all three stages
-            subroutine s_check_inputs_surface_tension
+    subroutine s_check_inputs_surface_tension
 
-                integer :: i
+        integer :: i
 
-                @:PROHIBIT(surface_tension .and. sigma < 0._wp, &
-                    "sigma must be greater than or equal to zero")
+        @:PROHIBIT(surface_tension .and. sigma < 0._wp, &
+            "sigma must be greater than or equal to zero")
 
-                @:PROHIBIT(surface_tension .and. sigma == dflt_real, &
-                    "sigma must be set if surface_tension is enabled")
+        @:PROHIBIT(surface_tension .and. sigma == dflt_real, &
+            "sigma must be set if surface_tension is enabled")
 
-                @:PROHIBIT(.not. f_is_default(sigma) .and. .not. surface_tension, &
-                    "sigma is set but surface_tension is not enabled")
+        @:PROHIBIT(.not. f_is_default(sigma) .and. .not. surface_tension, &
+            "sigma is set but surface_tension is not enabled")
 
-                @:PROHIBIT(surface_tension .and. model_eqns /= 3, &
-                    "The surface tension model requires model_eqns=3")
+        @:PROHIBIT(surface_tension .and. model_eqns /= 3, &
+            "The surface tension model requires model_eqns=3")
 
-                @:PROHIBIT(surface_tension .and. num_fluids /= 2, &
-                    "The surface tension model requires num_fluids=2")
+        @:PROHIBIT(surface_tension .and. num_fluids /= 2, &
+            "The surface tension model requires num_fluids=2")
 
 #ifdef MFC_PRE_PROCESS
-                do i = 1, num_patches
-                    @:PROHIBIT(surface_tension .and. f_is_default(patch_icpp(i)%cf_val), &
-                        "patch_icpp(i)%cf_val must be set if surface_tension is enabled")
-                end do
+        do i = 1, num_patches
+            @:PROHIBIT(surface_tension .and. f_is_default(patch_icpp(i)%cf_val), &
+                "patch_icpp(i)%cf_val must be set if surface_tension is enabled")
+        end do
 #endif MFC_PRE_PROCESS
 
-            end subroutine s_check_inputs_surface_tension
+    end subroutine s_check_inputs_surface_tension
 
-            !> Checks constraints on the inputs for moving boundaries.
+    !> Checks constraints on the inputs for moving boundaries.
         !! Called by s_check_inputs_common for all three stages
-            subroutine s_check_inputs_moving_bc
-                #:for X, VB2, VB3 in [('x', 'vb2', 'vb3'), ('y', 'vb3', 'vb1'), ('z', 'vb1', 'vb2')]
-                    if (any((/bc_${X}$%vb1, bc_${X}$%vb2, bc_${X}$%vb3/) /= 0._wp)) then
-                        if (bc_${X}$%beg == -15) then
-                            if (any((/bc_${X}$%${VB2}$, bc_${X}$%${VB3}$/) /= 0._wp)) then
-                                call s_mpi_abort("bc_${X}$%beg must be -15 if "// &
-                                                 "bc_${X}$%${VB2}$ or bc_${X}$%${VB3}$ "// &
-                                                 "is set. Exiting ...")
-                            end if
-                        elseif (bc_${X}$%beg /= -16) then
-                            call s_mpi_abort("bc_${X}$%beg must be -15 or -16 if "// &
-                                             "bc_${X}$%vb[1,2,3] is set. Exiting ...")
-                        end if
+    subroutine s_check_inputs_moving_bc
+        #:for X, VB2, VB3 in [('x', 'vb2', 'vb3'), ('y', 'vb3', 'vb1'), ('z', 'vb1', 'vb2')]
+            if (any((/bc_${X}$%vb1, bc_${X}$%vb2, bc_${X}$%vb3/) /= 0._wp)) then
+                if (bc_${X}$%beg == -15) then
+                    if (any((/bc_${X}$%${VB2}$, bc_${X}$%${VB3}$/) /= 0._wp)) then
+                        call s_mpi_abort("bc_${X}$%beg must be -15 if "// &
+                                         "bc_${X}$%${VB2}$ or bc_${X}$%${VB3}$ "// &
+                                         "is set. Exiting ...")
                     end if
-                #:endfor
+                elseif (bc_${X}$%beg /= -16) then
+                    call s_mpi_abort("bc_${X}$%beg must be -15 or -16 if "// &
+                                     "bc_${X}$%vb[1,2,3] is set. Exiting ...")
+                end if
+            end if
+        #:endfor
 
-                #:for X, VE2, VE3 in [('x', 've2', 've3'), ('y', 've3', 've1'), ('z', 've1', 've2')]
-                    if (any((/bc_${X}$%ve1, bc_${X}$%ve2, bc_${X}$%ve3/) /= 0._wp)) then
-                        if (bc_${X}$%end == -15) then
-                            if (any((/bc_${X}$%${VE2}$, bc_${X}$%${VE3}$/) /= 0._wp)) then
-                                call s_mpi_abort("bc_${X}$%end must be -15 if "// &
-                                                 "bc_${X}$%${VE2}$ or bc_${X}$%${VE3}$ "// &
-                                                 "is set. Exiting ...")
-                            end if
-                        elseif (bc_${X}$%end /= -16) then
-                            call s_mpi_abort("bc_${X}$%end must be -15 or -16 if "// &
-                                             "bc_${X}$%ve[1,2,3] is set. Exiting ...")
-                        end if
+        #:for X, VE2, VE3 in [('x', 've2', 've3'), ('y', 've3', 've1'), ('z', 've1', 've2')]
+            if (any((/bc_${X}$%ve1, bc_${X}$%ve2, bc_${X}$%ve3/) /= 0._wp)) then
+                if (bc_${X}$%end == -15) then
+                    if (any((/bc_${X}$%${VE2}$, bc_${X}$%${VE3}$/) /= 0._wp)) then
+                        call s_mpi_abort("bc_${X}$%end must be -15 if "// &
+                                         "bc_${X}$%${VE2}$ or bc_${X}$%${VE3}$ "// &
+                                         "is set. Exiting ...")
                     end if
-                #:endfor
-            end subroutine s_check_inputs_moving_bc
+                elseif (bc_${X}$%end /= -16) then
+                    call s_mpi_abort("bc_${X}$%end must be -15 or -16 if "// &
+                                     "bc_${X}$%ve[1,2,3] is set. Exiting ...")
+                end if
+            end if
+        #:endfor
+    end subroutine s_check_inputs_moving_bc
 
-        end module m_checker_common
+end module m_checker_common

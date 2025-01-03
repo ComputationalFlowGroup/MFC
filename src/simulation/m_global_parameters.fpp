@@ -626,7 +626,6 @@ contains
         polydisperse = .false.
         thermal = dflt_int
         R0ref = dflt_real
-        Rinit = dflt_real
 
         #:if not MFC_CASE_OPTIMIZATION
             nb = 1

@@ -90,7 +90,7 @@ contains
                     dp_JC, d_p, equiv_tens_stress
         if (num_dims == 1) then
             ! For quasi-1D case
-            du_dx(:, :, :) = 0_wp
+            du_dx(:, :, :) = 0._wp
             l = 0
             q = 0
             !$acc parallel loop collapse(1) gang vector default (present)
@@ -103,12 +103,12 @@ contains
             !$acc end parallel loop
             do k = 0, m
                 energy = q_cons_vf(E_idx)%sf(k, l, q)
-                dyn_p = 0_wp
+                dyn_p = 0._wp
                 do i = momxb, momxe
                     dyn_p = dyn_p + 5d-1*q_cons_vf(i)%sf(k, l, q)*q_prim_vf(i)%sf(k, l, q)
                 end do
 
-                rho_K = 0_wp; G_K = 0_wp; 
+                rho_K = 0._wp; G_K = 0._wp; 
                 ! STEP 3.2 : Compute mixtures in preparation for pressure and temperature
                 do i = 1, num_fluids
                     rho_K = rho_K + q_prim_vf(i)%sf(k, l, q)
@@ -120,8 +120,9 @@ contains
                 ! STEP 3.3: TODO MIRELYS
                 if (G_K > sgm_eps) then
                     !STEP 3.4 : Compute mixture pressure and temperature
-                    call s_compute_pressure(energy, 0_wp, dyn_p, pi_inf, 0_wp, rho, 0_wp, &
-                                            pres, 0_wp, 0_wp, 0_wp, alpha_K, alpha_rho_K)
+                    call s_compute_pressure(energy, 0._wp, dyn_p, pi_inf, 0._wp, rho, 0._wp, &
+                                            0._wp, pres, 0._wp, 0._wp, 0._wp, 0._wp, alpha_K, alpha_rho_K)
+                   
                     call s_compute_temperature(energy, dyn_p, temp, alpha_K, alpha_rho_K)
                     ! STEP 3.5 : Compute theta_m, theta_hat, and sigma_bar
                     ! compute theta_m from equation 4.10
@@ -135,7 +136,7 @@ contains
                     temp = temp + tempref
 
                     if (temp < tempref) then
-                        theta_hat = 0_wp
+                        theta_hat = 0._wp
                     elseif (temp <= theta_m) then
                         theta_hat = (temp - tempref)/(theta_m - tempref)
                     else
@@ -168,8 +169,8 @@ contains
                     end do
                     !print *, 'I got here F'
                     !else
-                    !    d_p   = 0_wp
-                    !    Dp(:) = 0_wp
+                    !    d_p   = 0._wp
+                    !    Dp(:) = 0._wp
 !                 print *, 'I got here G'
                     !end if
 
@@ -188,121 +189,11 @@ contains
                     rhs_vf(plasidx)%sf(k, l, q) = rhs_vf(plasidx)%sf(k, l, q) + rho_K*d_p
                 end if
             end do
-            !else if (num_dims == 1) then
-            !    ! For quasi-1D case
-            !    du_dx(:,:,:) = 0_wp; dv_dx(:,:,:) = 0_wp
-            !    l = 0
-            !    q = 0
-            !    !$acc parallel loop collapse(1) gang vector default (present)
-            !    do k = 0, m
-            !       do r = -fd_number, fd_number
-            !          du_dx(k, l, q) = du_dx(k, l, q) +&
-            !                           q_prim_vf(momxb)%sf(k + r, l, q)*fd_coeff_x(r, k)
-            !          dv_dx(k, l, q) = dv_dx(k, l, q) +&
-            !                           q_prim_vf(momxb+1)%sf(k + r, l, q)*fd_coeff_x(r, k)
-            !       end do
-            !    end do
-            !    !$acc end parallel loop
-            !    stensor(:) = 0_wp
-            !    tensora(:) = 0_wp
 
-            !    do k=0, m
-            !
-            !     energy = q_cons_vf(E_idx)%sf(k, l, q)
-            !     dyn_p  = 0_wp
-            !     do i = momxb, momxe
-            !        dyn_p = dyn_p + 5d-1*q_cons_vf(i)%sf(k, l, q)*q_prim_vf(i)%sf(k, l, q)
-            !     end do
-!       !      print *, 'I got here B'
-            !
-            !     rho_K = 0_wp; G_K = 0_wp;
-            !     ! STEP 3.2 : Compute mixtures in preparation for pressure and temperature
-            !     do i = 1, num_fluids
-            !        rho_K = rho_K + q_prim_vf(i)%sf(k, l, q)
-            !        G_K   = G_K   + q_prim_vf(advxb - 1 + i)%sf(k, l, q)*Gs(i)
-            !        alpha_rho_K(i) = q_prim_vf(i)%sf(k, l, q)
-            !        alpha_K(i)     = q_prim_vf(advxb + i - 1)%sf(k, l, q)
-            !     end do
-!       !      print *, 'I got here C'
-            !
-            !     ! STEP 3.3: TODO MIRELYS
-            !     if (G_K .gt. sgm_eps) then
-!               print *, 'I got here D'
-            ! STEP 3.4 : Compute mixture pressure and temperature
-!                print *, 'energy ::', energy, 'alf ::', alf, 'dyn_p ::',&
-!dyn_p, 'pi_inf ::', pi_inf, 'gamma ::', gamma, 'rho ::', rho, 'qv ::', &
-!qv, 'stress ::', stress, 'mom ::', mom, 'G ::', G, 'alpha_K ::', &
-!alpha_K, 'alpha_rho_K ::', alpha_rho_K
-            !        call s_compute_pressure(energy, 0_wp, dyn_p, pi_inf, 0_wp, rho, 0_wp, &
-            !                                pres, 0_wp, 0_wp, 0_wp, alpha_K, alpha_rho_K)
-            !        call s_compute_temperature(energy, dyn_p, temp, alpha_K, alpha_rho_K)
-!                print *, 'pressure :: ', pres, 'temperature ::', temp
-            ! STEP 3.5 : Compute theta_m, theta_hat, and sigma_bar
-            ! compute theta_m from equation 4.10
-            ! jcook(6) = theta_m0, jcook(8) = pres_init, jcook(9) = d, assuming presref = 0
-            !        theta_m = jcook6(1)*(1_wp + (pres/jcook8(1)))**(1_wp/jcook9(1))
-            ! compute theta_hat from equation 4.9
-            !        tempref = jcook11(1)
-            !        if (temp .lt. tempref) then
-            !           theta_hat = 0_wp
-            !        elseif (temp .le. theta_m) then
-            !           theta_hat = (temp - tempref)/(theta_m - tempref)
-            !        else
-            !           theta_hat = 1_wp
-            !        end if
-!                print *, 'I got here E'
-            !could alternatively compute subtract tempref in both temp subroutine and theta_m
-            ! compute sigma_bar = sqrt(3/2) * | S |
-            !        sigma_bar = dsqrt(1.5_wp*q_prim_vf(strxb)%sf(k, l, q)**2_wp + &
-            !                    2_wp*q_prim_vf(strxb + 1)%sf(k, l, q)**2_wp)
-!                print *, 'sigma_bar ::', sigma_bar
-
-            ! STEP 3.6 : Compute d^p and update rhs
-            ! compute d^p_JC from equation 4.7
-            ! _wp = 1 s^-1, jcook(4) = C, jcook(1) = A, jcook(2) = B,
-            ! jcook(10) = _wp = R_tilde nondimensionally
-            !         dp_JC = jcook10(1) * dexp((1_wp/jcook4(1)) * (sigma_bar / &
-            !             ((jcook1(1) + jcook2(1)*q_prim_vf(plasidx)%sf(k, l, q)**jcook3(1)) &
-            !             *(1_wp - theta_hat**jcook5(1))) - 1_wp))
-            ! compute d^p from equation 4.6
-            ! jcook(7) = d^p_lim
-            !        if (sigma_bar .gt. 1_wp*verysmall) then
-            !            d_p = ((1_wp/dp_JC) + (1_wp/jcook7(1)))**(-1_wp)
-            !            ! compute D^p using equation 4.5
-            !            do i = strxb, strxe
-            !                Dp(i-strxb + 1) = 1.5_wp*(d_p / sigma_bar) * q_prim_vf(i)%sf(k, l, q)
-            !            end do
-!                 print *, 'I got here F'
-            !        else
-            !            d_p = 0_wp
-            !            Dp(:) = 0_wp
-!                 print *, 'I got here G'
-            !        end if
-
-            ! STEP 4: Compute rhs source terms
-
-            !       stensor(1) = q_prim_vf(strxb+1)%sf(k, l, q)
-            !        stensor(2) = q_prim_vf(strxb)%sf(k, l, q)
-
-            !        devdtensor(1) = 0.5_wp*du_dx(k, l, q)
-            !        devdtensor(2) = 0.5_wp*dv_dx(k, l, q)
-            !
-            !        tensora(1) = -stensor(1)*dv_dx(k, l, q)
-            !        tensora(2) = +0.5_wp*stensor(2)*dv_dx(k, l, q)
-
-            !       do i = strxb, strxe
-            !            rhs_vf(i)%sf(k, l, q) = rhs_vf(i)%sf(k, l, q) + rho_K*tensora(i-strxb+1) + &
-            !                                        2_wp*rho_K*G_K*(devdtensor(i-strxb+1)- Dp(i-strxb+1))
-            !        end do
-
-            ! STEP 5: Compute hardening rhs term
-            !       rhs_vf(plasidx)%sf(k, l, q) = rhs_vf(plasidx)%sf(k, l, q) + rho_K*d_p
-            !    end if
-            !  end do
         else if (num_dims == 2) then
             ! compute velocity gradients and rho_K and G_K
-            du_dx(:, :, :) = 0_wp; du_dy(:, :, :) = 0_wp
-            dv_dx(:, :, :) = 0_wp; dv_dy(:, :, :) = 0_wp
+            du_dx(:, :, :) = 0._wp; du_dy(:, :, :) = 0._wp
+            dv_dx(:, :, :) = 0._wp; dv_dy(:, :, :) = 0._wp
             q = 0
 
             !$acc parallel loop collapse(2) gang vector default(present)
@@ -318,41 +209,41 @@ contains
             end do
             !$acc end parallel loop
 
-            tensora(:) = 0_wp
-            stensor(:) = 0_wp
+            tensora(:) = 0._wp
+            stensor(:) = 0._wp
             !$acc parallel loop collapse(2) gang vector default(present) &
             !$acc private(rho_K,G_K,alpha_rho_K,alpha_K)
             do l = 0, n
                 do k = 0, m
                     ! STEP 1 : Compute the first additional term in rhs: -SW + WS
                     ! Let wtensor = W12, tensora = -SW + WS
-                    wtensor = 5d-1*(du_dy(k, l, q) - dv_dx(k, l, q))
-                    stensor(1) = 2_wp*q_prim_vf(strxb + 1)%sf(k, l, q) !2*S12
+                    wtensor = 0.5_wp*(du_dy(k, l, q) - dv_dx(k, l, q))
+                    stensor(1) = 2._wp*q_prim_vf(strxb + 1)%sf(k, l, q) !2*S12
                     stensor(2) = q_prim_vf(strxb + 2)%sf(k, l, q) - q_prim_vf(strxb)%sf(k, l, q) !S22 - S11
                     stensor(3) = -stensor(1) !-2*S12
                     tensora(1) = wtensor*stensor(1)
                     tensora(2) = wtensor*stensor(2)
                     tensora(3) = wtensor*stensor(3)
-                    tensora(4) = 0_wp
+                    tensora(4) = 0._wp
 
                     ! STEP 2: Compute the deviatoric part of D, symmetric part of velocity gradient
                     ! dtrace = du_dx(k, l, q) + dv_dy(k, l, q)
-                    devdtensor(1) = du_dx(k, l, q) - (1_wp/3_wp)*(du_dx(k, l, q) + dv_dy(k, l, q))
-                    devdtensor(2) = 5d-1*(du_dy(k, l, q) + dv_dx(k, l, q))
-                    devdtensor(3) = dv_dy(k, l, q) - (1_wp/3_wp)*(du_dx(k, l, q) + dv_dy(k, l, q))
-                    devdtensor(4) = -(1_wp/3_wp)*(du_dx(k, l, q) + dv_dy(k, l, q))
+                    devdtensor(1) = du_dx(k, l, q) - (1._wp/3._wp)*(du_dx(k, l, q) + dv_dy(k, l, q))
+                    devdtensor(2) = 0.5_wp*(du_dy(k, l, q) + dv_dx(k, l, q))
+                    devdtensor(3) = dv_dy(k, l, q) - (1._wp/3._wp)*(du_dx(k, l, q) + dv_dy(k, l, q))
+                    devdtensor(4) = -(1._wp/3._wp)*(du_dx(k, l, q) + dv_dy(k, l, q))
 
                     ! STEP 3: Compute the equivalent plastic strain rate, d^p
                     ! STEP 3.1 : Compute mixtures variables for computing
                     ! pressure and temperature
                     energy = q_cons_vf(E_idx)%sf(k, l, q)
-                    dyn_p = 0_wp
+                    dyn_p = 0._wp
                     do i = momxb, momxe
                         dyn_p = dyn_p + 0.5_wp*q_cons_vf(i)%sf(k, l, q)*q_prim_vf(i)%sf(k, l, q)
                     end do
 
-                    rho_K = 0_wp
-                    G_K = 0_wp
+                    rho_K = 0._wp
+                    G_K = 0._wp
                     ! STEP 3.2 : Compute mixtures in preparation for pressure and temperature
                     do i = 1, num_fluids
                         rho_K = rho_K + q_prim_vf(i)%sf(k, l, q)
@@ -360,28 +251,16 @@ contains
                         alpha_rho_K(i) = q_prim_vf(i)%sf(k, l, q)
                         alpha_K(i) = q_prim_vf(advxb + i - 1)%sf(k, l, q)
                     end do
-!              print *, 'I got here C'
 
-                    ! STEP 3.3: TODO MIRELYS
-                    !if (G_K .gt. sgm_eps) then
-!               print *, 'I got here D'
-                    ! STEP 3.4 : Compute mixture pressure and temperature
-!                print *, 'energy ::', energy, 'alf ::', alf, 'dyn_p ::',&
-!dyn_p, 'pi_inf ::', pi_inf, 'gamma ::', gamma, 'rho ::', rho, 'qv ::', &
-!qv, 'stress ::', stress, 'mom ::', mom, 'G ::', G, 'alpha_K ::', &
-!alpha_K, 'alpha_rho_K ::', alpha_rho_K
-                    call s_compute_pressure(energy, 0_wp, dyn_p, pi_inf, 0_wp, rho, 0_wp, &
-                                            pres, 0_wp, 0_wp, 0_wp, alpha_K, alpha_rho_K)
+                    call s_compute_pressure(energy, 0._wp, dyn_p, pi_inf, 0._wp, rho, 0._wp, &
+                                            0._wp, pres, 0._wp, 0._wp, 0._wp, 0._wp, alpha_K, alpha_rho_K)
+
                     call s_compute_temperature(energy, dyn_p, temp, alpha_K, alpha_rho_K)
-
-                    if (temp /= temp) then
-                        print *, 'temp::', temp, 'pres', pres
-                    end if
 
                     ! STEP 3.5 : Compute theta_m, theta_hat, and sigma_bar
                     ! compute theta_m from equation 4.10
                     ! jcook(6) = theta_m0, jcook(8) = pres_init, jcook(9) = d, assuming presref = 0
-                    theta_m = jcook6(1)*(1_wp + (pres/jcook8(1)))**(1_wp/jcook9(1))
+                    theta_m = jcook6(1)*(1._wp + (pres/jcook8(1)))**(1._wp/jcook9(1))
                     ! compute theta_hat from equation 4.9
                     tempref = jcook11(1)
                     if (temp < tempref) then
@@ -393,34 +272,34 @@ contains
                     end if
                     !could alternatively compute subtract tempref in both temp subroutine and theta_m
                     ! compute sigma_bar = sqrt(3/2) * | S |
-                    sigma_bar = dsqrt(1.5_wp)*(q_prim_vf(strxb)%sf(k, l, q)**2_wp + &
-                                               2_wp*q_prim_vf(strxb + 1)%sf(k, l, q)**2_wp + q_prim_vf(strxe - 1)%sf(k, l, q)**2_wp + &
-                                               q_prim_vf(strxe)%sf(k, l, q)**2_wp)**(0.5_wp)
+                    sigma_bar = dsqrt(1.5_wp)*(q_prim_vf(strxb)%sf(k, l, q)**2._wp + &
+                                               2._wp*q_prim_vf(strxb + 1)%sf(k, l, q)**2._wp + q_prim_vf(strxe - 1)%sf(k, l, q)**2._wp + &
+                                               q_prim_vf(strxe)%sf(k, l, q)**2._wp)**(0.5_wp)
 
                     ! STEP 3.6 : Compute d^p and update rhs
                     ! compute d^p_JC from equation 4.7
                     ! _wp = 1 s^-1, jcook(4) = C, jcook(1) = A, jcook(2) = B,
                     ! jcook(10) = _wp = R_tilde nondimensionally
-                    dp_JC = jcook10(1)*dexp((1_wp/jcook4(1))*(sigma_bar/ &
-                                                              ((jcook1(1) + jcook2(1)*q_prim_vf(plasidx)%sf(k, l, q)**jcook3(1)) &
-                                                               *(1_wp - theta_hat**jcook5(1))) - 1_wp))
+                    dp_JC = jcook10(1)*dexp((1._wp/jcook4(1))*(sigma_bar/ &
+                                                               ((jcook1(1) + jcook2(1)*q_prim_vf(plasidx)%sf(k, l, q)**jcook3(1)) &
+                                                                *(1._wp - theta_hat**jcook5(1))) - 1._wp))
                     ! compute d^p from equation 4.6
                     ! jcook(7) = d^p_lim
-                    if (sigma_bar > 1.d-16_wp) then
-                        d_p = ((1_wp/dp_JC) + (jcook10(1)/jcook7(1)))**(-1_wp)
+                    if (sigma_bar > 1.e-16_wp) then
+                        d_p = ((1._wp/dp_JC) + (jcook10(1)/jcook7(1)))**(-1._wp)
                         ! compute D^p using equation 4.5
                         do i = strxb, strxe
                             Dp(i - strxb + 1) = 1.5_wp*(d_p/sigma_bar)*q_prim_vf(i)%sf(k, l, q)
                         end do
                     else
-                        d_p = 0_wp
-                        Dp(:) = 0_wp
+                        d_p = 0._wp
+                        Dp(:) = 0._wp
                     end if
 
                     ! STEP 4: Compute rhs source terms
                     do i = strxb, strxe
                         rhs_vf(i)%sf(k, l, q) = rhs_vf(i)%sf(k, l, q) + rho_K*tensora(i - strxb + 1) + &
-                                                2_wp*rho_K*G_K*(devdtensor(i - strxb + 1) - Dp(i - strxb + 1))
+                                                2._wp*rho_K*G_K*(devdtensor(i - strxb + 1) - Dp(i - strxb + 1))
                     end do
 
                     ! STEP 5: Compute hardening rhs term
@@ -433,11 +312,11 @@ contains
 
     subroutine s_finalize_hypoplastic_module() ! --------------------
 
-        @:DEALLOCATE_GLOBAL(Gs)
-        @:DEALLOCATE_GLOBAL(du_dx)
-        @:DEALLOCATE_GLOBAL(fd_coeff_x)
-        @:DEALLOCATE_GLOBAL(du_dy,dv_dx,dv_dy)
-        @:DEALLOCATE_GLOBAL(fd_coeff_y)
+        @:DEALLOCATE(Gs)
+        @:DEALLOCATE(du_dx)
+        @:DEALLOCATE(fd_coeff_x)
+        @:DEALLOCATE(du_dy,dv_dx,dv_dy)
+        @:DEALLOCATE(fd_coeff_y)
 
     end subroutine s_finalize_hypoplastic_module
 

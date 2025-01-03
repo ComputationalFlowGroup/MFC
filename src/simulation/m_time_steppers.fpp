@@ -3,7 +3,7 @@
 !! @brief Contains module m_time_steppers
 
 #:include 'macros.fpp'
-#:include 'inline_conversions.fpp'
+
 !> @brief The following module features a variety of time-stepping schemes.
 !!              Currently, it includes the following Runge-Kutta (RK) algorithms:
 !!                   1) 1st Order TVD RK
@@ -79,8 +79,6 @@ module m_time_steppers
     !$acc declare create(q_cons_ts, q_prim_vf, q_T_sf, rhs_vf, rhs_ts_rkck, q_prim_ts, rhs_mv, rhs_pb, max_dt)
 
 contains
-
-    @:s_compute_speed_of_sound()
 
     !> The computation of parameters, the allocation of memory,
         !!      the association of pointers and/or the execution of any
