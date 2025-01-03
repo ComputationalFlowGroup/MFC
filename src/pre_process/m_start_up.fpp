@@ -129,19 +129,21 @@ contains
             a_z, x_a, y_a, z_a, x_b, y_b, z_b, &
             model_eqns, num_fluids, mpp_lim, &
             weno_order, bc_x, bc_y, bc_z, num_patches, &
-            hypoelasticity, patch_icpp, fluid_pp, &
-            precision, parallel_io, vel_profile, instability_wave, pi_fac, &
-            perturb_flow, perturb_flow_fluid, perturb_flow_mag, &
+            hypoelasticity, patch_icpp, fluid_pp, precision, parallel_io, &
+            mixlayer_vel_profile, mixlayer_vel_coef, mixlayer_domain, &
+            mixlayer_perturb, &
+            pi_fac, perturb_flow, perturb_flow_fluid, perturb_flow_mag, &
             perturb_sph, perturb_sph_fluid, fluid_rho, &
             cyl_coord, loops_x, loops_y, loops_z, &
-            rhoref, pref, bubbles, R0ref, Rinit, nb, &
+            rhoref, pref, bubbles_euler, R0ref, Rinit, nb, &
             polytropic, thermal, Ca, Web, Re_inv, &
             polydisperse, poly_sigma, qbmm, &
             sigR, sigV, dist_type, rhoRV, R0_type, &
             file_per_process, relax, relax_model, &
             palpha_eps, ptgalpha_eps, ib, num_ibs, patch_ib, &
-            sigma, adv_n, hyperelasticity, hypoplasticity, MGEoS_model, &
-            cfl_adap_dt, cfl_const_dt, n_start, n_start_old
+            sigma, adv_n, cfl_adap_dt, cfl_const_dt, n_start, &
+            n_start_old, surface_tension, hyperelasticity, pre_stress, &
+            rkck_adap_dt, hypoplasticity, MGEoS_model
 
         ! Inquiring the status of the pre_process.inp file
         file_loc = 'pre_process.inp'
@@ -168,8 +170,8 @@ contains
 
             nGlobal = (m_glb + 1)*(n_glb + 1)*(p_glb + 1)
 
-            if (cfl_adap_dt .or. cfl_const_dt) cfl_dt = .true.  
-        
+            if (cfl_adap_dt .or. cfl_const_dt .or. rkck_adap_dt) cfl_dt = .true.
+
         else
             call s_mpi_abort('File pre_process.inp is missing. Exiting ...')
         end if
@@ -262,7 +264,7 @@ contains
         end if
 
         ! Computing cell-center locations
-        x_cc(0:m) = (x_cb(0:m) + x_cb(-1:(m - 1)))/2d0
+        x_cc(0:m) = (x_cb(0:m) + x_cb(-1:(m - 1)))/2._wp
 
         ! Computing minimum cell-width
         dx = minval(x_cb(0:m) - x_cb(-1:m - 1))
@@ -294,7 +296,7 @@ contains
             end if
 
             ! Computing cell-center locations
-            y_cc(0:n) = (y_cb(0:n) + y_cb(-1:(n - 1)))/2d0
+            y_cc(0:n) = (y_cb(0:n) + y_cb(-1:(n - 1)))/2._wp
 
             ! Computing minimum cell-width
             dy = minval(y_cb(0:n) - y_cb(-1:n - 1))
@@ -326,7 +328,7 @@ contains
                 end if
 
                 ! Computing cell-center locations
-                z_cc(0:p) = (z_cb(0:p) + z_cb(-1:(p - 1)))/2d0
+                z_cc(0:p) = (z_cb(0:p) + z_cb(-1:(p - 1)))/2._wp
 
                 ! Computing minimum cell-width
                 dz = minval(z_cb(0:p) - z_cb(-1:p - 1))
@@ -363,7 +365,7 @@ contains
 
         ! Cell-boundary Data Consistency Check in x-direction ==============
 
-        if (any(x_cb(0:m) - x_cb(-1:m - 1) <= 0d0)) then
+        if (any(x_cb(0:m) - x_cb(-1:m - 1) <= 0._wp)) then
             call s_mpi_abort('x_cb.dat in '//trim(t_step_dir)// &
                              ' contains non-positive cell-spacings. Exiting ...')
         end if
@@ -374,7 +376,7 @@ contains
 
         if (n > 0) then
 
-            if (any(y_cb(0:n) - y_cb(-1:n - 1) <= 0d0)) then
+            if (any(y_cb(0:n) - y_cb(-1:n - 1) <= 0._wp)) then
                 call s_mpi_abort('y_cb.dat in '//trim(t_step_dir)// &
                                  ' contains non-positive cell-spacings. '// &
                                  'Exiting ...')
@@ -386,7 +388,7 @@ contains
 
             if (p > 0) then
 
-                if (any(z_cb(0:p) - z_cb(-1:p - 1) <= 0d0)) then
+                if (any(z_cb(0:p) - z_cb(-1:p - 1) <= 0._wp)) then
                     call s_mpi_abort('z_cb.dat in '//trim(t_step_dir)// &
                                      ' contains non-positive cell-spacings'// &
                                      ' .Exiting ...')
@@ -419,7 +421,7 @@ contains
         ! Generic string used to store the address of a particular file
 
         character(LEN= &
-                  int(floor(log10(real(sys_size, kind(0d0))))) + 1) :: file_num !<
+                  int(floor(log10(real(sys_size, wp)))) + 1) :: file_num !<
             !! Used to store the variable position, in character form, of the
             !! currently manipulated conservative variable file
 
@@ -543,7 +545,7 @@ contains
 
 #ifdef MFC_MPI
 
-        real(kind(0d0)), allocatable, dimension(:) :: x_cb_glb, y_cb_glb, z_cb_glb
+        real(wp), allocatable, dimension(:) :: x_cb_glb, y_cb_glb, z_cb_glb
 
         integer :: ifile, ierr, data_size
         integer, dimension(MPI_STATUS_SIZE) :: status
@@ -562,7 +564,7 @@ contains
         if (file_exist) then
             data_size = m_glb + 2
             call MPI_FILE_OPEN(MPI_COMM_WORLD, file_loc, MPI_MODE_RDONLY, mpi_info_int, ifile, ierr)
-            call MPI_FILE_READ_ALL(ifile, x_cb_glb, data_size, MPI_DOUBLE_PRECISION, status, ierr)
+            call MPI_FILE_READ_ALL(ifile, x_cb_glb, data_size, mpi_p, status, ierr)
             call MPI_FILE_CLOSE(ifile, ierr)
         else
             call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting... ')
@@ -571,7 +573,7 @@ contains
         ! Assigning local cell boundary locations
         x_cb(-1:m) = x_cb_glb((start_idx(1) - 1):(start_idx(1) + m))
         ! Computing cell center locations
-        x_cc(0:m) = (x_cb(0:m) + x_cb(-1:(m - 1)))/2d0
+        x_cc(0:m) = (x_cb(0:m) + x_cb(-1:(m - 1)))/2._wp
         ! Computing minimum cell width
         dx = minval(x_cb(0:m) - x_cb(-1:(m - 1)))
         if (num_procs > 1) call s_mpi_reduce_min(dx)
@@ -587,7 +589,7 @@ contains
             if (file_exist) then
                 data_size = n_glb + 2
                 call MPI_FILE_OPEN(MPI_COMM_WORLD, file_loc, MPI_MODE_RDONLY, mpi_info_int, ifile, ierr)
-                call MPI_FILE_READ_ALL(ifile, y_cb_glb, data_size, MPI_DOUBLE_PRECISION, status, ierr)
+                call MPI_FILE_READ_ALL(ifile, y_cb_glb, data_size, mpi_p, status, ierr)
                 call MPI_FILE_CLOSE(ifile, ierr)
             else
                 call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting... ')
@@ -596,7 +598,7 @@ contains
             ! Assigning local cell boundary locations
             y_cb(-1:n) = y_cb_glb((start_idx(2) - 1):(start_idx(2) + n))
             ! Computing cell center locations
-            y_cc(0:n) = (y_cb(0:n) + y_cb(-1:(n - 1)))/2d0
+            y_cc(0:n) = (y_cb(0:n) + y_cb(-1:(n - 1)))/2._wp
             ! Computing minimum cell width
             dy = minval(y_cb(0:n) - y_cb(-1:(n - 1)))
             if (num_procs > 1) call s_mpi_reduce_min(dy)
@@ -612,7 +614,7 @@ contains
                 if (file_exist) then
                     data_size = p_glb + 2
                     call MPI_FILE_OPEN(MPI_COMM_WORLD, file_loc, MPI_MODE_RDONLY, mpi_info_int, ifile, ierr)
-                    call MPI_FILE_READ_ALL(ifile, z_cb_glb, data_size, MPI_DOUBLE_PRECISION, status, ierr)
+                    call MPI_FILE_READ_ALL(ifile, z_cb_glb, data_size, mpi_p, status, ierr)
                     call MPI_FILE_CLOSE(ifile, ierr)
                 else
                     call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting... ')
@@ -621,7 +623,7 @@ contains
                 ! Assigning local cell boundary locations
                 z_cb(-1:p) = z_cb_glb((start_idx(3) - 1):(start_idx(3) + p))
                 ! Computing cell center locations
-                z_cc(0:p) = (z_cb(0:p) + z_cb(-1:(p - 1)))/2d0
+                z_cc(0:p) = (z_cb(0:p) + z_cb(-1:(p - 1)))/2._wp
                 ! Computing minimum cell width
                 dz = minval(z_cb(0:p) - z_cb(-1:(p - 1)))
                 if (num_procs > 1) call s_mpi_reduce_min(dz)
@@ -682,7 +684,7 @@ contains
 
             ! Initialize MPI data I/O
             if (ib) then
-                call s_initialize_mpi_data(q_cons_vf, ib_markers)
+                call s_initialize_mpi_data(q_cons_vf, ib_markers, levelset, levelset_norm)
             else
                 call s_initialize_mpi_data(q_cons_vf)
             end if
@@ -694,8 +696,8 @@ contains
             m_MOK = int(m_glb + 1, MPI_OFFSET_KIND)
             n_MOK = int(n_glb + 1, MPI_OFFSET_KIND)
             p_MOK = int(p_glb + 1, MPI_OFFSET_KIND)
-            WP_MOK = int(8d0, MPI_OFFSET_KIND)
-            MOK = int(1d0, MPI_OFFSET_KIND)
+            WP_MOK = int(8._wp, MPI_OFFSET_KIND)
+            MOK = int(1._wp, MPI_OFFSET_KIND)
             str_MOK = int(name_len, MPI_OFFSET_KIND)
             NVARS_MOK = int(sys_size, MPI_OFFSET_KIND)
 
@@ -706,10 +708,10 @@ contains
                 ! Initial displacement to skip at beginning of file
                 disp = m_MOK*max(MOK, n_MOK)*max(MOK, p_MOK)*WP_MOK*(var_MOK - 1)
 
-                call MPI_FILE_SET_VIEW(ifile, disp, MPI_DOUBLE_PRECISION, MPI_IO_DATA%view(i), &
+                call MPI_FILE_SET_VIEW(ifile, disp, mpi_p, MPI_IO_DATA%view(i), &
                                        'native', mpi_info_int, ierr)
                 call MPI_FILE_READ(ifile, MPI_IO_DATA%var(i)%sf, data_size, &
-                                   MPI_DOUBLE_PRECISION, status, ierr)
+                                   mpi_p, status, ierr)
             end do
 
             if (qbmm .and. .not. polytropic) then
@@ -719,10 +721,10 @@ contains
                     ! Initial displacement to skip at beginning of file
                     disp = m_MOK*max(MOK, n_MOK)*max(MOK, p_MOK)*WP_MOK*(var_MOK - 1)
 
-                    call MPI_FILE_SET_VIEW(ifile, disp, MPI_DOUBLE_PRECISION, MPI_IO_DATA%view(i), &
+                    call MPI_FILE_SET_VIEW(ifile, disp, mpi_p, MPI_IO_DATA%view(i), &
                                            'native', mpi_info_int, ierr)
                     call MPI_FILE_READ(ifile, MPI_IO_DATA%var(i)%sf, data_size, &
-                                       MPI_DOUBLE_PRECISION, status, ierr)
+                                       mpi_p, status, ierr)
                 end do
             end if
 
@@ -768,25 +770,30 @@ contains
         ! needed to properly setup the modules
         call s_initialize_global_parameters_module()
         !Quadrature weights and nodes for polydisperse simulations
-        if (bubbles .and. nb > 1) then
+        if (bubbles_euler .and. nb > 1) then
             call s_simpson
         end if
         !Initialize variables for non-polytropic (Preston) model
-        if (bubbles .and. .not. polytropic) then
+        if (bubbles_euler .and. .not. polytropic) then
             call s_initialize_nonpoly()
         end if
         !Initialize pb based on surface tension for qbmm (polytropic)
         if (qbmm .and. polytropic .and. (.not. f_is_default(Web))) then
-            pb0 = pref + 2d0*fluid_pp(1)%ss/(R0*R0ref)
+            pb0 = pref + 2._wp*fluid_pp(1)%ss/(R0*R0ref)
             pb0 = pb0/pref
-            pref = 1d0
+            pref = 1._wp
         end if
         call s_initialize_data_output_module()
         call s_initialize_variables_conversion_module()
         call s_initialize_grid_module()
         call s_initialize_initial_condition_module()
+        call s_initialize_perturbation_module()
         call s_initialize_assign_variables_module()
         if (relax) call s_initialize_phasechange_module()
+
+        ! Create the D directory if it doesn't exit, to store
+        ! the serial data files
+        call s_create_directory('D')
 
         ! Associate pointers for serial or parallel I/O
         if (parallel_io .neqv. .true.) then
@@ -794,10 +801,6 @@ contains
             s_read_grid_data_files => s_read_serial_grid_data_files
             s_read_ic_data_files => s_read_serial_ic_data_files
             s_write_data_files => s_write_serial_data_files
-
-            ! Create the D directory if it doesn't exit, to store
-            ! the serial data files
-            call s_create_directory('D')
         else
             s_generate_grid => s_generate_parallel_grid
             s_read_grid_data_files => s_read_parallel_grid_data_files
@@ -827,9 +830,9 @@ contains
 
     subroutine s_apply_initial_condition(start, finish, proc_time, time_avg, time_final, file_exists)
 
-        real(kind(0d0)), intent(inout) :: start, finish
-        real(kind(0d0)), dimension(:), intent(inout) :: proc_time
-        real(kind(0d0)), intent(inout) :: time_avg, time_final
+        real(wp), intent(inout) :: start, finish
+        real(wp), dimension(:), intent(inout) :: proc_time
+        real(wp), intent(inout) :: time_avg, time_final
         logical, intent(inout) :: file_exists
 
         ! Setting up the grid and the initial condition. If the grid is read in from
@@ -857,15 +860,15 @@ contains
             call s_infinite_relaxation_k(q_cons_vf)
         end if
 
-        call s_write_data_files(q_cons_vf, ib_markers)
+        call s_write_data_files(q_cons_vf, ib_markers, levelset, levelset_norm)
 
         call cpu_time(finish)
     end subroutine s_apply_initial_condition
 
     subroutine s_save_data(proc_time, time_avg, time_final, file_exists)
 
-        real(kind(0d0)), dimension(:), intent(inout) :: proc_time
-        real(kind(0d0)), intent(inout) :: time_avg, time_final
+        real(wp), dimension(:), intent(inout) :: proc_time
+        real(wp), intent(inout) :: time_avg, time_final
         logical, intent(inout) :: file_exists
 
         call s_mpi_barrier()
@@ -875,7 +878,7 @@ contains
         end if
 
         if (proc_rank == 0) then
-            time_final = 0d0
+            time_final = 0._wp
             if (num_procs == 1) then
                 time_final = time_avg
                 print *, "Elapsed Time", time_final

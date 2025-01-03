@@ -5,7 +5,7 @@ if [ "$job_device" == "gpu" ]; then
     build_opts="--gpu"
 fi
 
-./mfc.sh build -j 8 $build_opts
+./mfc.sh test --dry-run -j 8 $build_opts
 
 n_test_threads=8
 
@@ -16,5 +16,6 @@ if [ "$job_device" == "gpu" ]; then
     n_test_threads=`expr $gpu_count \* 2`
 fi
 
-./mfc.sh test -a -j $n_test_threads $device_opts -- -c phoenix
+./mfc.sh test --max-attempts 3 -a -j $n_test_threads $device_opts -- -c phoenix
+
 

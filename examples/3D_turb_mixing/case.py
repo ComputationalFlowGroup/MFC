@@ -83,10 +83,11 @@ print(json.dumps({
     'avg_state'                     : 2,
     'bc_x%beg'                      : -1,
     'bc_x%end'                      : -1,
-    'bc_y%beg'                      : -5,
-    'bc_y%end'                      : -5,
+    'bc_y%beg'                      : -6,
+    'bc_y%end'                      : -6,
     'bc_z%beg'                      : -1,
     'bc_z%end'                      : -1,
+    'viscous'                       : 'T',
     # ==========================================================================
 
     # Formatted Database Files Structure Parameters ============================
@@ -118,9 +119,11 @@ print(json.dumps({
     'patch_icpp(1)%pres'            : pres0,
     # ==========================================================================
 
-    # Mixing layer =============================================================
-    'vel_profile'                   : 'T',
-    'instability_wave'              : 'T',
+    # Mixing layer === =========================================================
+    'mixlayer_vel_profile'          : 'T',
+    'mixlayer_vel_coef'             : 1.,
+    'mixlayer_domain'               : 1.,
+    'mixlayer_perturb'              : 'T',
     # ==========================================================================
     
     # Fluids Physical Parameters ===============================================

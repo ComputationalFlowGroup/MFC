@@ -21,31 +21,41 @@ program p_main
     use m_start_up
 
     use m_time_steppers
+
+    use m_nvtx
     ! ==========================================================================
 
     implicit none
 
     integer :: t_step !< Iterator for the time-stepping loop
-    real(kind(0d0)) :: time_avg, time_final
-    real(kind(0d0)) :: io_time_avg, io_time_final
-    real(kind(0d0)), allocatable, dimension(:) :: proc_time
-    real(kind(0d0)), allocatable, dimension(:) :: io_proc_time
+    real(wp) :: time_avg, time_final
+    real(wp) :: io_time_avg, io_time_final
+    real(wp), allocatable, dimension(:) :: proc_time
+    real(wp), allocatable, dimension(:) :: io_proc_time
     logical :: file_exists
-    real(kind(0d0)) :: start, finish
+    real(wp) :: start, finish
     integer :: nt
 
     call system_clock(COUNT=cpu_start, COUNT_RATE=cpu_rate)
 
+    call nvtxStartRange("INIT")
+
     !Initialize MPI
+    call nvtxStartRange("INIT-MPI")
     call s_initialize_mpi_domain()
+    call nvtxEndRange
 
     !Initialize Modules
+    call nvtxStartRange("INIT-MODULES")
     call s_initialize_modules()
+    call nvtxEndRange
 
     allocate (proc_time(0:num_procs - 1))
     allocate (io_proc_time(0:num_procs - 1))
 
+    call nvtxStartRange("INIT-GPU-VARS")
     call s_initialize_gpu_vars()
+    call nvtxEndRange
 
     ! Setting the time-step iterator to the first time-step
     if (cfl_dt) then
@@ -54,13 +64,16 @@ program p_main
     else
         t_step = t_step_start
         if (t_step == 0) then
-            mytime = 0d0
+            mytime = 0._wp
         else
             mytime = t_step*dt
         end if
         finaltime = t_step_stop*dt
     end if
 
+    call nvtxEndRange ! INIT
+
+    call nvtxStartRange("SIMULATION-TIME-MARCH")
     ! Time-stepping Loop =======================================================
     do
 
@@ -95,8 +108,12 @@ program p_main
     end do
     ! ==========================================================================
 
+    call nvtxEndRange ! Simulation
+
     deallocate (proc_time, io_proc_time)
 
+    call nvtxStartRange("FINALIZE-MODULES")
     call s_finalize_modules()
+    call nvtxEndRange
 
 end program p_main

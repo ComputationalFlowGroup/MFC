@@ -28,30 +28,20 @@ module m_surface_tension
  s_get_capilary, &
  s_finalize_surface_tension_module
 
-#ifdef CRAY_ACC_WAR
-    @:CRAY_DECLARE_GLOBAL(type(scalar_field), dimension(:), c_divs)
-    !$acc declare link(c_divs)
-#else
     !> @name color function gradient components and magnitude
     !> @{
     type(scalar_field), allocatable, dimension(:) :: c_divs
     !> @)
     !$acc declare create(c_divs)
-#endif
 
-#ifdef CRAY_ACC_WAR
-    @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), dimension(:,:,:,:), gL_x, gL_y, gL_z, gR_x, gR_y, gR_z)
-    !$acc declare link(gL_x, gL_y, gL_z, gR_x, gR_y, gR_z)
-#else
     !> @name cell boundary reconstructed gradient components and magnitude
     !> @{
-    real(kind(0d0)), allocatable, dimension(:, :, :, :) :: gL_x, gR_x, gL_y, gR_y, gL_z, gR_z
+    real(wp), allocatable, dimension(:, :, :, :) :: gL_x, gR_x, gL_y, gR_y, gL_z, gR_z
     !> @}
     !$acc declare create(gL_x, gR_x, gL_y, gR_y, gL_z, gR_z)
-#endif
 
-    type(int_bounds_info) :: ix, iy, iz, is1, is2, is3, iv
-    !$acc declare create(ix, iy, iz, is1, is2, is3, iv)
+    type(int_bounds_info) :: is1, is2, is3, iv
+    !$acc declare create(is1, is2, is3, iv)
 
     integer :: j, k, l, i
 
@@ -59,30 +49,22 @@ contains
 
     subroutine s_initialize_surface_tension_module
 
-        ! Configuring Coordinate Direction Indexes =========================
-        ix%beg = -buff_size; iy%beg = 0; iz%beg = 0
-
-        if (n > 0) iy%beg = -buff_size; if (p > 0) iz%beg = -buff_size
-
-        ix%end = m - ix%beg; iy%end = n - iy%beg; iz%end = p - iz%beg
-        ! ==================================================================
-
-        @:ALLOCATE_GLOBAL(c_divs(1:num_dims + 1))
+        @:ALLOCATE(c_divs(1:num_dims + 1))
 
         do j = 1, num_dims + 1
-            @:ALLOCATE(c_divs(j)%sf(ix%beg:ix%end, iy%beg:iy%end, iz%beg:iz%end))
+            @:ALLOCATE(c_divs(j)%sf(idwbuff(1)%beg:idwbuff(1)%end, idwbuff(2)%beg:idwbuff(2)%end, idwbuff(3)%beg:idwbuff(3)%end))
             @:ACC_SETUP_SFs(c_divs(j))
         end do
 
-        @:ALLOCATE_GLOBAL(gL_x(ix%beg:ix%end, iy%beg:iy%end, iz%beg:iz%end, num_dims + 1))
-        @:ALLOCATE_GLOBAL(gR_x(ix%beg:ix%end, iy%beg:iy%end, iz%beg:iz%end, num_dims + 1))
+        @:ALLOCATE(gL_x(idwbuff(1)%beg:idwbuff(1)%end, idwbuff(2)%beg:idwbuff(2)%end, idwbuff(3)%beg:idwbuff(3)%end, num_dims + 1))
+        @:ALLOCATE(gR_x(idwbuff(1)%beg:idwbuff(1)%end, idwbuff(2)%beg:idwbuff(2)%end, idwbuff(3)%beg:idwbuff(3)%end, num_dims + 1))
 
-        @:ALLOCATE_GLOBAL(gL_y(iy%beg:iy%end, ix%beg:ix%end, iz%beg:iz%end, num_dims + 1))
-        @:ALLOCATE_GLOBAL(gR_y(iy%beg:iy%end, ix%beg:ix%end, iz%beg:iz%end, num_dims + 1))
+        @:ALLOCATE(gL_y(idwbuff(2)%beg:idwbuff(2)%end, idwbuff(1)%beg:idwbuff(1)%end, idwbuff(3)%beg:idwbuff(3)%end, num_dims + 1))
+        @:ALLOCATE(gR_y(idwbuff(2)%beg:idwbuff(2)%end, idwbuff(1)%beg:idwbuff(1)%end, idwbuff(3)%beg:idwbuff(3)%end, num_dims + 1))
 
         if (p > 0) then
-            @:ALLOCATE_GLOBAL(gL_z(iz%beg:iz%end, ix%beg:ix%end, iy%beg:iy%end, num_dims + 1))
-            @:ALLOCATE_GLOBAL(gR_z(iz%beg:iz%end, ix%beg:ix%end, iy%beg:iy%end, num_dims + 1))
+            @:ALLOCATE(gL_z(idwbuff(3)%beg:idwbuff(3)%end, idwbuff(2)%beg:idwbuff(2)%end, idwbuff(1)%beg:idwbuff(1)%end, num_dims + 1))
+            @:ALLOCATE(gR_z(idwbuff(3)%beg:idwbuff(3)%end, idwbuff(2)%beg:idwbuff(2)%end, idwbuff(1)%beg:idwbuff(1)%end, num_dims + 1))
         end if
     end subroutine s_initialize_surface_tension_module
 
@@ -92,18 +74,18 @@ contains
                                               id, isx, isy, isz)
 
         type(scalar_field), dimension(sys_size) :: q_prim_vf !> unused so unsure what intent to give it
-        real(kind(0d0)), dimension(-1:, 0:, 0:, 1:), intent(in) :: vSrc_rsx_vf
-        real(kind(0d0)), dimension(-1:, 0:, 0:, 1:), intent(in) :: vSrc_rsy_vf
-        real(kind(0d0)), dimension(-1:, 0:, 0:, 1:), intent(in) :: vSrc_rsz_vf
+        real(wp), dimension(-1:, 0:, 0:, 1:), intent(in) :: vSrc_rsx_vf
+        real(wp), dimension(-1:, 0:, 0:, 1:), intent(in) :: vSrc_rsy_vf
+        real(wp), dimension(-1:, 0:, 0:, 1:), intent(in) :: vSrc_rsz_vf
         type(scalar_field), &
             dimension(sys_size), &
             intent(inout) :: flux_src_vf
         integer, intent(in) :: id
         type(int_bounds_info), intent(in) :: isx, isy, isz
 
-        real(kind(0d0)), dimension(num_dims, num_dims) :: Omega
-        real(kind(0d0)) :: w1L, w1R, w2L, w2R, w3L, w3R, w1, w2, w3
-        real(kind(0d0)) :: normWL, normWR, normW
+        real(wp), dimension(num_dims, num_dims) :: Omega
+        real(wp) :: w1L, w1R, w2L, w2R, w3L, w3R, w1, w2, w3
+        real(wp) :: normWL, normWR, normW
 
         if (id == 1) then
             !$acc parallel loop collapse(3) gang vector default(present) private(Omega, &
@@ -114,21 +96,21 @@ contains
 
                         w1L = gL_x(j, k, l, 1)
                         w2L = gL_x(j, k, l, 2)
-                        w3L = 0d0
+                        w3L = 0._wp
                         if (p > 0) w3L = gL_x(j, k, l, 3)
 
                         w1R = gR_x(j + 1, k, l, 1)
                         w2R = gR_x(j + 1, k, l, 2)
-                        w3R = 0d0
+                        w3R = 0._wp
                         if (p > 0) w3R = gR_x(j + 1, k, l, 3)
 
                         normWL = gL_x(j, k, l, num_dims + 1)
                         normWR = gR_x(j + 1, k, l, num_dims + 1)
 
-                        w1 = (w1L + w1R)/2d0
-                        w2 = (w2L + w2R)/2d0
-                        w3 = (w3L + w3R)/2d0
-                        normW = (normWL + normWR)/2d0
+                        w1 = (w1L + w1R)/2._wp
+                        w2 = (w2L + w2R)/2._wp
+                        w3 = (w3L + w3R)/2._wp
+                        normW = (normWL + normWR)/2._wp
 
                         if (normW > capillary_cutoff) then
                             @:compute_capilary_stress_tensor()
@@ -160,21 +142,21 @@ contains
 
                         w1L = gL_y(k, j, l, 1)
                         w2L = gL_y(k, j, l, 2)
-                        w3L = 0d0
+                        w3L = 0._wp
                         if (p > 0) w3L = gL_y(k, j, l, 3)
 
                         w1R = gR_y(k + 1, j, l, 1)
                         w2R = gR_y(k + 1, j, l, 2)
-                        w3R = 0d0
+                        w3R = 0._wp
                         if (p > 0) w3R = gR_y(k + 1, j, l, 3)
 
                         normWL = gL_y(k, j, l, num_dims + 1)
                         normWR = gR_y(k + 1, j, l, num_dims + 1)
 
-                        w1 = (w1L + w1R)/2d0
-                        w2 = (w2L + w2R)/2d0
-                        w3 = (w3L + w3R)/2d0
-                        normW = (normWL + normWR)/2d0
+                        w1 = (w1L + w1R)/2._wp
+                        w2 = (w2L + w2R)/2._wp
+                        w3 = (w3L + w3R)/2._wp
+                        normW = (normWL + normWR)/2._wp
 
                         if (normW > capillary_cutoff) then
                             @:compute_capilary_stress_tensor()
@@ -206,21 +188,21 @@ contains
 
                         w1L = gL_z(l, k, j, 1)
                         w2L = gL_z(l, k, j, 2)
-                        w3L = 0d0
+                        w3L = 0._wp
                         if (p > 0) w3L = gL_z(l, k, j, 3)
 
                         w1R = gR_z(l + 1, k, j, 1)
                         w2R = gR_z(l + 1, k, j, 2)
-                        w3R = 0d0
+                        w3R = 0._wp
                         if (p > 0) w3R = gR_z(l + 1, k, j, 3)
 
                         normWL = gL_z(l, k, j, num_dims + 1)
                         normWR = gR_z(l + 1, k, j, num_dims + 1)
 
-                        w1 = (w1L + w1R)/2d0
-                        w2 = (w2L + w2R)/2d0
-                        w3 = (w3L + w3R)/2d0
-                        normW = (normWL + normWR)/2d0
+                        w1 = (w1L + w1R)/2._wp
+                        w2 = (w2L + w2R)/2._wp
+                        w3 = (w3L + w3R)/2._wp
+                        normW = (normWL + normWR)/2._wp
 
                         if (normW > capillary_cutoff) then
                             @:compute_capilary_stress_tensor()
@@ -263,7 +245,7 @@ contains
         do l = 0, p
             do k = 0, n
                 do j = 0, m
-                    c_divs(1)%sf(j, k, l) = 1d0/(x_cc(j + 1) - x_cc(j - 1))* &
+                    c_divs(1)%sf(j, k, l) = 1._wp/(x_cc(j + 1) - x_cc(j - 1))* &
                                             (q_prim_vf(c_idx)%sf(j + 1, k, l) - q_prim_vf(c_idx)%sf(j - 1, k, l))
                 end do
             end do
@@ -273,7 +255,7 @@ contains
         do l = 0, p
             do k = 0, n
                 do j = 0, m
-                    c_divs(2)%sf(j, k, l) = 1d0/(y_cc(k + 1) - y_cc(k - 1))* &
+                    c_divs(2)%sf(j, k, l) = 1._wp/(y_cc(k + 1) - y_cc(k - 1))* &
                                             (q_prim_vf(c_idx)%sf(j, k + 1, l) - q_prim_vf(c_idx)%sf(j, k - 1, l))
                 end do
             end do
@@ -284,7 +266,7 @@ contains
             do l = 0, p
                 do k = 0, n
                     do j = 0, m
-                        c_divs(3)%sf(j, k, l) = 1d0/(z_cc(l + 1) - z_cc(l - 1))* &
+                        c_divs(3)%sf(j, k, l) = 1._wp/(z_cc(l + 1) - z_cc(l - 1))* &
                                                 (q_prim_vf(c_idx)%sf(j, k, l + 1) - q_prim_vf(c_idx)%sf(j, k, l - 1))
                     end do
                 end do
@@ -295,12 +277,12 @@ contains
         do l = 0, p
             do k = 0, n
                 do j = 0, m
-                    c_divs(num_dims + 1)%sf(j, k, l) = 0d0
+                    c_divs(num_dims + 1)%sf(j, k, l) = 0._wp
                     !s$acc loop seq
                     do i = 1, num_dims
                         c_divs(num_dims + 1)%sf(j, k, l) = &
                             c_divs(num_dims + 1)%sf(j, k, l) + &
-                            c_divs(i)%sf(j, k, l)**2d0
+                            c_divs(i)%sf(j, k, l)**2._wp
                     end do
                     c_divs(num_dims + 1)%sf(j, k, l) = &
                         sqrt(c_divs(num_dims + 1)%sf(j, k, l))
@@ -324,8 +306,8 @@ contains
 
         type(scalar_field), dimension(iv%beg:iv%end), intent(in) :: v_vf
 
-        real(kind(0d0)), dimension(startx:, starty:, startz:, iv%beg:), intent(out) :: vL_x, vL_y, vL_z
-        real(kind(0d0)), dimension(startx:, starty:, startz:, iv%beg:), intent(out) :: vR_x, vR_y, vR_z
+        real(wp), dimension(startx:, starty:, startz:, iv%beg:), intent(out) :: vL_x, vL_y, vL_z
+        real(wp), dimension(startx:, starty:, startz:, iv%beg:), intent(out) :: vR_x, vR_y, vR_z
         integer, intent(in) :: norm_dir
 
         integer :: recon_dir !< Coordinate direction of the WENO reconstruction
@@ -335,17 +317,17 @@ contains
         ! Reconstruction in s1-direction ===================================
 
         if (norm_dir == 1) then
-            is1 = ix; is2 = iy; is3 = iz
+            is1 = idwbuff(1); is2 = idwbuff(2); is3 = idwbuff(3)
             recon_dir = 1; is1%beg = is1%beg + weno_polyn
             is1%end = is1%end - weno_polyn
 
         elseif (norm_dir == 2) then
-            is1 = iy; is2 = ix; is3 = iz
+            is1 = idwbuff(2); is2 = idwbuff(1); is3 = idwbuff(3)
             recon_dir = 2; is1%beg = is1%beg + weno_polyn
             is1%end = is1%end - weno_polyn
 
         else
-            is1 = iz; is2 = iy; is3 = ix
+            is1 = idwbuff(3); is2 = idwbuff(2); is3 = idwbuff(1)
             recon_dir = 3; is1%beg = is1%beg + weno_polyn
             is1%end = is1%end - weno_polyn
 
@@ -402,13 +384,13 @@ contains
             @:DEALLOCATE(c_divs(j)%sf)
         end do
 
-        @:DEALLOCATE_GLOBAL(c_divs)
+        @:DEALLOCATE(c_divs)
 
-        @:DEALLOCATE_GLOBAL(gL_x, gR_x)
+        @:DEALLOCATE(gL_x, gR_x)
 
-        @:DEALLOCATE_GLOBAL(gL_y, gR_y)
+        @:DEALLOCATE(gL_y, gR_y)
         if (p > 0) then
-            @:DEALLOCATE_GLOBAL(gL_z, gR_z)
+            @:DEALLOCATE(gL_z, gR_z)
         end if
 
     end subroutine s_finalize_surface_tension_module

@@ -34,24 +34,26 @@ Input files can accept command line arguments, forwarded by `mfc.sh run`.
 Consider this example from the `scaling` case:
 
 ```python
-import argparse
+import json, argparse
 
 parser = argparse.ArgumentParser(
     prog="scaling",
     description="Weak- and strong-scaling benchmark case.",
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-parser.add_argument("dict", type=str, metavar="DICT")
-parser.add_argument("-s", "--scaling",  type=str, metavar="SCALING",  choices=["weak", "strong"], help="Whether weak- or strong-scaling is being exercised.")
+parser.add_argument("--mfc", type=json.loads, default='{}', metavar="DICT",
+                    help="MFC's toolchain's internal state.")
+parser.add_argument("-s", "--scaling", type=str, metavar="SCALING", choices=["weak", "strong"],
+                    help="Whether weak- or strong-scaling is being exercised.")
 
 # Your parsed arguments are here
 args = parser.parse_args()
 ```
 
-The first argument is always a JSON string representing `mfc.sh run`'s internal
-state.
+The `--mfc` argument is a JSON string representing `mfc.sh run`'s internal
+state, passed in when MFC runs your input file.
 It contains all the runtime information you might want from the build/run system.
-You can add as many additional arguments as you may need.
+You can add as many additional arguments and options as you may need.
 
 To run such a case, use the following format:
 
@@ -163,12 +165,13 @@ MPI topology is automatically optimized to maximize the parallel efficiency for 
 | `pres` *             | Real    | Supported             | Pressure.                                                    |
 | `vel(i)` *           | Real    | Supported             | Velocity in direction $i$.                                   |
 | `hcid` *             | Integer | N/A                   | Hard coded patch id                                          |
-| `model%%filepath`     | String  | Not Supported         | Path to an STL or OBJ file (not all OBJs are supported).     |
-| `model%%scale(i)`     | Real    | Not Supported         | Model's (applied) scaling factor for component $i$.          |
-| `model%%rotate(i)`    | Real    | Not Supported         | Model's (applied) angle of rotation about axis $i$.          |
-| `model%%translate(i)` | Real    | Not Supported         | Model's $i$-th component of (applied) translation.           |
-| `model%%spc`          | Integer | Not Supported         | Number of samples per cell when discretizing the model into the grid. |
-| `model%%threshold`    | Real    | Not Supported         | Ray fraction inside the model patch above which the fraction is set to one.|
+| `cf_val` *           | Real    | Supported             | Surface tension color function value                         |
+| `model_filepath`     | String  | Not Supported         | Path to an STL or OBJ file (not all OBJs are supported).     |
+| `model_scale(i)`     | Real    | Not Supported         | Model's (applied) scaling factor for component $i$.          |
+| `model_rotate(i)`    | Real    | Not Supported         | Model's (applied) angle of rotation about axis $i$.          |
+| `model_translate(i)` | Real    | Not Supported         | Model's $i$-th component of (applied) translation.           |
+| `model_spc`          | Integer | Not Supported         | Number of samples per cell when discretizing the model into the grid. |
+| `model_threshold`    | Real    | Not Supported         | Ray fraction inside the model patch above which the fraction is set to one.|
 
 *: These parameters should be prepended with `patch_icpp(j)%` where $j$ is the patch index.
 
@@ -260,7 +263,11 @@ Optimal choice of the value of `smooth_coeff` is case-dependent and left to the 
 - `patch_icpp(j)alpha(i)`, `patch_icpp(j)alpha_rho(i)`, `patch_icpp(j)pres`, and `patch_icpp(j)vel(i)` define for $j$-th patch the void fraction of `fluid(i)`, partial density of `fluid(i)`, the pressure, and the velocity in the $i$-th coordinate direction.
 These physical parameters must be consistent with fluid material's parameters defined in the next subsection.
 
-- `model%%scale`, `model%%rotate` and `model%%translate` define how the model should be transformed to domain-space by first scaling by `model%%scale`, then rotating about the Z, X, and Y axes (using `model%%rotate`), and finally translating by `model%%translate`.
+- `model_filepath` defines the root directory of the STL or OBJ model file.
+
+- `model_scale`, `model_rotate` and `model_translate` define how the model should be transformed to domain-space by first scaling by `model_scale`, then rotating about the Z, X, and Y axes (using `model_rotate`), and finally translating by `model_translate`.
+
+- `model_spc` and `model_threshold` are ray-tracing parameters. `model_spc` defines the number of rays per cell to render the model. `model_threshold` defines the ray-tracing threshold at which the cell is marked as the model.
 
 ### 4. Immersed Boundary Patches
 
@@ -276,6 +283,12 @@ These physical parameters must be consistent with fluid material's parameters de
 | `m`                    | Real    | NACA airfoil parameters (see below) |
 | `p`                    | Real    | NACA airfoil parameters (see below) |
 | `slip`                 | Logical | Apply a slip boundary |
+| `model_filepath`      | String  | Path to an STL or OBJ file (not all OBJs are supported).     |
+| `model_scale(i)`      | Real    | Model's (applied) scaling factor for component $i$.          |
+| `model_rotate(i)`     | Real    | Model's (applied) angle of rotation about axis $i$.          |
+| `model_translate(i)`  | Real    | Model's $i$-th component of (applied) translation.           |
+| `model_spc`           | Integer | Number of samples per cell when discretizing the model into the grid. |
+| `model_threshold`     | Real    | Ray fraction inside the model patch above which the fraction is set to one.|
 
 These parameters should be prepended with `patch_ib(j)%` where $j$ is the patch index.
 
@@ -297,6 +310,8 @@ Definitions for currently implemented patch types are list in table [Immersed Bo
 Additional details on this specification can be found in [The Naca Airfoil Series](https://web.stanford.edu/~cantwell/AA200_Course_Material/The%20NACA%20airfoil%20series.pdf)
 
 - `slip` applies a slip boundary to the surface of the patch if true and a no-slip boundary condition to the surface if false.
+
+- Please see [Patch Parameters](#3-patches) for the descriptions of `model_filepath`, `model_scale`, `model_rotate`, `model_translate`, `model_spc`, and `model_threshold`.
 
 ### 5. Fluid Material’s
 
@@ -369,6 +384,8 @@ Details of implementation of viscosity in MFC can be found in [Coralic (2015)](r
 | `n_start`              | Integer | Save file from which to start simulation |
 | `t_save`               | Real    | Time duration between data output |
 | `t_stop`               | Real    | Simulation stop time |
+| `surface_tension`      | Logical | Activate surface tension |
+| `viscous`              | Logical | Activate viscosity |
 
 - \* Options that work only with `model_eqns = 2`.
 - † Options that work only with ``cyl_coord = 'F'``.
@@ -407,7 +424,7 @@ Note that `time_stepper = 3` specifies the total variation diminishing (TVD), th
 
 - `adap_dt` activates the Strang operator splitting scheme which splits flux and source terms in time marching, and an adaptive time stepping strategy is implemented for the source term. It requires ``bubbles = 'T'``, ``polytropic = 'T'``, ``adv_n = 'T'`` and `time_stepper = 3`.
 
-- `weno_order` specifies the order of WENO scheme that is used for spatial reconstruction of variables by an integer of 1, 3, 5, and 7, that correspond to the 1st, 3rd, 5th, and 7th order, respectively. WENO7 does not support grid stretching.
+- `weno_order` specifies the order of WENO scheme that is used for spatial reconstruction of variables by an integer of 1, 3, 5, and 7, that correspond to the 1st, 3rd, 5th, and 7th order, respectively.
 
 - `weno_eps` specifies the lower bound of the WENO nonlinear weights.
 It is recommended to set `weno_eps` to $10^{-6}$ for WENO-JS, and to $10^{-40}$ for other WENO variants.
@@ -418,7 +435,7 @@ It is recommended to set `weno_eps` to $10^{-6}$ for WENO-JS, and to $10^{-40}$ 
 
 - `wenoz_q` specifies the power parameter `q` used in the WENO-Z scheme. It controls how aggressively the smoothness coefficients scale the weights. A higher value of `wenoz_q` increases the sensitivity to smoothness, improving stability but worsening numerical dissipation. For WENO3 and WENO5, `q=1` is fixed, so `wenoz_q` must not be set. For WENO7, `wenoz_q` can be set to 2, 3, or 4.
 
-- `teno` activates the TENO scheme in place of the default WENO-JS scheme ([Fu et al., 2016](references.md#Fu16)). TENO is a variant of the ENO scheme that is the least dissipative, but could be less robust for extreme cases. It uses a threshold to identify smooth and non-smooth stencils, and applies optimal weights to the smooth stencils. Only available for `weno_order = 5` and `7`. Requires `teno_CT` to be set.
+- `teno` activates the TENO scheme in place of the default WENO-JS scheme ([Fu et al., 2016](references.md#Fu16)). TENO is a variant of the ENO scheme that is the least dissipative, but could be less robust for extreme cases. It uses a threshold to identify smooth and non-smooth stencils, and applies optimal weights to the smooth stencils. Only available for `weno_order = 5` and `7`. Requires `teno_CT` to be set. Does not support grid stretching.
 
 - `teno_CT` specifies the threshold for the TENO scheme. This dimensionless constant, also known as $C_T$, sets a threshold to identify smooth and non-smooth stencils. Larger values make the scheme more robust but also more dissipative. A recommended value for teno_CT is `1e-6`. When adjusting this parameter, it is recommended to try values like `1e-5` or `1e-7` for TENO5. A smaller value can be used for TENO7.
 
@@ -443,33 +460,37 @@ If this option is false, velocity gradient is computed using finite difference s
 - `weno_avg` it activates the arithmetic average of the left and right, WENO-reconstructed, cell-boundary values.
 This option requires `weno_Re_flux` to be true because cell boundary values are only utilized when employing the scalar divergence method in the computation of velocity gradients.
 
+- `surface_tension` activates surface tension when set to ``'T'``. Requires `sigma` to be set and `num_fluids`. The color function in each patch should be assigned such that `patch_icpp(i)%cf_val = 1` in patches where `patch_icpp(i)%alpha = 1 - eps` and `patch_icpp(i)%cf_val = 0` in patches where `patch_icpp(i)%alpha = eps`.
+
+- `viscous` activates viscosity when set to ``'T'``. Requires `Re(1)` and `Re(2)` to be set.
+
 #### Constant Time-Stepping
 
-- `dt` specifies the constant time step size that is used in simulation.
-The value of `dt` needs to be sufficiently small such that the Courant-Friedrichs-Lewy (CFL) condition is satisfied.
+- `dt` specifies the constant time step size used in the simulation.
+The value of `dt` needs to be sufficiently small to satisfy the Courant-Friedrichs-Lewy (CFL) condition.
 
-- `t_step_start` and `t_step_end` define the time steps at which simulation starts and ends, respectively.
+- `t_step_start` and `t_step_end` define the time steps at which the simulation starts and ends.
 
 `t_step_save` is the time step interval for data output during simulation.
 To newly start the simulation, set `t_step_start = 0`.
-To restart simulation from $k$-th time step, set `t_step_start = k`, see [Restarting Cases](running.md#restarting-cases).
+To restart the simulation from $k$-th time step, set `t_step_start = k`; see [Restarting Cases](running.md#restarting-cases).
 
 ##### Adaptive Time-Stepping
 
 - `cfl_adap_dt` enables adaptive time stepping with a constant CFL when true
 
-- `cfl_const_dt` enables constant dt time-stepping where dt results in a specified CFL for the initial condition
+- `cfl_const_dt` enables constant `dt` time-stepping where `dt` results in a specified CFL for the initial condition
 
 - `cfl_target` specifies the target CFL value
 
 - `n_start` specifies the save file to start at
 
-- `t_save` specifies the time interval between data output during simulation
+- `t_save` specifies the time interval between data output during the simulation
 
 - `t_stop` specifies at what time the simulation should stop
 
 To newly start the simulation, set `n_start = 0`.
-To restart simulation from $k$-th time step, see [Restarting Cases](running.md#restarting-cases).
+To restart the simulation from $k$-th time step, see [Restarting Cases](running.md#restarting-cases).
 
 ### 7. Formatted Output
 
@@ -501,6 +522,9 @@ To restart simulation from $k$-th time step, see [Restarting Cases](running.md#r
 | `probe_wrt`          | Logical | Write the flow chosen probes data files for each time step	|
 | `num_probes`         | Integer | Number of probes	|
 | `probe(i)%[x,y,z]`   | Real	 | Coordinates of probe $i$	|
+| `output_partial_domain` | Logical | Output part of the domain |
+| `[x,y,z]_output%beg` | Real    | Beginning of the output domain in the [x,y,z]-direction |
+| `[x,y,z]_output%end` | Real    | End of the output domain in the [x,y,z]-direction |
 
 The table lists formatted database output parameters. The parameters define variables that are outputted from simulation and file types and formats of data as well as options for post-processing.
 
@@ -510,24 +534,28 @@ The table lists formatted database output parameters. The parameters define vari
 
 - `parallel_io` activates parallel input/output (I/O) of data files. It is highly recommended to activate this option in a parallel environment.
 With parallel I/O, MFC inputs and outputs a single file throughout pre-process, simulation, and post-process, regardless of the number of processors used.
-Parallel I/O enables the use of different number of processors in each of the processes (i.e., simulation data generated using 1000 processors can be post-processed using a single processor).
+Parallel I/O enables the use of different numbers of processors in each process (e.g., simulation data generated using 1000 processors can be post-processed using a single processor).
 
 - `file_per_process` deactivates shared file MPI-IO and activates file per process MPI-IO.
 The default behavior is to use a shared file.
-File per process is useful when running on 10's of thousands of ranks.
+File per process is useful when running on >10K ranks.
 If `file_per_process` is true, then pre_process, simulation, and post_process must be run with the same number of ranks.
 
-- `cons_vars_wrt` and `prim_vars_wrt` activate output of conservative and primitive state variables into the database, respectively.
+- `cons_vars_wrt` and `prim_vars_wrt` activate the output of conservative and primitive state variables into the database.
 
-- `[variable's name]_wrt` activates output of the each specified variable into the database.
+- `[variable's name]_wrt` activates the output of each specified variable into the database.
 
 - `schlieren_alpha(i)` specifies the intensity of the numerical Schlieren of $i$-th component.
 
-- `fd_order` specifies the order of the finite difference scheme that is used to compute the vorticity from the velocity field and the numerical schlieren from the density field by an integer of 1, 2, and 4.
-`fd_order = 1`, `2`, and `4` correspond to the first, second, and fourth-order finite difference schemes, respectively.
+- `fd_order` specifies the order of the finite difference scheme used to compute the vorticity from the velocity field and the numerical schlieren from the density field using an integer of 1, 2, and 4.
+`fd_order = 1`, `2`, and `4` correspond to the first, second, and fourth-order finite difference schemes.
 
-- `probe_wrt` activates output of state variables at coordinates specified by `probe(i)%[x;y,z]`.
+- `probe_wrt` activates the output of state variables at coordinates specified by `probe(i)%[x;y,z]`.
 
+- `output_partial_domain` activates the output of part of the domain specified by `[x,y,z]_output%beg` and `[x,y,z]_output%end`.
+This is useful for large domains where only a portion of the domain is of interest.
+It is not supported when `precision = 1` and `format = 1`. 
+It also cannot be enabled with `flux_wrt`, `heat_ratio_wrt`, `pres_inf_wrt`, `c_wrt`, `omega_wrt`, `ib`, `schlieren_wrt`, or `qm_wrt`.
 
 ### 8. Acoustic Source {#acoustic-source}
 
@@ -538,7 +566,7 @@ If `file_per_process` is true, then pre_process, simulation, and post_process mu
 | `acoustic(i)%%support`                | Integer | Geometry of spatial support for the acoustic source |
 | `acoustic(i)%%dipole`                 | Logical | Dipole source activation (optional; default = false -> monopole) |
 | `acoustic(i)%%loc(j)`                 | Real    | $j$-th coordinate of the point that defines the acoustic source location |
-| `acoustic(i)%%pulse`                  | Integer | Acoustic wave form: [1] Sine [2] Gaussian [3] Square |
+| `acoustic(i)%%pulse`                  | Integer | Acoustic wave form: [1] Sine [2] Gaussian [3] Square [4] Broadband  |
 | `acoustic(i)%%npulse`                 | Real    | Number of pulse cycles |
 | `acoustic(i)%%mag`                    | Real    | Pulse magnitude	|
 | `acoustic(i)%%frequency`              | Real    | Sine/Square - Frequency of the acoustic wave  (exclusive) |
@@ -556,6 +584,9 @@ If `file_per_process` is true, then pre_process, simulation, and post_process mu
 | `acoustic(i)%%element_spacing_angle`  | Real    | 2D Transducer array - Spacing angle (in rad) between adjacent transducer elements |
 | `acoustic(i)%%element_polygon_ratio`  | Real    | 3D Transducer array - Ratio of polygon side length to transducer element radius |
 | `acoustic(i)%%rotate_angle`           | Real    | 3D Transducer array - Rotation angle of the transducer array (optional; default = 0) |
+| `acoustic(i)%%bb_num_freq`            | integer | Number of frequencies in broadband wave |
+| `acoustic(i)%%bb_bandwidth`           | Real    | The bandwidth of each frequency in the broadband wave |
+| `acoustic(i)%%bb_lowest_freq`         | Real    | The lower frequency bound of the broadband wave |
 
 Details of the transducer acoustic source model can be found in [Maeda and Colonius (2017)](references.md#Maeda17).
 
@@ -567,9 +598,9 @@ Details of the transducer acoustic source model can be found in [Maeda and Colon
 
 - `%%dipole` changes the default monopole (one-sided) source to a dipole source. It is only available for planar waves.
 
-- `%%loc(j)` specifies the location of the acoustic source in the $j$-th coordinate direction. For planer support, the location defines midpoint of the source plane. For transducer arrays, the location defines the center of the transducer or transducer array (not the focal point; for 3D it's the tip of the spherical cap, for 2D it's the tip of the arc). 
+- `%%loc(j)` specifies the location of the acoustic source in the $j$-th coordinate direction. For planer support, the location defines midpoint of the source plane. For transducer arrays, the location defines the center of the transducer or transducer array (not the focal point; for 3D it's the tip of the spherical cap, for 2D it's the tip of the arc).
 
-- `%%pulse` specifies the acoustic wave form. `%%pulse = 1`, `2`, and `3` correspond to sinusoidal wave, Gaussian wave, and square wave, respectively.
+- `%%pulse` specifies the acoustic wave form. `%%pulse = 1`, `2`, `3` and `4` correspond to sinusoidal wave, Gaussian wave, square wave and broadband wave, respectively. The implementation of the broadband wave is based on [Tam (2005)](references.md#Tam05)
 
 - `%%npulse` specifies the number of cycles of the acoustic wave generated. Only applies to `%%pulse = 1 and 3` (sine and square waves), and must be an integer for non-planar waves.
 
@@ -589,67 +620,90 @@ Details of the transducer acoustic source model can be found in [Maeda and Colon
 
 - `%%foc_length` specifies the focal length of the transducer for transducer waves. It is the distance from the transducer to the focal point.
 
-- `%%aperture` specifies the aperture of the transducer. It is the diameter of the projection of the transducer arc onto the y-axis (2D) or spherical cap onto the y-z plane (3D). To simulate a transducer enclosing half of the circle/sphere, set the aperture to double the focal length. For transducer array, it is the total aperture of the array.
+- `%%aperture` specifies the aperture of the transducer. It is the diameter of the projection of the transducer arc onto the y-axis (2D) or spherical cap onto the y-z plane (3D). Set the aperture to double the focal length to simulate a transducer enclosing half of the circle/sphere. For the transducer array, it is the total aperture of the array.
 
-- `%%num_elements` specifies the number of transducer elements in a transducer array. 
+- `%%num_elements` specifies the number of transducer elements in a transducer array.
 
-- `%%element_on` specifies the element number of the transducer array that is on. The element number starts from 1. If all elements are on, set `%%element_on` to 0.
+- `%%element_on` specifies the element number of the transducer array that is on. The element number starts from 1, if all elements are on, set `%%element_on` to 0.
 
-- `%%element_spacing_angle` specifies the spacing angle between adjacent transducer in radians. The total aperture (`%%aperture`) is set, so each transducer element is smaller if `%%element_spacing_angle` is larger.
+- `%%element_spacing_angle` specifies the spacing angle between adjacent transducers in radians. The total aperture (`%%aperture`) is set, so each transducer element is smaller if `%%element_spacing_angle` is larger.
 
-- `%%element_polygon_ratio` specifies the ratio of the polygon side length to the aperture diameter of each transducer element in a circular 3D transducer array. The polygon side length is calculated by using the total aperture (`%%aperture`) as the circumcicle diameter, and `%%num_elements` as the number of sides of the polygon. The ratio is used specify the aperture size of each transducer element in the array, as a ratio of the total aperture. 
+- `%%element_polygon_ratio` specifies the ratio of the polygon side length to the aperture diameter of each transducer element in a circular 3D transducer array. The polygon side length is calculated by using the total aperture (`%%aperture`) as the circumcircle diameter and `%%num_elements` as the number of sides of the polygon. The ratio is used to specify the aperture size of each transducer element in the array as a ratio of the total aperture.
 
 - `%%rotate_angle` specifies the rotation angle of the 3D circular transducer array along the x-axis (principal axis). It is optional and defaults to 0.
 
-### 9. Ensemble-Averaged Bubble Model
+- `%%bb_num_freq` specifies the number discretized frequencies in the broadband acoustic wave. If `%%bb_num_freq` is 1, the acoustic wave will be a discrete tone (i.e. single frequency sine wave).
+
+- `%%bb_bandwidth` specifies the bandwidth of the discretized frequencies.
+
+- `%%bb_lowest_freq` specifies the lower frequency bound of the broadband acoustic wave. The upper frequency bound will be calculated as `%%bb_lowest_freq + %%bb_num_freq * %%bb_bandwidth`. The wave is no longer broadband below the lower bound and above the upper bound.
+
+### 9. Sub-grid Bubble Models
+
+| Parameter         | Type    | Description                                    |
+| ---:              | :----:  |          :---                                  |
+| `bubbles_euler`   | Logical	| Ensemble-averaged bubble modeling	|
+| `bubbles_lagrange`| Logical	| Volume-averaged bubble modeling	|
+| `bubble_model`    | Integer	| [1] Gilmore; [2] Keller--Miksis |
+| `mu_l0` *	        | Real 		|	Liquid viscosity (only specify in liquid phase)  |
+| `ss` *		        | Real 		|	Surface tension (only specify in liquid phase) |
+| `pv` *		        | Real 		|	Vapor pressure (only specify in liquid phase) |
+| `gamma_v` † 	    | Real 	  |	Specific heat ratio |
+| `M_v` †     	    | Real 		| Molecular weight |
+| `mu_v` †	        | Real 		|	Viscosity |
+| `k_v` †	          | Real 		|	Thermal conductivity |
+| `cp_v` †	        | Real 		|	Specific heat capacity |
+
+These options work only for gas-liquid two-component flows.
+Component indexes are required to be 1 for liquid and 2 for gas.
+
+- \* These parameters should be prepended with patch index $1$ that is filled with liquid: `fluid_pp(1)%`.
+- †  These parameters should be prepended with patch indexes filled with liquid and gas: `fluid_pp(1)%` and `fluid_pp(2)%`.
+
+This table lists the sub-grid bubble model parameters, which can be utilized in both the ensemble-averaged and volume-averaged bubble models.
+
+- `bubbles_euler` activates the ensemble-averaged bubble model.
+
+- `bubbles_lagrange` activates the volume-averaged bubble model.
+
+- `bubble_model` specified a model for spherical bubble dynamics by an integer of 1 and 2.
+`bubble_model = 1`, `2`, and `3` correspond to the Gilmore, Keller-Miksis, and Rayleigh-Plesset models.
+
+- `mu_l0`, `ss`, and `pv`, `gamma_v`, `M_v`, `mu_v`, `k_v`, and `cp_v` specify simulation parameters for the non-polytropic gas compression model.
+`mu_l0`, `ss`, and `pv` correspond to the liquid viscosity, surface tension, and vapor pressure, respectively.
+`gamma_v`, `M_v`, `mu_v`, `k_v`, and `cp_v` specify the specific heat ratio, molecular weight, viscosity, thermal conductivity and specific heat capacity of a chosen component (`cp_v` only for ``bubbles_lagrange = 'T'``).
+Implementation of the parameters into the model follow [Ando (2010)](references.md#Ando10).
+
+#### 9.1 Ensemble-Averaged Bubble Model
 
 | Parameter      | Type    | Description                                    |
 | ---:           | :----:  |          :---                                  |
-| `bubbles` 		 | Logical	| Ensemble-averaged bubble modeling	 |
-| `bubble_model` | Integer	| [1] Gilmore; [2] Keller--Miksis |
-| `polytropic`   | Logical	| Polytropic gas compression |
-| `thermal` 		 | Integer	| Thermal model: [1] Adiabatic; [2] Isothermal; [3] Transfer |
+| `bubbles_euler`| Logical	| Ensemble-averaged bubble modeling	|
+| `polytropic`      | Logical	| Polytropic gas compression |
+| `thermal` 		    | Integer	| Thermal model: [1] Adiabatic; [2] Isothermal; [3] Transfer |
 | `R0ref` 			 | Real		  | Reference bubble radius |
-| `polydisperse`   | Logical	| Polydispersity in equilibrium bubble radius R0|
+| `polydisperse`   | Logical	| Polydispersity in equilibrium bubble radius R0 |
 | `nb` 			     | Integer	| Number of bins: [1] Monodisperse; [$>1$] Polydisperse |
 | `poly_sigma` 	       | Real 		|	Standard deviation for probability density function of polydisperse bubble populations |
 | `R0_type` 	       | Integer 		|	Quadrature rule for probability density function of polydisperse bubble populations |
 | `Ca` 			     | Real		  | Cavitation number |
 | `Web` 			   | Real		  | Weber number |
 | `Re_inv` 		   | Real		  | Inverse Reynolds number |
-| `mu_l0` *	     | Real 		|	Liquid viscosity (only specify in liquid phase)  |
-| `ss` *		     | Real 		|	Surface tension (only specify in liquid phase) |
-| `pv` *		     | Real 		|	Vapor pressure (only specify in liquid phase) |
-| `gamma_v` † 	 | Real 	  |	Specific heat ratio |
-| `M_v` †     	 | Real 		| Molecular weight |
-| `mu_v` †	     | Real 		|	Viscosity |
-| `k_v` †	       | Real 		|	Thermal conductivity |
-| `qbmm` 	       | Logical 		|	Quadrature by  method of moments|
-| `dist_type` 	       | Integer 		|	Joint probability density function for bubble radius and velocity (only when qbmm is true)|
-| `sigR` 	       | Real 		|	Standard deviation for probability density function of bubble radius (only when qbmm is true) |
-| `sigV` 	       | Real 		|	Standard deviation for probability density function of bubble velocity (only when qbmm is true) |
-| `rhoRV`	       | Real 		|	Correlation coefficient for joint probability density function of bubble radius and velocity (only when qbmm is true) |
-
-These options work only for gas-liquid two component flows.
-Component indexes are required to be 1 for liquid and 2 for gas.
-
-- \* These parameters should be pretended with patch index $1$ that is filled with liquid: `fluid_pp(1)%`.
-- †  These parameters should be pretended with patch indexes that are respectively filled with liquid and gas: `fluid_pp(1)%` and `fluid_pp(2)%`.
+| `qbmm` 	       | Logical 		|	Quadrature by  method of moments |
+| `dist_type` 	       | Integer 		|	Joint probability density function for bubble radius and velocity (only for ``qbmm = 'T'``) |
+| `sigR` 	       | Real 		|	Standard deviation for the probability density function of bubble radius (only for ``qbmm = 'T'``) (EE)|
+| `sigV` 	       | Real 		|	Standard deviation for the probability density function of bubble velocity (only for ``qbmm = 'T'``) (EE)|
+| `rhoRV`	       | Real 		|	Correlation coefficient for the joint probability density function of bubble radius and velocity (only for ``qbmm = 'T'``) |
 
 This table lists the ensemble-averaged bubble model parameters.
 
-- `bubbles` activates the ensemble-averaged bubble model.
-
-- `bubble_model` specified a model for spherical bubble dynamics by an integer of 1 and 2.
-`bubble_model = 1`, `2`, and `3` correspond to the Gilmore, Keller-Miksis, and Rayleigh-Plesset models.
-
 - `polytropic` activates polytropic gas compression in the bubble.
-When `polytropic` is set `False`, the gas compression is modeled as non-polytropic due to heat and mass transfer across the bubble wall with constant heat and mass transfer coefficients based on ([Preston et al., 2007](references.md#Preston07)).
-
-- `polydisperse` activates polydispersity in the bubble model by means of a probability density function (PDF) of the equiliibrium bubble radius.
+When ``polytropic = 'F'``, the gas compression is modeled as non-polytropic due to heat and mass transfer across the bubble wall with constant heat and mass transfer coefficients based on ([Preston et al., 2007](references.md#Preston07)).
 
 - `thermal` specifies a model for heat transfer across the bubble interface by an integer from 1 through 3.
 `thermal = 1`, `2`, and `3` correspond to no heat transfer (adiabatic gas compression), isothermal heat transfer, and heat transfer with a constant heat transfer coefficient based on [Preston et al., 2007](references.md#Preston07), respectively.
+
+- `polydisperse` activates polydispersity in the bubble model through a probability density function (PDF) of the equilibrium bubble radius.
 
 - `R0ref` specifies the reference bubble radius.
 
@@ -662,26 +716,61 @@ When `polytropic` is set `False`, the gas compression is modeled as non-polytrop
 
 - `Ca`, `Web`, and `Re_inv` respectively specify the Cavitation number, Weber number, and the inverse Reynolds number that characterize the offset of the gas pressure from the vapor pressure, surface tension, and liquid viscosity when the polytropic gas compression model is used.
 
-- `mu_l0`, `ss`, and `pv`, `gamma_v`, `M_v`, `mu_v`, and `k_v` specify simulation parameters for the non-polytropic gas compression model.
-`mu_l0`, `ss`, and `pv` correspond to the liquid viscosity, surface tension, and vapor pressure, respectively.
-`gamma_v`, `M_v`, `mu_v`, and `k_v` specify the specific heat ratio, molecular weight, viscosity, and thermal conductivity of a chosen component.
-Implementation of the parameters into the model follow [Ando (2010)](references.md#Ando10).
-
 - `qbmm` activates quadrature by method of moments, which assumes a PDF for bubble radius and velocity.
 
 - `dist_type` specifies the initial joint PDF of initial bubble radius and bubble velocity required in qbmm. `dist_type = 1`  and `2` correspond to binormal and lognormal-normal distributions respectively.
 
-- `sigR` specifies the standard deviation of the PDF of bubble radius required in qbmm.
+- `sigR` specifies the standard deviation of the PDF of bubble radius required in the QBMM feature.
 
-- `sigV` specifies the standard deviation of the PDF of bubble velocity required in qbmm.
+- `sigV` specifies the standard deviation of the PDF of bubble velocity required in the QBMM feature.
 
-- `rhoRV` specifies the correlation coefficient of the joint PDF of bubble radius and bubble velocity required in qbmm.
+- `rhoRV` specifies the correlation coefficient of the joint PDF of bubble radius and bubble velocity required in the QBMM feature.
+
+#### 9.2 Volume-Averaged Bubble Model
+
+| Parameter             | Type    | Description                                               |
+| ---:                  | :---:   | :---                                                      |
+| `bubbles_lagrange`    | Logical | Lagrangian subgrid bubble model switch                    |
+| `nBubs_glb`           | Integer | Global number of bubbles                                  |
+| `solver_approach`     | Integer | 1: One-way coupling, 2: two-way coupling                  |
+| `cluster_type`        | Integer | Method to find p_inf                                      |
+| `pressure_corrector`  | Logical | Cell pressure correction term                             |
+| `smooth_type`         | Integer | Smoothing function. 1: Gaussian, 2:Delta 3x3              |
+| `heatTransfer_model`  | Logical | Activates the interface heat transfer model               |
+| `massTransfer_model`  | Logical | Activates the interface mass transfer model               |
+| `write_bubbles`       | Logical | Write files to track the bubble evolution each time step  |
+| `write_bubbles_stats` | Logical | Write the maximum and minimum radius of each bubble       |
+| `epsilonb`            | Real    | Standard deviation scaling for the gaussian function      |
+| `charwidth`           | Real    | Domain virtual depth (z direction, for 2D simulations)    |
+| `valmaxvoid`          | Real    | Maximum void fraction permitted                           |
+| `c0`                  | Real    | Reference speed                                           |
+| `rho0`                | Real    | Reference density                                         |
+| `T0`                  | Real    | Reference temperature                                     |
+| `x0`                  | Real    | Reference length                                          |
+| `Thost`               | Real    | Temperature of the surrounding liquid (host)              |
+| `diffcoefvap`         | Real    | Vapor diffusivity in the gas                              |
+| `rkck_adap_dt`        | Logical | Activates the adaptive rkck time stepping algorithm       |
+| `rkck_tolerance`      | Real    | Admissible error truncation tolerance in the rkck stepper  |
+
+- `nBubs_glb` Total number of bubbles. Their initial conditions need to be specified in the ./input/lag_bubbles.dat file. See the example cases for additional information.
+
+- `solver_approach` Specifies the Euler-Lagrange coupling method: [1] enables a one-way coupling approach, where the bubbles do not influence the Eulerian field. [2] activates the two-way coupling approach based on [Maeda and Colonius (2018)](references.md#Maeda18), where the effect of the bubbles is added in the Eulerian field as source terms.
+
+- `cluster_type` Specifies method to find p_inf (pressure that drives the bubble dynamics): [1] activates the bilinear interpolation of the pressure field, while [2] enables the bubble dynamic closure based on [Maeda and Colonius (2018)](references.md#Maeda18), the full model is obtained when `pressure_corrector` is true.
+
+- `smooth_type` Specifies the smoothening method of projecting the lagrangian bubbles in the Eulerian field: [1] activates the gaussian kernel function described in  [Maeda and Colonius (2018)](references.md#Maeda18), while [2] activates the delta kernel function where the effect of the bubble is only seen in the specific bubble location cell.
+
+- `heatTransfer_model` Activates the heat transfer model at the bubble's interface based on ([Preston et al., 2007](references.md#Preston07)).
+
+- `massTransfer_model` Activates the mass transfer model at the bubble's interface based on ([Preston et al., 2007](references.md#Preston07)).
+
+- `rkck_adap_dt` Activates the adaptive 4th/5th order Runge—Kutta–Cash–Karp (RKCK) time-stepping algorithm (requires `time_stepper ==4`). A maximum error between the 4th and 5th order Runge-Kutta-Cash-Karp solutions for the same time step size is calculated. If the error is smaller than a tolerance (`rkck_tolerance`), then the algorithm employs the 5th order solution, while if not, both eulerian/lagrangian variables are re-calculated with a smaller time step size.
 
 ### 10. Velocity Field Setup
 
 | Parameter              | Type    | Description |
 | ---:                   | :----:  | :--- |
-| `perturb_flow`         | Logical | Perturb the initlial velocity field by random noise |
+| `perturb_flow`         | Logical | Perturb the initial velocity field by random noise |
 | `perturb_flow_fluid`   | Integer | Fluid density whose flow is to be perturbed |
 | `perturb_flow_mag`     | Real    | Set the magnitude of flow perturbations |
 | `perturb_sph`          | Logical | Perturb the initial partial density by random noise |
@@ -696,7 +785,7 @@ The parameters are optionally used to define initial velocity profiles and pertu
 
 - `perturb_flow` activates the perturbation of initial velocity by random noise.
 
-- `perturb_flow_fluid` specifies the fluid component whose flow is to be perturbed.
+- `perturb_flow_fluid` specifies the fluid component whose flow will be perturbed.
 
 - `perturb_flow` activates the perturbation of initial velocity by random noise.
 
@@ -704,7 +793,7 @@ The parameters are optionally used to define initial velocity profiles and pertu
 
 - `perturb_sph_fluid` specifies the fluid component whose partial density is to be perturbed.
 
-- `mixlayer_vel_profile` activates setting of the mean streamwise velocity to hyperbolic tangent profile. This option works only for 2D and 3D cases.
+- `mixlayer_vel_profile` activates setting the mean streamwise velocity to a hyperbolic tangent profile. This option works only for 2D and 3D cases.
 
 - `mixlayer_vel_coef` is a parameter for the hyperbolic tangent profile of a mixing layer when `mixlayer_vel_profile = 'T'`. The mean streamwise velocity profile is given as:
 
@@ -726,7 +815,7 @@ $$ u = patch\_icpp(1)\%vel(1) * tanh(y\_cc * mixlayer\_vel\_profile) $$
 
 - `relax_model` Specifies the phase change model to be used: [5] enables pT-equilibrium, while [6] activates pTg-equilibrium (if criteria are met).
 
-- `palpha_eps` Specifies the tolerance used for the Newton Solvers used in the pT-equilibrium model.
+- `palpha_eps` Specifies the tolerance for the Newton Solvers used in the pT-equilibrium model.
 
 - `ptgalpha_eps` Specifies the tolerance used for the Newton Solvers used in the pTg-equilibrium model.
 
@@ -736,7 +825,7 @@ $$ u = patch\_icpp(1)\%vel(1) * tanh(y\_cc * mixlayer\_vel\_profile) $$
 | `pi_fac`               | Real    | Ratio of artificial and true `pi_\infty` values|
 
 - `pi_fac` specifies the ratio of artificial and true `pi_\infty` values (`=` artificial `pi_\infty` / true `pi_\infty`).
-This parameter enables the use of true `pi_\infty` in bubble dynamics models, when the `pi_\infty` given in the `case.py` file is an artificial value.
+This parameter enables the use of true `pi_\infty` in bubble dynamics models when the `pi_\infty` given in the `case.py` file is an artificial value.
 
 ### 13. Body Forces
 
@@ -752,7 +841,23 @@ This parameter enables the use of true `pi_\infty` in bubble dynamics models, wh
 
 $$ a_{x[y,z]} = g_{x[y,z]} + k_{x[y,z]}\sin\left(w_{x[y,z]}t + p_{x[y,z]}\right). $$
 
-Positive accelerations are in the `x[y,z]` direction are in the positive `x[y,z]` direction by convention.
+By convention, positive accelerations in the `x[y,z]` direction are in the positive `x[y,z]` direction.
+
+### 14. Cylindrical Coordinates
+
+When ``cyl_coord = 'T'`` is set in 3D the following constraints must be met:
+
+- `bc_y%beg = -14`  enables the axis boundary condition
+
+- `bc_z%beg = bc_z%end = -1`  enables periodic boundary conditions in the azimuthal direction
+
+- `z_domain%beg = 0`  sets the azimuthal starting point to 0
+
+- `z_comain%end = 2*math.pi` to set the azimuthal ending point to $2\pi$ (note, requires `import math` in the case file)
+
+When ``cyl_coord = 'T'`` is set in 2D the following constraints must be met:
+
+- `bc_y%beg = -2` to enable reflective boundary conditions
 
 ## Enumerations
 
@@ -781,6 +886,22 @@ Positive accelerations are in the `x[y,z]` direction are in the positive `x[y,z]
 The boundary condition supported by the MFC are listed in table [Boundary Conditions](#boundary-conditions).
 Their number (`#`) corresponds to the input value in `input.py` labeled `bc_[x,y,z]%[beg,end]` (see table [Simulation Algorithm Parameters](#5-simulation-algorithm)).
 The entries labeled "Characteristic." are characteristic boundary conditions based on [Thompson (1987)](references.md#Thompson87) and [Thompson (1990)](references.md#Thompson90).
+
+### Generalized Characteristic Boundary conditions
+
+| Parameter                     | Type    | Description |
+| ---:                          | :----:  | :--- |
+| `bc_[x,y,z]%grcbc_in`         | Logical | Enable grcbc for subsonic inflow |
+| `bc_[x,y,z]%grcbc_out`        | Logical | Enable grcbc for subsonic outflow (pressure)|
+| `bc_[x,y,z]%grcbc_vel_out`    | Logical | Enable grcbc for subsonic outflow (pressure + normal velocity) |
+| `bc_[x,y,z]%vel_in`           | Real Array | Inflow velocities in x, y and z directions |
+| `bc_[x,y,z]%vel_out`          | Real Array | Outflow velocities in x, y and z directions |
+| `bc_[x,y,z]%pres_in`          | Real    | Inflow pressure |
+| `bc_[x,y,z]%pres_out`         | Real    | Outflow pressure |
+| `bc_[x,y,z]%alpha_rho_in`     | Real Array | Inflow density |
+| `bc_[x,y,z]%alpha_in`         | Real Array | Inflow void fraction |
+
+This boundary condition can be used for subsonic inflow (`bc_[x,y,z]%[beg,end]` = -7) and subsonic outflow (`bc_[x,y,z]%[beg,end]` = -8) characteristic boundary conditions. These are based on [Pirozzoli (2013)](references.md#Pirozzoli13). This enables to provide inflow and outflow conditions outside the computational domain.
 
 ### Patch types
 
@@ -815,14 +936,14 @@ Each patch requires a different set of parameters, which are also listed in this
 
 ### Immersed Boundary Patch Types
 
-| #    | Name               | Dim.   | 
-| ---: | :----:             | :---   | 
-| 2    | 2D Circle          | 2      | 
-| 3    | 2D Rectangle       | 2      |   
-| 4    | 2D Airfoil         | 2      |      
-| 8    | 3D Sphere          | 3      |      
-| 10   | 3D Cylinder        | 3      |      
-| 11   | 3D Airfoil         | 3      |      
+| #    | Name               | Dim.   |
+| ---: | :----:             | :---   |
+| 2    | 2D Circle          | 2      |
+| 3    | 2D Rectangle       | 2      |
+| 4    | 2D Airfoil         | 2      |
+| 8    | 3D Sphere          | 3      |
+| 10   | 3D Cylinder        | 3      |
+| 11   | 3D Airfoil         | 3      |
 
 ### Acoustic Supports {#acoustic-supports}
 
@@ -838,7 +959,7 @@ Each patch requires a different set of parameters, which are also listed in this
 | 10   | Annular Transducer Array     | 2D-Axisym | #9 requirements                                                                         |
 | 11   | Circular Transducer Array    | 3D        | #7 requirements, `%%element_polygon_ratio`, and `%%rotate_angle`                        |
 
-Details of the required parameters for each acoustic support type are listed in [Acoustic Source](#acoustic-source).
+The required parameters for each acoustic support type are listed in [Acoustic Source](#acoustic-source).
 The acoustic support number (`#`) corresponds to the acoustic support type `Acoustic(i)%%support`, where $i$ is the acoustic source index.
 For each `%%parameter`, prepend the parameter with `acoustic(i)%`.
 
@@ -847,7 +968,7 @@ Additional requirements for all acoustic support types:
 
 - `num_source` must be set to the total number of acoustic sources.
 
-- `%%support` must be set to the acoustic support number listed in the table.
+- `%%support` must be set to the acoustic support number in the table.
 
 - `%%dipole` is only supported for planar sources.
 
