@@ -95,7 +95,7 @@ print(json.dumps({
     #'t_step_save'                  : int(50),
     'cfl_adap_dt'                  : 'T',
     'cfl_target'                   : 0.3,
-    'n_start'                      : 0,
+    'n_start'                      : 40,
     't_save'                       : 4.E-02,
     't_stop'                       : 4.0,
     # ==========================================================================
