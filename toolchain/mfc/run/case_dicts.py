@@ -1,5 +1,9 @@
+import fastjsonschema
+
 from enum import Enum
 from ..state import ARG
+from functools import cache
+
 
 class ParamType(Enum):
     INT = {"type": "integer"}
@@ -38,7 +42,7 @@ COMMON = {
     'nb': ParamType.REAL,
     'weno_order': ParamType.INT,
     'rhoref': ParamType.REAL,
-    'bubbles': ParamType.LOG,
+    'bubbles_euler': ParamType.LOG,
     'Re_inv': ParamType.REAL,
     'n': ParamType.INT,
     'precision': ParamType.INT,
@@ -52,6 +56,9 @@ COMMON = {
     'cfl_adap_dt': ParamType.LOG,
     'cfl_const_dt': ParamType.LOG,
     'MGEoS_model': ParamType.INT,
+    'chemistry': ParamType.LOG,
+    'cantera_file': ParamType.STR,
+    'rkck_adap_dt': ParamType.LOG, 
 }
 
 PRE_PROCESS = COMMON.copy()
@@ -60,8 +67,10 @@ PRE_PROCESS.update({
     'old_ic': ParamType.LOG,
     't_step_old': ParamType.INT,
     't_step_start': ParamType.INT,
-    'vel_profile': ParamType.LOG,
-    'instability_wave': ParamType.LOG,
+    'mixlayer_vel_profile': ParamType.LOG,
+    'mixlayer_vel_coef': ParamType.REAL,
+    'mixlayer_domain': ParamType.REAL,
+    'mixlayer_perturb': ParamType.LOG,
     'perturb_flow': ParamType.LOG,
     'perturb_flow_fluid': ParamType.INT,
     'perturb_flow_mag': ParamType.REAL,
@@ -83,7 +92,8 @@ PRE_PROCESS.update({
     'pre_stress': ParamType.LOG,
     'cfl_dt': ParamType.LOG,
     'n_start': ParamType.INT,
-    'n_start_old': ParamType.INT
+    'n_start_old': ParamType.INT,
+    'surface_tension': ParamType.LOG,
 })
 
 for ib_id in range(1, 10+1):
@@ -97,6 +107,14 @@ for ib_id in range(1, 10+1):
         cmp_id += 1
         PRE_PROCESS[f'patch_ib({ib_id})%{cmp}_centroid'] = ParamType.REAL
         PRE_PROCESS[f'patch_ib({ib_id})%length_{cmp}'] = ParamType.REAL
+
+    for real_attr_stl, ty_stl in [("filepath", ParamType.STR), ("spc", ParamType.INT),
+                          ("threshold", ParamType.REAL)]:
+        PRE_PROCESS[f"patch_ib({ib_id})%model_{real_attr_stl}"] = ty_stl
+
+    for real_attr_stl2 in ["translate", "scale", "rotate"]:
+        for j in range(1, 4):
+            PRE_PROCESS[f"patch_ib({ib_id})%model_{real_attr_stl2}({j})"] = ParamType.REAL
 
 for cmp in ["x", "y", "z"]:
     for prepend in ["domain%beg", "domain%end", "a", "b"]:
@@ -113,7 +131,7 @@ for f_id in range(1, 10+1):
     PRE_PROCESS[f'fluid_rho({f_id})'] = ParamType.REAL
 
     for real_attr in ["gamma", "pi_inf", "mul0", "ss", "pv", "gamma_v", "M_v",
-                      "mu_v", "k_v", "G", "cv", "qv", "qvp", "rho0", "mg_a", "mg_b" ]:
+                      "mu_v", "k_v", "cp_v", "G", "cv", "qv", "qvp", "rho0", "mg_a", "mg_b" ]:
         PRE_PROCESS[f"fluid_pp({f_id})%{real_attr}"] = ParamType.REAL
 
     for ein_cv_id in [1, 2]:
@@ -124,26 +142,28 @@ for p_id in range(1, 10+1):
                       ("smooth_patch_id", ParamType.INT), ("hcid", ParamType.INT)]:
         PRE_PROCESS[f"patch_icpp({p_id})%{attribute}"] = ty
 
-    for real_attr in ["radius",  "radii", "epsilon", "beta", "normal", "alpha_rho", "a2",
-                      "a3", "a4", "a5", "a6", "a7","a8", "a9", "a10", "a11", "a12",  'non_axis_sym',
-                      "normal", "smooth_coeff", "rho", "vel", "pres", "alpha", "gamma",
-                      "pi_inf", "r0", "v0", "p0", "m0", "cv", "qv", "qvp", "cf_val"]:
-
+    for real_attr in ["radius",  "radii", "epsilon", "beta", "normal", "alpha_rho",
+                      'non_axis_sym', "normal", "smooth_coeff", "rho", "vel",
+                      "alpha", "gamma", "pi_inf", "r0", "v0", "p0", "m0", "cv",
+                      "qv", "qvp"]:
         PRE_PROCESS[f"patch_icpp({p_id})%{real_attr}"] = ParamType.REAL
+
+    for real_attr in range(2, 9+1):
+        PRE_PROCESS[f"patch_icpp({p_id})%a({real_attr})"] = ParamType.REAL
+
     PRE_PROCESS[f"patch_icpp({p_id})%pres"] = ParamType.REAL.analytic()
 
-    # (cameron): This parameter has since been removed.
-    # for i in range(100):
-    #     PRE_PROCESS.append(f"patch_icpp({p_id})%Y({i})")
+    for i in range(100):
+        PRE_PROCESS[f"patch_icpp({p_id})%Y({i})"] = ParamType.REAL.analytic()
 
-    PRE_PROCESS[f"patch_icpp({p_id})%model%filepath"] = ParamType.STR
+    PRE_PROCESS[f"patch_icpp({p_id})%model_filepath"] = ParamType.STR
 
     for real_attr in ["translate", "scale", "rotate"]:
         for j in range(1, 4):
-            PRE_PROCESS[f"patch_icpp({p_id})%model%{real_attr}({j})"] = ParamType.REAL
+            PRE_PROCESS[f"patch_icpp({p_id})%model_{real_attr}({j})"] = ParamType.REAL
 
-    PRE_PROCESS[f"patch_icpp({p_id})%model%spc"] = ParamType.INT
-    PRE_PROCESS[f"patch_icpp({p_id})%model%threshold"] = ParamType.REAL
+    PRE_PROCESS[f"patch_icpp({p_id})%model_spc"] = ParamType.INT
+    PRE_PROCESS[f"patch_icpp({p_id})%model_threshold"] = ParamType.REAL
 
     for cmp_id, cmp in enumerate(["x", "y", "z"]):
         cmp_id += 1
@@ -161,13 +181,15 @@ for p_id in range(1, 10+1):
     for taue_id in range(1, 6+1):
         PRE_PROCESS[f'patch_icpp({p_id})%tau_e({taue_id})'] = ParamType.REAL.analytic()
 
+    PRE_PROCESS[f'patch_icpp({p_id})%cf_val'] = ParamType.REAL.analytic()
+
     if p_id >= 2:
         PRE_PROCESS[f'patch_icpp({p_id})%alter_patch'] = ParamType.LOG
 
         for alter_id in range(1, p_id):
             PRE_PROCESS[f'patch_icpp({p_id})%alter_patch({alter_id})'] = ParamType.LOG
 
-            PRE_PROCESS[f'patch_icpp({p_id})%cf_val'] = ParamType.REAL.analytic()
+    PRE_PROCESS[f'patch_icpp({p_id})%cf_val'] = ParamType.REAL.analytic()
 
 # NOTE: Currently unused.
 # for f_id in range(1, 10+1):
@@ -189,6 +211,7 @@ SIMULATION.update({
     'time_stepper': ParamType.INT,
     'weno_eps': ParamType.REAL,
     'teno_CT': ParamType.REAL,
+    'wenoz_q': ParamType.REAL,
     'mapped_weno': ParamType.LOG,
     'wenoz': ParamType.LOG,
     'teno': ParamType.LOG,
@@ -224,11 +247,29 @@ SIMULATION.update({
     't_save': ParamType.REAL,
     'cfl_target': ParamType.REAL,
     'low_Mach': ParamType.INT,
+    'surface_tension': ParamType.LOG,
+    'viscous': ParamType.LOG,
+    'hypermodel': ParamType.INT,
+    'bubbles_lagrange': ParamType.LOG,
+    'rkck_tolerance': ParamType.REAL,
 })
 
-# NOTE: Not currently present
-# for var in [ 'advection', 'diffusion', 'reactions' ]:
-#     SIMULATION.append(f'chem_params%{var}')
+for var in [ 'heatTransfer_model', 'massTransfer_model', 'pressure_corrector',
+             'write_bubbles', 'write_bubbles_stats' ]:
+    SIMULATION[f'lag_params%{var}'] = ParamType.LOG
+
+for var in [ 'solver_approach', 'cluster_type', 'smooth_type', 'nBubs_glb']:
+    SIMULATION[f'lag_params%{var}'] = ParamType.INT
+
+for var in [ 'epsilonb', 'valmaxvoid', 'charwidth', 'diffcoefvap',
+            'c0', 'rho0', 'T0', 'x0', 'Thost' ]:
+    SIMULATION[f'lag_params%{var}'] = ParamType.REAL
+
+for var in [ 'diffusion', 'reactions' ]:
+    SIMULATION[f'chem_params%{var}'] = ParamType.LOG
+
+for var in [ 'gamma_method' ]:
+    SIMULATION[f'chem_params%{var}'] = ParamType.INT
 
 for ib_id in range(1, 10+1):
     for real_attr, ty in [("geometry", ParamType.INT), ("radius", ParamType.REAL),
@@ -251,6 +292,19 @@ for cmp in ["x", "y", "z"]:
     SIMULATION[f'bc_{cmp}%ve1'] = ParamType.REAL
     SIMULATION[f'bc_{cmp}%ve2'] = ParamType.REAL
     SIMULATION[f'bc_{cmp}%ve3'] = ParamType.REAL
+    SIMULATION[f'bc_{cmp}%pres_in'] = ParamType.REAL
+    SIMULATION[f'bc_{cmp}%pres_out'] = ParamType.REAL
+    SIMULATION[f'bc_{cmp}%grcbc_in'] = ParamType.LOG
+    SIMULATION[f'bc_{cmp}%grcbc_out'] = ParamType.LOG
+    SIMULATION[f'bc_{cmp}%grcbc_vel_out'] = ParamType.LOG
+
+    for int_id in range(1, 10+1):
+        SIMULATION[f"bc_{cmp}%alpha_rho_in({int_id})"] = ParamType.REAL
+        SIMULATION[f"bc_{cmp}%alpha_in({int_id})"] = ParamType.REAL
+
+    for int_id in range(1, 3+1):
+        SIMULATION[f"bc_{cmp}%vel_in({int_id})"] = ParamType.REAL
+        SIMULATION[f"bc_{cmp}%vel_out({int_id})"] = ParamType.REAL
 
     for var in ["k", "w", "p", "g"]:
         SIMULATION[f'{var}_{cmp}'] = ParamType.REAL
@@ -260,19 +314,13 @@ for cmp in ["x", "y", "z"]:
     for prepend in ["domain%beg", "domain%end"]:
         SIMULATION[f"{cmp}_{prepend}"] = ParamType.REAL
 
-# NOTE: This is now just "probe_wrt"
-# for wrt_id in range(1,10+1):
-#    for cmp in ["x", "y", "z"]:
-#        SIMULATION.append(f'probe_wrt({wrt_id})%{cmp}')
-#        set_type(f'probe_wrt({wrt_id})%{cmp}', ParamType.LOG)
-
 for probe_id in range(1,3+1):
     for cmp in ["x", "y", "z"]:
         SIMULATION[f'probe({probe_id})%{cmp}'] = ParamType.REAL
 
 for f_id in range(1,10+1):
     for real_attr in ["gamma", "pi_inf", "mul0", "ss", "pv", "gamma_v", "M_v",
-                      "mu_v", "k_v", "G", "cv", "qv", "qvp", "rho0", "mg_a", "mg_b"]:
+                      "mu_v", "k_v", "cp_v", "G", "cv", "qv", "qvp", "rho0", "mg_a", "mg_b" ]:
         SIMULATION[f"fluid_pp({f_id})%{real_attr}"] = ParamType.REAL
 
     for re_id in [1, 2]:
@@ -285,7 +333,7 @@ for f_id in range(1,10+1):
         SIMULATION[f"fluid_pp({f_id})%jcook({jcook_id})"] = ParamType.REAL
 
     for mono_id in range(1,4+1):
-        for int_attr in ["pulse", "support", "num_elements", "element_on"]:
+        for int_attr in ["pulse", "support", "num_elements", "element_on", "bb_num_freq"]:
             SIMULATION[f"acoustic({mono_id})%{int_attr}"] = ParamType.INT
 
         SIMULATION[f"acoustic({mono_id})%dipole"] = ParamType.LOG
@@ -294,7 +342,7 @@ for f_id in range(1,10+1):
                           "gauss_sigma_dist", "gauss_sigma_time", "npulse",
                           "dir", "delay", "foc_length", "aperture",
                           "element_spacing_angle", "element_polygon_ratio",
-                          "rotate_angle"]:
+                          "rotate_angle", "bb_bandwidth", "bb_lowest_freq"]:
             SIMULATION[f"acoustic({mono_id})%{real_attr}"] = ParamType.REAL
 
         for cmp_id in range(1,3+1):
@@ -305,7 +353,7 @@ for f_id in range(1,10+1):
             SIMULATION[f"integral({int_id})%{cmp}min"] = ParamType.REAL
             SIMULATION[f"integral({int_id})%{cmp}max"] = ParamType.REAL
 
-# Removed: 'fourier_modes%beg', 'fourier_modes%end', 'chem_wrt'
+# Removed: 'fourier_modes%beg', 'fourier_modes%end'.
 # Feel free to return them if they are needed once more.
 POST_PROCESS = COMMON.copy()
 POST_PROCESS.update({
@@ -341,10 +389,15 @@ POST_PROCESS.update({
     'cf_wrt': ParamType.LOG,
     'sim_data': ParamType.LOG,
     'ib': ParamType.LOG,
+    'num_ibs': ParamType.INT,
     'cfl_target': ParamType.REAL,
     't_save': ParamType.REAL,
     't_stop': ParamType.REAL,
     'n_start': ParamType.INT,
+    'surface_tension': ParamType.LOG,
+    'kymograph': ParamType.LOG,
+    'output_partial_domain': ParamType.LOG,
+    'bubbles_lagrange': ParamType.LOG,
 })
 
 for cmp_id in range(1,3+1):
@@ -353,12 +406,15 @@ for cmp_id in range(1,3+1):
     POST_PROCESS[f'bc_{cmp}%beg'] = ParamType.INT
     POST_PROCESS[f'bc_{cmp}%end'] = ParamType.INT
 
+    POST_PROCESS[f'{cmp}_output%beg'] = ParamType.REAL
+    POST_PROCESS[f'{cmp}_output%end'] = ParamType.REAL
+
     for real_attr in ["mom_wrt", "vel_wrt", "flux_wrt", "omega_wrt"]:
         POST_PROCESS[f'{real_attr}({cmp_id})'] = ParamType.LOG
 
-# NOTE: `chem_wrt` is missing
-# for cmp_id in range(100):
-#     POST_PROCESS.append(f'chem_wrt({cmp_id})')
+for cmp_id in range(100):
+    POST_PROCESS[f'chem_wrt_Y({cmp_id})'] = ParamType.LOG
+POST_PROCESS['chem_wrt_T'] = ParamType.LOG
 
 for f_id in range(1,10+1):
     for append, ty in [("schlieren_alpha", ParamType.REAL),
@@ -366,8 +422,8 @@ for f_id in range(1,10+1):
                        ("alpha_wrt", ParamType.LOG), ("kappa_wrt", ParamType.LOG)]:
         POST_PROCESS[f'{append}({f_id})'] = ty
 
-    for real_attr in ["gamma", "pi_inf", "ss", "pv", "gamma_v", "M_v", "mu_v", "k_v", "G", "mul0",
-                      "cv", "qv", "qvp", "rho0", "mg_a", "mg_b" ]:
+    for real_attr in ["gamma", "pi_inf", "ss", "pv", "gamma_v", "M_v", "mu_v", "k_v", "cp_v",
+                      "G", "mul0", "cv", "qv", "qvp", "rho0", "mg_a", "mg_b" ]:
         POST_PROCESS[f"fluid_pp({f_id})%{real_attr}"] = ParamType.REAL
 
     for ein_cv_id in [1, 2]:
@@ -376,18 +432,21 @@ for f_id in range(1,10+1):
     for jcook_id in range(1,11+1) :
         POST_PROCESS[f"fluid_pp({f_id})%jcook({jcook_id})"] = ParamType.REAL
 
+IGNORE = ["cantera_file", "chemistry"]
+
 ALL = COMMON.copy()
 ALL.update(PRE_PROCESS)
 ALL.update(SIMULATION)
 ALL.update(POST_PROCESS)
 
-CASE_OPTIMIZATION = [ "mapped_weno", "wenoz", "teno", "nb", "weno_order", "num_fluids" ]
+CASE_OPTIMIZATION = [ "mapped_weno", "wenoz", "teno", "wenoz_q", "nb", "weno_order", "num_fluids" ]
 
 _properties = { k: v.value for k, v in ALL.items() }
 
 SCHEMA = {
     "type": "object",
-    "properties": _properties
+    "properties": _properties,
+    "additionalProperties": False
 }
 
 
@@ -402,3 +461,8 @@ def get_input_dict_keys(target_name: str) -> list:
         return result
 
     return [ x for x in result if x not in CASE_OPTIMIZATION ]
+
+
+@cache
+def get_validator():
+    return fastjsonschema.compile(SCHEMA)

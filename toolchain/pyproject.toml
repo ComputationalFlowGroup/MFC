@@ -1,0 +1,46 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mfc"
+version = "4.9.6"
+dependencies = [
+    # General
+    "rich",
+    "wheel",
+    "typos",
+    "PyYAML",
+    "argparse",
+    "dataclasses",
+    "fastjsonschema",
+
+    # Build System
+    "fypp",
+
+    # Running Cases
+    "mako",
+
+    # Code Health
+    "typos",
+    "pylint",
+    "fprettify",
+    "black",
+    "fortitude-lint",
+    "ansi2txt",
+
+    # Profiling
+    "numpy",
+    "pandas",
+
+    # Plotting
+    "seaborn",
+    "matplotlib",
+
+    # Chemistry
+    "cantera==3.0.1",
+    "pyrometheus==1.0.2"
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true

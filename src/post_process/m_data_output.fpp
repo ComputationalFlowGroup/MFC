@@ -9,9 +9,6 @@
 !!              the flow variable(s) that were chosen by the user to be included.
 module m_data_output
 
-    ! Dependencies =============================================================
-    ! USE f90_unix_proc         ! NAG Compiler Library of UNIX system commands
-
     use m_derived_types         ! Definitions of the derived types
 
     use m_global_parameters     ! Global parameters for the code
@@ -23,21 +20,25 @@ module m_data_output
     use m_compile_specific
 
     use m_helper
-    ! ==========================================================================
 
     implicit none
 
     private; public :: s_initialize_data_output_module, &
+ s_define_output_region, &
  s_open_formatted_database_file, &
  s_open_intf_data_file, &
  s_open_energy_data_file, &
+ s_open_kymo_data_file, &
  s_write_grid_to_formatted_database_file, &
  s_write_variable_to_formatted_database_file, &
+ s_write_lag_bubbles_results, &
  s_write_intf_data_file, &
  s_write_energy_data_file, &
+ s_write_kymo_data_file, &
  s_close_formatted_database_file, &
  s_close_intf_data_file, &
  s_close_energy_data_file, &
+ s_close_kymo_data_file, &
  s_finalize_data_output_module
 
     ! Including the Silo Fortran interface library that features the subroutines
@@ -49,20 +50,21 @@ module m_data_output
     ! database file(s). Note that for 1D simulations, q_root_sf is employed to
     ! gather the flow variable(s) from all sub-domains on to the root process.
     ! If the run is not parallel, but serial, then q_root_sf is equal to q_sf.
-    real(kind(0d0)), allocatable, dimension(:, :, :), public :: q_sf
-    real(kind(0d0)), allocatable, dimension(:, :, :) :: q_root_sf
-    real(kind(0d0)), allocatable, dimension(:, :, :) :: cyl_q_sf
+    real(wp), allocatable, dimension(:, :, :), public :: q_sf
+    real(wp), allocatable, dimension(:, :, :) :: q_root_sf
+    real(wp), allocatable, dimension(:, :, :) :: cyl_q_sf
+
     ! Single precision storage for flow variables
-    real(kind(0.0)), allocatable, dimension(:, :, :), public :: q_sf_s
-    real(kind(0.0)), allocatable, dimension(:, :, :) :: q_root_sf_s
-    real(kind(0.0)), allocatable, dimension(:, :, :) :: cyl_q_sf_s
+    real(sp), allocatable, dimension(:, :, :), public :: q_sf_s
+    real(sp), allocatable, dimension(:, :, :) :: q_root_sf_s
+    real(sp), allocatable, dimension(:, :, :) :: cyl_q_sf_s
 
     ! The spatial and data extents array variables contain information about the
     ! minimum and maximum values of the grid and flow variable(s), respectively.
     ! The purpose of bookkeeping this information is to boost the visualization
     ! of the Silo-HDF5 database file(s) in VisIt.
-    real(kind(0d0)), allocatable, dimension(:, :) :: spatial_extents
-    real(kind(0d0)), allocatable, dimension(:, :) :: data_extents
+    real(wp), allocatable, dimension(:, :) :: spatial_extents
+    real(wp), allocatable, dimension(:, :) :: data_extents
 
     ! The size of the ghost zone layer at beginning of each coordinate direction
     ! (lo) and at end of each coordinate direction (hi). Adding this information
@@ -110,7 +112,7 @@ module m_data_output
 
 contains
 
-    subroutine s_initialize_data_output_module
+    subroutine s_initialize_data_output_module()
         ! Description: Computation of parameters, allocation procedures, and/or
         !              any other tasks needed to properly setup the module
 
@@ -120,7 +122,6 @@ contains
         ! Generic logical used to test the existence of a particular folder
         logical :: dir_check
 
-        ! Generic loop iterator
         integer :: i
 
         ! Allocating the generic storage for the flow variable(s) that are
@@ -210,8 +211,7 @@ contains
             end if
         end if
 
-        ! Generating Silo-HDF5 Directory Tree ==============================
-
+        ! Generating Silo-HDF5 Directory Tree
         if (format == 1) then
 
             ! Creating the directory associated with the local process
@@ -223,10 +223,6 @@ contains
 
             file_loc = trim(proc_rank_dir)//'/.'
 
-            !INQUIRE( DIRECTORY = TRIM(file_loc), & ! Intel compiler
-            !EXIST     = dir_check       )
-            ! INQUIRE( FILE      = TRIM(file_loc), & ! NAG/PGI/GCC compiler
-            !           EXIST     = dir_check       )
             call my_inquire(file_loc, dir_check)
             if (dir_check .neqv. .true.) then
                 call s_create_directory(trim(proc_rank_dir))
@@ -239,10 +235,6 @@ contains
 
                 file_loc = trim(rootdir)//'/.'
 
-                !INQUIRE( DIRECTORY = TRIM(file_loc), & ! Intel compiler
-                !        EXIST     = dir_check       )
-                !  INQUIRE( FILE      = TRIM(file_loc), & ! NAG/PGI/GCC compiler
-                !           EXIST     = dir_check       )
                 call my_inquire(file_loc, dir_check)
                 if (dir_check .neqv. .true.) then
                     call s_create_directory(trim(rootdir))
@@ -250,9 +242,7 @@ contains
 
             end if
 
-            ! ==================================================================
-
-            ! Generating Binary Directory Tree =================================
+            ! Generating Binary Directory Tree
 
         else
 
@@ -265,10 +255,6 @@ contains
 
             file_loc = trim(proc_rank_dir)//'/.'
 
-            !INQUIRE( DIRECTORY = TRIM(file_loc), & ! Intel compiler
-            !       EXIST     = dir_check       )
-            !  INQUIRE( FILE      = TRIM(file_loc), & ! NAG/PGI/GCC compiler
-            !           EXIST     = dir_check       )
             call my_inquire(file_loc, dir_check)
 
             if (dir_check .neqv. .true.) then
@@ -282,10 +268,6 @@ contains
 
                 file_loc = trim(rootdir)//'/.'
 
-                !INQUIRE( DIRECTORY = TRIM(file_loc), & ! Intel compiler
-                !        EXIST     = dir_check       )
-                !  INQUIRE( FILE      = TRIM(file_loc), & ! NAG/PGI/GCC compiler
-                !        EXIST     = dir_check       )
                 call my_inquire(file_loc, dir_check)
 
                 if (dir_check .neqv. .true.) then
@@ -296,7 +278,15 @@ contains
 
         end if
 
-        ! ==================================================================
+        if (bubbles_lagrange) then !Lagrangian solver
+            dbdir = trim(case_dir)//'/lag_bubbles_post_process'
+            file_loc = trim(dbdir)//'/.'
+            call my_inquire(file_loc, dir_check)
+
+            if (dir_check .neqv. .true.) then
+                call s_create_directory(trim(dbdir))
+            end if
+        end if
 
         ! Contrary to the Silo-HDF5 database format, handles of the Binary
         ! database master/root and slave/local process files are perfectly
@@ -307,7 +297,7 @@ contains
             dbfile = 1
         end if
 
-        ! Querying Number of Flow Variable(s) in Binary Output =============
+        ! Querying Number of Flow Variable(s) in Binary Output
 
         if (format == 2) then
 
@@ -354,6 +344,9 @@ contains
 
             ! Pressure
             if (pres_wrt .or. prim_vars_wrt) dbvars = dbvars + 1
+
+            ! Elastic stresses
+            if (hypoelasticity) dbvars = dbvars + (num_dims*(num_dims + 1))/2
 
             ! Volume fraction(s)
             if ((model_eqns == 2) .or. (model_eqns == 3)) then
@@ -416,9 +409,45 @@ contains
 
         end if
 
-        ! END: Querying Number of Flow Variable(s) in Binary Output ========
+        ! END: Querying Number of Flow Variable(s) in Binary Output
 
     end subroutine s_initialize_data_output_module
+
+    subroutine s_define_output_region
+
+        integer :: i
+        integer :: lower_bound, upper_bound
+
+        #:for X, M in [('x', 'm'), ('y', 'n'), ('z', 'p')]
+
+            if (${M}$ == 0) return ! Early return for y or z if simulation is 1D or 2D
+
+            lower_bound = -offset_${X}$%beg
+            upper_bound = ${M}$+offset_${X}$%end
+
+            do i = lower_bound, upper_bound
+                if (${X}$_cc(i) > ${X}$_output%beg) then
+                    ${X}$_output_idx%beg = i + offset_${X}$%beg
+                    exit
+                end if
+            end do
+
+            do i = upper_bound, lower_bound, -1
+                if (${X}$_cc(i) < ${X}$_output%end) then
+                    ${X}$_output_idx%end = i + offset_${X}$%beg
+                    exit
+                end if
+            end do
+
+            ! If no grid points are within the output region
+            if ((${X}$_cc(lower_bound) > ${X}$_output%end) .or. (${X}$_cc(upper_bound) < ${X}$_output%beg)) then
+                ${X}$_output_idx%beg = 0
+                ${X}$_output_idx%end = 0
+            end if
+
+        #:endfor
+
+    end subroutine s_define_output_region
 
     subroutine s_open_formatted_database_file(t_step)
         ! Description: This subroutine opens a new formatted database file, or
@@ -433,12 +462,12 @@ contains
         !              not performed in multidimensions.
 
         ! Time-step that is currently being post-processed
-        integer, intent(in) :: t_step
+        integer, intent(IN) :: t_step
 
         ! Generic string used to store the location of a particular file
         character(LEN=len_trim(case_dir) + 3*name_len) :: file_loc
 
-        ! Silo-HDF5 Database Format ========================================
+        ! Silo-HDF5 Database Format
 
         if (format == 1) then
 
@@ -450,7 +479,7 @@ contains
             ! Creating formatted database slave file at the above location
             ! and setting up the structure of the file and its header info
             ierr = DBCREATE(trim(file_loc), len_trim(file_loc), &
-                            DB_CLOBBER, DB_LOCAL, 'MFC', 8, &
+                            DB_CLOBBER, DB_LOCAL, 'MFC v3.0', 8, &
                             DB_HDF5, dbfile)
 
             ! Verifying that the creation and setup process of the formatted
@@ -459,7 +488,7 @@ contains
             if (dbfile == -1) then
                 call s_mpi_abort('Unable to create Silo-HDF5 database '// &
                                  'slave file '//trim(file_loc)//'. '// &
-                                 'Exiting ...')
+                                 'Exiting.')
             end if
 
             ! Next, analogous steps to the ones above are carried out by the
@@ -471,20 +500,18 @@ contains
                 file_loc = trim(rootdir)//trim(file_loc)
 
                 ierr = DBCREATE(trim(file_loc), len_trim(file_loc), &
-                                DB_CLOBBER, DB_LOCAL, 'MFC', 8, &
+                                DB_CLOBBER, DB_LOCAL, 'MFC v3.0', 8, &
                                 DB_HDF5, dbroot)
 
                 if (dbroot == -1) then
                     call s_mpi_abort('Unable to create Silo-HDF5 database '// &
                                      'master file '//trim(file_loc)//'. '// &
-                                     'Exiting ...')
+                                     'Exiting.')
                 end if
 
             end if
 
-            ! ==================================================================
-
-            ! Binary Database Format ===========================================
+            ! Binary Database Format
 
         else
 
@@ -503,14 +530,21 @@ contains
             ! is not the case, the post-process exits.
             if (err /= 0) then
                 call s_mpi_abort('Unable to create Binary database slave '// &
-                                 'file '//trim(file_loc)//'. Exiting ...')
+                                 'file '//trim(file_loc)//'. Exiting.')
             end if
 
             ! Further defining the structure of the formatted database slave
             ! file by describing in it the dimensionality of post-processed
             ! data as well as the total number of flow variable(s) that will
             ! eventually be stored in it
-            write (dbfile) m, n, p, dbvars
+            if (output_partial_domain) then
+                write (dbfile) x_output_idx%end - x_output_idx%beg, &
+                    y_output_idx%end - y_output_idx%beg, &
+                    z_output_idx%end - z_output_idx%beg, &
+                    dbvars
+            else
+                write (dbfile) m, n, p, dbvars
+            end if
 
             ! Next, analogous steps to the ones above are carried out by the
             ! root process to create and setup the formatted database master
@@ -526,20 +560,22 @@ contains
                 if (err /= 0) then
                     call s_mpi_abort('Unable to create Binary database '// &
                                      'master file '//trim(file_loc)// &
-                                     '. Exiting ...')
+                                     '. Exiting.')
                 end if
 
-                write (dbroot) m_root, 0, 0, dbvars
+                if (output_partial_domain) then
+                    write (dbroot) x_output_idx%end - x_output_idx%beg, 0, 0, dbvars
+                else
+                    write (dbroot) m_root, 0, 0, dbvars
+                end if
 
             end if
 
         end if
 
-        ! END: Binary Database Format ======================================
-
     end subroutine s_open_formatted_database_file
 
-    subroutine s_open_intf_data_file() ! ------------------------
+    subroutine s_open_intf_data_file()
 
         character(LEN=path_len + 3*name_len) :: file_path !<
               !! Relative path to a file in the case directory
@@ -553,9 +589,9 @@ contains
               POSITION='append', &
               STATUS='unknown')
 
-    end subroutine s_open_intf_data_file ! ---------------------------------------
+    end subroutine s_open_intf_data_file
 
-    subroutine s_open_energy_data_file() ! ------------------------
+    subroutine s_open_energy_data_file()
 
         character(LEN=path_len + 3*name_len) :: file_path !<
               !! Relative path to a file in the case directory
@@ -569,10 +605,28 @@ contains
               POSITION='append', &
               STATUS='unknown')
 
-    end subroutine s_open_energy_data_file ! ----------------------------------------
+    end subroutine s_open_energy_data_file
 
-    subroutine s_write_grid_to_formatted_database_file(t_step) ! -----------
+    subroutine s_open_kymo_data_file()
+        ! Time-step that is currently being post-processed
 
+        ! Relative path to a file in the case directory
+        character(LEN=path_len + 3*name_len) :: file_path
+
+        ! Kymo information is in binary database format
+        ! Generates relative path to database, opened for current time-step
+        write (file_path, '(A)') '/kymo_data.dat'
+        file_path = trim(case_dir)//trim(file_path)
+
+        ! Opening the simulation data file
+        open (251, FILE=trim(file_path), &
+              FORM='formatted', &
+              POSITION='append', &
+              STATUS='unknown')
+
+    end subroutine s_open_kymo_data_file
+
+    subroutine s_write_grid_to_formatted_database_file(t_step)
         ! Description: The general objective of this subroutine is to write the
         !              necessary grid data to the formatted database file, for
         !              the current time-step, t_step. The local processor will
@@ -593,7 +647,7 @@ contains
         !              subroutine s_write_variable_to_formatted_database_file.
 
         ! Time-step that is currently being post-processed
-        integer, intent(in) :: t_step
+        integer, intent(IN) :: t_step
 
         ! Bookkeeping variables storing the name and type of mesh that is
         ! handled by the local processor(s). Note that due to an internal
@@ -605,7 +659,7 @@ contains
         ! Generic loop iterator
         integer :: i
 
-        ! Silo-HDF5 Database Format ========================================
+        ! Silo-HDF5 Database Format
 
         if (format == 1 .and. n > 0) then
 
@@ -665,18 +719,10 @@ contains
 
             if (precision == 1) then
                 if (p > 0) then
-                    do i = -1 - offset_z%beg, p + offset_z%end
-                        z_cb_s(i) = real(z_cb(i))
-                    end do
-                else
-                    do i = -1 - offset_x%beg, m + offset_x%end
-                        x_cb_s(i) = real(x_cb(i))
-                    end do
-
-                    do i = -1 - offset_y%beg, n + offset_y%end
-                        y_cb_s(i) = real(y_cb(i))
-                    end do
+                    z_cb_s = real(z_cb, sp)
                 end if
+                x_cb_s = real(x_cb, sp)
+                y_cb_s = real(y_cb, sp)
             end if
 
             #:for PRECISION, SFX, DBT in [(1,'_s','DB_FLOAT'),(2,'',"DB_DOUBLE")]
@@ -712,9 +758,10 @@ contains
                     end if
                 end if
             #:endfor
-            ! END: Silo-HDF5 Database Format ===================================
 
-            ! Binary Database Format ===========================================
+            ! END: Silo-HDF5 Database Format
+
+            ! Binary Database Format
 
         elseif (format == 2) then
 
@@ -723,19 +770,30 @@ contains
             ! in multidimensions.
             if (p > 0) then
                 if (precision == 1) then
-                    write (dbfile) real(x_cb, kind(0.0)), &
-                        real(y_cb, kind(0.0)), &
-                        real(z_cb, kind(0.0))
+                    write (dbfile) real(x_cb, sp), &
+                        real(y_cb, sp), &
+                        real(z_cb, sp)
                 else
-                    write (dbfile) x_cb, y_cb, z_cb
+                    if (output_partial_domain) then
+                        write (dbfile) x_cb(x_output_idx%beg - 1:x_output_idx%end), &
+                            y_cb(y_output_idx%beg - 1:y_output_idx%end), &
+                            z_cb(z_output_idx%beg - 1:z_output_idx%end)
+                    else
+                        write (dbfile) x_cb, y_cb, z_cb
+                    end if
                 end if
 
             elseif (n > 0) then
                 if (precision == 1) then
-                    write (dbfile) real(x_cb, kind(0.0)), &
-                        real(y_cb, kind(0.0))
+                    write (dbfile) real(x_cb, sp), &
+                        real(y_cb, sp)
                 else
-                    write (dbfile) x_cb, y_cb
+                    if (output_partial_domain) then
+                        write (dbfile) x_cb(x_output_idx%beg - 1:x_output_idx%end), &
+                            y_cb(y_output_idx%beg - 1:y_output_idx%end)
+                    else
+                        write (dbfile) x_cb, y_cb
+                    end if
                 end if
 
                 ! One-dimensional local grid data is written to the formatted
@@ -744,9 +802,13 @@ contains
             else
 
                 if (precision == 1) then
-                    write (dbfile) real(x_cb, kind(0.0))
+                    write (dbfile) real(x_cb, sp)
                 else
-                    write (dbfile) x_cb
+                    if (output_partial_domain) then
+                        write (dbfile) x_cb(x_output_idx%beg - 1:x_output_idx%end)
+                    else
+                        write (dbfile) x_cb
+                    end if
                 end if
 
                 if (num_procs > 1) then
@@ -757,17 +819,19 @@ contains
 
                 if (proc_rank == 0) then
                     if (precision == 1) then
-                        write (dbroot) real(x_root_cb, kind(0.0))
+                        write (dbroot) real(x_root_cb, wp)
                     else
-                        write (dbroot) x_root_cb
+                        if (output_partial_domain) then
+                            write (dbroot) x_root_cb(x_output_idx%beg - 1:x_output_idx%end)
+                        else
+                            write (dbroot) x_root_cb
+                        end if
                     end if
                 end if
 
             end if
 
         end if
-
-        ! ==================================================================
 
     end subroutine s_write_grid_to_formatted_database_file
 
@@ -790,10 +854,10 @@ contains
 
         ! Name of the flow variable, which will be written to the formatted
         ! database file at the current time-step, t_step
-        character(LEN=*), intent(in) :: varname
+        character(LEN=*), intent(IN) :: varname
 
         ! Time-step that is currently being post-processed
-        integer, intent(in) :: t_step
+        integer, intent(IN) :: t_step
 
         ! Bookkeeping variables storing the name and type of flow variable
         ! that is about to be handled by the local processor(s). Note that
@@ -804,9 +868,9 @@ contains
 
         ! Generic loop iterator
         integer :: i, j, k
-        real(kind(0d0)) :: start, finish
+        real(wp) :: start, finish
 
-        ! Silo-HDF5 Database Format ========================================
+        ! Silo-HDF5 Database Format
 
         if (format == 1) then
 
@@ -817,30 +881,57 @@ contains
             ! and write it to the formatted database master file.
             if (n == 0) then
 
+                if (precision == 1 .and. wp == dp) then
+                    x_cc_s = real(x_cc, sp)
+                    q_sf_s = real(q_sf, sp)
+                elseif (precision == 1 .and. wp == sp) then
+                    x_cc_s = x_cc
+                    q_sf_s = q_sf
+                end if
+
                 ! Writing the curve object associated with the local process
                 ! to the formatted database slave file
-                err = DBPUTCURVE(dbfile, trim(varname), len_trim(varname), &
-                                 x_cc(0:m), q_sf, DB_DOUBLE, m + 1, &
-                                 DB_F77NULL, ierr)
+                #:for PRECISION, SFX, DBT in [(1,'_s','DB_FLOAT'),(2,'',"DB_DOUBLE")]
+                    if (precision == ${PRECISION}$) then
+                        err = DBPUTCURVE(dbfile, trim(varname), len_trim(varname), &
+                                         x_cc${SFX}$ (0:m), q_sf${SFX}$, ${DBT}$, m + 1, &
+                                         DB_F77NULL, ierr)
+                    end if
+                #:endfor
 
                 ! Assembling the local grid and flow variable data for the
                 ! entire computational domain on to the root process
+
                 if (num_procs > 1) then
                     call s_mpi_defragment_1d_grid_variable()
                     call s_mpi_defragment_1d_flow_variable(q_sf, q_root_sf)
+
+                    if (precision == 1) then
+                        x_root_cc_s = real(x_root_cc, sp)
+                        q_root_sf_s = real(q_root_sf, sp)
+                    end if
                 else
-                    x_root_cc = x_cc(0:m)
-                    q_root_sf = q_sf
+                    if (precision == 1) then
+                        x_root_cc_s = real(x_cc, sp)
+                        q_root_sf_s = real(q_sf, sp)
+                    else
+                        x_root_cc = x_cc
+                        q_root_sf = q_sf
+                    end if
                 end if
 
                 ! Writing the curve object associated with the root process
                 ! to the formatted database master file
                 if (proc_rank == 0) then
-                    err = DBPUTCURVE(dbroot, trim(varname), &
-                                     len_trim(varname), &
-                                     x_root_cc, q_root_sf, &
-                                     DB_DOUBLE, m_root + 1, &
-                                     DB_F77NULL, ierr)
+                    #:for PRECISION, SFX, DBT in [(1,'_s','DB_FLOAT'),(2,'',"DB_DOUBLE")]
+                        if (precision == ${PRECISION}$) then
+                            err = DBPUTCURVE(dbroot, trim(varname), &
+                                             len_trim(varname), &
+                                             x_root_cc${SFX}$, q_root_sf${SFX}$, &
+                                             ${DBT}$, m_root + 1, &
+                                             DB_F77NULL, ierr)
+                        end if
+                    #:endfor
                 end if
 
                 return
@@ -887,25 +978,52 @@ contains
                 ! Finally, each of the local processor(s) proceeds to write
                 ! the flow variable data that it is responsible for to the
                 ! formatted database slave file.
-
-                if (precision == 1) then
+                if (wp == dp) then
+                    if (precision == 1) then
+                        do i = -offset_x%beg, m + offset_x%end
+                            do j = -offset_y%beg, n + offset_y%end
+                                do k = -offset_z%beg, p + offset_z%end
+                                    q_sf_s(i, j, k) = real(q_sf(i, j, k), sp)
+                                end do
+                            end do
+                        end do
+                        if (grid_geometry == 3) then
+                            do i = -offset_x%beg, m + offset_x%end
+                                do j = -offset_y%beg, n + offset_y%end
+                                    do k = -offset_z%beg, p + offset_z%end
+                                        cyl_q_sf_s(j, k, i) = q_sf_s(i, j, k)
+                                    end do
+                                end do
+                            end do
+                        end if
+                    else
+                        if (grid_geometry == 3) then
+                            do i = -offset_x%beg, m + offset_x%end
+                                do j = -offset_y%beg, n + offset_y%end
+                                    do k = -offset_z%beg, p + offset_z%end
+                                        cyl_q_sf(j, k, i) = q_sf(i, j, k)
+                                    end do
+                                end do
+                            end do
+                        end if
+                    end if
+                elseif (wp == dp) then
                     do i = -offset_x%beg, m + offset_x%end
                         do j = -offset_y%beg, n + offset_y%end
                             do k = -offset_z%beg, p + offset_z%end
-                                q_sf_s(i, j, k) = real(q_sf(i, j, k))
+                                q_sf_s(i, j, k) = q_sf(i, j, k)
                             end do
                         end do
                     end do
-                end if
-
-                if (grid_geometry == 3) then
-                    do i = -offset_x%beg, m + offset_x%end
-                        do j = -offset_y%beg, n + offset_y%end
-                            do k = -offset_z%beg, p + offset_z%end
-                                cyl_q_sf(j, k, i) = q_sf(i, j, k)
+                    if (grid_geometry == 3) then
+                        do i = -offset_x%beg, m + offset_x%end
+                            do j = -offset_y%beg, n + offset_y%end
+                                do k = -offset_z%beg, p + offset_z%end
+                                    cyl_q_sf_s(j, k, i) = q_sf_s(i, j, k)
+                                end do
                             end do
                         end do
-                    end do
+                    end if
                 end if
 
                 #:for PRECISION, SFX, DBT in [(1,'_s','DB_FLOAT'),(2,'',"DB_DOUBLE")]
@@ -939,16 +1057,16 @@ contains
 
             end if
 
-            ! END: Silo-HDF5 Database Format ===================================
+            ! END: Silo-HDF5 Database Format
 
-            ! Binary Database Format ===========================================
+            ! Binary Database Format
 
         else
 
             ! Writing the name of the flow variable and its data, associated
             ! with the local processor, to the formatted database slave file
             if (precision == 1) then
-                write (dbfile) varname, real(q_sf, kind(0.0))
+                write (dbfile) varname, real(q_sf, wp)
             else
                 write (dbfile) varname, q_sf
             end if
@@ -966,7 +1084,7 @@ contains
 
                 if (proc_rank == 0) then
                     if (precision == 1) then
-                        write (dbroot) varname, real(q_root_sf, kind(0.0))
+                        write (dbroot) varname, real(q_root_sf, wp)
                     else
                         write (dbroot) varname, q_root_sf
                     end if
@@ -976,24 +1094,128 @@ contains
 
         end if
 
-        ! ==================================================================
-
     end subroutine s_write_variable_to_formatted_database_file
 
+    !>  Subroutine that writes the post processed results in the folder 'lag_bubbles_data'
+            !!  @param t_step Current time step
+    subroutine s_write_lag_bubbles_results(t_step)
+
+        integer, intent(in) :: t_step
+        character(len=len_trim(case_dir) + 2*name_len) :: t_step_dir
+        character(len=len_trim(case_dir) + 3*name_len) :: file_loc
+        logical :: dir_check
+        integer :: id, nlg_bubs
+
+#ifdef MFC_MPI
+        real(wp), dimension(20) :: inputvals
+        real(wp) :: id_real, time_real
+        integer, dimension(MPI_STATUS_SIZE) :: status
+        integer(KIND=MPI_OFFSET_KIND) :: disp
+        integer :: view
+
+        integer, dimension(3) :: cell
+        logical :: indomain, lg_bub_file, lg_bub_data, file_exist
+
+        integer, dimension(2) :: gsizes, lsizes, start_idx_part
+        integer :: ifile, ireq, ierr, data_size, tot_data
+        integer :: i
+
+        write (file_loc, '(A,I0,A)') 'lag_bubbles_mpi_io_', t_step, '.dat'
+        file_loc = trim(case_dir)//'/restart_data'//trim(mpiiofs)//trim(file_loc)
+        inquire (FILE=trim(file_loc), EXIST=file_exist)
+
+        if (file_exist) then
+            if (proc_rank == 0) then
+                open (9, FILE=trim(file_loc), FORM='unformatted', STATUS='unknown')
+                read (9) tot_data, time_real
+                close (9)
+            end if
+        else
+            print '(A)', trim(file_loc)//' is missing. Exiting.'
+            call s_mpi_abort
+        end if
+
+        call MPI_BCAST(tot_data, 1, MPI_integer, 0, MPI_COMM_WORLD, ierr)
+        call MPI_BCAST(time_real, 1, mpi_p, 0, MPI_COMM_WORLD, ierr)
+
+        gsizes(1) = tot_data
+        gsizes(2) = 21
+        lsizes(1) = tot_data
+        lsizes(2) = 21
+        start_idx_part(1) = 0
+        start_idx_part(2) = 0
+
+        call MPI_TYPE_CREATE_SUBARRAY(2, gsizes, lsizes, start_idx_part, &
+                                      MPI_ORDER_FORTRAN, mpi_p, view, ierr)
+        call MPI_TYPE_COMMIT(view, ierr)
+
+        write (file_loc, '(A,I0,A)') 'lag_bubbles_', t_step, '.dat'
+        file_loc = trim(case_dir)//'/restart_data'//trim(mpiiofs)//trim(file_loc)
+        inquire (FILE=trim(file_loc), EXIST=lg_bub_file)
+
+        if (lg_bub_file) then
+
+            call MPI_FILE_OPEN(MPI_COMM_WORLD, file_loc, MPI_MODE_RDONLY, &
+                               mpi_info_int, ifile, ierr)
+
+            disp = 0._wp
+            call MPI_FILE_SET_VIEW(ifile, disp, mpi_p, view, &
+                                   'native', mpi_info_null, ierr)
+
+            allocate (MPI_IO_DATA_lg_bubbles(tot_data, 1:21))
+
+            call MPI_FILE_READ_ALL(ifile, MPI_IO_DATA_lg_bubbles, 21*tot_data, &
+                                   mpi_p, status, ierr)
+
+            write (file_loc, '(A,I0,A)') 'lag_bubbles_post_process_', t_step, '.dat'
+            file_loc = trim(case_dir)//'/lag_bubbles_post_process/'//trim(file_loc)
+
+            if (proc_rank == 0) then
+                open (unit=29, file=file_loc, form='formatted', position='rewind')
+                !write(29,*) 'lg_bubID, x, y, z, xPrev, yPrev, zPrev, xVel, yVel, ',   &
+                !            'zVel, radius, interfaceVelocity, equilibriumRadius',       &
+                !            'Rmax, Rmin, dphidt, pressure, mv, mg, betaT, betaC, time'
+                do i = 1, tot_data
+                    id = int(MPI_IO_DATA_lg_bubbles(i, 1))
+                    inputvals(1:20) = MPI_IO_DATA_lg_bubbles(i, 2:21)
+                    if (id > 0) then
+                        write (29, 6) int(id), inputvals(1), inputvals(2), &
+                            inputvals(3), inputvals(4), inputvals(5), inputvals(6), inputvals(7), &
+                            inputvals(8), inputvals(9), inputvals(10), inputvals(11), &
+                            inputvals(12), inputvals(13), inputvals(14), inputvals(15), &
+                            inputvals(16), inputvals(17), inputvals(18), inputvals(19), &
+                            inputvals(20), time_real
+6                       format(I6, 21(1x, E15.7))
+                    end if
+                end do
+                close (29)
+            end if
+
+            deallocate (MPI_IO_DATA_lg_bubbles)
+
+        end if
+
+        call s_mpi_barrier()
+
+        call MPI_FILE_CLOSE(ifile, ierr)
+
+#endif
+
+    end subroutine s_write_lag_bubbles_results
     subroutine s_write_intf_data_file(q_prim_vf)
 
         type(scalar_field), dimension(sys_size), intent(IN) :: q_prim_vf
         integer :: i, j, k, l, w, cent !< Generic loop iterators
         integer :: ierr, counter, root !< number of data points extracted to fit shape to SH perturbations
-        real(kind(0d0)), dimension(num_fluids) :: alpha, vol_fluid, xcom, ycom, zcom
-        real(kind=8), parameter :: pi = 4.d0*datan(1.d0)
-        real(kind(0d0)), allocatable :: x_td(:), y_td(:), x_d1(:), y_d1(:), y_d(:), x_d(:)
-        real(kind(0d0)) :: axp, axm, ayp, aym, azm, azp, tgp, euc_d, thres, maxalph_loc, maxalph_glb
+        real(wp), dimension(num_fluids) :: alpha, vol_fluid, xcom, ycom, zcom
+        real(wp), parameter :: pi = 4._wp*tan(1._wp)
+        real(wp), allocatable :: x_td(:), y_td(:), x_d1(:), y_d1(:), y_d(:), x_d(:)
+        real(wp) :: axp, axm, ayp, aym, azm, azp, tgp, euc_d, thres, maxalph_loc, maxalph_glb
 
         allocate (x_d1(m*n))
         allocate (y_d1(m*n))
         counter = 0
-        maxalph_loc = 0d0
+        maxalph_loc = 0_wp
         do k = 0, p
             do j = 0, n
                 do i = 0, m
@@ -1015,9 +1237,9 @@ contains
             cent = 0
         end if
 
-        thres = 0.9d0*maxalph_glb
+        thres = 0.9_wp*maxalph_glb
         do k = 0, n
-            OLoop: do j = 0, m
+            do j = 0, m
                 axp = q_prim_vf(E_idx + 2)%sf(j + 1, k, cent)
                 axm = q_prim_vf(E_idx + 2)%sf(j, k, cent)
                 ayp = q_prim_vf(E_idx + 2)%sf(j, k + 1, cent)
@@ -1031,11 +1253,11 @@ contains
                         euc_d = sqrt((x_cc(j) - x_d1(i))**2 + (y_cc(k) - y_d1(i))**2)
                         tgp = sqrt(dx(j)**2 + dy(k)**2)
                     else
-                        euc_d = dsqrt((x_cc(j) - x_d1(i))**2 + (y_cc(k) - y_d1(i))**2)
-                        tgp = dsqrt(dx(j)**2 + dy(k)**2)
+                        euc_d = sqrt((x_cc(j) - x_d1(i))**2 + (y_cc(k) - y_d1(i))**2)
+                        tgp = sqrt(dx(j)**2 + dy(k)**2)
                         do i = 1, counter
                             if (euc_d < tgp) then
-                                cycle OLoop
+                                cycle
                             elseif (euc_d > tgp .and. i == counter) then
                                 counter = counter + 1
                                 x_d1(counter) = x_cc(j)
@@ -1045,11 +1267,11 @@ contains
                         end do
                     end if
                 end if
-            end do OLoop
+            end do
         end do
 
-        allocate (y_d(counter))
-        allocate (x_d(counter))
+        allocate (x_d(counter), y_d(counter))
+
         do i = 1, counter
             y_d(i) = y_d1(i)
             x_d(i) = x_d1(i)
@@ -1065,54 +1287,56 @@ contains
                         x_td(i), y_td(i), size(x_td)
                 else
                     write (211, '(F12.9,1X,F12.9,1X,F3.1)') &
-                        x_td(i), y_td(i), 0d0
+                        x_td(i), y_td(i), 0_wp
                 end if
             end do
         end if
 
-    end subroutine s_write_intf_data_file ! -----------------------------------
+    end subroutine s_write_intf_data_file
 
     subroutine s_write_energy_data_file(q_prim_vf, q_cons_vf)
         type(scalar_field), dimension(sys_size), intent(IN) :: q_prim_vf, q_cons_vf
-        real(kind(0d0)) :: Elk, Egk, Elp, Egint, Vb, Vl, pres_av, Et
-        real(kind(0d0)) :: rho, pres, dV, tmp, gamma, pi_inf, MaxMa, MaxMa_glb, maxvel, c, Ma, H
-        real(kind(0d0)), dimension(num_dims) :: vel
-        real(kind(0d0)), dimension(num_fluids) :: gammas, pi_infs, adv
-        integer :: i, j, k, l, s !looping indicies
+        real(wp) :: Elk, Egk, Elp, Egint, Vb, Vl, pres_av, Et
+        real(wp) :: rho, pres, dV, tmp, gamma, pi_inf, MaxMa, MaxMa_glb, maxvel, c, Ma, H
+        real(wp), dimension(num_dims) :: vel
+        real(wp), dimension(num_fluids) :: gammas, pi_infs, adv
+        integer :: i, j, k, l, s !looping indices
         integer :: ierr, counter, root !< number of data points extracted to fit shape to SH perturbations
 
-        Egk = 0d0
-        Elp = 0d0
-        Egint = 0d0
-        Vb = 0d0
-        maxvel = 0d0
-        MaxMa = 0d0
-        Vl = 0d0
-        Elk = 0d0
-        Et = 0d0
-        Vb = 0d0
-        dV = 0d0
-        pres_av = 0d0
-        pres = 0d0
+        Egk = 0_wp
+        Elp = 0_wp
+        Egint = 0_wp
+        Vb = 0_wp
+        maxvel = 0_wp
+        MaxMa = 0_wp
+        Vl = 0_wp
+        Elk = 0_wp
+        Et = 0_wp
+        Vb = 0_wp
+        dV = 0_wp
+        pres_av = 0_wp
+        pres = 0_wp
+        c = 0._wp
+
         do k = 0, p
             do j = 0, n
                 do i = 0, m
-                    pres = 0d0
+                    pres = 0_wp
                     dV = dx(i)*dy(j)*dz(k)
-                    rho = 0d0
-                    gamma = 0d0
-                    pi_inf = 0d0
+                    rho = 0_wp
+                    gamma = 0_wp
+                    pi_inf = 0_wp
                     pres = q_prim_vf(E_idx)%sf(i, j, k)
                     Egint = Egint + q_prim_vf(E_idx + 2)%sf(i, j, k)*(fluid_pp(2)%gamma*pres)*dV
                     do s = 1, num_dims
                         vel(s) = q_prim_vf(num_fluids + s)%sf(i, j, k)
-                        Egk = Egk + 0.5d0*q_prim_vf(E_idx + 2)%sf(i, j, k)*q_prim_vf(2)%sf(i, j, k)*vel(s)*vel(s)*dV
-                        Elk = Elk + 0.5d0*q_prim_vf(E_idx + 1)%sf(i, j, k)*q_prim_vf(1)%sf(i, j, k)*vel(s)*vel(s)*dV
-                        if (dabs(vel(s)) > maxvel) then
-                            maxvel = dabs(vel(s))
+                        Egk = Egk + 0.5_wp*q_prim_vf(E_idx + 2)%sf(i, j, k)*q_prim_vf(2)%sf(i, j, k)*vel(s)*vel(s)*dV
+                        Elk = Elk + 0.5_wp*q_prim_vf(E_idx + 1)%sf(i, j, k)*q_prim_vf(1)%sf(i, j, k)*vel(s)*vel(s)*dV
+                        if (abs(vel(s)) > maxvel) then
+                            maxvel = abs(vel(s))
                         end if
                     end do
-                    
+
                     do l = 1, adv_idx%end - E_idx
                         adv(l) = q_prim_vf(E_idx + l)%sf(i, j, k)
                         gamma = gamma + adv(l)*fluid_pp(l)%gamma
@@ -1120,14 +1344,14 @@ contains
                         rho = rho + adv(l)*q_prim_vf(l)%sf(i, j, k)
                     end do
 
-                    H = ((gamma + 1d0)*pres + pi_inf)/rho
+                    H = ((gamma + 1_wp)*pres + pi_inf)/rho
 
                     call s_compute_speed_of_sound(pres, rho, &
                                                   gamma, pi_inf, &
-                                                  H, adv, 0d0, c)
+                                                  H, adv, 0._wp, 0._wp, c)
 
                     Ma = maxvel/c
-                    if (Ma > MaxMa .and. adv(1) > 1.0d0 - 1.0d-10) then
+                    if (Ma > MaxMa .and. (adv(1) > (1.0_wp - 1.0e-10_wp))) then
                         MaxMa = Ma
                     end if
                     Vl = Vl + adv(1)*dV
@@ -1170,7 +1394,43 @@ contains
 
     end subroutine s_write_energy_data_file
 
-    subroutine s_close_formatted_database_file() ! -------------------------
+    subroutine s_write_kymo_data_file(q_prim_vf)
+        type(scalar_field), dimension(sys_size), intent(IN) :: q_prim_vf
+        integer :: j, k, l, t !< Generic loop iterators
+        real(wp) :: vonMises_d, vonMises_h1  !< selected planes for kymograph comparison
+        real(wp) :: vonMises_h2, vonMises_h3 !<kymograph plane comparison continued
+        real(wp) :: i !< counting integer
+
+        do t = 0, t_stop
+            do j = 0, m
+                ! for bubliq, sf(j,0,0) for d and sf(0.5*xcen_bub,k,0) for h
+                ! for bubgel, sf(j,0,0) for d, sf(-xcen_bub,k,0) for h_1,
+                !                              sf(-0.5*xcen_bub,k,0) for h_2
+                vonMises_d = q_prim_vf(xiend + 1)%sf(j, 0, 0)
+            end do
+        end do
+
+        i = m/4.0_wp
+        do t = 0, t_stop
+            do k = 0, n
+                !xcen_bub is roughly +/- m/4
+                vonMises_h1 = q_prim_vf(xiend + 1)%sf(0, k, 0)
+                vonMises_h2 = q_prim_vf(xiend + 1)%sf(i, k, 0)
+                vonMises_h3 = q_prim_vf(xiend + 1)%sf(-i, k, 0)
+            end do
+        end do
+
+        if (proc_rank == 0) then
+            write (251, '(10X, 8F24.8)') &
+                vonMises_d, &
+                vonMises_h1, &
+                vonMises_h2, &
+                vonMises_h3
+        end if
+
+    end subroutine s_write_kymo_data_file
+
+    subroutine s_close_formatted_database_file()
         ! Description: The purpose of this subroutine is to close any formatted
         !              database file(s) that may be opened at the time-step that
         !              is currently being post-processed. The root process must
@@ -1197,19 +1457,25 @@ contains
 
     end subroutine s_close_formatted_database_file
 
-    subroutine s_close_intf_data_file() ! -----------------------
+    subroutine s_close_intf_data_file()
 
         close (211)
 
-    end subroutine s_close_intf_data_file !---------------------
+    end subroutine s_close_intf_data_file
 
-    subroutine s_close_energy_data_file() ! -----------------------
+    subroutine s_close_energy_data_file()
 
         close (251)
 
-    end subroutine s_close_energy_data_file !---------------------
+    end subroutine s_close_energy_data_file
 
-    subroutine s_finalize_data_output_module() ! -------------------------
+    subroutine s_close_kymo_data_file()
+
+        close (251)
+
+    end subroutine s_close_kymo_data_file
+
+    subroutine s_finalize_data_output_module()
         ! Description: Deallocation procedures for the module
 
         ! Deallocating the generic storage employed for the flow variable(s)

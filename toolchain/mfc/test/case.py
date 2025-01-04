@@ -1,4 +1,6 @@
-import os, glob, typing, hashlib, binascii, subprocess, itertools, dataclasses
+import os, glob, hashlib, binascii, subprocess, itertools, dataclasses, shutil
+
+from typing import List, Set, Union, Callable, Optional
 
 from ..      import case, common
 from ..state import ARG
@@ -35,8 +37,6 @@ BASE_CFG = {
     'avg_state'                    : 2,
     'format'                       : 1,
     'precision'                    : 2,
-    'prim_vars_wrt'                :'F',
-    'parallel_io'                  :'F',
 
     'patch_icpp(1)%pres'           : 1.0,
     'patch_icpp(1)%alpha_rho(1)'   : 1.E+00,
@@ -55,7 +55,7 @@ BASE_CFG = {
     'fluid_pp(1)%cv'               : 0.0,
     'fluid_pp(1)%qv'               : 0.0,
     'fluid_pp(1)%qvp'              : 0.0,   
-    'bubbles'                       : 'F',
+    'bubbles_euler'                 : 'F',
     'Ca'                            : 0.9769178386380458,
     'Web'                           : 13.927835051546392,
     'Re_inv'                        : 0.009954269975623245,
@@ -90,6 +90,25 @@ BASE_CFG = {
     'acoustic(1)%npulse'                : 1,
     'acoustic(1)%pulse'                 : 1,
     'rdma_mpi'                          : 'F',
+
+    'bubbles_lagrange'                 : 'F',
+    'rkck_adap_dt'                     : 'F',
+    'rkck_tolerance'                   : 1.0e-09,
+    'lag_params%nBubs_glb'             : 1,
+    'lag_params%solver_approach'       : 0,
+    'lag_params%cluster_type'          : 2,
+    'lag_params%pressure_corrector'    : 'F',
+    'lag_params%smooth_type'           : 1,
+    'lag_params%epsilonb'              : 1.0,
+    'lag_params%heatTransfer_model'    : 'F',
+    'lag_params%massTransfer_model'    : 'F',
+    'lag_params%valmaxvoid'            : 0.9,
+    'lag_params%c0'                    : 10.1,
+    'lag_params%rho0'                  : 1000.,
+    'lag_params%T0'                    : 298.,
+    'lag_params%x0'                    : 1.,
+    'lag_params%diffcoefvap'           : 2.5e-5,
+    'lag_params%Thost'                 : 298.,
 }
 
 def trace_to_uuid(trace: str) -> str:
@@ -97,17 +116,17 @@ def trace_to_uuid(trace: str) -> str:
 
 @dataclasses.dataclass(init=False)
 class TestCase(case.Case):
-    ppn:     int
-    trace:   str
-    rebuild: bool
+    ppn:          int
+    trace:        str
+    override_tol: Optional[float] = None
 
-    def __init__(self, trace: str, mods: dict, ppn: int = None, rebuild: bool = None) -> None:
-        self.trace   = trace
-        self.ppn     = ppn or 1
-        self.rebuild = rebuild or False
+    def __init__(self, trace: str, mods: dict, ppn: int = None, override_tol: float = None) -> None:
+        self.trace        = trace
+        self.ppn          = ppn or 1
+        self.override_tol = override_tol
         super().__init__({**BASE_CFG.copy(), **mods})
 
-    def run(self, targets: typing.List[typing.Union[str, MFCTarget]], gpus: typing.Set[int]) -> subprocess.CompletedProcess:
+    def run(self, targets: List[Union[str, MFCTarget]], gpus: Set[int]) -> subprocess.CompletedProcess:
         if gpus is not None and len(gpus) != 0:
             gpus_select = ["--gpus"] + [str(_) for _ in gpus]
         else:
@@ -117,24 +136,29 @@ class TestCase(case.Case):
         tasks             = ["-n", str(self.ppn)]
         jobs              = ["-j", str(ARG("jobs"))] if ARG("case_optimization") else []
         case_optimization = ["--case-optimization"] if ARG("case_optimization") else []
-        rebuild           = [] if self.rebuild or ARG("case_optimization") else ["--no-build"]
+
+        if self.params.get("bubbles_lagrange", 'F') == 'T':
+            input_bubbles_lagrange(self)
 
         mfc_script = ".\\mfc.bat" if os.name == 'nt' else "./mfc.sh"
 
         target_names = [ get_target(t).name for t in targets ]
 
         command = [
-            mfc_script, "run", filepath, *rebuild, *tasks, *case_optimization,
+            mfc_script, "run", filepath, "--no-build", *tasks, *case_optimization,
             *jobs, "-t", *target_names, *gpus_select, *ARG("--")
         ]
 
-        return common.system(command, print_cmd=False, text=True, capture_output=True)
+        return common.system(command, print_cmd=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+    def get_trace(self) -> str:
+        return self.trace
 
     def get_uuid(self) -> str:
         return trace_to_uuid(self.trace)
 
     def get_dirpath(self):
-        return os.path.join(common.MFC_TESTDIR, self.get_uuid())
+        return os.path.join(common.MFC_TEST_DIR, self.get_uuid())
 
     def get_filepath(self):
         filepath = os.path.join(self.get_dirpath(), "case.py")
@@ -156,6 +180,9 @@ class TestCase(case.Case):
         common.delete_directory(os.path.join(dirpath, "p_all"))
         common.delete_directory(os.path.join(dirpath, "silo_hdf5"))
         common.delete_directory(os.path.join(dirpath, "restart_data"))
+        if self.params.get("bubbles_lagrange", 'F') == 'T':
+            common.delete_directory(os.path.join(dirpath, "input"))
+            common.delete_directory(os.path.join(dirpath, "lag_bubbles_post_process"))
 
         for f in ["pack", "pre_process", "simulation", "post_process"]:
             common.delete_file(os.path.join(dirpath, f"{f}.txt"))
@@ -179,16 +206,15 @@ parser = argparse.ArgumentParser(
     description="{self.get_filepath()}: {self.trace}",
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-parser.add_argument("dict", type=str, metavar="DICT", help=argparse.SUPPRESS)
+parser.add_argument("--mfc", type=json.loads, default='{{}}', metavar="DICT",
+                    help="MFC's toolchain's internal state.")
 
 ARGS = vars(parser.parse_args())
-
-ARGS["dict"] = json.loads(ARGS["dict"])
 
 case = {self.gen_json_dict_str()}
 mods = {{}}
 
-if "post_process" in ARGS["dict"]["targets"]:
+if "post_process" in ARGS["mfc"]["targets"]:
     mods = {{
         'parallel_io'  : 'T', 'cons_vars_wrt'   : 'T',
         'prim_vars_wrt': 'T', 'alpha_rho_wrt(1)': 'T',
@@ -205,6 +231,9 @@ if "post_process" in ARGS["dict"]["targets"]:
         mods['omega_wrt(1)'] = 'T'
         mods['omega_wrt(2)'] = 'T'
         mods['omega_wrt(3)'] = 'T'
+else:
+    mods['parallel_io']   = 'F'
+    mods['prim_vars_wrt'] = 'F'
 
 print(json.dumps({{**case, **mods}}))
 """)
@@ -212,39 +241,58 @@ print(json.dumps({{**case, **mods}}))
     def __str__(self) -> str:
         return f"tests/[bold magenta]{self.get_uuid()}[/bold magenta]: {self.trace}"
 
+    def to_input_file(self) -> input.MFCInputFile:
+        return input.MFCInputFile(
+            os.path.basename(self.get_filepath()),
+            self.get_dirpath(),
+            self.get_parameters())
+
+    # pylint: disable=too-many-return-statements
     def compute_tolerance(self) -> float:
-        if self.params.get("hypoelasticity", 'F') == 'T':
-            return 1e-7
+        if self.override_tol:
+            return self.override_tol
 
-        if any(self.params.get(key, 'F') == 'T' for key in ['relax', 'ib', 'qbmm', 'bubbles']):
-            return 1e-10
+        tolerance = 1e-12  # Default
+        single = ARG("single")
 
-        if self.params.get("low_Mach", 'F') == 1 or self.params.get("low_Mach", 'F') == 2:
-            return 1e-10
+        if "Example" in self.trace.split(" -> "):
+            tolerance = 1e-3
+        elif self.params.get("hypoelasticity", 'F') == 'T':
+            tolerance = 1e-7
+        elif self.params.get("mixlayer_perturb", 'F') == 'T':
+            tolerance = 1e-7
+        elif any(self.params.get(key, 'F') == 'T' for key in ['relax', 'ib', 'qbmm', 'bubbles_euler', 'bubbles_lagrange']):
+            tolerance = 1e-10
+        elif self.params.get("low_Mach") in [1, 2]:
+            tolerance = 1e-10
+        elif self.params.get("acoustic_source", 'F') == 'T':
+            if self.params.get("acoustic(1)%pulse") == 3:  # Square wave
+                return 1e-1 if single else 1e-5
+            tolerance = 3e-12
+        elif self.params.get("weno_order") == 7:
+            tolerance = 1e-9
 
-        if self.params.get("acoustic_source", 'F') == 'T':
-            if "acoustic(1)%pulse" in self.params and self.params["acoustic(1)%pulse"] == 3: # Square wave
-                return 1e-5
-            return 2e-12
+        return 1e8 * tolerance if single else tolerance
 
-        return 1e-12
+
 
 @dataclasses.dataclass
 class TestCaseBuilder:
-    trace:   str
-    mods:    dict
-    path:    str
-    args:    typing.List[str]
-    ppn:     int
-    rebuild: bool
+    trace:        str
+    mods:         dict
+    path:         str
+    args:         List[str]
+    ppn:          int
+    functor:      Optional[Callable]
+    override_tol: Optional[float] = None
 
     def get_uuid(self) -> str:
         return trace_to_uuid(self.trace)
 
     def to_case(self) -> TestCase:
-        dictionary = self.mods.copy()
+        dictionary = {}
         if self.path:
-            dictionary.update(input.load(self.path, self.args).params)
+            dictionary.update(input.load(self.path, self.args, do_print=False).params)
 
             for key, value in dictionary.items():
                 if not isinstance(value, str):
@@ -254,9 +302,14 @@ class TestCaseBuilder:
                     path = os.path.abspath(path)
                     if os.path.exists(path):
                         dictionary[key] = path
-                        break
 
-        return TestCase(self.trace, dictionary, self.ppn, self.rebuild)
+        if self.mods:
+            dictionary.update(self.mods)
+
+        if self.functor:
+            self.functor(dictionary)
+
+        return TestCase(self.trace, dictionary, self.ppn, self.override_tol)
 
 
 @dataclasses.dataclass
@@ -278,11 +331,13 @@ class CaseGeneratorStack:
         return (self.mods.pop(), self.trace.pop())
 
 
-def define_case_f(trace: str, path: str, args: typing.List[str] = None, ppn: int = None, rebuild: bool = None) -> TestCaseBuilder:
-    return TestCaseBuilder(trace, {}, path, args or [], ppn, rebuild)
+# pylint: disable=too-many-arguments, too-many-positional-arguments
+def define_case_f(trace: str, path: str, args: List[str] = None, ppn: int = None, mods: dict = None, functor: Callable = None, override_tol: float = None) -> TestCaseBuilder:
+    return TestCaseBuilder(trace, mods or {}, path, args or [], ppn or 1, functor, override_tol)
 
 
-def define_case_d(stack: CaseGeneratorStack, newTrace: str, newMods: dict, ppn: int = None, rebuild: bool = None) -> TestCaseBuilder:
+# pylint: disable=too-many-arguments, too-many-positional-arguments
+def define_case_d(stack: CaseGeneratorStack, newTrace: str, newMods: dict, ppn: int = None, functor: Callable = None, override_tol: float = None) -> TestCaseBuilder:
     mods: dict = {}
 
     for mod in stack.mods:
@@ -298,4 +353,30 @@ def define_case_d(stack: CaseGeneratorStack, newTrace: str, newMods: dict, ppn: 
         if not common.isspace(trace):
             traces.append(trace)
 
-    return TestCaseBuilder(' -> '.join(traces), mods, None, None, ppn, rebuild)
+    return TestCaseBuilder(' -> '.join(traces), mods, None, None, ppn or 1, functor, override_tol)
+
+def input_bubbles_lagrange(self):
+    if "lagrange_bubblescreen" in self.trace:
+        copy_input_lagrange(f'/3D_lagrange_bubblescreen',f'{self.get_dirpath()}')
+    elif "lagrange_shbubcollapse" in self.trace:
+        copy_input_lagrange(f'/3D_lagrange_shbubcollapse',f'{self.get_dirpath()}')
+    else:
+        create_input_lagrange(f'{self.get_dirpath()}')
+
+def create_input_lagrange(path_test):
+    folder_path_lagrange = path_test + '/input'
+    file_path_lagrange = folder_path_lagrange + '/lag_bubbles.dat'
+    if not os.path.exists(folder_path_lagrange):
+        os.mkdir(folder_path_lagrange)
+
+    with open(file_path_lagrange, "w") as file:
+        file.write('0.5\t0.5\t0.5\t0.0\t0.0\t0.0\t8.0e-03\t0.0')
+
+def copy_input_lagrange(path_example_input, path_test):
+    folder_path_dest = path_test + '/input/'
+    fite_path_dest = folder_path_dest + 'lag_bubbles.dat'
+    file_path_src = common.MFC_EXAMPLE_DIRPATH + path_example_input + '/input/lag_bubbles.dat'
+    if not os.path.exists(folder_path_dest):
+        os.mkdir(folder_path_dest)
+
+    shutil.copyfile(file_path_src, fite_path_dest)

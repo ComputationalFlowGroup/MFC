@@ -12,11 +12,8 @@
 !!              and the numerical Schlieren function.
 program p_main
 
-    ! Dependencies =============================================================
     use m_global_parameters     !< Global parameters for the code
-
     use m_start_up
-    ! ==========================================================================
 
     implicit none
 
@@ -26,10 +23,9 @@ program p_main
     !! Generic storage for the name(s) of the flow variable(s) that will be added
     !! to the formatted database file(s)
 
-    real(kind(0d0)) :: pres
-    real(kind(0d0)) :: c
-    real(kind(0d0)) :: H,i
-
+    real(wp) :: pres
+    real(wp) :: c
+    real(wp) :: H
     call s_initialize_mpi_domain()
 
     call s_initialize_modules()
@@ -37,13 +33,19 @@ program p_main
     if (cfl_dt) then
         t_step = n_start
         n_save = int(t_stop/t_save) + 1
-    else 
         ! Setting the time-step iterator to the first time step to be post-processed
         t_step = t_step_start
     end if
 
-    ! Time-Marching Loop =======================================================
+    ! Time-Marching Loop
     do
+
+        ! If all time-steps are not ready to be post-processed and one rank is
+        ! faster than another, the slower rank processing the last available
+        ! step might be killed when the faster rank attempts to process the
+        ! first missing step, before the slower rank finishes writing the last
+        ! available step. To avoid this, we force synchronization here.
+        call s_mpi_barrier()
 
         call s_perform_time_step(t_step)
 
@@ -52,7 +54,7 @@ program p_main
         if (cfl_dt) then
             if (t_step == n_save - 1) then
                 exit
-            end if 
+            end if
         else
             ! Modifies the time-step iterator so that it may reach the final time-
             ! step to be post-processed, in the case that this one is not originally
@@ -74,7 +76,7 @@ program p_main
         end if
 
     end do
-    ! END: Time-Marching Loop ==================================================
+    ! END: Time-Marching Loop
 
     close (11)
 

@@ -2,71 +2,72 @@
 import math
 import json
 import numpy as np
-#import scipy as sc
 
-#Non-dimensional input file
-#ps  = 248758.567
+# import scipy as sc
+
+# Non-dimensional input file
+# ps  = 248758.567
 gam = 1.4
-rho = 1.
-#c_l = math.sqrt( 1.4*ps/rho )
-c_l = 3.0776       #mm/us
+rho = 1.0
+# c_l = math.sqrt( 1.4*ps/rho )
+c_l = 3.0776  # mm/us
 
-leng = 2.0        #mm
+leng = 2.0  # mm
 Ny = 768
 Nx = 1024
-dx = leng/Nx
+dx = leng / Nx
 
-time_end = 0.001   #5*leng/vel
+time_end = 0.001  # 5*leng/vel
 cfl = 0.1
-#dt = 1.0E-12
-dt = cfl * dx/c_l
-#Nt = int(time_end/dt)
+# dt = 1.0E-12
+dt = cfl * dx / c_l
+# Nt = int(time_end/dt)
 Nt = 20000
-eps = 1E-6
+eps = 1e-6
 
-#Material parameters of sucrose (dimensional)
-Kt0_suc       = 14.3e9      #Pa
-Kt0_prime_suc = 3.75        #-
-rho_0_suc     = 1.5805E3    #kg/m^3
-ein_cv1_suc   = 3279        #J/Kg-K
-ein_cv2_suc   = 1125        #K
-G_suc         = 8.58e9      #Pa
-c_0           = 3077.6      #m/s
-theta_0_suc   = 298         #K
-gamma_suc     = 1.09
+# Material parameters of sucrose (dimensional)
+Kt0_suc = 14.3e9  # Pa
+Kt0_prime_suc = 3.75  # -
+rho_0_suc = 1.5805e3  # kg/m^3
+ein_cv1_suc = 3279  # J/Kg-K
+ein_cv2_suc = 1125  # K
+G_suc = 8.58e9  # Pa
+c_0 = 3077.6  # m/s
+theta_0_suc = 298  # K
+gamma_suc = 1.09
 
-#Material parameters for air (dimensional)
-Kt0_air       = 1.013e5     #Pa
-Kt0_prime_air = 2.00        #Pa
-rho_0_air     = 1.2         #kg/m^3
-theta_0_air   = theta_0_suc
-ein_cv1_air   = 718         #J/Kg-K
-ein_cv2_air   = 100         #K
-G_air         = 0           #for now
-gamma_air     = 0.4         #n-1
+# Material parameters for air (dimensional)
+Kt0_air = 1.013e5  # Pa
+Kt0_prime_air = 2.00  # Pa
+rho_0_air = 1.2  # kg/m^3
+theta_0_air = theta_0_suc
+ein_cv1_air = 718  # J/Kg-K
+ein_cv2_air = 100  # K
+G_air = 0  # for now
+gamma_air = 0.4  # n-1
 
-#Initial condition
-theta_0           = 310             #K
-P_0               = 1.0040000406510039E-004         #GPa
-compression_ratio = 1.2             #rho/rho_0 in the shocked region
-rho_suc           = 1580.5          #kg/m^3
-vel0              = 1.0E-6          #For seeding everything with some non-zero velocity
+# Initial condition
+theta_0 = 310  # K
+P_0 = 1.0040000406510039e-004  # GPa
+compression_ratio = 1.2  # rho/rho_0 in the shocked region
+rho_suc = 1580.5  # kg/m^3
+vel0 = 1.0e-6  # For seeding everything with some non-zero velocity
 
-#Shock EoS
-#xi = 1.0-1.0/tilde_rho
-#ps = tilde_P_0 +  xi/pow(1-2.87*xi,2)       #Need to fix the shock slope everywhere in the code
-#vel = vel0 +  math.sqrt((ps-tilde_P_0)*xi/rho_0_tilde)
-#print('pressure=',ps*rho_0_suc*c_0*c_0*1.0E-9,'GPa')
-#print('vel=',vel*c_0,'m/s')
-vel = 0.2                      #mm/us
-Us = c_l+ 1.104*vel              #mm/us
-rho1 = 1.5805106*Us/(Us-vel)        #density
-ps = P_0 + 1.5805106*Us*vel         #GPa
+# Shock EoS
+# xi = 1.0-1.0/tilde_rho
+# ps = tilde_P_0 +  xi/pow(1-2.87*xi,2)       #Need to fix the shock slope everywhere in the code
+# vel = vel0 +  math.sqrt((ps-tilde_P_0)*xi/rho_0_tilde)
+# print('pressure=',ps*rho_0_suc*c_0*c_0*1.0E-9,'GPa')
+# print('vel=',vel*c_0,'m/s')
+vel = 0.2  # mm/us
+Us = c_l + 1.104 * vel  # mm/us
+rho1 = 1.5805106 * Us / (Us - vel)  # density
+ps = P_0 + 1.5805106 * Us * vel  # GPa
 
-#print(vel)
-#print(Us)
-#print(rho1)
-#print(ps)
+# print(vel)
+# print(Us)
+# print(rho1)
+# print(ps)
 # Configuring case dictionary
 print(json.dumps({
     # Logistics ================================================================
@@ -208,5 +209,4 @@ print(json.dumps({
                     'fluid_pp(1)%jcook(11)'        : 298.0,
                     'fluid_pp(2)%jcook(11)'        : 0.0,
 }))
-
 # ==============================================================================
