@@ -59,9 +59,9 @@ ps = P_0 + 1.5805106 * Us * vel  # GPa
 print(
     json.dumps(
         {
-            # Logistics 
+            # Logistics
             "run_time_info": "T",
-            # Computational Domain Parameters 
+            # Computational Domain Parameters
             "x_domain%beg": -3 * leng / 4.0,
             "x_domain%end": leng,
             "y_domain%beg": -3 * leng / 4.0,
@@ -78,7 +78,7 @@ print(
             "n_start": 0,
             "t_save": 1.0e-4,
             "t_stop": 1.0e-3,
-            # Simulation Algorithm Parameters 
+            # Simulation Algorithm Parameters
             "num_patches": 3,  # change this to 3 for shocked state
             "model_eqns": 5,
             "alt_soundspeed": "F",
@@ -102,7 +102,7 @@ print(
             "bc_x%end": -3,
             "bc_y%beg": -3,
             "bc_y%end": -3,
-            # Formatted Database Files Structure Parameters 
+            # Formatted Database Files Structure Parameters
             "format": 1,
             "precision": 2,
             "prim_vars_wrt": "T",
@@ -113,7 +113,7 @@ print(
             "schlieren_alpha(1)": 1.00,
             "schlieren_alpha(2)": 0.25,
             "fd_order": 2,
-            # Patch 1: Background 
+            # Patch 1: Background
             "patch_icpp(1)%geometry": 3,
             "patch_icpp(1)%x_centroid": 0.0,
             "patch_icpp(1)%y_centroid": 0.0,
@@ -126,7 +126,7 @@ print(
             "patch_icpp(1)%alpha_rho(2)": eps * 0.00117,
             "patch_icpp(1)%alpha(1)": (1.0e00 - eps),
             "patch_icpp(1)%alpha(2)": eps,
-            # Patch 2: Shocked state 
+            # Patch 2: Shocked state
             "patch_icpp(2)%geometry": 3,
             "patch_icpp(2)%alter_patch(1)": "T",
             "patch_icpp(2)%x_centroid": -2.5625 * leng,
@@ -140,7 +140,7 @@ print(
             "patch_icpp(2)%alpha_rho(2)": eps * 1.17e-3,
             "patch_icpp(2)%alpha(1)": 1.0e00 - eps,
             "patch_icpp(2)%alpha(2)": eps,
-            # Patch 3: Bubble 
+            # Patch 3: Bubble
             "patch_icpp(3)%geometry": 2,
             "patch_icpp(3)%x_centroid": 0.0e00,
             "patch_icpp(3)%y_centroid": 0.0e00,
@@ -156,7 +156,7 @@ print(
             "patch_icpp(3)%alpha_rho(2)": (1.0e0 - eps) * 1.17e-3,
             "patch_icpp(3)%alpha(1)": eps,
             "patch_icpp(3)%alpha(2)": 1.0e00 - eps,
-            # Fluids Physical Parameters 
+            # Fluids Physical Parameters
             "fluid_pp(1)%gamma": 1.09,  # Gruneisen constant
             "fluid_pp(1)%pi_inf": 0.0,  # p0
             "fluid_pp(1)%mg_a": 3077.6e-3,  # c0
@@ -173,7 +173,7 @@ print(
             "fluid_pp(2)%qvp": 0.0,  # Gruneisen exponent
             "fluid_pp(2)%rho0": 1.17e-3,  # reference density
             "fluid_pp(2)%cv": 718.0e-6,  # specific heat capacity
-            # Plasticity parameters 
+            # Plasticity parameters
             "fluid_pp(1)%G": 8.5e0,  # shear modulus of sucrose
             "fluid_pp(1)%jcook(1)": 0.5e0,  # A, Static yield strength
             "fluid_pp(1)%jcook(2)": 0.5e0,  # B, Strain-Hardening coefficient

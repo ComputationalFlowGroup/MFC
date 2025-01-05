@@ -50,14 +50,14 @@ print(
             "bc_x%end": -3,
             "bc_y%beg": -3,
             "bc_y%end": -3,
-            # Turning on Hypoelasticity 
+            # Turning on Hypoelasticity
             "hypoelasticity": "T",
-            # Formatted Database Files Structure Parameters 
+            # Formatted Database Files Structure Parameters
             "format": 1,
             "precision": 2,
             "prim_vars_wrt": "T",
             "parallel_io": "F",
-            # Patch 1 L 
+            # Patch 1 L
             "patch_icpp(1)%geometry": 3,
             "patch_icpp(1)%x_centroid": 0.25,
             "patch_icpp(1)%y_centroid": 0.001,
@@ -69,7 +69,7 @@ print(
             "patch_icpp(1)%alpha_rho(1)": 1000,
             "patch_icpp(1)%alpha(1)": 1.0,
             "patch_icpp(1)%tau_e(1)": 0.0,
-            # Patch 2 R 
+            # Patch 2 R
             "patch_icpp(2)%geometry": 3,
             "patch_icpp(2)%x_centroid": 0.75,
             "patch_icpp(2)%y_centroid": 0.001,

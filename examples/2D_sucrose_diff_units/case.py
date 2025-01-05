@@ -72,9 +72,9 @@ ps = P_0 + 1.5805106 * Us * vel  # GPa
 print(
     json.dumps(
         {
-            # Logistics 
+            # Logistics
             "run_time_info": "T",
-            # Computational Domain Parameters 
+            # Computational Domain Parameters
             "x_domain%beg": -2 * leng,
             "x_domain%end": 3 * leng,
             "y_domain%beg": -1.5 * leng,
@@ -123,7 +123,7 @@ print(
             "bc_x%end": -3,
             "bc_y%beg": -3,
             "bc_y%end": -3,
-            # Formatted Database Files Structure Parameters 
+            # Formatted Database Files Structure Parameters
             "format": 1,
             "precision": 2,
             "prim_vars_wrt": "T",
@@ -134,7 +134,7 @@ print(
             "schlieren_alpha(1)": 1.00,
             "schlieren_alpha(2)": 0.25,
             "fd_order": 2,
-            # Patch 1: Background 
+            # Patch 1: Background
             "patch_icpp(1)%geometry": 3,
             "patch_icpp(1)%x_centroid": 0.0,
             "patch_icpp(1)%y_centroid": 0.0,
@@ -147,7 +147,7 @@ print(
             "patch_icpp(1)%alpha_rho(2)": eps * 0.00116,
             "patch_icpp(1)%alpha(1)": (1.0e00 - eps),
             "patch_icpp(1)%alpha(2)": eps,
-            # Patch 2: Shocked state 
+            # Patch 2: Shocked state
             "patch_icpp(2)%geometry": 3,
             "patch_icpp(2)%alter_patch(1)": "T",
             "patch_icpp(2)%x_centroid": -2.5625 * leng,
@@ -161,7 +161,7 @@ print(
             "patch_icpp(2)%alpha_rho(2)": eps * 1.16e-3,
             "patch_icpp(2)%alpha(1)": 1.0e00 - eps,
             "patch_icpp(2)%alpha(2)": eps,
-            # Patch 3: Bubble 
+            # Patch 3: Bubble
             "patch_icpp(3)%geometry": 2,
             "patch_icpp(3)%x_centroid": 0.0e00,
             "patch_icpp(3)%y_centroid": 0.0e00,
@@ -177,7 +177,7 @@ print(
             "patch_icpp(3)%alpha_rho(2)": (1.0e0 - eps) * 1.16e-3,
             "patch_icpp(3)%alpha(1)": eps,
             "patch_icpp(3)%alpha(2)": 1.0e00 - eps,
-            # Fluids Physical Parameters 
+            # Fluids Physical Parameters
             "fluid_pp(1)%gamma": 1.09,  # Gruneisen constant
             "fluid_pp(1)%pi_inf": 0.0,  # p0
             "fluid_pp(1)%mg_a": 3077.6e-3,  # c0

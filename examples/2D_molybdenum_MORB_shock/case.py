@@ -17,9 +17,9 @@ Nt = int(Tend / dt)
 print(
     json.dumps(
         {
-            # Logistics 
+            # Logistics
             "run_time_info": "T",
-            # Computational Domain Parameters 
+            # Computational Domain Parameters
             "x_domain%beg": 0.0,
             "x_domain%end": leng,
             "y_domain%beg": 0.0,
@@ -31,7 +31,7 @@ print(
             "t_step_start": 0,
             "t_step_stop": Nt,
             "t_step_save": int(Nt / 100.0),
-            # Simulation Algorithm Parameters 
+            # Simulation Algorithm Parameters
             "num_patches": 3,
             "model_eqns": 5,
             "alt_soundspeed": "F",
@@ -53,17 +53,17 @@ print(
             "bc_x%end": -3,
             "bc_y%beg": -3,
             "bc_y%end": -3,
-            # Turning on Hypoelasticity 
+            # Turning on Hypoelasticity
             "hypoplasticity": "F",
             "MGEoS_model": 1,
-            # Formatted Database Files Structure Parameters 
+            # Formatted Database Files Structure Parameters
             "format": 1,
             "precision": 2,
             "prim_vars_wrt": "T",
             "parallel_io": "T",
             "fd_order": 4,
             "schlieren_wrt": "T",
-            # Molybdenum unshocked patch 
+            # Molybdenum unshocked patch
             "patch_icpp(1)%geometry": 3,
             "patch_icpp(1)%x_centroid": 0.5,
             "patch_icpp(1)%length_x": 1.0,
@@ -76,7 +76,7 @@ print(
             "patch_icpp(1)%alpha(1)": (1.0 - (1.0e-6)),
             "patch_icpp(1)%alpha_rho(2)": 2260 * (1.0e-6),
             "patch_icpp(1)%alpha(2)": 1.0e-6,
-            # MORB patch 
+            # MORB patch
             "patch_icpp(2)%geometry": 3,
             "patch_icpp(2)%x_centroid": 0.55,
             "patch_icpp(2)%length_x": 0.3,
@@ -90,7 +90,7 @@ print(
             "patch_icpp(2)%alpha(1)": 1.0e-6,
             "patch_icpp(2)%alpha_rho(2)": 2260 * (1.0 - (1.0e-6)),
             "patch_icpp(2)%alpha(2)": 1.0 - (1.0e-6),
-            # Patch 3 
+            # Patch 3
             "patch_icpp(3)%geometry": 3,
             "patch_icpp(3)%x_centroid": 0.15,
             "patch_icpp(3)%length_x": 0.3,
@@ -104,7 +104,7 @@ print(
             "patch_icpp(3)%alpha(1)": 1.0 - (1.0e-6),
             "patch_icpp(3)%alpha_rho(2)": 2260 * (1.0e-6),
             "patch_icpp(3)%alpha(2)": 1.0e-6,
-            # Fluids Physical Parameters for Molybdenum 
+            # Fluids Physical Parameters for Molybdenum
             "fluid_pp(1)%gamma": 2.56,  # Gruneisen constant
             "fluid_pp(1)%pi_inf": 0.0,  # p0
             "fluid_pp(1)%mg_a": 4770,  # c0
@@ -113,7 +113,7 @@ print(
             "fluid_pp(1)%qvp": 1.0,  # Gruneisen exponent
             "fluid_pp(1)%rho0": 9961,  # reference density
             "fluid_pp(1)%cv": 250,  # specific heat
-            # Fluids Physical Parameters for MORB 
+            # Fluids Physical Parameters for MORB
             "fluid_pp(2)%gamma": 1.18,  # Gruneisen constant
             "fluid_pp(2)%pi_inf": 0.0,  # p0
             "fluid_pp(2)%mg_a": 2100,  # c0
