@@ -37,10 +37,9 @@ rho_0 = 1580.5  # kg/m^3
 print(
     json.dumps(
         {
-            # Logistics ================================================
+            # Logistics 
             "run_time_info": "T",
-            # ==========================================================
-            # Computational Domain Parameters ==========================
+            # Computational Domain Parameters 
             "x_domain%beg": 0.0e00,
             "x_domain%end": 2.0e00,
             "m": Nx,
@@ -55,8 +54,7 @@ print(
             "n_start": 0,
             "t_save": 2.0e-4,
             "t_stop": Tend,
-            # ==========================================================
-            # Simulation Algorithm Parameters ==========================
+            # Simulation Algorithm Parameters 
             "num_patches": 3,
             "model_eqns": 5,
             "alt_soundspeed": "F",
@@ -76,17 +74,15 @@ print(
             "avg_state": 2,
             "bc_x%beg": -3,
             "bc_x%end": -3,
-            # ==========================================================
-            # Hypoplasticity ================================
+            # Hypoplasticity 
             "hypoplasticity": "F",
-            # ==========================================================
             "MGEoS_model": 1,
-            # Formatted Database Files Structure Parameters ============
+            # Formatted Database Files Structure Parameters 
             "format": 1,
             "precision": 2,
             "prim_vars_wrt": "T",
             "parallel_io": "T",
-            # Patch 1 L ================================================
+            # Patch 1 L 
             "patch_icpp(1)%geometry": 1,
             "patch_icpp(1)%x_centroid": 1.0,
             "patch_icpp(1)%length_x": leng,
@@ -96,7 +92,7 @@ print(
             "patch_icpp(1)%alpha_rho(2)": (eps) * 1.2,
             "patch_icpp(1)%alpha(1)": 1.0 - eps,
             "patch_icpp(1)%alpha(2)": eps,
-            # Shocked State ============================================
+            # Shocked State 
             "patch_icpp(2)%geometry": 1,
             "patch_icpp(2)%x_centroid": 0.125,
             "patch_icpp(2)%length_x": 0.25,
@@ -107,7 +103,7 @@ print(
             "patch_icpp(2)%alpha_rho(2)": eps * 1.5,
             "patch_icpp(2)%alpha(1)": 1.0 - eps,
             "patch_icpp(2)%alpha(2)": eps,
-            # Patch 2 R ================================================
+            # Patch 2 R 
             "patch_icpp(3)%geometry": 1,
             "patch_icpp(3)%x_centroid": 1.0,
             "patch_icpp(3)%length_x": 0.25,
@@ -118,8 +114,7 @@ print(
             "patch_icpp(3)%alpha_rho(2)": (1.0e0 - eps) * 1.2,
             "patch_icpp(3)%alpha(1)": eps,
             "patch_icpp(3)%alpha(2)": 1.0 - eps,
-            # ==========================================================
-            # Fluids Physical Parameters ===============================================
+            # Fluids Physical Parameters 
             "fluid_pp(1)%gamma": 1.09,  # Gruneisen constant
             "fluid_pp(1)%pi_inf": P_0,  # p0
             "fluid_pp(1)%mg_a": 3077.6,  # c0
@@ -139,5 +134,3 @@ print(
         }
     )
 )
-# ==========================================================
-# ==============================================================================
