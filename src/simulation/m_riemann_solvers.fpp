@@ -603,7 +603,7 @@ contains
                                 end do
 
                                 pref_over_gamma = 0._wp
-                                rho_eref = 0._wp 
+                                rho_eref = 0._wp
                                 gamma_inv = 0._wp
                                 if (MGEoS_model == 1) then
                                     do i = 1, num_fluids
