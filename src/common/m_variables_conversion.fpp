@@ -52,8 +52,8 @@ module m_variables_conversion
 #ifndef MFC_SIMULATION
     real(wp), allocatable, public, dimension(:) :: gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps
     !$acc declare create(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps)
-    real(wp), allocatable, public, dimension(:) :: rho0, mg_a, mg_b, ein_cv1, ein_cv2
-    !$acc declare create(rho0, mg_a, mg_b, ein_cv1, ein_cv2)
+    real(wp), allocatable, public, dimension(:) :: rho0, mg_a, mg_b, einstein_cv1, einstein_cv2
+    !$acc declare create(rho0, mg_a, mg_b, einstein_cv1, einstein_cv2)
     #:for VAR in range(1,12)
         real(wp), allocatable, public, dimension(:) :: jcook${VAR}$
     #:endfor
@@ -1092,7 +1092,7 @@ contains
                         call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
                                                 0._wp, dyn_pres_K, &
                                                 pi_inf_K, 0._wp, rho_K, qv_K, rhoYks, &
-                                                pres, 0._wp, 0._wp, 0._wp, 0._wp, alpha_K, alpha_rho_K)
+                                                pres, T, 0._wp, 0._wp, 0._wp, alpha_K, alpha_rho_K)
 #ifdef MFC_POST_PROCESS
                         call s_compute_temperature(qK_cons_vf(E_idx)%sf(j, k, l), dyn_pres_K, &
                                                    temp, alpha_K, alpha_rho_K)
@@ -1672,7 +1672,7 @@ contains
                     gam = 1._wp/gamma_inv
                     pref_prime = (mg_a(q)**2._wp)*((1._wp - xi)**2._wp)*(1._wp + mg_b(q)*xi)/(1._wp - mg_b(q)*xi)**3._wp
 
-                    rho_eref_prime = 0.5_wp*(pref/rho_K + pref_prime*(rho_K/rho0(q) - 1d0))
+                    rho_eref_prime = 0.5_wp*(pref/rho_K + pref_prime*(rho_K/rho0(q) - 1._wp))
 
                     if (rho_K >= rho0(q)) then
                         c = c + (alpha_rho_K(q)/rho)*((1._wp + (1._wp - qvps(q))*gamma_inv)*(pres - pref)/rho_K &

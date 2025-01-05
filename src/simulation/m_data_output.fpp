@@ -277,7 +277,8 @@ contains
         real(wp), dimension(2) :: Re         !< Cell-avg. Reynolds numbers
         integer :: j, k, l, i
 
-        ! Computing Stability Criteria at Current Time-step ================
+        ! Computing Stability Criteria at current time-step
+
         !$acc parallel loop collapse(3) gang vector default(present) private(vel, alpha, Re, alpha_rho)
         do l = 0, p
             do k = 0, n

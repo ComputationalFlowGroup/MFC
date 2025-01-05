@@ -20,8 +20,8 @@ theta_0 = 298.0
 Kt0_suc = 14.3e9  # Pa
 Kt0_prime_suc = 3.75  # -
 rho_0_suc = 8924  # kg/m^3
-ein_cv1_suc = 3279  # J/Kg-K
-ein_cv2_suc = 1125  # K
+einstein_cv1_suc = 3279  # J/Kg-K
+einstein_cv2_suc = 1125  # K
 G_suc = 8.58e9  # Pa
 c_0 = 3910  # m/s
 theta_0_suc = 298  # K
@@ -38,8 +38,8 @@ tilde_P0 = P_0 / (rho_0_suc * c_0 * c_0)
 tilde_P_0 = P_0 / (rho_0_suc * c_0 * c_0)
 tilde_rho = compression_ratio
 Kt0_tilde = Kt0_suc / (rho_0_suc * c_0 * c_0)
-A_tilde = ein_cv1_suc * theta_0 / (c_0 * c_0)
-theta_E_tilde = ein_cv2_suc / theta_0
+A_tilde = einstein_cv1_suc * theta_0 / (c_0 * c_0)
+theta_E_tilde = einstein_cv2_suc / theta_0
 rho_0_tilde = rho_0 / rho_0_suc
 
 xi = 1 - 1 / tilde_rho
@@ -51,10 +51,9 @@ vel = vel0 + math.sqrt((ps - tilde_P_0) * xi)
 print(
     json.dumps(
         {
-            # Logistics ================================================
+            # Logistics
             "run_time_info": "T",
-            # ==========================================================
-            # Computational Domain Parameters ==========================
+            # Computational Domain Parameters
             "x_domain%beg": 0.0e00,
             "x_domain%end": 1.0e00,
             "m": Nx,
@@ -64,8 +63,7 @@ print(
             "t_step_start": 0,
             "t_step_stop": int(Nt),
             "t_step_save": int(math.ceil(Nt / 100.0)),
-            # ==========================================================
-            # Simulation Algorithm Parameters ==========================
+            # Simulation Algorithm Parameters
             "num_patches": 2,
             "model_eqns": 5,
             "alt_soundspeed": "F",
@@ -85,17 +83,14 @@ print(
             "avg_state": 2,
             "bc_x%beg": -3,
             "bc_x%end": -3,
-            # ==========================================================
-            # Hypoplasticity ================================
+            # Hypoplasticity
             "hypoplasticity": "F",
-            # ==========================================================
-            # Formatted Database Files Structure Parameters ============
+            # Formatted Database Files Structure Parameters
             "format": 1,
             "precision": 2,
             "prim_vars_wrt": "T",
             "parallel_io": "T",
-            # ==========================================================
-            # Patch 1 L ================================================
+            # Patch 1 L
             "patch_icpp(1)%geometry": 1,
             "patch_icpp(1)%x_centroid": 0.5,
             "patch_icpp(1)%length_x": leng,
@@ -103,8 +98,7 @@ print(
             "patch_icpp(1)%pres": tilde_P_0,
             "patch_icpp(1)%alpha_rho(1)": 1.0,
             "patch_icpp(1)%alpha(1)": 1.0,
-            # ==========================================================
-            # Patch 2: Shocked state ===================================================
+            # Patch 2: Shocked state
             "patch_icpp(2)%geometry": 1,
             "patch_icpp(2)%x_centroid": 0.0625,
             "patch_icpp(2)%length_x": 0.125,
@@ -113,8 +107,7 @@ print(
             "patch_icpp(2)%pres": ps,
             "patch_icpp(2)%alpha_rho(1)": tilde_rho,
             "patch_icpp(2)%alpha(1)": 1.0e00,
-            # ==========================================================================
-            # Fluids Physical Parameters ===============================================
+            # Fluids Physical Parameters
             "fluid_pp(1)%gamma": 1.96e0,  # 1.E+00/(1.4E+00-1.E+00),
             "fluid_pp(1)%pi_inf": 1.0e5 / (rho_0_suc * c_0 * c_0),  # isothermal bulk modulus
             # 'fluid_pp(2)%gamma'            : 0.4E0,                            # 1.E+00/(1.6666E+00-1.E+00),
@@ -124,10 +117,10 @@ print(
             #'fluid_pp(2)%qv'               : 0.0,                                   #
             # 'fluid_pp(1)%G'                : G_suc/(rho_0_suc*c_0*c_0),        # Shear modulus
             # 'fluid_pp(2)%G'                : 0.0, #0.0E-9/(rho_0_suc*c_0*c_0),       # Shear modulus of air taken to be a very small value
-            # 'fluid_pp(1)%ein_cv(1)'        : A_tilde,                          # Can be replaced with fluid_pp(:)%cv at some point
-            # 'fluid_pp(2)%ein_cv(1)'        : 0.026937087111210E0,              #
-            # 'fluid_pp(1)%ein_cv(2)'        : theta_E_tilde,                    # Can be replaced with a scalar theta_E at some point
-            # 'fluid_pp(2)%ein_cv(2)'        : 100E0/298E0, #0.335E0,
+            # 'fluid_pp(1)%einstein_cv(1)'        : A_tilde,                          # Can be replaced with fluid_pp(:)%cv at some point
+            # 'fluid_pp(2)%einstein_cv(1)'        : 0.026937087111210E0,              #
+            # 'fluid_pp(1)%einstein_cv(2)'        : theta_E_tilde,                    # Can be replaced with a scalar theta_E at some point
+            # 'fluid_pp(2)%einstein_cv(2)'        : 100E0/298E0, #0.335E0,
             "fluid_pp(1)%mg_a": 0.0e0,  # a_mg
             "fluid_pp(1)%mg_b": 1.0e0,  # b_mg
             # 'fluid_pp(2)%mg_a'             : 0.4E0,                            #a_mg
@@ -161,7 +154,3 @@ print(
         }
     )
 )
-
-#
-# ==========================================================
-# ==============================================================================

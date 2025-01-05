@@ -20,8 +20,8 @@ eps = 1e-16
 Kt0_suc = 14.3e9  # Pa
 Kt0_prime_suc = 3.75  # -
 rho_0_suc = 8924  # kg/m^3
-ein_cv1_suc = 3279  # J/Kg-K
-ein_cv2_suc = 1125  # K
+einstein_cv1_suc = 3279  # J/Kg-K
+einstein_cv2_suc = 1125  # K
 G_suc = 8.58e9  # Pa
 c_0 = 3910  # m/s
 theta_0_suc = 298  # K
@@ -38,8 +38,8 @@ tilde_P0 = P_0 / (rho_0_suc * c_0 * c_0)
 tilde_P_0 = P_0 / (rho_0_suc * c_0 * c_0)
 tilde_rho = compression_ratio
 Kt0_tilde = Kt0_suc / (rho_0_suc * c_0 * c_0)
-A_tilde = ein_cv1_suc * theta_0 / (c_0 * c_0)
-theta_E_tilde = ein_cv2_suc / theta_0
+A_tilde = einstein_cv1_suc * theta_0 / (c_0 * c_0)
+theta_E_tilde = einstein_cv2_suc / theta_0
 rho_0_tilde = rho_0 / rho_0_suc
 
 # phi = math.exp(gamma_suc*(1-1/tilde_rho))
@@ -47,10 +47,9 @@ rho_0_tilde = rho_0 / rho_0_suc
 print(
     json.dumps(
         {
-            # Logistics ================================================
+            # Logistics
             "run_time_info": "T",
-            # ==========================================================
-            # Computational Domain Parameters ==========================
+            # Computational Domain Parameters
             "x_domain%beg": 0.0e00,
             "x_domain%end": 1.0e00,
             "m": Nx,
@@ -60,8 +59,7 @@ print(
             "t_step_start": 0,
             "t_step_stop": int(Nt),
             "t_step_save": int(math.ceil(Nt / 100.0)),
-            # ==========================================================
-            # Simulation Algorithm Parameters ==========================
+            # Simulation Algorithm Parameters
             "num_patches": 2,
             "model_eqns": 5,
             "alt_soundspeed": "F",
@@ -81,18 +79,16 @@ print(
             "avg_state": 2,
             "bc_x%beg": -1,
             "bc_x%end": -1,
-            # ==========================================================
-            # Hypoplasticity ================================
+            # Hypoplasticity
             "hypoplasticity": "F",
-            # Mie-Gruneisen EoS model===================================
+            # Mie-Gruneisen EoS model
             "MGEoS_model": 1,
-            # Formatted Database Files Structure Parameters ============
+            # Formatted Database Files Structure Parameters
             "format": 1,
             "precision": 2,
             "prim_vars_wrt": "T",
             "parallel_io": "T",
-            # ==========================================================
-            # Patch 1 L ================================================
+            # Patch 1 L
             "patch_icpp(1)%geometry": 1,
             "patch_icpp(1)%x_centroid": 0.5,
             "patch_icpp(1)%length_x": leng,
@@ -102,8 +98,7 @@ print(
             "patch_icpp(1)%alpha_rho(2)": eps * (1.2 / 8924),
             "patch_icpp(1)%alpha(1)": 1.0 - eps,
             "patch_icpp(1)%alpha(2)": eps,
-            # ==========================================================
-            # Patch 2 R ================================================
+            # Patch 2 R
             "patch_icpp(2)%geometry": 1,
             "patch_icpp(2)%x_centroid": 0.5,
             "patch_icpp(2)%length_x": 0.5,
@@ -114,8 +109,7 @@ print(
             "patch_icpp(2)%alpha_rho(2)": (1.0 - eps) * 1.2 / 8924,
             "patch_icpp(2)%alpha(1)": eps,
             "patch_icpp(2)%alpha(2)": 1.0 - eps,
-            # ==========================================================
-            # Fluids Physical Parameters ===============================================
+            # Fluids Physical Parameters
             "fluid_pp(1)%gamma": 1.96e0,  # 1.E+00/(1.4E+00-1.E+00),
             "fluid_pp(2)%gamma": 0.4e0,  # 1.E+00/(1.6666E+00-1.E+00),
             "fluid_pp(1)%pi_inf": tilde_P0,  # isothermal bulk modulus
@@ -156,7 +150,3 @@ print(
         }
     )
 )
-
-#
-# ==========================================================
-# ==============================================================================

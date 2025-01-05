@@ -24,8 +24,8 @@ Nt = int(time_end / dt)
 Kt0_suc = 14.3e9  # Pa
 Kt0_prime_suc = 3.75  # -
 rho_0_suc = 1580.5  # kg/m^3
-ein_cv1_suc = 3279  # J/Kg-K
-ein_cv2_suc = 1125  # K
+einstein_cv1_suc = 3279  # J/Kg-K
+einstein_cv2_suc = 1125  # K
 G_suc = 8.58e9  # Pa
 c_0 = 3077.6  # m/s
 theta_0_suc = 298  # K
@@ -41,7 +41,7 @@ rho_0 = 1580.5  # kg/m^3
 c_squared = (
     (Kt0_suc / rho_0_suc)
     + gamma_suc * P_0 / rho_0_suc
-    + math.pow(gamma_suc, 2) * ein_cv1_suc * (math.pow(ein_cv2_suc / theta_0_suc, 2)) * math.exp(ein_cv2_suc / theta_0) / (math.pow(math.exp(ein_cv2_suc / theta_0_suc) - 1, 2))
+    + math.pow(gamma_suc, 2) * einstein_cv1_suc * (math.pow(einstein_cv2_suc / theta_0_suc, 2)) * math.exp(einstein_cv2_suc / theta_0) / (math.pow(math.exp(einstein_cv2_suc / theta_0_suc) - 1, 2))
 )
 
 c_0 = math.sqrt(c_squared)
@@ -51,8 +51,8 @@ c_0 = math.sqrt(c_squared)
 tilde_P_0 = P_0 / (rho_0_suc * c_0 * c_0)
 tilde_rho = compression_ratio
 Kt0_tilde = Kt0_suc / (rho_0_suc * c_0 * c_0)
-A_tilde = ein_cv1_suc * theta_0 / (c_0 * c_0)
-theta_E_tilde = ein_cv2_suc / theta_0
+A_tilde = einstein_cv1_suc * theta_0 / (c_0 * c_0)
+theta_E_tilde = einstein_cv2_suc / theta_0
 rho_0_tilde = rho_0 / rho_0_suc
 phi = math.exp(gamma_suc * (1 - 1 / tilde_rho))
 int_energy = 0.5 * Kt0_tilde * pow(math.log(tilde_rho), 2) * (1 + (Kt0_prime_suc - 2) * math.log(tilde_rho) / 3) + A_tilde * (
@@ -69,10 +69,9 @@ vel_shock = math.sqrt((ps - tilde_P_0) * (1 - 1 / tilde_rho))
 print(
     json.dumps(
         {
-            # Logistics ================================================================
+            # Logistics
             "run_time_info": "T",
-            # ==========================================================================
-            # Computational Domain Parameters ==========================================
+            # Computational Domain Parameters
             "x_domain%beg": -leng / 2.0,
             "x_domain%end": leng / 2 + 2 * leng,
             "y_domain%beg": -leng / 2.0,
@@ -84,8 +83,7 @@ print(
             "t_step_start": 0,
             "t_step_stop": Nt,
             "t_step_save": int(Nt / 20.0),
-            # ==========================================================================
-            # Simulation Algorithm Parameters ==========================================
+            # Simulation Algorithm Parameters
             "num_patches": 2,  # change this to 3 for shocked state
             "model_eqns": 5,
             "alt_soundspeed": "F",
@@ -109,14 +107,12 @@ print(
             "bc_x%end": -6,
             "bc_y%beg": -6,
             "bc_y%end": -6,
-            # ==========================================================================
-            # Formatted Database Files Structure Parameters ============================
+            # Formatted Database Files Structure Parameters
             "format": 1,
             "precision": 2,
             "prim_vars_wrt": "T",
             "parallel_io": "T",
-            # ==========================================================================
-            # Patch 1: Background ======================================================
+            # Patch 1: Background
             "patch_icpp(1)%geometry": 3,
             "patch_icpp(1)%x_centroid": 0.0,
             "patch_icpp(1)%y_centroid": 0.0,
@@ -129,8 +125,7 @@ print(
             "patch_icpp(1)%alpha_rho(2)": 0.0e00,
             "patch_icpp(1)%alpha(1)": 1.0e00,
             "patch_icpp(1)%alpha(2)": 0.0e00,
-            # ==========================================================================
-            # Patch 2: Shocked state ===================================================
+            # Patch 2: Shocked state
             #'patch_icpp(2)%geometry'       : 3,
             #'patch_icpp(2)%alter_patch(1)' : 'T',
             #'patch_icpp(2)%x_centroid'     : -3*leng/8.,
@@ -144,8 +139,7 @@ print(
             #'patch_icpp(2)%alpha_rho(2)'   : 0.E+00,
             #'patch_icpp(2)%alpha(1)'       : 1.E+00,
             #'patch_icpp(2)%alpha(2)'       : 0.E+00,
-            # ==========================================================================
-            # Patch 3: Bubble ==========================================================
+            # Patch 3: Bubble
             "patch_icpp(2)%geometry": 2,
             "patch_icpp(2)%x_centroid": 0.0e00,
             "patch_icpp(2)%y_centroid": 0.0e00,
@@ -158,8 +152,7 @@ print(
             "patch_icpp(2)%alpha_rho(2)": 9.82454806e-7,
             "patch_icpp(2)%alpha(1)": 0.0e00,
             "patch_icpp(2)%alpha(2)": 1.0e00,
-            # ==========================================================================
-            # Fluids Physical Parameters ===============================================
+            # Fluids Physical Parameters
             "fluid_pp(1)%gamma": 0.4e0,  # 1.E+00/(1.4E+00-1.E+00),
             "fluid_pp(1)%pi_inf": 0.0,  # isothermal bulk modulus
             "fluid_pp(2)%gamma": 0.4e0,  # 1.E+00/(1.6666E+00-1.E+00),
@@ -168,10 +161,10 @@ print(
             "fluid_pp(2)%qv": 2.0e0,  #
             "fluid_pp(1)%G": 0.0e-9,  # G_suc/(rho_0_suc*c_0*c_0),        # Shear modulus
             "fluid_pp(2)%G": 0.0e-9,  # Shear modulus of air taken to be a very small value
-            "fluid_pp(1)%ein_cv(1)": 0.026937087111210e0,  # Can be replaced with fluid_pp(:)%cv at some point
-            "fluid_pp(2)%ein_cv(1)": 0.026937087111210e0,  #
-            "fluid_pp(1)%ein_cv(2)": 100e0 / 298e0,  # Can be replaced with a scalar theta_E at some point
-            "fluid_pp(2)%ein_cv(2)": 100e0 / 298e0,  # 0.335E0,
+            "fluid_pp(1)%einstein_cv(1)": 0.026937087111210e0,  # Can be replaced with fluid_pp(:)%cv at some point
+            "fluid_pp(2)%einstein_cv(1)": 0.026937087111210e0,  #
+            "fluid_pp(1)%einstein_cv(2)": 100e0 / 298e0,  # Can be replaced with a scalar theta_E at some point
+            "fluid_pp(2)%einstein_cv(2)": 100e0 / 298e0,  # 0.335E0,
             "fluid_pp(1)%mg_a": 0.0e0,  # a_mg
             "fluid_pp(1)%mg_b": 1.0e0,  # b_mg
             "fluid_pp(2)%mg_a": 0.0e0,  # a_mg
@@ -203,5 +196,3 @@ print(
         }
     )
 )
-
-# ==============================================================================

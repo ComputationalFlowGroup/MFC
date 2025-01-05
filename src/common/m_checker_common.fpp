@@ -49,6 +49,7 @@ contains
         call s_check_inputs_weno
         call s_check_inputs_bc
         call s_check_inputs_stiffened_eos
+        call s_check_inputs_mie_gruneisen_eos
         call s_check_inputs_elasticity
         call s_check_inputs_hypoplasticity
         call s_check_inputs_surface_tension
@@ -323,31 +324,12 @@ contains
         !! Called by s_check_inputs_common for all three stages
     subroutine s_check_inputs_mie_gruneisen_eos
         character(len=5) :: iStr !< for int to string conversion
-        integer :: i, j
+        integer :: i
 
         do i = 1, num_fluids
             call s_int_to_str(i, iStr)
-            if (.not. f_is_default(fluid_pp(i)%gamma) &
-                .and. &
-                fluid_pp(i)%gamma <= 0._wp) then
-                call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
-                                 'gamma must be positive. Exiting ...')
-            elseif (.not. f_is_default(fluid_pp(i)%pi_inf) &
-                    .and. &
-                    fluid_pp(i)%pi_inf < 0._wp) then
-                call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
-                                 'pi_inf must be non-negative. Exiting ...')
-            elseif (.not. f_is_default(fluid_pp(i)%rho0) &
-                    .and. &
-                    fluid_pp(i)%rho0 < 0._wp) then
-                call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
-                                 'rho0 must be non-negative. Exiting ...')
-            elseif (.not. f_is_default(fluid_pp(i)%qv) &
-                    .and. &
-                    fluid_pp(i)%qv < 0._wp) then
-                call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
-                                 'qv must be non-negative. Exiting ...')
-            end if
+            @:PROHIBIT(.not. f_is_default(fluid_pp(i)%rho0) .and.  fluid_pp(i)%rho0 < 0._wp,&
+                'fluid_pp('//trim(iStr)//')%'// 'rho0 must be positive')
         end do
     end subroutine s_check_inputs_mie_gruneisen_eos
 
@@ -377,8 +359,7 @@ contains
             @:PROHIBIT(surface_tension .and. f_is_default(patch_icpp(i)%cf_val), &
                 "patch_icpp(i)%cf_val must be set if surface_tension is enabled")
         end do
-#endif MFC_PRE_PROCESS
-
+#endif
     end subroutine s_check_inputs_surface_tension
 
     !> Checks constraints on the inputs for moving boundaries.

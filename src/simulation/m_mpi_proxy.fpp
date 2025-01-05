@@ -260,7 +260,7 @@ contains
                 call MPI_BCAST(fluid_pp(i)%${VAR}$, 1, mpi_p, 0, MPI_COMM_WORLD, ierr)
             #:endfor
             call MPI_BCAST(fluid_pp(i)%Re(1), 2, mpi_p, 0, MPI_COMM_WORLD, ierr)
-            call MPI_BCAST(fluid_pp(i)%ein_cv(1), 2, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+            call MPI_BCAST(fluid_pp(i)%einstein_cv(1), 2, mpi_p, 0, MPI_COMM_WORLD, ierr)
         end do
 
         do i = 1, num_fluids_max
@@ -271,7 +271,7 @@ contains
 
         if (hypoplasticity) then
             do i = 1, num_fluids_max
-                call MPI_BCAST(fluid_pp(i)%jcook(1), 11, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+                call MPI_BCAST(fluid_pp(i)%jcook(1), 11, mpi_p, 0, MPI_COMM_WORLD, ierr)
             end do
         end if
 

@@ -497,7 +497,7 @@ contains
             fluid_pp(i)%rho0 = dflt_real
             fluid_pp(i)%mg_a = dflt_real
             fluid_pp(i)%mg_b = dflt_real
-            fluid_pp(i)%ein_cv(:) = dflt_real
+            fluid_pp(i)%einstein_cv(:) = dflt_real
             fluid_pp(i)%jcook(:) = dflt_real
         end do
 
@@ -733,7 +733,7 @@ contains
                 end if
 
             end if
-            ! Volume Fraction Model (5-equation model) + MG EoS =====================
+            ! Volume Fraction Model (5-equation model) + MG EoS
         else if (model_eqns == 5) then
 
             ! Annotating structure of the state and flux vectors belonging

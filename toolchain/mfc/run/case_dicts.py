@@ -134,8 +134,8 @@ for f_id in range(1, 10+1):
                       "mu_v", "k_v", "cp_v", "G", "cv", "qv", "qvp", "rho0", "mg_a", "mg_b" ]:
         PRE_PROCESS[f"fluid_pp({f_id})%{real_attr}"] = ParamType.REAL
 
-    for ein_cv_id in [1, 2]:
-        PRE_PROCESS[f"fluid_pp({f_id})%ein_cv({ein_cv_id})"] = ParamType.REAL
+    for einstein_cv_id in [1, 2]:
+        PRE_PROCESS[f"fluid_pp({f_id})%einstein_cv({einstein_cv_id})"] = ParamType.REAL
 
 for p_id in range(1, 10+1):
     for attribute, ty in [("geometry", ParamType.INT), ("smoothen", ParamType.LOG),
@@ -326,8 +326,8 @@ for f_id in range(1,10+1):
     for re_id in [1, 2]:
         SIMULATION[f"fluid_pp({f_id})%Re({re_id})"] = ParamType.REAL
 
-    for ein_cv_id in [1, 2]:
-        SIMULATION[f"fluid_pp({f_id})%ein_cv({ein_cv_id})"] = ParamType.REAL
+    for einstein_cv_id in [1, 2]:
+        SIMULATION[f"fluid_pp({f_id})%einstein_cv({einstein_cv_id})"] = ParamType.REAL
 
     for jcook_id in range(1,11+1) :
         SIMULATION[f"fluid_pp({f_id})%jcook({jcook_id})"] = ParamType.REAL
@@ -426,8 +426,8 @@ for f_id in range(1,10+1):
                       "G", "mul0", "cv", "qv", "qvp", "rho0", "mg_a", "mg_b" ]:
         POST_PROCESS[f"fluid_pp({f_id})%{real_attr}"] = ParamType.REAL
 
-    for ein_cv_id in [1, 2]:
-        POST_PROCESS[f"fluid_pp({f_id})%ein_cv({ein_cv_id})"] = ParamType.REAL
+    for einstein_cv_id in [1, 2]:
+        POST_PROCESS[f"fluid_pp({f_id})%einstein_cv({einstein_cv_id})"] = ParamType.REAL
 
     for jcook_id in range(1,11+1) :
         POST_PROCESS[f"fluid_pp({f_id})%jcook({jcook_id})"] = ParamType.REAL

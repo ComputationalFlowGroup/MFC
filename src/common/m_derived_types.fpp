@@ -307,7 +307,7 @@ module m_derived_types
         real(wp) :: cp_v
         real(wp) :: G
         real(wp) :: rho0    !< Reference density of the material
-        real(wp), dimension(2) :: ein_cv  !<Parameter for einstein model for calculating the specific heat
+        real(wp), dimension(2) :: einstein_cv  !<Parameter for einstein model for calculating the specific heat
         real(wp) :: mg_a
         real(wp) :: mg_b
         real(wp), dimension(11) :: jcook

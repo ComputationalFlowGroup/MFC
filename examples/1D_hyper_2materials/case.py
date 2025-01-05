@@ -14,10 +14,9 @@ mydt = Tend / (1.0 * Nt)
 print(
     json.dumps(
         {
-            # Logistics ================================================
+            # Logistics
             "run_time_info": "T",
-            # ==========================================================
-            # Computational Domain Parameters ==========================
+            # Computational Domain Parameters
             "x_domain%beg": 0.0e00,
             "x_domain%end": 1.0e00,
             "m": Nx,
@@ -27,8 +26,7 @@ print(
             "t_step_start": 0,
             "t_step_stop": int(Nt),
             "t_step_save": int(math.ceil(Nt / 1.0)),
-            # ==========================================================
-            # Simulation Algorithm Parameters ==========================
+            # Simulation Algorithm Parameters
             "num_patches": 2,
             "model_eqns": 3,
             "alt_soundspeed": "F",
@@ -48,17 +46,14 @@ print(
             "avg_state": 2,
             "bc_x%beg": -3,
             "bc_x%end": -3,
-            # ==========================================================
-            # Turning on Hyperelasticity ================================
+            # Turning on Hyperelasticity
             "hyperelasticity": "T",
-            # ==========================================================
-            # Formatted Database Files Structure Parameters ============
+            # Formatted Database Files Structure Parameters
             "format": 1,
             "precision": 2,
             "prim_vars_wrt": "T",
             "parallel_io": "F",
-            # ==========================================================
-            # Patch 1 L ================================================
+            # Patch 1 L
             "patch_icpp(1)%geometry": 1,
             "patch_icpp(1)%x_centroid": 0.35,
             "patch_icpp(1)%length_x": 0.7,
@@ -69,8 +64,7 @@ print(
             "patch_icpp(1)%alpha(1)": 1,
             "patch_icpp(1)%alpha(2)": 0.0,
             "patch_icpp(1)%tau_e(1)": 0.0,
-            # ==========================================================
-            # Patch 2 R ================================================
+            # Patch 2 R
             "patch_icpp(2)%geometry": 1,
             "patch_icpp(2)%x_centroid": 0.85,
             "patch_icpp(2)%length_x": 0.3,
@@ -81,16 +75,13 @@ print(
             "patch_icpp(2)%alpha(1)": 0,
             "patch_icpp(2)%alpha(2)": 1,
             "patch_icpp(2)%tau_e(1)": 0.0,
-            # ==========================================================
-            # Fluids Physical Parameters ===============================
+            # Fluids Physical Parameters
             "fluid_pp(1)%gamma": 1.0e00 / (4.4e00 - 1.0e00),
             "fluid_pp(1)%pi_inf": 4.4e00 * 6.0e08 / (4.4e00 - 1.0e00),
             "fluid_pp(1)%G": 1.0e09,
             "fluid_pp(2)%gamma": 1.0e00 / (1.4e00 - 1.0e00),
             "fluid_pp(2)%pi_inf": 0.0,
             "fluid_pp(2)%G": 0.0,
-            # ==========================================================
         }
     )
 )
-# ==============================================================================

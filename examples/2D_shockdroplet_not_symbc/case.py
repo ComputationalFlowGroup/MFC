@@ -29,10 +29,9 @@ Nt = int(time_end / dt)  # 10000
 print(
     json.dumps(
         {
-            # Logistics ================================================
+            # Logistics
             "run_time_info": "F",
-            # ==========================================================
-            # Computational Domain Parameters ==========================
+            # Computational Domain Parameters
             "x_domain%beg": -4 * D,
             "x_domain%end": 20 * D,
             "y_domain%beg": -6 * D,
@@ -49,8 +48,7 @@ print(
             "t_step_start": 0,
             "t_step_stop": Nt,
             "t_step_save": math.ceil(Nt / 100),
-            # ==========================================================
-            # Simulation Algorithm Parameters ==========================
+            # Simulation Algorithm Parameters
             "num_patches": 3,
             "model_eqns": 2,
             "alt_soundspeed": "F",
@@ -72,14 +70,12 @@ print(
             "bc_x%end": -3,  # 12, was -6
             "bc_y%beg": -3,  # was -2
             "bc_y%end": -3,  # was -3
-            # ==========================================================
-            # Formatted Database Files Structure Parameters ============
+            # Formatted Database Files Structure Parameters
             "format": 1,
             "precision": 2,
             "prim_vars_wrt": "T",
             "parallel_io": "T",
-            # ==========================================================
-            # Patch 1: Background  ============================
+            # Patch 1: Background
             "patch_icpp(1)%geometry": 3,
             "patch_icpp(1)%x_centroid": 8 * D,
             "patch_icpp(1)%y_centroid": 0,  # 6*D,
@@ -92,8 +88,7 @@ print(
             "patch_icpp(1)%alpha_rho(2)": (1 - eps) * 1.17,
             "patch_icpp(1)%alpha(1)": eps,
             "patch_icpp(1)%alpha(2)": 1 - eps,
-            # ==========================================================
-            # Patch 2: Shocked state ============================
+            # Patch 2: Shocked state
             "patch_icpp(2)%geometry": 3,
             "patch_icpp(2)%alter_patch(1)": "T",
             "patch_icpp(2)%x_centroid": -2.5 * D,
@@ -107,8 +102,7 @@ print(
             "patch_icpp(2)%alpha_rho(2)": (1 - eps) * rho_post_a,
             "patch_icpp(2)%alpha(1)": eps,
             "patch_icpp(2)%alpha(2)": 1 - eps,
-            # ==========================================================
-            # Patch 3: Bubble  ======================================
+            # Patch 3: Bubble
             "patch_icpp(3)%geometry": 2,
             "patch_icpp(3)%x_centroid": 0,
             "patch_icpp(3)%y_centroid": 0,
@@ -121,13 +115,11 @@ print(
             "patch_icpp(3)%alpha_rho(2)": eps * 1.17,
             "patch_icpp(3)%alpha(1)": 1 - eps,  # 0.95
             "patch_icpp(3)%alpha(2)": eps,  # 0.05,
-            # ==========================================================
-            # Fluids Physical Parameters ===============================
+            # Fluids Physical Parameters
             "fluid_pp(1)%gamma": 1.0e00 / (gam_w - 1.0e00),
             "fluid_pp(1)%pi_inf": pi_w * gam_w / (gam_w - 1.0e00),
             "fluid_pp(2)%gamma": 1.0e00 / (gam_a - 1.0e00),
             "fluid_pp(2)%pi_inf": 0.0e00,
-            # ==========================================================
         }
     )
 )

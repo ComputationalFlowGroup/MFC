@@ -2493,8 +2493,8 @@ contains
 
                                 ! goes with numerical velocity in x/y/z directions
                                 ! xi_P/M = 0.5 +/m sgn(0.5,s_star)
-                                xi_M = (5d-1 + sign(5d-1, s_S))
-                                xi_P = (5d-1 - sign(5d-1, s_S))
+                                xi_M = (0.5_wp + sign(0.5_wp, s_S))
+                                xi_P = (0.5_wp - sign(0.5_wp, s_S))
 
                                 ! COMPUTING THE HLLC FLUXES
                                 !$acc loop seq
@@ -2918,8 +2918,8 @@ contains
 
                                 ! goes with numerical velocity in x/y/z directions
                                 ! xi_P/M = 0.5 +/m sgn(0.5,s_star)
-                                xi_M = (5e-1_wp + sign(5e-1_wp, s_S))
-                                xi_P = (5e-1_wp - sign(5e-1_wp, s_S))
+                                xi_M = (0.5_wp + sign(0.5_wp, s_S))
+                                xi_P = (0.5_wp - sign(0.5_wp, s_S))
 
                                 ! COMPUTING THE HLLC FLUXES
                                 ! MASS FLUX.
