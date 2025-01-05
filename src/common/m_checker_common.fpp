@@ -49,6 +49,7 @@ contains
         call s_check_inputs_weno
         call s_check_inputs_bc
         call s_check_inputs_stiffened_eos
+        call s_check_inputs_mie_gruneisen_eos
         call s_check_inputs_elasticity
         call s_check_inputs_hypoplasticity
         call s_check_inputs_surface_tension
@@ -327,91 +328,73 @@ contains
 
         do i = 1, num_fluids
             call s_int_to_str(i, iStr)
-            if (.not. f_is_default(fluid_pp(i)%gamma) &
-                .and. &
-                fluid_pp(i)%gamma <= 0._wp) then
-                call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
-                                 'gamma must be positive. Exiting ...')
-            elseif (.not. f_is_default(fluid_pp(i)%pi_inf) &
-                    .and. &
-                    fluid_pp(i)%pi_inf < 0._wp) then
-                call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
-                                 'pi_inf must be non-negative. Exiting ...')
-            elseif (.not. f_is_default(fluid_pp(i)%rho0) &
-                    .and. &
-                    fluid_pp(i)%rho0 < 0._wp) then
-                call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
-                                 'rho0 must be non-negative. Exiting ...')
-            elseif (.not. f_is_default(fluid_pp(i)%qv) &
-                    .and. &
-                    fluid_pp(i)%qv < 0._wp) then
-                call s_mpi_abort('fluid_pp('//trim(iStr)//')%'// &
-                                 'qv must be non-negative. Exiting ...')
+            @:PROHIBIT(.not. f_is_default(fluid_pp(i)%rho0) .and.  fluid_pp(i)%rho0 < 0._wp,&
+                'fluid_pp('//trim(iStr)//')%'// 'rho0 must be positive')
             end if
-        end do
-    end subroutine s_check_inputs_mie_gruneisen_eos
+            end do
+            end subroutine s_check_inputs_mie_gruneisen_eos
 
-    !> Checks constraints on the surface tension parameters.
+            !> Checks constraints on the surface tension parameters.
         !! Called by s_check_inputs_common for all three stages
-    subroutine s_check_inputs_surface_tension
+            subroutine s_check_inputs_surface_tension
 
-        integer :: i
+                integer :: i
 
-        @:PROHIBIT(surface_tension .and. sigma < 0._wp, &
-            "sigma must be greater than or equal to zero")
+                @:PROHIBIT(surface_tension .and. sigma < 0._wp, &
+                    "sigma must be greater than or equal to zero")
 
-        @:PROHIBIT(surface_tension .and. sigma == dflt_real, &
-            "sigma must be set if surface_tension is enabled")
+                @:PROHIBIT(surface_tension .and. sigma == dflt_real, &
+                    "sigma must be set if surface_tension is enabled")
 
-        @:PROHIBIT(.not. f_is_default(sigma) .and. .not. surface_tension, &
-            "sigma is set but surface_tension is not enabled")
+                @:PROHIBIT(.not. f_is_default(sigma) .and. .not. surface_tension, &
+                    "sigma is set but surface_tension is not enabled")
 
-        @:PROHIBIT(surface_tension .and. model_eqns /= 3, &
-            "The surface tension model requires model_eqns=3")
+                @:PROHIBIT(surface_tension .and. model_eqns /= 3, &
+                    "The surface tension model requires model_eqns=3")
 
-        @:PROHIBIT(surface_tension .and. num_fluids /= 2, &
-            "The surface tension model requires num_fluids=2")
+                @:PROHIBIT(surface_tension .and. num_fluids /= 2, &
+                    "The surface tension model requires num_fluids=2")
 
 #ifdef MFC_PRE_PROCESS
-        do i = 1, num_patches
-            @:PROHIBIT(surface_tension .and. f_is_default(patch_icpp(i)%cf_val), &
-                "patch_icpp(i)%cf_val must be set if surface_tension is enabled")
-        end do
+                do i = 1, num_patches
+                    @:PROHIBIT(surface_tension .and. f_is_default(patch_icpp(i)%cf_val), &
+                        "patch_icpp(i)%cf_val must be set if surface_tension is enabled")
+                end do
 #endif MFC_PRE_PROCESS
-    end subroutine s_check_inputs_surface_tension
+            end subroutine s_check_inputs_surface_tension
 
-    !> Checks constraints on the inputs for moving boundaries.
+            !> Checks constraints on the inputs for moving boundaries.
         !! Called by s_check_inputs_common for all three stages
-    subroutine s_check_inputs_moving_bc
-        #:for X, VB2, VB3 in [('x', 'vb2', 'vb3'), ('y', 'vb3', 'vb1'), ('z', 'vb1', 'vb2')]
-            if (any((/bc_${X}$%vb1, bc_${X}$%vb2, bc_${X}$%vb3/) /= 0._wp)) then
-                if (bc_${X}$%beg == -15) then
-                    if (any((/bc_${X}$%${VB2}$, bc_${X}$%${VB3}$/) /= 0._wp)) then
-                        call s_mpi_abort("bc_${X}$%beg must be -15 if "// &
-                                         "bc_${X}$%${VB2}$ or bc_${X}$%${VB3}$ "// &
-                                         "is set. Exiting.")
+            subroutine s_check_inputs_moving_bc
+                #:for X, VB2, VB3 in [('x', 'vb2', 'vb3'), ('y', 'vb3', 'vb1'), ('z', 'vb1', 'vb2')]
+                    if (any((/bc_${X}$%vb1, bc_${X}$%vb2, bc_${X}$%vb3/) /= 0._wp)) then
+                        if (bc_${X}$%beg == -15) then
+                            if (any((/bc_${X}$%${VB2}$, bc_${X}$%${VB3}$/) /= 0._wp)) then
+                                call s_mpi_abort("bc_${X}$%beg must be -15 if "// &
+                                                 "bc_${X}$%${VB2}$ or bc_${X}$%${VB3}$ "// &
+                                                 "is set. Exiting.")
+                            end if
+                        elseif (bc_${X}$%beg /= -16) then
+                            call s_mpi_abort("bc_${X}$%beg must be -15 or -16 if "// &
+                                             "bc_${X}$%vb[1,2,3] is set. Exiting.")
+                        end if
                     end if
-                elseif (bc_${X}$%beg /= -16) then
-                    call s_mpi_abort("bc_${X}$%beg must be -15 or -16 if "// &
-                                     "bc_${X}$%vb[1,2,3] is set. Exiting.")
-                end if
-            end if
-        #:endfor
+                #:endfor
 
-        #:for X, VE2, VE3 in [('x', 've2', 've3'), ('y', 've3', 've1'), ('z', 've1', 've2')]
-            if (any((/bc_${X}$%ve1, bc_${X}$%ve2, bc_${X}$%ve3/) /= 0._wp)) then
-                if (bc_${X}$%end == -15) then
-                    if (any((/bc_${X}$%${VE2}$, bc_${X}$%${VE3}$/) /= 0._wp)) then
-                        call s_mpi_abort("bc_${X}$%end must be -15 if "// &
-                                         "bc_${X}$%${VE2}$ or bc_${X}$%${VE3}$ "// &
-                                         "is set. Exiting.")
+                #:for X, VE2, VE3 in [('x', 've2', 've3'), ('y', 've3', 've1'), ('z', 've1', 've2')]
+                    if (any((/bc_${X}$%ve1, bc_${X}$%ve2, bc_${X}$%ve3/) /= 0._wp)) then
+                        if (bc_${X}$%end == -15) then
+                            if (any((/bc_${X}$%${VE2}$, bc_${X}$%${VE3}$/) /= 0._wp)) then
+                                call s_mpi_abort("bc_${X}$%end must be -15 if "// &
+                                                 "bc_${X}$%${VE2}$ or bc_${X}$%${VE3}$ "// &
+                                                 "is set. Exiting.")
+                            end if
+                        elseif (bc_${X}$%end /= -16) then
+                            call s_mpi_abort("bc_${X}$%end must be -15 or -16 if "// &
+                                             "bc_${X}$%ve[1,2,3] is set. Exiting.")
+                        end if
                     end if
-                elseif (bc_${X}$%end /= -16) then
-                    call s_mpi_abort("bc_${X}$%end must be -15 or -16 if "// &
-                                     "bc_${X}$%ve[1,2,3] is set. Exiting.")
-                end if
-            end if
-        #:endfor
-    end subroutine s_check_inputs_moving_bc
+                #:endfor
+            end subroutine s_check_inputs_moving_bc
 
-end module m_checker_common
+        end module m_checker_common

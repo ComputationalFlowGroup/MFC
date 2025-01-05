@@ -7,8 +7,6 @@
 !> @brief This module is used to compute source terms for hypoplastic model
 module m_hypoplastic
 
-    ! Dependencies =============================================================
-
     use m_derived_types        !< Definitions of the derived types
 
     use m_global_parameters    !< Definitions of the global parameters
@@ -16,8 +14,6 @@ module m_hypoplastic
     use m_variables_conversion !< State variables type conversion procedures
 
     use m_finite_differences
-
-    ! ==========================================================================
 
     implicit none
 
@@ -286,16 +282,16 @@ contains
                     !could alternatively compute subtract tempref in both temp subroutine and theta_m
                     ! compute sigma_bar = sqrt(3/2) * | S |
                     sigma_bar = sqrt(1.5_wp)*(q_prim_vf(strxb)%sf(k, l, q)**2._wp + &
-                                               2._wp*q_prim_vf(strxb + 1)%sf(k, l, q)**2._wp + q_prim_vf(strxe - 1)%sf(k, l, q)**2._wp + &
-                                               q_prim_vf(strxe)%sf(k, l, q)**2._wp)**(0.5_wp)
+                                              2._wp*q_prim_vf(strxb + 1)%sf(k, l, q)**2._wp + q_prim_vf(strxe - 1)%sf(k, l, q)**2._wp + &
+                                              q_prim_vf(strxe)%sf(k, l, q)**2._wp)**(0.5_wp)
 
                     ! STEP 3.6 : Compute d^p and update rhs
                     ! compute d^p_JC from equation 4.7
                     ! _wp = 1 s^-1, jcook(4) = C, jcook(1) = A, jcook(2) = B,
                     ! jcook(10) = _wp = R_tilde nondimensionally
                     dp_JC = jcook10(1)*exp((1._wp/jcook4(1))*(sigma_bar/ &
-                                                               ((jcook1(1) + jcook2(1)*q_prim_vf(plasidx)%sf(k, l, q)**jcook3(1)) &
-                                                                *(1._wp - theta_hat**jcook5(1))) - 1._wp))
+                                                              ((jcook1(1) + jcook2(1)*q_prim_vf(plasidx)%sf(k, l, q)**jcook3(1)) &
+                                                               *(1._wp - theta_hat**jcook5(1))) - 1._wp))
                     ! compute d^p from equation 4.6
                     ! jcook(7) = d^p_lim
                     if (sigma_bar > 1.e-16_wp) then
@@ -323,7 +319,7 @@ contains
         end if
     end subroutine s_compute_hypoplastic_rhs
 
-    subroutine s_finalize_hypoplastic_module() ! --------------------
+    subroutine s_finalize_hypoplastic_module()
 
         @:DEALLOCATE(Gs)
         @:DEALLOCATE(du_dx)

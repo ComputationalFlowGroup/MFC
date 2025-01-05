@@ -320,8 +320,8 @@ contains
 
             end if
         end do
-        ! ----------------------------------------------------------------------
-        ! Adding the temperature to the formatted database file -------------------
+
+        ! Adding the temperature to the formatted database file
         if (model_eqns == 5 .and. prim_vars_wrt) then
 
             q_sf = q_prim_vf(plasidx + 1)%sf(x_beg:x_end, y_beg:y_end, z_beg:z_end)
@@ -331,7 +331,6 @@ contains
 
             varname(:) = ' '
         end if
-        ! ----------------------------------------------------------------------
 
         ! Adding the species' concentrations to the formatted database file
         if (chemistry) then

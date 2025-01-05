@@ -733,7 +733,7 @@ contains
                 end if
 
             end if
-            ! Volume Fraction Model (5-equation model) + MG EoS =====================
+            ! Volume Fraction Model (5-equation model) + MG EoS
         else if (model_eqns == 5) then
 
             ! Annotating structure of the state and flux vectors belonging
