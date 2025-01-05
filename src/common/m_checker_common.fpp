@@ -359,7 +359,7 @@ contains
             @:PROHIBIT(surface_tension .and. f_is_default(patch_icpp(i)%cf_val), &
                 "patch_icpp(i)%cf_val must be set if surface_tension is enabled")
         end do
-#endif 
+#endif
     end subroutine s_check_inputs_surface_tension
 
     !> Checks constraints on the inputs for moving boundaries.
