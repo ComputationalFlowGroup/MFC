@@ -497,7 +497,7 @@ contains
             fluid_pp(i)%rho0 = dflt_real
             fluid_pp(i)%mg_a = dflt_real
             fluid_pp(i)%mg_b = dflt_real
-            fluid_pp(i)%ein_cv(:) = dflt_real
+            fluid_pp(i)%einstein_cv(:) = dflt_real
             fluid_pp(i)%jcook(:) = dflt_real
         end do
 

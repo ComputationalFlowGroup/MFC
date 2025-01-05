@@ -131,8 +131,6 @@ module m_global_parameters
     integer :: pi_inf_idx                          !< Index of liquid stiffness func. eqn.
     type(int_bounds_info) :: stress_idx            !< Indices of elastic stresses
     type(int_bounds_info) :: xi_idx                !< Indexes of first and last reference map eqns.
-    integer :: b_size          !< Number of components in the b tensor
-    integer :: tensor_size     !< Number of components in the nonsymmetric tensor
     integer :: c_idx                               !< Index of color function
     type(int_bounds_info) :: species_idx           !< Indexes of first & last concentration eqns.
     !> @}
@@ -373,7 +371,7 @@ contains
             fluid_pp(i)%qvp = 0._wp
             fluid_pp(i)%G = dflt_real
             fluid_pp(i)%rho0 = dflt_real
-            fluid_pp(i)%ein_cv(:) = dflt_real
+            fluid_pp(i)%einstein_cv(:) = dflt_real
             fluid_pp(i)%mg_a = dflt_real
             fluid_pp(i)%mg_b = dflt_real
             fluid_pp(i)%jcook(:) = dflt_real

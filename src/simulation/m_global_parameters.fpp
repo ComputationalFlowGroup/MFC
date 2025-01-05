@@ -450,8 +450,8 @@ module m_global_parameters
 
     real(wp), allocatable, dimension(:) :: gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps
     !$acc declare create(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps)
-    real(wp), allocatable, dimension(:) :: rho0, mg_a, mg_b, ein_cv1, ein_cv2
-    !$acc declare create(rho0, mg_a, mg_b, ein_cv1, ein_cv2)
+    real(wp), allocatable, dimension(:) :: rho0, mg_a, mg_b, einstein_cv1, einstein_cv2
+    !$acc declare create(rho0, mg_a, mg_b, einstein_cv1, einstein_cv2)
     #:for VAR in range(1,12)
         real(wp), allocatable, public, dimension(:) :: jcook${VAR}$
     #:endfor
@@ -597,7 +597,7 @@ contains
             fluid_pp(i)%rho0 = dflt_real
             fluid_pp(i)%mg_a = dflt_real
             fluid_pp(i)%mg_b = dflt_real
-            fluid_pp(i)%ein_cv(:) = 0._wp
+            fluid_pp(i)%einstein_cv(:) = 0._wp
             fluid_pp(i)%jcook(:) = dflt_real
         end do
 

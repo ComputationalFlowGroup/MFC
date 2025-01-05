@@ -378,7 +378,6 @@ contains
                 "patch_icpp(i)%cf_val must be set if surface_tension is enabled")
         end do
 #endif MFC_PRE_PROCESS
-
     end subroutine s_check_inputs_surface_tension
 
     !> Checks constraints on the inputs for moving boundaries.

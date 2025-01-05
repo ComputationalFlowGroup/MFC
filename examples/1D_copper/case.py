@@ -20,8 +20,8 @@ theta_0 = 298.0
 Kt0_suc = 14.3e9  # Pa
 Kt0_prime_suc = 3.75  # -
 rho_0_suc = 8924  # kg/m^3
-ein_cv1_suc = 3279  # J/Kg-K
-ein_cv2_suc = 1125  # K
+einstein_cv1_suc = 3279  # J/Kg-K
+einstein_cv2_suc = 1125  # K
 G_suc = 8.58e9  # Pa
 c_0 = 3910  # m/s
 theta_0_suc = 298  # K
@@ -38,8 +38,8 @@ tilde_P0 = P_0 / (rho_0_suc * c_0 * c_0)
 tilde_P_0 = P_0 / (rho_0_suc * c_0 * c_0)
 tilde_rho = compression_ratio
 Kt0_tilde = Kt0_suc / (rho_0_suc * c_0 * c_0)
-A_tilde = ein_cv1_suc * theta_0 / (c_0 * c_0)
-theta_E_tilde = ein_cv2_suc / theta_0
+A_tilde = einstein_cv1_suc * theta_0 / (c_0 * c_0)
+theta_E_tilde = einstein_cv2_suc / theta_0
 rho_0_tilde = rho_0 / rho_0_suc
 
 xi = 1 - 1 / tilde_rho
@@ -124,10 +124,10 @@ print(
             #'fluid_pp(2)%qv'               : 0.0,                                   #
             # 'fluid_pp(1)%G'                : G_suc/(rho_0_suc*c_0*c_0),        # Shear modulus
             # 'fluid_pp(2)%G'                : 0.0, #0.0E-9/(rho_0_suc*c_0*c_0),       # Shear modulus of air taken to be a very small value
-            # 'fluid_pp(1)%ein_cv(1)'        : A_tilde,                          # Can be replaced with fluid_pp(:)%cv at some point
-            # 'fluid_pp(2)%ein_cv(1)'        : 0.026937087111210E0,              #
-            # 'fluid_pp(1)%ein_cv(2)'        : theta_E_tilde,                    # Can be replaced with a scalar theta_E at some point
-            # 'fluid_pp(2)%ein_cv(2)'        : 100E0/298E0, #0.335E0,
+            # 'fluid_pp(1)%einstein_cv(1)'        : A_tilde,                          # Can be replaced with fluid_pp(:)%cv at some point
+            # 'fluid_pp(2)%einstein_cv(1)'        : 0.026937087111210E0,              #
+            # 'fluid_pp(1)%einstein_cv(2)'        : theta_E_tilde,                    # Can be replaced with a scalar theta_E at some point
+            # 'fluid_pp(2)%einstein_cv(2)'        : 100E0/298E0, #0.335E0,
             "fluid_pp(1)%mg_a": 0.0e0,  # a_mg
             "fluid_pp(1)%mg_b": 1.0e0,  # b_mg
             # 'fluid_pp(2)%mg_a'             : 0.4E0,                            #a_mg

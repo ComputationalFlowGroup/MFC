@@ -98,6 +98,8 @@ contains
         real(wp) :: theta_m, tempref, theta_hat, sigma_bar, &
                     dp_JC, d_p, equiv_tens_stress
 
+        real(wp), dimension(num_species) :: rhoYks
+
         du_dx(:, :, :) = 0._wp
         du_dy(:, :, :) = 0._wp
         dv_dx(:, :, :) = 0._wp
@@ -135,7 +137,7 @@ contains
                 if (G_K > sgm_eps) then
                     !STEP 3.4 : Compute mixture pressure and temperature
                     call s_compute_pressure(energy, 0._wp, dyn_p, pi_inf, 0._wp, rho, 0._wp, &
-                                            0._wp, pres, 0._wp, 0._wp, 0._wp, 0._wp, alpha_K, alpha_rho_K)
+                                            rhoYks, pres, temp, 0._wp, 0._wp, 0._wp, alpha_K, alpha_rho_K)
 
                     call s_compute_temperature(energy, dyn_p, temp, alpha_K, alpha_rho_K)
                     ! STEP 3.5 : Compute theta_m, theta_hat, and sigma_bar
@@ -264,7 +266,7 @@ contains
                     end do
 
                     call s_compute_pressure(energy, 0._wp, dyn_p, pi_inf, 0._wp, rho, 0._wp, &
-                                            0._wp, pres, 0._wp, 0._wp, 0._wp, 0._wp, alpha_K, alpha_rho_K)
+                                            rhoYks, pres, temp, 0._wp, 0._wp, 0._wp, alpha_K, alpha_rho_K)
 
                     call s_compute_temperature(energy, dyn_p, temp, alpha_K, alpha_rho_K)
 

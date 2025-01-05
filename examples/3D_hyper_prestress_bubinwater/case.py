@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3
 import math, json
 
 ## 1 FOR BACKGROUND, 2 FOR BUBBLE, 3 FOR GEL
@@ -20,7 +20,7 @@ piwl = 1.0e09
 # qv
 qvwl = -1167000
 # qv'
-qvpwl = 0.0e0
+qvpwl = 0.0
 # cv
 cvwl = 1816
 # cp

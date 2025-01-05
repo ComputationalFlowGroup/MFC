@@ -189,7 +189,7 @@ contains
             call MPI_BCAST(fluid_pp(i)%G, 1, mpi_p, 0, MPI_COMM_WORLD, ierr)
             call MPI_BCAST(fluid_pp(i)%rho0, 1, mpi_p, 0, MPI_COMM_WORLD, ierr)
             call MPI_BCAST(fluid_pp(i)%mg_a, 1, mpi_p, 0, MPI_COMM_WORLD, ierr)
-            call MPI_BCAST(fluid_pp(i)%ein_cv(1), 2, mpi_p, 0, MPI_COMM_WORLD, ierr)
+            call MPI_BCAST(fluid_pp(i)%einstein_cv(1), 2, mpi_p, 0, MPI_COMM_WORLD, ierr)
         end do
 
         if (hypoplasticity) then
