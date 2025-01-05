@@ -121,10 +121,10 @@ contains
         do i = 1, num_fluids_max
             #:for VAR in [ 'gamma','pi_inf','mul0','ss','pv','gamma_v','M_v',  &
                 & 'mu_v','k_v', 'G', 'cv', 'qv', 'qvp', 'rho0', 'mg_a', 'mg_b' ]
-                call MPI_BCAST(fluid_pp(i)%${VAR}$, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+                call MPI_BCAST(fluid_pp(i)%${VAR}$, 1, mpi_p, 0, MPI_COMM_WORLD, ierr)
             #:endfor
-            call MPI_BCAST(fluid_pp(i)%einstein_cv(1), 2, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
-            call MPI_BCAST(fluid_pp(i)%einstein_cv(2), 2, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+            call MPI_BCAST(fluid_pp(i)%einstein_cv(1), 2, mpi_p, 0, MPI_COMM_WORLD, ierr)
+            call MPI_BCAST(fluid_pp(i)%einstein_cv(2), 2, mpi_p, 0, MPI_COMM_WORLD, ierr)
         end do
 #endif
 

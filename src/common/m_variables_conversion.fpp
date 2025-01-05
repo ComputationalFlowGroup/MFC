@@ -1672,7 +1672,7 @@ contains
                     gam = 1._wp/gamma_inv
                     pref_prime = (mg_a(q)**2._wp)*((1._wp - xi)**2._wp)*(1._wp + mg_b(q)*xi)/(1._wp - mg_b(q)*xi)**3._wp
 
-                    rho_eref_prime = 0.5_wp*(pref/rho_K + pref_prime*(rho_K/rho0(q) - 1d0))
+                    rho_eref_prime = 0.5_wp*(pref/rho_K + pref_prime*(rho_K/rho0(q) - 1._wp))
 
                     if (rho_K >= rho0(q)) then
                         c = c + (alpha_rho_K(q)/rho)*((1._wp + (1._wp - qvps(q))*gamma_inv)*(pres - pref)/rho_K &
