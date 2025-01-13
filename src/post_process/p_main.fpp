@@ -34,7 +34,7 @@ program p_main
         t_step = n_start
         n_save = int(t_stop/t_save) + 1
         ! Setting the time-step iterator to the first time step to be post-processed
-        t_step = t_step_start
+        !t_step = t_step_start
     end if
 
     ! Time-Marching Loop

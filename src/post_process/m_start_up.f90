@@ -526,7 +526,7 @@ contains
 
                         call s_compute_speed_of_sound(pres, rho_avg, &
                                                       gamma_sf(i, j, k), pi_inf_sf(i, j, k), &
-                                                      H, adv, 0._wp, 0._wp, c)
+                                                      H, adv, 0._wp, 0._wp, c, alpha_rho_K)
 
                         q_sf(i, j, k) = c
                     end do

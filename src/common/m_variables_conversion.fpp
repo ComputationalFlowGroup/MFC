@@ -1655,6 +1655,7 @@ contains
             elseif ((model_eqns == 5) .and. (MGEoS_model == 1)) then
                 !Note that pref and gamma are primitive state
                 !variables for Mie-Gruneisen EoS and gamma = (1/Gamma(rho))
+                 
                 gamma_avg = 0._wp
                 c = 0._wp
                 do q = 1, num_fluids
@@ -1684,13 +1685,9 @@ contains
                     end if
                 end do
                 c = c/gamma_avg
-
             else
-
                 c = ((H - 0.5_wp*vel_sum)/gamma)
-
             end if
-
             if (mixture_err .and. c < 0._wp) then
                 c = 100._wp*sgm_eps
             else
