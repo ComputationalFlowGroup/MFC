@@ -455,8 +455,6 @@ contains
                                 pi_inf_R = pi_inf_R + alpha_R(i)*pi_infs(i)
                                 qv_R = qv_R + alpha_rho_R(i)*qvs(i)
 
-                                rho0_L = rho0_L + qL_prim_rs${XYZ}$_vf(j, k, l, E_idx + i)*rho0(i)
-                                rho0_R = rho0_R + qR_prim_rs${XYZ}$_vf(j, k, l, E_idx + i)*rho0(i)
                             end do
 
                             if (viscous) then
@@ -598,7 +596,15 @@ contains
                                 H_R = (E_R + pres_R)/rho_R
 
                             else if (model_eqns == 5) then
-                                pref_over_gamma = 0._wp; rho_eref = 0._wp; gamma_inv = 0._wp
+
+                                do i = 1, num_fluids
+                                    rho0_L = rho0_L + qL_prim_rs${XYZ}$_vf(j, k, l, E_idx + i)*rho0(i)
+                                    rho0_R = rho0_R + qR_prim_rs${XYZ}$_vf(j, k, l, E_idx + i)*rho0(i)
+                                end do
+
+                                pref_over_gamma = 0._wp
+                                rho_eref = 0._wp
+                                gamma_inv = 0._wp
                                 if (MGEoS_model == 1) then
                                     do i = 1, num_fluids
                                         rho_K = alpha_rho_L(i)/alpha_L(i)

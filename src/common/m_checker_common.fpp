@@ -213,7 +213,7 @@ contains
     !> Checks constraints on model equations and number of fluids in the flow.
         !! Called by s_check_inputs_common for all three stages
     subroutine s_check_inputs_model_eqns_and_num_fluids
-        @:PROHIBIT(all(model_eqns /= (/1, 2, 3, 4, 5/)), "model_eqns must be 1, 2, 3, 4 or 5")
+        @:PROHIBIT(all(model_eqns /= (/1, 2, 3, 4, 5/)), "model_eqns must be 1, 2, 3, 4, or 5")
         @:PROHIBIT(num_fluids /= dflt_int .and. num_fluids < 1, "num_fluids must be positive")
         @:PROHIBIT(model_eqns == 1 .and. num_fluids /= dflt_int, "num_fluids is not supported for model_eqns = 1")
         @:PROHIBIT(model_eqns == 2 .and. num_fluids == dflt_int, "5-equation model (model_eqns = 2) requires num_fluids to be set")
