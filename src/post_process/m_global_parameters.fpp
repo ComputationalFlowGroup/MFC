@@ -219,6 +219,7 @@ module m_global_parameters
     logical, dimension(3) :: flux_wrt
     logical :: E_wrt
     logical :: pres_wrt
+    logical :: tau_wrt
     logical, dimension(num_fluids_max) :: alpha_wrt
     logical :: gamma_wrt
     logical :: heat_ratio_wrt
@@ -385,6 +386,7 @@ contains
         file_per_process = .false.
         E_wrt = .false.
         pres_wrt = .false.
+        tau_wrt = .false.
         alpha_wrt = .false.
         gamma_wrt = .false.
         heat_ratio_wrt = .false.
