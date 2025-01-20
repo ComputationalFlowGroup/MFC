@@ -257,7 +257,7 @@ contains
 
     end subroutine s_check_inputs_acoustic_src
 
-    !> Checks constraints on hypoelasticity parameters
+    !> Checks constraints on elasticity parameters
     subroutine s_check_inputs_elasticity
         @:PROHIBIT(hyperelasticity .and. hyper_model == dflt_int)
         @:PROHIBIT(elasticity .and. fd_order /= 4)

@@ -361,35 +361,30 @@ contains
         end if
 
         ! Adding the elastic shear stresses to the formatted database file
-        if (elasticity) then
-            if (tau_wrt .or. prim_vars_wrt) then
-                do i = 1, stress_idx%end - stress_idx%beg + 1
-                    q_sf = q_prim_vf(i - 1 + stress_idx%beg)%sf(x_beg:x_end, y_beg:y_end, z_beg:z_end)
-                    write (varname, '(A,I0)') 'tau', i
-                    call s_write_variable_to_formatted_database_file(varname, t_step)
+        if (elasticity .and. (tau_wrt .or. prim_vars_wrt)) then
+            do i = 1, stress_idx%end - stress_idx%beg + 1
+                q_sf = q_prim_vf(i - 1 + stress_idx%beg)%sf(x_beg:x_end, y_beg:y_end, z_beg:z_end)
+                write (varname, '(A,I0)') 'tau', i
+                call s_write_variable_to_formatted_database_file(varname, t_step)
 
-                    varname(:) = ' '
-                end do
-            end if
+                varname(:) = ' '
+            end do
         end if
 
-        if (hyperelasticity) then
-            if (tau_wrt .or. prim_vars_wrt) then
-                do i = 1, xiend - xibeg + 1
-                    q_sf = q_prim_vf(i - 1 + xibeg)%sf(x_beg:x_end, y_beg:y_end, z_beg:z_end)
-                    write (varname, '(A,I0)') 'xi', i
-                    call s_write_variable_to_formatted_database_file(varname, t_step)
-
-                    varname(:) = ' '
-                end do
-
-                q_sf = q_prim_vf(xiend + 1)%sf(x_beg:x_end, y_beg:y_end, z_beg:z_end)
-
-                write (varname, '(A,I0)') 'vonMises'
+        if (hyperelasticity .and. (tau_wrt .or. prim_vars_wrt)) then
+            do i = 1, xiend - xibeg + 1
+                q_sf = q_prim_vf(i - 1 + xibeg)%sf(x_beg:x_end, y_beg:y_end, z_beg:z_end)
+                write (varname, '(A,I0)') 'xi', i
                 call s_write_variable_to_formatted_database_file(varname, t_step)
-                varname(:) = ' '
 
-            end if
+                varname(:) = ' '
+            end do
+
+            q_sf = q_prim_vf(xiend + 1)%sf(x_beg:x_end, y_beg:y_end, z_beg:z_end)
+
+            write (varname, '(A,I0)') 'vonMises'
+            call s_write_variable_to_formatted_database_file(varname, t_step)
+            varname(:) = ' '
         end if
 
         ! Adding the pressure to the formatted database file
