@@ -24,30 +24,36 @@
 
 Welcome to the home of MFC!
 MFC simulates compressible multi-component and multi-phase flows, [amongst other things](#what-else-can-this-thing-do). 
-MFC is written in Fortran and makes use of metaprogramming to keep the code short (about 20K lines).
+MFC is written in Fortran and uses metaprogramming to keep the code short (about 20K lines).
 
 MFC is used on the latest leadership-class supercomputers.
 It scales <b>ideally to exascale</b>; [tens of thousands of GPUs on NVIDIA- and AMD-GPU machines](#is-this-really-exascale) on Oak Ridge Summit and Frontier.
-MFC is a SPEChpc benchmark candidate, part of the JSC JUPITER Early Access Program, and made use of OLCF Frontier and LLNL El Capitan early access systems.
+MFC is a SPEChpc benchmark candidate, part of the JSC JUPITER Early Access Program, and used OLCF Frontier and LLNL El Capitan early access systems.
   
 Get in touch with <a href="mailto:shb@gatech.edu">Spencer</a> if you have questions!
 We have an [active Slack channel](https://join.slack.com/t/mflowcode/shared_invite/zt-y75wibvk-g~zztjknjYkK1hFgCuJxVw) and development team.
-MFC has high-level documentation, visualizations, and more on [its website](https://mflowcode.github.io/).
+MFC has high- and low-level documentation, visualizations, and more on [its website](https://mflowcode.github.io/).
 
 ## An example
 
 We keep many examples.
-Here's one!
+Here are some of them!
 MFC can execute high-fidelity simulations of shock-droplet interaction (see `examples/3d_shockdroplet`)
 
 <p align="center">
     <img src="docs/res/shockdrop.png" alt="Shock Droplet Example" width="700"/>
 </p>
 
-Another example is the high-Mach flow over an airfoil, shown below.
+This one simulates high-Mach flow over an airfoil:
 
 <p align="center">
     <img src="docs/res/airfoil.png" alt="Airfoil Example" width="700"/><br/>
+</p>
+
+And here is a high amplitude acoustic wave reflecting and emerging through a circular orifice:
+
+<p align="center">
+    <img src="docs/res/orifice.png" alt="Orifice Example" width="700"/><br/>
 </p>
 
 
@@ -56,9 +62,9 @@ Another example is the high-Mach flow over an airfoil, shown below.
 You can navigate [to this webpage](https://mflowcode.github.io/documentation/md_getting-started.html) to get started using MFC!
 It's rather straightforward.
 We'll give a brief intro. here for MacOS.
-Using [brew](https://brew.sh), install MFC's modest set of dependencies:
+Using [brew](https://brew.sh), install MFC's dependencies:
 ```shell
-brew install wget python cmake gcc@14 mpich
+brew install coreutils python cmake fftw hdf5 gcc boost open-mpi
 ```
 You're now ready to build and test MFC!
 Put it to a convenient directory via
@@ -66,10 +72,11 @@ Put it to a convenient directory via
 git clone https://github.com/MFlowCode/MFC
 cd MFC
 ```
-and be sure MFC knows what compilers to use by appending and sourcing your `~/.profile` file via this command
+and be sure MFC knows where to find Boost by appending to your dotfiles and sourcing them again
 ```shell
-echo -e "export CC=gcc-14 \nexport CXX=g++-14 \nexport FC=gfortran-14" >> ~/.profile
-source ~/.profile
+echo -e "export BOOST_INCLUDE='$(brew --prefix --installed boost)/include'" | tee -a ~/.bash_profile ~/.zshrc
+. ~/.bash_profile 2>/dev/null || . ~/.zshrc 2>/dev/null
+! [ -z "${BOOST_INCLUDE+x}" ] && echo 'Environment is ready!' || echo 'Error: $BOOST_INCLUDE is unset. Please adjust the previous commands to fit with your environment.'
 ```
 then you can build MFC and run the test suite!
 ```shell
@@ -82,15 +89,15 @@ You can learn more about MFC's capabilities [via its documentation](https://mflo
 
 The shock-droplet interaction case above was run via
 ```shell
-./mfc.sh run ./examples/3d_shockdroplet/case.py -n 8
+./mfc.sh run -n $(nproc) ./examples/3d_shockdroplet/case.py 
 ```
-where `8` is the number of cores the example will run on.
-You can visualize the output data in `examples/3d_shockdroplet/silo_hdf5` via Paraview, Visit, or your other favorite software.
+where `$(nproc)` is the number of cores the example will run on (and the number of physical cores on your CPU device).
+You can visualize the output data in `examples/3d_shockdroplet/silo_hdf5` via Paraview, Visit, or your favorite software.
 
 ## Is this _really_ exascale?
 
 [OLCF Frontier](https://www.olcf.ornl.gov/frontier/) is the first exascale supercomputer.
-The weak scaling of MFC on this machine is below, showing near-ideal utilization. 
+The weak scaling of MFC on this machine shows near-ideal utilization. 
 
 <p align="center">
     <img src="docs/res/scaling.png" alt="Scaling" width="400"/>
@@ -102,68 +109,69 @@ The weak scaling of MFC on this machine is below, showing near-ideal utilization
 MFC has many features.
 They are organized below. Just click the drop-downs!
 
-<details>
-<summary>Physics</summary>
+### Physics
 
 * 1-3D
 * Compressible
 	* Low Mach number treatment available
 * Multi- and single-component
 	* 4, 5, and 6 equation models for multi-component/phase features
-   	* Kapila and Allaire models
+   	* Kapila and Allaire models 5-equation models
 * Multi- and single-phase 
 	* Phase change via p, pT, and pTg schemes
 * Grids
 	* 1-3D Cartesian, cylindrical, axisymmetric. 
 	* Arbitrary grid stretching for multiple domain regions.
-	* Complex/arbitrary geometries via immersed boundary methods 
+	* Complex/arbitrary geometries via immersed boundary method
 	* STL geometry files supported
 * Surface tension for multiphase cases
-* Sub-grid Euler-Euler multiphase models for bubble dynamics and similar
+* Sub-grid dynamics
+	* Euler-Euler particle models for bubble dynamics and similar
+	* Euler-Lagrange bubble dynamics
 * Viscous effects (high-order accurate representations)
 * Ideal and stiffened gas equations of state
 * Body forces
 * Acoustic wave generation (one- and two-way sound sources)
 </details>
 
-<details>
-<summary>Numerics</summary>
+### Numerics
 
 * Shock and interface capturing schemes
 	* First-order upwinding
- 	* WENO reconstructions of order 3 and 5
+ 	* WENO reconstructions of order 3, 5, and 7
   	* WENO variants: WENO-JS, WENO-M, WENO-Z, TENO
    	* Monotonicity-preserving reconstructions
-	* Reliable handling of high density ratios
+	* Reliable handling of large density ratios
 * Exact and approximate (e.g., HLL, HLLC) Riemann solvers
-* Boundary conditions: Periodic, reflective, extrapolation/Neumann, slip/no-slip, non-reflecting characteristic buffers, inflows, outflows, and more
-* Runge-Kutta orders 1-3 (SSP TVD)
+* Boundary conditions
+	* Periodic, reflective, extrapolation/Neumann
+	* Slip and no-slip
+ 	* Thompson-based characteristic BCs: non-reflecting sub/supersonic buffers, inflows, outflows
+	* Generalized characteristic relaxation boundary conditions
+* Runge-Kutta orders 1-3 (SSP TVD), adaptive time stepping
+* RK4-5 operator splitting for Euler-Lagrange modeling
 * Interface sharpening (THINC-like)
-</details>
 
-<details>
-<summary>Large-scale and accelerated simulation</summary>
 
-* GPU compatible on NVIDIA (P/V/A/H100, GH200, etc.) and AMD (MI200+) hardware
-* Ideal weak scaling to 100% of the largest GPU supercomputers
+### Large-scale and accelerated simulation
+
+* GPU compatible on NVIDIA ([P/V/A/H]100, GH200, etc.) and AMD (MI[1/2/3]00+) GPU and APU hardware
+* Ideal weak scaling to 100% of the largest GPU and superchip supercomputers
 	* \>10K NVIDIA GPUs on [OLCF Summit](https://www.olcf.ornl.gov/summit/) (NV V100-based)
 	* \>66K AMD GPUs on the first exascale computer, [OLCF Frontier](https://www.olcf.ornl.gov/frontier/) (AMD MI250X-based)
 * Near compute roofline behavior
 * RDMA (remote data memory access; GPU-GPU direct communication) via GPU-aware MPI on NVIDIA (CUDA-aware MPI) and AMD GPU systems
-</details>
+* Optional single-precision computation and storage
 
-<details>
-<summary>Software robustness and other features</summary>
+### Software robustness and other features
 
 * [Fypp](https://fypp.readthedocs.io/en/stable/fypp.html) metaprogramming for code readability, performance, and portability
 * Continuous Integration (CI)
-	* \>100 Regression tests with each PR.
- 		* Performed with GNU, Intel, and NVIDIA compilers on NVIDIA and AMD GPUs.
+	* \>300 Regression tests with each PR.
+ 		* Performed with GNU (GCC), Intel (oneAPI), Cray (CCE), and NVIDIA (NVHPC) compilers on NVIDIA and AMD GPUs.
 		* Line-level test coverage reports via [Codecov](https://app.codecov.io/gh/MFlowCode/MFC) and `gcov`
 	* Benchmarking to avoid performance regressions and identify speed-ups
 * Continuous Deployment (CD) of [website](https://mflowcode.github.io) and [API documentation](https://mflowcode.github.io/documentation/index.html)
-</details>
-
 
 ## Citation
 
@@ -201,15 +209,16 @@ If you use MFC, consider citing it as:
 
 ## License
  
-Copyright 2021-2024 Spencer Bryngelson and Tim Colonius.
+Copyright 2021 Spencer Bryngelson and Tim Colonius.
 MFC is under the MIT license (see [LICENSE](LICENSE) for full text).
 
 ## Acknowledgements
 
-Multiple federal sponsors have supported MFC development, including the US Department of Defense (DOD), National Institutes of Health (NIH), Department of Energy (DOE), and National Science Foundation (NSF).
+Federal sponsors have supported MFC development, including the US Department of Defense (DOD), the National Institutes of Health (NIH), the Department of Energy (DOE), and the National Science Foundation (NSF).
 
 MFC computations have used many supercomputing systems. A partial list is below
-  * OLCF Frontier and Summit, and testbed systems Wombat, Crusher, and Spock (allocation CFD154, PI Bryngelson)
-  * PSC Bridges(1/2), NCSA Delta, SDSC Comet and Expanse, Purdue Anvil, TACC Stampede(1-3), and TAMU ACES via ACCESS-CI (allocations TG-CTS120005 (PI Colonius) and TG-PHY210084 (PI Bryngelson))
-  * DOD systems Onyx, Carpenter, and Nautilus via the DOD HPCMP program
+  * OLCF Frontier and Summit, and testbeds Wombat, Crusher, and Spock (allocation CFD154, PI Bryngelson)
+  * LLNL Tuolumne and Lassen, El Capitan early access system Tioga
+  * PSC Bridges(1/2), NCSA Delta, SDSC Comet and Expanse, Purdue Anvil, TACC Stampede(1-3), and TAMU ACES via ACCESS-CI allocations from Bryngelson, Colonius, Rodriguez, and more.
+  * DOD systems Onyx, Carpenter, Nautilus, and Narwhal via the DOD HPCMP program
   * Sandia National Labs systems Doom and Attaway and testbed systems Weaver and Vortex

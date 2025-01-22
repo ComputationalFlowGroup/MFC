@@ -2,8 +2,6 @@
 
 module m_body_forces
 
-    ! Dependencies =============================================================
-
     use m_derived_types        !< Definitions of the derived types
 
     use m_global_parameters    !< Definitions of the global parameters
@@ -15,7 +13,6 @@ module m_body_forces
 #ifdef MFC_OpenACC
     use openacc
 #endif
-    ! ==========================================================================
 
     implicit none
 
@@ -24,13 +21,8 @@ module m_body_forces
               s_initialize_body_forces_module, &
               s_finalize_body_forces_module
 
-#ifdef CRAY_ACC_WAR
-    @:CRAY_DECLARE_GLOBAL(real(kind(0d0)), dimension(:, :, :), rhoM)
-    !$acc declare link(rhoM)
-#else
-    real(kind(0d0)), allocatable, dimension(:, :, :) :: rhoM
+    real(wp), allocatable, dimension(:, :, :) :: rhoM
     !$acc declare create(rhoM)
-#endif
 
 contains
 
@@ -42,18 +34,18 @@ contains
         if (n > 0) then
             ! Simulation is 3D
             if (p > 0) then
-                @:ALLOCATE_GLOBAL (rhoM(-buff_size:buff_size + m, &
+                @:ALLOCATE (rhoM(-buff_size:buff_size + m, &
                     -buff_size:buff_size + n, &
                     -buff_size:buff_size + p))
                 ! Simulation is 2D
             else
-                @:ALLOCATE_GLOBAL (rhoM(-buff_size:buff_size + m, &
+                @:ALLOCATE (rhoM(-buff_size:buff_size + m, &
                     -buff_size:buff_size + n, &
                     0:0))
             end if
             ! Simulation is 1D
         else
-            @:ALLOCATE_GLOBAL (rhoM(-buff_size:buff_size + m, &
+            @:ALLOCATE (rhoM(-buff_size:buff_size + m, &
                 0:0, &
                 0:0))
         end if
@@ -63,7 +55,7 @@ contains
     !> This subroutine computes the acceleration at time t
     subroutine s_compute_acceleration(t)
 
-        real(kind(0d0)), intent(in) :: t
+        real(wp), intent(in) :: t
 
         if (m > 0) then
             accel_bf(1) = g_x + k_x*sin(w_x*t - p_x)
@@ -91,7 +83,7 @@ contains
         do l = 0, p
             do k = 0, n
                 do j = 0, m
-                    rhoM(j, k, l) = 0d0
+                    rhoM(j, k, l) = 0._wp
                     do i = 1, num_fluids
                         rhoM(j, k, l) = rhoM(j, k, l) + &
                                         q_cons_vf(contxb + i - 1)%sf(j, k, l)
@@ -122,7 +114,7 @@ contains
             do l = 0, p
                 do k = 0, n
                     do j = 0, m
-                        rhs_vf(i)%sf(j, k, l) = 0d0
+                        rhs_vf(i)%sf(j, k, l) = 0._wp
                     end do
                 end do
             end do
@@ -178,7 +170,7 @@ contains
 
     subroutine s_finalize_body_forces_module
 
-        @:DEALLOCATE_GLOBAL(rhoM)
+        @:DEALLOCATE(rhoM)
 
     end subroutine s_finalize_body_forces_module
 

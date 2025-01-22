@@ -1,7 +1,7 @@
 import re, sys, os.path, argparse, dataclasses
 
 from .run.run      import get_baked_templates
-from .build        import TARGETS, DEFAULT_TARGETS, DEPENDENCY_TARGETS
+from .build        import TARGETS, DEFAULT_TARGETS
 from .common       import MFCException, format_list_to_string
 from .test.cases   import list_cases
 
@@ -61,19 +61,15 @@ started, run ./mfc.sh build -h.""",
         if "v" not in mask:
             p.add_argument("-v", "--verbose", action="store_true", help="Enables verbose compiler & linker output.")
 
-        if "n" not in mask:
-            for target in DEPENDENCY_TARGETS:
-                p.add_argument(f"--sys-{target.name}", action="store_true", help=f"Do not build the {target.name} dependency. Use the system's instead.")
-
         if "g" not in mask:
             p.add_argument("-g", "--gpus", nargs="+", type=int, default=None, help="(Optional GPU override) List of GPU #s to use (environment default if unspecified).")
 
-    # === BUILD ===
+    # BUILD
     add_common_arguments(build, "g")
     build.add_argument("-i", "--input", type=str, default=None, help="(GPU Optimization) Build a version of MFC optimized for a case.")
     build.add_argument("--case-optimization", action="store_true", default=False, help="(GPU Optimization) Compile MFC targets with some case parameters hard-coded (requires --input).")
 
-    # === TEST ===
+    # TEST
     test_cases = list_cases()
 
     add_common_arguments(test, "t")
@@ -81,19 +77,20 @@ started, run ./mfc.sh build -h.""",
     test.add_argument("-f", "--from",         default=test_cases[0].get_uuid(), type=str, help="First test UUID to run.")
     test.add_argument("-t", "--to",           default=test_cases[-1].get_uuid(), type=str, help="Last test UUID to run.")
     test.add_argument("-o", "--only",         nargs="+", type=str, default=[], metavar="L", help="Only run tests with specified properties.")
-    test.add_argument("-r", "--relentless",   action="store_true", default=False, help="Run all tests, even if multiple fail.")
     test.add_argument("-a", "--test-all",     action="store_true", default=False, help="Run the Post Process Tests too.")
     test.add_argument("-%", "--percent",      type=int, default=100, help="Percentage of tests to run.")
-    test.add_argument("-m", "--max-attempts", type=int, default=3, help="Maximum number of attempts to run a test.")
+    test.add_argument("-m", "--max-attempts", type=int, default=1, help="Maximum number of attempts to run a test.")
     test.add_argument(      "--no-build",     action="store_true",                    default=False,      help="(Testing) Do not rebuild MFC.")
+    test.add_argument(      "--no-examples",  action="store_true",                    default=False,      help="Do not test example cases." )
     test.add_argument("--case-optimization",  action="store_true", default=False, help="(GPU Optimization) Compile MFC targets with some case parameters hard-coded.")
+    test.add_argument(      "--dry-run",      action="store_true",                    default=False,      help="Build and generate case files but do not run tests.")
 
     test_meg = test.add_mutually_exclusive_group()
     test_meg.add_argument("--generate",          action="store_true", default=False, help="(Test Generation) Generate golden files.")
     test_meg.add_argument("--add-new-variables", action="store_true", default=False, help="(Test Generation) If new variables are found in D/ when running tests, add them to the golden files.")
     test_meg.add_argument("--remove-old-tests",  action="store_true", default=False, help="(Test Generation) Delete tests directories that are no longer.")
 
-    # === RUN ===
+    # RUN
     add_common_arguments(run)
     run.add_argument("input",                      metavar="INPUT",              type=str,                     help="Input file to run.")
     run.add_argument("-e", "--engine",             choices=["interactive", "batch"],              type=str, default="interactive", help="Job execution/submission engine choice.")
@@ -119,20 +116,20 @@ started, run ./mfc.sh build -h.""",
     run.add_argument("--omni",                     nargs=argparse.REMAINDER,     type=str,                     help="Profile with ROCM omniperf.")
     run.add_argument("--roc",                      nargs=argparse.REMAINDER,     type=str,                     help="Profile with ROCM rocprof.")
 
-    # === BENCH ===
+    # BENCH
     add_common_arguments(bench)
     bench.add_argument("-o", "--output", metavar="OUTPUT", default=None, type=str, required="True", help="Path to the YAML output file to write the results to.")
     bench.add_argument("-m", "--mem", metavar="MEM", default=1, type=int, help="Memory per task for benchmarking cases")
 
-    # === BENCH_DIFF ===
+    # BENCH_DIFF
     add_common_arguments(bench_diff, "t")
     bench_diff.add_argument("lhs", metavar="LHS", type=str, help="Path to a benchmark result YAML file.")
     bench_diff.add_argument("rhs", metavar="RHS", type=str, help="Path to a benchmark result YAML file.")
 
-    # === COUNT ===
+    # COUNT
     add_common_arguments(count, "g")
 
-    # === COUNT ===
+    # COUNT
     add_common_arguments(count_diff, "g")
 
     try:
