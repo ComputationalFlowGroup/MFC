@@ -102,7 +102,7 @@ contains
             ! Energy corresponding to Mie-Gruneisen EOS
             E = rho_eref + gamma_inv*q_prim_vf(E_idx)%sf(j, k, l) - pref_over_gamma + 0.5_wp*rho*vel_sum
         end if
-        ! ENERGY ADJUSTMENTS FOR HYPERELASTIC ENERGY
+        ! energy adjustments for hyperelastic energy
         if (hyperelasticity) then
             E = E + G*q_prim_vf(xiend + 1)%sf(j, k, l)
         end if
