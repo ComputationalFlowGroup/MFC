@@ -221,7 +221,7 @@ contains
             tensora(:) = 0._wp
             stensor(:) = 0._wp
             !$acc parallel loop collapse(2) gang vector default(present) &
-            !$acc private(rho_K,G_K,alpha_rho_K,alpha_K)
+            !$acc private(rho_K,G_K,alpha_rho_K,alpha_K,Dp)
             do l = 0, n
                 do k = 0, m
                     ! STEP 1 : Compute the first additional term in rhs: -SW + WS

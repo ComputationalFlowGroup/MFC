@@ -289,6 +289,7 @@ print(
             "num_fluids": 4,
             "hypoelasticity": "F",
             "hyperelasticity": "T",
+            "hyper_model": 1,
             "mpp_lim": "T",
             "mixture_err": "T",
             "relax": "T",
