@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python
 import math, json
 
 ## 1 FOR BACKGROUND, 2 FOR BUBBLE, 3 FOR GEL
@@ -238,7 +238,7 @@ tend = 1.2 * tc
 
 # Nt = total number of steps. Ensure Nt > NtA (so the total tendA is covered)
 # Nt = AS * SF
-Nt = 50#int(2e3 * tend // tc * Nx / Nx0 + 1)
+Nt = 50  # int(2e3 * tend // tc * Nx / Nx0 + 1)
 # print(Nt)
 dt = tend / Nt
 
