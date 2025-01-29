@@ -655,11 +655,11 @@ contains
             end do
         end if
 
-        !call nvtxStartRange("RHS-CONS-BUFFER")
-        !if (model_eqns == 5) then
-        !    call s_populate_primitive_variables_buffers(q_cons_qp%vf, pb, mv)
-        !end if
-        !call nvtxEndRange
+        call nvtxStartRange("RHS-CONS-BUFFER")
+        if (model_eqns == 5) then
+            call s_populate_variables_buffers(q_cons_qp%vf, pb, mv)
+        end if
+        call nvtxEndRange
 
         call nvtxStartRange("RHS-CONVERT")
         call s_convert_conservative_to_primitive_variables( &
