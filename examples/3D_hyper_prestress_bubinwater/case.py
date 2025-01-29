@@ -238,7 +238,7 @@ tend = 1.2 * tc
 
 # Nt = total number of steps. Ensure Nt > NtA (so the total tendA is covered)
 # Nt = AS * SF
-Nt = int(2e3 * tend // tc * Nx / Nx0 + 1)
+Nt = 50#int(2e3 * tend // tc * Nx / Nx0 + 1)
 # print(Nt)
 dt = tend / Nt
 
