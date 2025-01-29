@@ -238,7 +238,7 @@ tend = 1.2 * tc
 
 # Nt = total number of steps. Ensure Nt > NtA (so the total tendA is covered)
 # Nt = AS * SF
-Nt = int(2e3 * tend // tc * Nx / Nx0 + 1)
+Nt = 50#int(2e3 * tend // tc * Nx / Nx0 + 1)
 # print(Nt)
 dt = tend / Nt
 
@@ -289,7 +289,7 @@ print(
             "num_fluids": 4,
             "hypoelasticity": "F",
             "hyperelasticity": "T",
-            # 'adv_alphan'   : 'T',
+            "hyper_model": 1,
             "mpp_lim": "T",
             "mixture_err": "T",
             "relax": "T",

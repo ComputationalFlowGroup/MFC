@@ -89,6 +89,7 @@ print(
             "alt_soundspeed": "F",
             "hypoplasticity": "T",
             "hyperelasticity": "F",
+            "fd_order": 4,
             "num_fluids": 2,
             "mpp_lim": "T",
             "mixture_err": "F",
