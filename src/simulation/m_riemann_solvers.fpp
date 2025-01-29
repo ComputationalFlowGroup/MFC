@@ -754,7 +754,7 @@ contains
                                    + (5e-1_wp - sign(5e-1_wp, s_L)) &
                                    *(5e-1_wp + sign(5e-1_wp, s_R))
 
-                            ! MASS FLUX.
+                            ! Mass flux.
                             !$acc loop seq
                             do i = 1, contxe
                                 flux_rs${XYZ}$_vf(j, k, l, i) = &
@@ -765,7 +765,7 @@ contains
                                     /(s_M - s_P)
                             end do
 
-                            ! MOMENTUM FLUX.
+                            ! Momentum flux.
                             if (bubbles_euler) then
                                 !$acc loop seq
                                 do i = 1, num_dims
@@ -812,7 +812,7 @@ contains
                                 end do
                             end if
 
-                            ! ENERGY FLUX.
+                            ! Energy flux.
                             if (bubbles_euler) then
                                 flux_rs${XYZ}$_vf(j, k, l, E_idx) = &
                                     (s_M*vel_R(dir_idx(1))*(E_R + pres_R - ptilde_R) &
@@ -860,7 +860,7 @@ contains
                                     /(s_M - s_P)
                             end if
 
-                            ! elastic stresses flux.
+                            ! Elastic stresses flux.
                             if (hypoelasticity) then
                                 !$acc loop seq
                                 do i = 1, strxe - strxb + 1
@@ -887,7 +887,7 @@ contains
                                 end do
                             end if
 
-                            ! advection flux.
+                            ! Advection flux.
                             !$acc loop seq
                             do i = advxb, advxe
                                 flux_rs${XYZ}$_vf(j, k, l, i) = &
@@ -900,7 +900,7 @@ contains
                                     /(s_M - s_P)
                             end do
 
-                            ! ISOTROPIC HARDENING FLUX.
+                            ! Isotropic hardening flux.
                             if (hypoplasticity) then
                                 xi_d_L = qL_prim_rs${XYZ}$_vf(j, k, l, plasidx)
                                 xi_d_R = qR_prim_rs${XYZ}$_vf(j + 1, k, l, plasidx)
@@ -1138,7 +1138,7 @@ contains
 
             if (norm_dir == ${NORM_DIR}$) then
 
-                ! 6-EQUATION MODEL WITH HLLC
+                ! 6-Equation model with HLLC
                 if (model_eqns == 3) then
                     !ME3
 
@@ -2345,7 +2345,7 @@ contains
                                     rho0_R = rho0_R + qR_prim_rs${XYZ}$_vf(j, k, l, E_idx + i)*rho0(i)
                                 end do
 
-                                ! ENERGY ADJUSTMENTS FOR HYPOELASTIC ENERGY
+                                ! Energy adjustments for hypoelastic
                                 if (hypoelasticity) then
                                     !$acc loop seq
                                     do i = 1, strxe - strxb + 1
@@ -2505,7 +2505,7 @@ contains
                                 xi_M = (0.5_wp + sign(0.5_wp, s_S))
                                 xi_P = (0.5_wp - sign(0.5_wp, s_S))
 
-                                ! COMPUTING THE HLLC FLUXES
+                                ! Computing the HLLC fluxes
                                 !$acc loop seq
                                 do i = 1, contxe
                                     flux_rs${XYZ}$_vf(j, k, l, i) = &
@@ -2514,7 +2514,7 @@ contains
                                         + xi_P*qR_prim_rs${XYZ}$_vf(j + 1, k, l, i) &
                                         *(vel_R(idx1) + s_P*(xi_R - 1._wp))
                                 end do
-                                ! MOMENTUM FLUX.
+                                ! Momentum flux..
                                 ! f = \rho u u - \sigma, q = \rho u, q_star = \xi * \rho*(s_star, v, w)
                                 !$acc loop seq
                                 do i = 1, num_dims
@@ -2534,7 +2534,7 @@ contains
                                                 dir_flg(idxi)*(pres_R))
                                 end do
 
-                                ! ENERGY FLUX.
+                                ! Energy flux.
                                 ! f = u*(E-\sigma), q = E, q_star = \xi*E+(s-u)(\rho s_star - \sigma/(s-u))
                                 flux_rs${XYZ}$_vf(j, k, l, E_idx) = &
                                     xi_M*(vel_L(idx1)*(E_L + pres_L) + &
@@ -2546,18 +2546,18 @@ contains
                                                        (rho_R*s_S + pres_R/ &
                                                         (s_R - vel_R(idx1)))) - E_R))
 
-                                ! ELASTICITY. Elastic shear stress additions for the momentum and energy flux
+                                ! Elastic shear stress additions for the momentum and energy flux
                                 if (elasticity) then
                                     flux_ene_e = 0._wp
                                     !$acc loop seq
                                     do i = 1, num_dims
                                         idxi = dir_idx(i)
-                                        ! MOMENTUM ELASTIC FLUX.
+                                        ! Momentum elastic flux.
                                         flux_rs${XYZ}$_vf(j, k, l, contxe + idxi) = &
                                             flux_rs${XYZ}$_vf(j, k, l, contxe + idxi) &
                                             - xi_M*(rho_L/rho0_L)*tau_e_L(dir_idx_tau(i)) &
                                             - xi_P*(rho_R/rho0_R)*tau_e_R(dir_idx_tau(i))
-                                        ! ENERGY ELASTIC FLUX.
+                                        ! Energy elastic flux.
                                         flux_ene_e = flux_ene_e - &
                                                      xi_M*(vel_L(idxi)*(rho_L/rho0_L)*tau_e_L(dir_idx_tau(i)) + &
                                                            s_M*(xi_L*((s_S - vel_L(i))*((rho_L/rho0_L)*tau_e_L(dir_idx_tau(i))/(s_L - vel_L(i)))))) - &
@@ -2567,7 +2567,7 @@ contains
                                     flux_rs${XYZ}$_vf(j, k, l, E_idx) = flux_rs${XYZ}$_vf(j, k, l, E_idx) + flux_ene_e
                                 end if
 
-                                ! HYPOPLASTIC STRESS EVOLUTION FLUX.
+                                ! Hypoplastic stress evolution flux.
                                 if (hypoelasticity) then
                                     !$acc loop seq
                                     do i = 1, strxe - strxb + 1
@@ -2577,7 +2577,7 @@ contains
                                     end do
                                 end if
 
-                                ! VOLUME FRACTION FLUX.
+                                ! Volume fraction flux.
                                 !$acc loop seq
                                 do i = advxb, advxe
                                     flux_rs${XYZ}$_vf(j, k, l, i) = &
@@ -2587,7 +2587,7 @@ contains
                                         *(vel_R(idx1) + s_P*(xi_R - 1._wp))
                                 end do
 
-                                ! VOLUME FRACTION SOURCE FLUX.
+                                ! Volume fraction source flux.
                                 !$acc loop seq
                                 do i = 1, num_dims
                                     idxi = dir_idx(i)
@@ -2602,7 +2602,7 @@ contains
 
                                 flux_src_rs${XYZ}$_vf(j, k, l, advxb) = vel_src_rs${XYZ}$_vf(j, k, l, idx1)
 
-                                ! ISOTROPIC HARDENING FLUX.
+                                ! Isotropic hardening flux.
                                 if (hypoplasticity) then
                                     xi_d_L = qL_prim_rs${XYZ}$_vf(j, k, l, plasidx)
                                     xi_d_R = qR_prim_rs${XYZ}$_vf(j + 1, k, l, plasidx)
@@ -2615,7 +2615,7 @@ contains
                     end do
                     !$acc end parallel loop
                 else
-                    ! 5-EQUATION MODEL WITH HLLC
+                    ! 5-Equation model with HLLC
                     !$acc parallel loop collapse(3) gang vector default(present) private(vel_L, vel_R, Re_L, Re_R, &
                     !$acc rho_avg, h_avg, gamma_avg, alpha_L, alpha_R, s_L, s_R, s_S, vel_avg_rms, pcorr, zcoef,   &
                     !$acc vel_L_tmp, vel_R_tmp, Ys_L, Ys_R, Xs_L, Xs_R, Gamma_iL, Gamma_iR, Cp_iL, Cp_iR,          &
