@@ -31,7 +31,6 @@ print(
             "model_eqns": 3,
             "alt_soundspeed": "F",
             "num_fluids": 2,
-            "mpp_lim": "F",
             "mixture_err": "F",
             "time_stepper": 3,
             "weno_order": 3,
@@ -48,6 +47,8 @@ print(
             "bc_x%end": -3,
             # Turning on Hyperelasticity
             "hyperelasticity": "T",
+            "hyper_model": 1,
+            "fd_order": 4,
             # Formatted Database Files Structure Parameters
             "format": 1,
             "precision": 2,

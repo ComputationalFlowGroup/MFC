@@ -1082,7 +1082,7 @@ contains
                         T = q_T_sf%sf(j, k, l)
                     end if
 
-                    ! PRESSURE CALCULATION
+                    ! Pressure calculation.
                     if (model_eqns /= 5) then
                         call s_compute_pressure(qK_cons_vf(E_idx)%sf(j, k, l), &
                                                 qK_cons_vf(alf_idx)%sf(j, k, l), &

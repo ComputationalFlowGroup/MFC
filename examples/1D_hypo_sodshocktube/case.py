@@ -31,9 +31,8 @@ print(
             # Simulation Algorithm Parameters
             "num_patches": 2,
             "model_eqns": 2,
-            "alt_soundspeed": "T",
+            "alt_soundspeed": "F",
             "num_fluids": 1,
-            "mpp_lim": "T",
             "mixture_err": "F",
             "time_stepper": 3,
             "weno_order": 5,
@@ -52,6 +51,7 @@ print(
             "bc_y%end": -3,
             # Turning on Hypoelasticity
             "hypoelasticity": "T",
+            "fd_order": 4,
             # Formatted Database Files Structure Parameters
             "format": 1,
             "precision": 2,

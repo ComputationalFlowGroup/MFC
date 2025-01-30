@@ -238,7 +238,7 @@ tend = 1.2 * tc
 
 # Nt = total number of steps. Ensure Nt > NtA (so the total tendA is covered)
 # Nt = AS * SF
-Nt = int(2e3 * tend // tc * Nx / Nx0 + 1)
+Nt = 50  # int(2e3 * tend // tc * Nx / Nx0 + 1)
 # print(Nt)
 dt = tend / Nt
 
@@ -289,7 +289,7 @@ print(
             "num_fluids": 4,
             "hypoelasticity": "F",
             "hyperelasticity": "T",
-            # 'adv_alphan'   : 'T',
+            "hyper_model": 1,
             "mpp_lim": "T",
             "mixture_err": "T",
             "relax": "T",
@@ -307,12 +307,12 @@ print(
             "riemann_solver": 2,
             "wave_speeds": 1,
             "avg_state": 2,
-            "bc_x%beg": -6,  # -2,
-            "bc_x%end": -6,
+            "bc_x%beg": -3,  # -2,
+            "bc_x%end": -3,
             "bc_y%beg": -2,
-            "bc_y%end": -6,
+            "bc_y%end": -3,
             "bc_z%beg": -2,
-            "bc_z%end": -6,
+            "bc_z%end": -3,
             # Formatted Database Files Structure Parameters
             "format": 1,
             "precision": 2,
