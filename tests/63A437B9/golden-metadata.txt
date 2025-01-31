@@ -1,43 +1,10 @@
-This file was created on 2025-01-31 13:21:15.025402.
+This file was created on 2025-01-31 15:54:40.816182.
 
 mfc.sh:
 
-    Invocation: test -j 16 --only Example --max-attempts=3 --generate -- -c delta
+    Invocation: test --only 63A437B9 --generate -j 2 -- -c delta
     Lock:       mpi=Yes & gpu=Yes & debug=No & gcov=No & unified=No & single=No
-    Git:        efa0f4cba13c03d8ad42669ecae527464922d127 on johnsoncook (dirty)
-
-post_process:
-
-    CMake Configuration:
-    
-        CMake v3.27.9 on dt-login04.delta.ncsa.illinois.edu
-    
-        C       : NVHPC v24.1.0 (/sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvc)
-        Fortran : NVHPC v24.1.0 (/sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvfortran)
-    
-        PRE_PROCESS   : OFF
-        SIMULATION    : OFF
-        POST_PROCESS  : ON
-        SYSCHECK      : OFF
-        DOCUMENTATION : OFF
-        ALL           : OFF
-    
-        MPI     : ON
-        OpenACC : ON
-    
-        Fypp    : /u/rodrigu1/MFC/build/venv/bin/fypp
-        Doxygen : 
-    
-        Build Type : Release
-    
-    Configuration Environment:
-    
-        CC       : /sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvc
-        CXX      : /sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvc++
-        FC       : /sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvfortran
-        OMPI_CC  : 
-        OMPI_CXX : 
-        OMPI_FC  : 
+    Git:        1708be54f38888f293364c83ecb8dace25292e39 on johnsoncook (dirty)
 
 pre_process:
 
@@ -118,6 +85,39 @@ syscheck:
         SIMULATION    : OFF
         POST_PROCESS  : OFF
         SYSCHECK      : ON
+        DOCUMENTATION : OFF
+        ALL           : OFF
+    
+        MPI     : ON
+        OpenACC : ON
+    
+        Fypp    : /u/rodrigu1/MFC/build/venv/bin/fypp
+        Doxygen : 
+    
+        Build Type : Release
+    
+    Configuration Environment:
+    
+        CC       : /sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvc
+        CXX      : /sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvc++
+        FC       : /sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvfortran
+        OMPI_CC  : 
+        OMPI_CXX : 
+        OMPI_FC  : 
+
+post_process:
+
+    CMake Configuration:
+    
+        CMake v3.27.9 on dt-login04.delta.ncsa.illinois.edu
+    
+        C       : NVHPC v24.1.0 (/sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvc)
+        Fortran : NVHPC v24.1.0 (/sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvfortran)
+    
+        PRE_PROCESS   : OFF
+        SIMULATION    : OFF
+        POST_PROCESS  : ON
+        SYSCHECK      : OFF
         DOCUMENTATION : OFF
         ALL           : OFF
     

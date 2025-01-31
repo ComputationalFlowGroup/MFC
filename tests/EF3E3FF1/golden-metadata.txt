@@ -1,12 +1,12 @@
-This file was created on 2025-01-31 13:22:39.580940.
+This file was created on 2025-01-31 15:48:23.740662.
 
 mfc.sh:
 
-    Invocation: test -j 16 --only Example --max-attempts=3 --generate -- -c delta
+    Invocation: test --only Example --generate -j 16 -- -c delta
     Lock:       mpi=Yes & gpu=Yes & debug=No & gcov=No & unified=No & single=No
-    Git:        efa0f4cba13c03d8ad42669ecae527464922d127 on johnsoncook (dirty)
+    Git:        1708be54f38888f293364c83ecb8dace25292e39 on johnsoncook (dirty)
 
-post_process:
+simulation:
 
     CMake Configuration:
     
@@ -16,8 +16,8 @@ post_process:
         Fortran : NVHPC v24.1.0 (/sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvfortran)
     
         PRE_PROCESS   : OFF
-        SIMULATION    : OFF
-        POST_PROCESS  : ON
+        SIMULATION    : ON
+        POST_PROCESS  : OFF
         SYSCHECK      : OFF
         DOCUMENTATION : OFF
         ALL           : OFF
@@ -72,7 +72,7 @@ pre_process:
         OMPI_CXX : 
         OMPI_FC  : 
 
-simulation:
+post_process:
 
     CMake Configuration:
     
@@ -82,8 +82,8 @@ simulation:
         Fortran : NVHPC v24.1.0 (/sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvfortran)
     
         PRE_PROCESS   : OFF
-        SIMULATION    : ON
-        POST_PROCESS  : OFF
+        SIMULATION    : OFF
+        POST_PROCESS  : ON
         SYSCHECK      : OFF
         DOCUMENTATION : OFF
         ALL           : OFF
