@@ -1,43 +1,10 @@
-This file was created on 2025-01-29 23:48:03.193990.
+This file was created on 2025-01-31 13:22:14.806557.
 
 mfc.sh:
 
-    Invocation: test -j 16 --max-attempts=3 --only Example --generate -- -c delta
+    Invocation: test -j 16 --only Example --max-attempts=3 --generate -- -c delta
     Lock:       mpi=Yes & gpu=Yes & debug=No & gcov=No & unified=No & single=No
-    Git:        c98dfa8bf932297bba3d7d506d6c22547cd9fc5a on johnsoncook (dirty)
-
-syscheck:
-
-    CMake Configuration:
-    
-        CMake v3.27.9 on dt-login04.delta.ncsa.illinois.edu
-    
-        C       : NVHPC v24.1.0 (/sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvc)
-        Fortran : NVHPC v24.1.0 (/sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvfortran)
-    
-        PRE_PROCESS   : OFF
-        SIMULATION    : OFF
-        POST_PROCESS  : OFF
-        SYSCHECK      : ON
-        DOCUMENTATION : OFF
-        ALL           : OFF
-    
-        MPI     : ON
-        OpenACC : ON
-    
-        Fypp    : /u/rodrigu1/MFC/build/venv/bin/fypp
-        Doxygen : 
-    
-        Build Type : Release
-    
-    Configuration Environment:
-    
-        CC       : nvc
-        CXX      : nvc++
-        FC       : nvfortran
-        OMPI_CC  : 
-        OMPI_CXX : 
-        OMPI_FC  : 
+    Git:        efa0f4cba13c03d8ad42669ecae527464922d127 on johnsoncook (dirty)
 
 post_process:
 
@@ -65,42 +32,9 @@ post_process:
     
     Configuration Environment:
     
-        CC       : nvc
-        CXX      : nvc++
-        FC       : nvfortran
-        OMPI_CC  : 
-        OMPI_CXX : 
-        OMPI_FC  : 
-
-simulation:
-
-    CMake Configuration:
-    
-        CMake v3.27.9 on dt-login04.delta.ncsa.illinois.edu
-    
-        C       : NVHPC v24.1.0 (/sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvc)
-        Fortran : NVHPC v24.1.0 (/sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvfortran)
-    
-        PRE_PROCESS   : OFF
-        SIMULATION    : ON
-        POST_PROCESS  : OFF
-        SYSCHECK      : OFF
-        DOCUMENTATION : OFF
-        ALL           : OFF
-    
-        MPI     : ON
-        OpenACC : ON
-    
-        Fypp    : /u/rodrigu1/MFC/build/venv/bin/fypp
-        Doxygen : 
-    
-        Build Type : Release
-    
-    Configuration Environment:
-    
-        CC       : nvc
-        CXX      : nvc++
-        FC       : nvfortran
+        CC       : /sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvc
+        CXX      : /sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvc++
+        FC       : /sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvfortran
         OMPI_CC  : 
         OMPI_CXX : 
         OMPI_FC  : 
@@ -131,9 +65,75 @@ pre_process:
     
     Configuration Environment:
     
-        CC       : nvc
-        CXX      : nvc++
-        FC       : nvfortran
+        CC       : /sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvc
+        CXX      : /sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvc++
+        FC       : /sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvfortran
+        OMPI_CC  : 
+        OMPI_CXX : 
+        OMPI_FC  : 
+
+simulation:
+
+    CMake Configuration:
+    
+        CMake v3.27.9 on dt-login04.delta.ncsa.illinois.edu
+    
+        C       : NVHPC v24.1.0 (/sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvc)
+        Fortran : NVHPC v24.1.0 (/sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvfortran)
+    
+        PRE_PROCESS   : OFF
+        SIMULATION    : ON
+        POST_PROCESS  : OFF
+        SYSCHECK      : OFF
+        DOCUMENTATION : OFF
+        ALL           : OFF
+    
+        MPI     : ON
+        OpenACC : ON
+    
+        Fypp    : /u/rodrigu1/MFC/build/venv/bin/fypp
+        Doxygen : 
+    
+        Build Type : Release
+    
+    Configuration Environment:
+    
+        CC       : /sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvc
+        CXX      : /sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvc++
+        FC       : /sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvfortran
+        OMPI_CC  : 
+        OMPI_CXX : 
+        OMPI_FC  : 
+
+syscheck:
+
+    CMake Configuration:
+    
+        CMake v3.27.9 on dt-login04.delta.ncsa.illinois.edu
+    
+        C       : NVHPC v24.1.0 (/sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvc)
+        Fortran : NVHPC v24.1.0 (/sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvfortran)
+    
+        PRE_PROCESS   : OFF
+        SIMULATION    : OFF
+        POST_PROCESS  : OFF
+        SYSCHECK      : ON
+        DOCUMENTATION : OFF
+        ALL           : OFF
+    
+        MPI     : ON
+        OpenACC : ON
+    
+        Fypp    : /u/rodrigu1/MFC/build/venv/bin/fypp
+        Doxygen : 
+    
+        Build Type : Release
+    
+    Configuration Environment:
+    
+        CC       : /sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvc
+        CXX      : /sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvc++
+        FC       : /sw/spack/deltas11-2023-03/apps/linux-rhel8-zen/gcc-8.5.0/nvhpc-24.1-nxwejho/Linux_x86_64/24.1/compilers/bin/nvfortran
         OMPI_CC  : 
         OMPI_CXX : 
         OMPI_FC  : 

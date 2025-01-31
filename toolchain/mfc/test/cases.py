@@ -526,7 +526,7 @@ def list_cases() -> typing.List[TestCaseBuilder]:
         # Hypoelasticity checks
         for num_fluids in [1,2]:
             stack.push(f"Hypoelasticity -> {num_fluids} Fluid(s)", {
-                'hypoelasticity': 'T', 'num_fluids': num_fluids, 
+                'hypoelasticity': 'T', 'num_fluids': num_fluids,
                 'riemann_solver':             1,
                 'fd_order':                   4,
                 'fluid_pp(1)%gamma':          0.3,    'fluid_pp(1)%pi_inf':         7.8E+05,
@@ -785,7 +785,7 @@ def list_cases() -> typing.List[TestCaseBuilder]:
             for couplingMethod in [1, 2]:
                 stack.push("Lagrange bubbles", {"bubbles_lagrange": 'T',
                     'dt': 1e-06, 'lag_params%pressure_corrector': 'T', 'bubble_model': 2,
-                    'num_fluids': 2, 'lag_params%heatTransfer_model': 'T', 'lag_params%massTransfer_model': 'T', 
+                    'num_fluids': 2, 'lag_params%heatTransfer_model': 'T', 'lag_params%massTransfer_model': 'T',
                     'fluid_pp(1)%gamma' : 0.16, 'fluid_pp(1)%pi_inf': 3515.0, 'fluid_pp(2)%gamma': 2.5,
                     'fluid_pp(2)%pi_inf': 0.0, 'fluid_pp(1)%mul0' : 0.001002, 'fluid_pp(1)%ss' : 0.07275,
                     'fluid_pp(1)%pv' : 2338.8,'fluid_pp(1)%gamma_v' : 1.33, 'fluid_pp(1)%M_v' : 18.02,
@@ -849,7 +849,7 @@ def list_cases() -> typing.List[TestCaseBuilder]:
                 continue
 
             # List of currently broken examples -> currently attempting to fix!
-            brokenCases = ["2D_ibm_cfl_dt", "1D_sodHypo", "2D_viscous", "2D_laplace_pressure_jump", "2D_bubbly_steady_shock", "2D_advection", "2D_hardcodied_ic", "2D_ibm_multiphase", "2D_acoustic_broadband", "1D_inert_shocktube", "1D_reactive_shocktube", "2D_ibm_steady_shock", "3D_performance_test", "3D_ibm_stl_ellipsoid", "3D_sphbubcollapse", "2D_ibm_stl_wedge", "3D_ibm_stl_pyramid", "3D_ibm_bowshock", "3D_turb_mixing", "2D_mixing_artificial_Ma", "3D_lagrange_bubblescreen", "3D_hyper_bubingel", "3D_hyper_bubinwater", "2D_triple_point", "1D_hyper_impact_strong", "1D_hyper_impact_weak", "1D_hypo_impact_strong", "1D_hypo_impact_weak", "1D_copper", "2D_air_pure_hypo", "2D_sucrose_plasticity", "3D_hyper_prestress_bubinwater" ]
+            brokenCases = ["2D_ibm_cfl_dt", "1D_sodHypo", "2D_viscous", "2D_laplace_pressure_jump", "2D_bubbly_steady_shock", "2D_advection", "2D_hardcodied_ic", "2D_ibm_multiphase", "2D_acoustic_broadband", "1D_inert_shocktube", "1D_reactive_shocktube", "2D_ibm_steady_shock", "3D_performance_test", "3D_ibm_stl_ellipsoid", "3D_sphbubcollapse", "2D_ibm_stl_wedge", "3D_ibm_stl_pyramid", "3D_ibm_bowshock", "3D_turb_mixing", "2D_mixing_artificial_Ma", "3D_lagrange_bubblescreen", "3D_hyper_bubingel", "3D_hyper_bubinwater", "2D_triple_point", "1D_hyper_impact_strong", "1D_hyper_impact_weak", "1D_hypo_impact_strong", "1D_hypo_impact_weak", "3D_hyper_prestress_bubinwater", "1D_hyper_2materials", "1D_hyper_sodshocktube", "2D_hyper_sucrosebubble" ]
             if path in brokenCases:
                 continue
             name = f"{path.split('_')[0]} -> Example -> {'_'.join(path.split('_')[1:])}"
