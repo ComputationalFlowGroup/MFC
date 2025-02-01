@@ -751,24 +751,9 @@ contains
             !mgidxe = adv_idx%end + 3
             sys_size = adv_idx%end !mgidxe
 
-            if (hypoplasticity) then
-                elasticity = .true.
-                stress_idx%beg = sys_size + 1
-                if (num_dims == 2) then
-                    stress_idx%end = sys_size + 2*num_dims
-                else
-                    stress_idx%end = sys_size + num_dims
-                end if
-                ! number of stresses is 1 in 1D, 2 in quasi-1D, 3 in
-                ! 2D-plane stress, 4 in 2D-plane strain, 6 in 3D
-                ! TODO add more flags to incorporate all these cases
-                plasidx = stress_idx%end + 1
-                sys_size = plasidx
-            end if
-
         end if
 
-        elasticity = hypoelasticity .or. hyperelasticity
+        elasticity = hypoelasticity .or. hyperelasticity .or. hypoplasticity
 
         if (elasticity) then
             ! creates stress indices for both hypo and hyperelasticity
@@ -786,6 +771,16 @@ contains
             xi_idx%end = sys_size + num_dims
             ! adding three more equations for the \xi field and the elastic energy
             sys_size = xi_idx%end + 1
+        end if
+
+        if (hypoplasticity) then
+           ! number of stresses is 1 in 1D, 2 in quasi-1D, 3 in
+           ! 2D-plane stress, 4 in 2D-plane strain, 6 in 3D
+           ! TODO add more flags to incorporate all these cases
+
+           ! only implementing 2D-plane stress for now
+           plasidx = stress_idx%end + 1
+           sys_size = plasidx
         end if
 
         if (chemistry) then
