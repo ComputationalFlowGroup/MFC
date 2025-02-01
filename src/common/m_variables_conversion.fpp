@@ -1168,20 +1168,15 @@ contains
                             end if
                         end do
                     end if
+
                     if (hypoplasticity) then
                         !$acc loop seq
                         do i = strxb, strxe
                             qK_prim_vf(i)%sf(j, k, l) = qK_cons_vf(i)%sf(j, k, l)/rho_K
-                            !if (i == 11 .or. i==12 .or. i==13 .or. i==14) then
-                            !    print *,'j',j,'k',k,'i',i,qK_prim_vf(i)%sf(j,k,l)
-                            !end if
-                            !    if (qK_prim_vf(i)%sf(j, k, l) /= qK_prim_vf(i)%sf(j, k, l)) then
-                            !         print *,'j',j,'k',k,'i',i,qK_prim_vf(i)%sf(j, k, l)
-                            !         call s_mpi_abort('stress is NaN')
-                            !   end if
                         end do
                         qK_prim_vf(plasidx)%sf(j, k, l) = qK_cons_vf(plasidx)%sf(j, k, l)/rho_K
                     end if
+
                     if (hyperelasticity) then
                         !$acc loop seq
                         do i = xibeg, xiend
@@ -1316,21 +1311,15 @@ contains
                             gamma_inv = 0._wp
                             do i = 1, num_fluids
                                 rho_K = alpha_rho_K(i)/alpha_K(i)
-
                                 gamma_inv = gamma_inv + &
                                             alpha_K(i)/(gammas(i)*(rho0(i)/rho_K)**(qvps(i)))
-
                                 xi = 1._wp - rho0(i)/rho_K
-
                                 pref = pi_infs(i) + rho0(i)*(mg_a(i)**2._wp)*xi &
                                        /(1._wp - mg_b(i)*xi)**2._wp
-
                                 pref_over_gamma = pref_over_gamma + &
                                                   pref*alpha_K(i)*(rho_K/rho0(i))**qvps(i)/gammas(i)
-
                                 rho_eref = rho_eref + alpha_rho_K(i)*qvs(i) + &
                                            0.5_wp*(pref + pi_infs(i))*(alpha_rho_K(i)/rho0(i) - alpha_K(i))
-
                             end do
                             ! Energy corresponding to Mie-Gruneisen EOS
                             q_cons_vf(E_idx)%sf(j, k, l) = rho_eref + &
@@ -1655,38 +1644,35 @@ contains
             elseif ((model_eqns == 5) .and. (MGEoS_model == 1)) then
                 !Note that pref and gamma are primitive state
                 !variables for Mie-Gruneisen EoS and gamma = (1/Gamma(rho))
-
                 gamma_avg = 0._wp
                 c = 0._wp
                 do q = 1, num_fluids
-
                     rho_K = alpha_rho_K(q)/adv(q)
-
                     xi = 1._wp - rho0(q)/rho_K
-
                     pref = pi_infs(q) + &
                            rho0(q)*(mg_a(q)**2._wp)*xi/(1._wp - mg_b(q)*xi)**2._wp
-
                     gamma_avg = gamma_avg + adv(q)/(gammas(q)*(rho0(q)/rho_K)**qvps(q))
-
                     gamma_inv = 1._wp/(gammas(q)*(rho0(q)/rho_K)**qvps(q))
                     gam = 1._wp/gamma_inv
                     pref_prime = (mg_a(q)**2._wp)*((1._wp - xi)**2._wp)*(1._wp + mg_b(q)*xi)/(1._wp - mg_b(q)*xi)**3._wp
-
                     rho_eref_prime = 0.5_wp*(pref/rho_K + pref_prime*(rho_K/rho0(q) - 1._wp))
-
                     if (rho_K >= rho0(q)) then
                         c = c + (alpha_rho_K(q)/rho)*((1._wp + (1._wp - qvps(q))*gamma_inv)*(pres - pref)/rho_K &
                                                       + pref/rho_K + pref_prime*gamma_inv - rho_eref_prime)
                     else
                         c = c + (alpha_rho_K(q)/rho)*(pres/rho_K*(gamma_inv + 1._wp) - &
                                                       pref*gamma_inv/rho_K + &
-                                                      qvps(q) + 0.5_wp*(pi_infs(q) + pref)*(1._wp/rho0(q) - 1._wp/rho_K) + (mg_a(q)**2._wp)*gamma_inv)
+                                                      qvps(q) + 0.5_wp*(pi_infs(q) + pref)*(1._wp/rho0(q) - 1._wp/rho_K) + &
+                                                      (mg_a(q)**2._wp)*gamma_inv)
                     end if
                 end do
+
                 c = c/gamma_avg
+
             else
+
                 c = ((H - 0.5_wp*vel_sum)/gamma)
+
             end if
             if (mixture_err .and. c < 0._wp) then
                 c = 100._wp*sgm_eps
