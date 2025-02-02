@@ -78,9 +78,9 @@ contains
 
         pres = q_prim_vf(E_idx)%sf(j, k, l)
 
-        if (model_eqns /= 5) then
-            E = gamma*pres + pi_inf + 0.5_wp*rho*vel_sum + qv
-        else if (MGEoS_model == 1) then
+        E = gamma*pres + pi_inf + 0.5_wp*rho*vel_sum + qv
+
+        if (MGEoS_model == 1) then
             pref_over_gamma = 0._wp
             rho_eref = 0._wp
             gamma_inv = 0._wp

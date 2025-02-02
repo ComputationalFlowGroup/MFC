@@ -266,8 +266,6 @@ contains
 
         if (cfl_dt) t_step = n_start
 
-        if (cfl_dt) t_step = n_start
-
         !1D
         if (n == 0 .and. p == 0) then
             if (model_eqns == 2) then
