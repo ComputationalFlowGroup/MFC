@@ -774,13 +774,13 @@ contains
         end if
 
         if (hypoplasticity) then
-           ! number of stresses is 1 in 1D, 2 in quasi-1D, 3 in
-           ! 2D-plane stress, 4 in 2D-plane strain, 6 in 3D
-           ! TODO add more flags to incorporate all these cases
+            ! number of stresses is 1 in 1D, 2 in quasi-1D, 3 in
+            ! 2D-plane stress, 4 in 2D-plane strain, 6 in 3D
+            ! TODO add more flags to incorporate all these cases
 
-           ! only implementing 2D-plane stress for now
-           plasidx = stress_idx%end + 1
-           sys_size = plasidx
+            ! only implementing 2D-plane stress for now
+            plasidx = stress_idx%end + 1
+            sys_size = plasidx
         end if
 
         if (chemistry) then

@@ -1001,7 +1001,6 @@ contains
                 !mgidxe = adv_idx%end + 3
                 sys_size = adv_idx%end !mgidxe
 
-
             end if
 
             ! Determining the number of fluids for which the shear and the

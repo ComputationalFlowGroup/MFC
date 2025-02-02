@@ -697,7 +697,7 @@ contains
         end if
 
         if (hypoplasticity) then
-           ! number of stresses is 1 in 1D, 2 in quasi-1D, 3 in
+            ! number of stresses is 1 in 1D, 2 in quasi-1D, 3 in
             ! 2D-plane stress, 4 in 2D-plane strain, 6 in 3D
             ! TODO add more flags to incorporate all these cases
 
