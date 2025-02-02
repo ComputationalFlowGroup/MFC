@@ -79,7 +79,7 @@ contains
         pres = q_prim_vf(E_idx)%sf(j, k, l)
 
         if (model_eqns /= 5) then
-            E = gamma*pres + pi_inf + 5e-1_wp*rho*vel_sum + qv
+            E = gamma*pres + pi_inf + 0.5_wp*rho*vel_sum + qv
         else if (MGEoS_model == 1) then
             pref_over_gamma = 0._wp
             rho_eref = 0._wp
@@ -258,10 +258,10 @@ contains
             if (viscous) then
                 if (grid_geometry == 3) then
                     vcfl_dt = cfl_target*(min(dx(j), dy(k), fltr_dtheta)**2._wp) &
-                              /minval(1/(rho*Re_l))
+                              /minval(1._wp/(rho*Re_l))
                 else
                     vcfl_dt = cfl_target*(min(dx(j), dy(k), dz(l))**2._wp) &
-                              /minval(1/(rho*Re_l))
+                              /minval(1._wp/(rho*Re_l))
                 end if
             end if
 
@@ -271,7 +271,7 @@ contains
                                      dy(k)/(abs(vel(2)) + c))
 
             if (viscous) then
-                vcfl_dt = cfl_target*(min(dx(j), dy(k))**2._wp)/maxval((1/Re_l)/rho)
+                vcfl_dt = cfl_target*(min(dx(j), dy(k))**2._wp)/maxval((1._wp/Re_l)/rho)
             end if
 
         else
@@ -279,7 +279,7 @@ contains
             icfl_dt = cfl_target*(dx(j)/(abs(vel(1)) + c))
 
             if (viscous) then
-                vcfl_dt = cfl_target*(dx(j)**2._wp)/minval(1/(rho*Re_l))
+                vcfl_dt = cfl_target*(dx(j)**2._wp)/minval(1._wp/(rho*Re_l))
             end if
 
         end if

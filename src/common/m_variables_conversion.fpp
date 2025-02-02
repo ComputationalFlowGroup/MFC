@@ -1610,9 +1610,9 @@ contains
 
         if (chemistry) then
             if (avg_state == 1 .and. abs(c_c) > Tolerance) then
-                c = sqrt(c_c - (gamma - 1.0_wp)*(vel_sum - H))
+                c = sqrt(c_c - (gamma - 1._wp)*(vel_sum - H))
             else
-                c = sqrt((1.0_wp + 1.0_wp/gamma)*pres/rho)
+                c = sqrt((1._wp + 1._wp/gamma)*pres/rho)
             end if
         else
             if (alt_soundspeed) then
