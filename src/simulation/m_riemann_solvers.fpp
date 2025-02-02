@@ -331,12 +331,20 @@ contains
         real(wp) :: s_L, s_R, s_M, s_P, s_S
         real(wp) :: xi_M, xi_P
 
+        real(wp) :: xi_L, xi_R
         real(wp) :: ptilde_L, ptilde_R
         real(wp) :: vel_L_rms, vel_R_rms, vel_avg_rms
         real(wp) :: Ms_L, Ms_R, pres_SL, pres_SR
         real(wp) :: alpha_L_sum, alpha_R_sum
 
+        !model_eqns = 5 variables
+        real(wp) :: pref_over_gamma, rho_eref, gamma_inv
+        real(wp) :: rho_K, xi, pref
+        real(wp) :: xi_d_L, xi_d_R
+        real(wp) :: rho0_L, rho0_R
+
         integer :: i, j, k, l, q !< Generic loop iterators
+        integer :: idx1
 
         ! Populating the buffers of the left and right Riemann problem
         ! states variables, based on the choice of boundary conditions
@@ -357,6 +365,7 @@ contains
             flux_vf, flux_src_vf, &
             flux_gsrc_vf, &
             norm_dir, ix, iy, iz)
+        idx1 = 1; if (dir_idx(1) == 2) idx1 = 2; if (dir_idx(1) == 3) idx1 = 3
         #:for NORM_DIR, XYZ in [(1, 'x'), (2, 'y'), (3, 'z')]
 
             if (norm_dir == ${NORM_DIR}$) then
@@ -366,7 +375,8 @@ contains
                 !$acc rho_avg, h_avg, gamma_avg, s_L, s_R, s_S, Ys_L, Ys_R,     &
                 !$acc xi_field_L, xi_field_R,                                   &
                 !$acc Cp_iL, Cp_iR, Xs_L, Xs_R, Gamma_iL, Gamma_iR,             &
-                !$acc Yi_avg, Phi_avg, h_iL, h_iR, h_avg_2)
+                !$acc Yi_avg, Phi_avg, h_iL, h_iR, h_avg_2,                     &
+                !$acc xi_d_L, xi_d_R, xi)
                 do l = is3%beg, is3%end
                     do k = is2%beg, is2%end
                         do j = is1%beg, is1%end
@@ -400,16 +410,17 @@ contains
                             pres_R = qR_prim_rs${XYZ}$_vf(j + 1, k, l, E_idx)
 
                             rho_L = 0._wp
+                            rho0_L = 0._wp
                             gamma_L = 0._wp
                             pi_inf_L = 0._wp
                             qv_L = 0._wp
+                            alpha_L_sum = 0._wp
 
                             rho_R = 0._wp
+                            rho0_R = 0._wp
                             gamma_R = 0._wp
                             pi_inf_R = 0._wp
                             qv_R = 0._wp
-
-                            alpha_L_sum = 0._wp
                             alpha_R_sum = 0._wp
 
                             if (mpp_lim) then
@@ -443,6 +454,7 @@ contains
                                 gamma_R = gamma_R + alpha_R(i)*gammas(i)
                                 pi_inf_R = pi_inf_R + alpha_R(i)*pi_infs(i)
                                 qv_R = qv_R + alpha_rho_R(i)*qvs(i)
+
                             end do
 
                             if (viscous) then
@@ -526,6 +538,74 @@ contains
                                 E_R = rho_R*E_R + 5e-1*rho_R*vel_R_rms
                                 H_L = (E_L + pres_L)/rho_L
                                 H_R = (E_R + pres_R)/rho_R
+
+                            else if (model_eqns == 5) then
+
+                                do i = 1, num_fluids
+                                    rho0_L = rho0_L + qL_prim_rs${XYZ}$_vf(j, k, l, E_idx + i)*rho0(i)
+                                    rho0_R = rho0_R + qR_prim_rs${XYZ}$_vf(j, k, l, E_idx + i)*rho0(i)
+                                end do
+
+                                pref_over_gamma = 0._wp
+                                rho_eref = 0._wp
+                                gamma_inv = 0._wp
+                                if (MGEoS_model == 1) then
+                                    do i = 1, num_fluids
+                                        rho_K = alpha_rho_L(i)/alpha_L(i)
+
+                                        gamma_inv = gamma_inv + &
+                                                    alpha_L(i)*(rho_K/rho0(i))**qvps(i)/gammas(i)
+
+                                        xi = 1._wp - rho0(i)/rho_K
+
+                                        pref = pi_infs(i) + rho0(i)*(mg_a(i)**2._wp)*xi &
+                                               /(1._wp - mg_b(i)*xi)**2._wp
+
+                                        if (rho_K >= rho0(i)) then
+                                            pref_over_gamma = pref_over_gamma + &
+                                                              pref*alpha_L(i)*(rho_K/rho0(i))**qvps(i)/gammas(i)
+
+                                            rho_eref = rho_eref + alpha_rho_L(i)*qvs(i) + &
+                                                       0.5_wp*(pref + pi_infs(i))*(alpha_rho_L(i)/rho0(i) - alpha_L(i))
+                                        else
+                                            pref_over_gamma = pref_over_gamma + &
+                                                              alpha_L(i)*(mg_a(i)**2._wp)*(rho_K - &
+                                                                                           rho0(i))*(rho_K/rho0(i))**qvps(i)/gammas(i)
+                                        end if
+                                    end do
+                                    ! Energy corresponding to Mie-Gruneisen EOS
+                                    E_L = rho_eref + gamma_inv*pres_L - pref_over_gamma + 0.5_wp*rho_L*vel_L_rms
+                                    pref_over_gamma = 0._wp
+                                    rho_eref = 0._wp
+                                    gamma_inv = 0._wp
+                                    do i = 1, num_fluids
+                                        rho_K = alpha_rho_R(i)/alpha_R(i)
+
+                                        gamma_inv = gamma_inv + &
+                                                    alpha_R(i)/(gammas(i)*(rho0(i)/rho_K)**(qvps(i)))
+
+                                        xi = 1._wp - rho0(i)/rho_K
+
+                                        pref = pi_infs(i) + rho0(i)*(mg_a(i)**2._wp)*xi &
+                                               /(1._wp - mg_b(i)*xi)**2._wp
+
+                                        if (rho_K >= rho0(i)) then
+                                            pref_over_gamma = pref_over_gamma + &
+                                                              pref*alpha_R(i)*(rho_K/rho0(i))**qvps(i)/gammas(i)
+
+                                            rho_eref = rho_eref + alpha_rho_R(i)*qvs(i) + &
+                                                       0.5_wp*(pref + pi_infs(i))*(alpha_rho_R(i)/rho0(i) - alpha_R(i))
+                                        else
+                                            pref_over_gamma = pref_over_gamma + &
+                                                              alpha_R(i)*(mg_a(i)**2._wp)*(rho_K - &
+                                                                                           rho0(i))*(rho_K/rho0(i))**qvps(i)/gammas(i)
+                                        end if
+                                    end do
+                                    ! Energy corresponding to Mie-Gruneisen EOS
+                                    E_R = rho_eref + gamma_inv*pres_R - pref_over_gamma + 0.5_wp*rho_R*vel_R_rms
+                                end if
+                                H_L = (E_L + pres_L)/rho_L
+                                H_R = (E_R + pres_R)/rho_R
                             else
                                 E_L = gamma_L*pres_L + pi_inf_L + 5e-1*rho_L*vel_L_rms + qv_L
                                 E_R = gamma_R*pres_R + pi_inf_R + 5e-1*rho_R*vel_R_rms + qv_R
@@ -594,16 +674,16 @@ contains
                             @:compute_average_state()
 
                             call s_compute_speed_of_sound(pres_L, rho_L, gamma_L, pi_inf_L, H_L, alpha_L, &
-                                                          vel_L_rms, 0._wp, c_L)
+                                                          vel_L_rms, 0._wp, c_L, alpha_rho_L)
 
                             call s_compute_speed_of_sound(pres_R, rho_R, gamma_R, pi_inf_R, H_R, alpha_R, &
-                                                          vel_R_rms, 0._wp, c_R)
+                                                          vel_R_rms, 0._wp, c_R, alpha_rho_R)
 
                             !> The computation of c_avg does not require all the variables, and therefore the non '_avg'
                             ! variables are placeholders to call the subroutine.
 
                             call s_compute_speed_of_sound(pres_R, rho_avg, gamma_avg, pi_inf_R, H_avg, alpha_R, &
-                                                          vel_avg_rms, c_sum_Yi_Phi, c_avg)
+                                                          vel_avg_rms, c_sum_Yi_Phi, c_avg, alpha_rho_R)
 
                             if (viscous) then
                                 !$acc loop seq
@@ -674,7 +754,7 @@ contains
                                    + (5e-1_wp - sign(5e-1_wp, s_L)) &
                                    *(5e-1_wp + sign(5e-1_wp, s_R))
 
-                            ! Mass
+                            ! Mass flux.
                             !$acc loop seq
                             do i = 1, contxe
                                 flux_rs${XYZ}$_vf(j, k, l, i) = &
@@ -685,7 +765,7 @@ contains
                                     /(s_M - s_P)
                             end do
 
-                            ! Momentum
+                            ! Momentum flux.
                             if (bubbles_euler) then
                                 !$acc loop seq
                                 do i = 1, num_dims
@@ -732,7 +812,7 @@ contains
                                 end do
                             end if
 
-                            ! Energy
+                            ! Energy flux.
                             if (bubbles_euler) then
                                 flux_rs${XYZ}$_vf(j, k, l, E_idx) = &
                                     (s_M*vel_R(dir_idx(1))*(E_R + pres_R - ptilde_R) &
@@ -780,8 +860,9 @@ contains
                                     /(s_M - s_P)
                             end if
 
-                            ! elastic stresses flux.
+                            ! Elastic stresses flux.
                             if (hypoelasticity) then
+                                !$acc loop seq
                                 do i = 1, strxe - strxb + 1
                                     flux_rs${XYZ}$_vf(j, k, l, strxb - 1 + i) = &
                                         (s_M*(rho_R*vel_R(dir_idx(1)) &
@@ -806,7 +887,7 @@ contains
                                 end do
                             end if
 
-                            ! advection flux.
+                            ! Advection flux.
                             !$acc loop seq
                             do i = advxb, advxe
                                 flux_rs${XYZ}$_vf(j, k, l, i) = &
@@ -818,6 +899,15 @@ contains
                                      - s_P*qL_prim_rs${XYZ}$_vf(j, k, l, i)) &
                                     /(s_M - s_P)
                             end do
+
+                            ! Isotropic hardening flux.
+                            if (hypoplasticity) then
+                                xi_d_L = qL_prim_rs${XYZ}$_vf(j, k, l, plasidx)
+                                xi_d_R = qR_prim_rs${XYZ}$_vf(j + 1, k, l, plasidx)
+                                flux_rs${XYZ}$_vf(j, k, l, plasidx) = &
+                                    xi_M*(rho_L*xi_d_L*vel_L(idx1) + s_M*(xi_L*rho_L*xi_d_L - rho_L*xi_d_L)) + &
+                                    xi_P*(rho_R*xi_d_R*vel_R(idx1) + s_P*(xi_R*rho_R*xi_d_R - rho_R*xi_d_R))
+                            end if
 
                             ! Div(U)?
                             !$acc loop seq
@@ -1029,6 +1119,7 @@ contains
         real(wp), dimension(6) :: tau_e_L, tau_e_R
         real(wp), dimension(num_dims) :: xi_field_L, xi_field_R
         real(wp) :: G_L, G_R
+        real(wp) :: xi_d_L, xi_d_R
 
         real(wp) :: vel_L_rms, vel_R_rms, vel_avg_rms
         real(wp) :: vel_L_tmp, vel_R_tmp
@@ -1036,6 +1127,10 @@ contains
         real(wp) :: pres_SL, pres_SR, Ms_L, Ms_R
         real(wp) :: flux_ene_e
         real(wp) :: zcoef, pcorr !< low Mach number correction
+
+        real(wp) :: rho_K, gamma_inv, xi, pref, pref_over_gamma, rho_eref !< Mie-gruneisen energy calculation
+        real(wp) :: rho0_L, rho0_R, eref_L, eref_R, pref_gam_L, pref_gam_R
+        real(wp), dimension(num_fluids) :: G  !Adding this line here so that I can pass my optional argument alpha_rho_K to speed of sound subroutine
 
         integer :: i, j, k, l, q !< Generic loop iterators
         integer :: idx1, idxi
@@ -1068,7 +1163,7 @@ contains
 
             if (norm_dir == ${NORM_DIR}$) then
 
-                ! 6-EQUATION MODEL WITH HLLC
+                ! 6-Equation model with HLLC
                 if (model_eqns == 3) then
                     !ME3
 
@@ -1076,7 +1171,7 @@ contains
                     !$acc private(vel_L, vel_R, vel_K_Star, Re_L, Re_R, rho_avg, h_avg, gamma_avg,  &
                     !$acc s_L, s_R, s_S, vel_avg_rms, alpha_L, alpha_R, Ys_L, Ys_R, Xs_L, Xs_R,     &
                     !$acc Gamma_iL, Gamma_iR, Cp_iL, Cp_iR, Yi_avg, Phi_avg, h_iL, h_iR, h_avg_2,   &
-                    !$acc tau_e_L, tau_e_R, G_L, G_R, flux_ene_e, xi_field_L, xi_field_R)
+                    !$acc tau_e_L, tau_e_R, G_L, G_R, flux_ene_e, xi_field_L, xi_field_R, xi_L, xi_R)
                     do l = is3%beg, is3%end
                         do k = is2%beg, is2%end
                             do j = is1%beg, is1%end
@@ -1186,6 +1281,9 @@ contains
                                 E_L = gamma_L*pres_L + pi_inf_L + 5e-1_wp*rho_L*vel_L_rms + qv_L
                                 E_R = gamma_R*pres_R + pi_inf_R + 5e-1_wp*rho_R*vel_R_rms + qv_R
 
+                                H_L = (E_L + pres_L)/rho_L
+                                H_R = (E_R + pres_R)/rho_R
+
                                 ! energy adjustments for hypoelastic energy
                                 if (hypoelasticity) then
                                     !$acc loop seq
@@ -1239,9 +1337,6 @@ contains
                                         tau_e_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, strxb - 1 + i)
                                     end do
                                 end if
-
-                                H_L = (E_L + pres_L)/rho_L
-                                H_R = (E_R + pres_R)/rho_R
 
                                 @:compute_average_state()
 
@@ -1482,7 +1577,6 @@ contains
                             end do
                         end do
                     end do
-
                 elseif (model_eqns == 4) then
                     !ME4
                     !$acc parallel loop collapse(3) gang vector default(present) private(alpha_rho_L, alpha_rho_R, vel_L, vel_R, alpha_L, alpha_R, &
@@ -2195,8 +2289,358 @@ contains
                         end do
                     end do
                     !$acc end parallel loop
+                elseif (model_eqns == 5) then
+                    ! 5-EQUATION MODEL WITH HLLC AND MIE-GRUNIESEN EOS
+                    !$acc parallel loop collapse(3) gang vector default(present) private(vel_L, vel_R, Re_L, Re_R, &
+                    !$acc rho_avg, h_avg, gamma_avg, alpha_L, alpha_R, s_L, s_R, s_S, vel_avg_rms, pcorr, zcoef, &
+                    !$acc alpha_rho_L, alpha_rho_R, tau_e_L, tau_e_R, vel_L_tmp, vel_R_tmp, xi_d_L, xi_d_R, &
+                    !$acc pref_gam_L, pref_gam_R, eref_L, eref_R)
+                    do l = is3%beg, is3%end
+                        do k = is2%beg, is2%end
+                            do j = is1%beg, is1%end
+                                !$acc loop seq
+                                do i = 1, num_fluids
+                                    alpha_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, E_idx + i)
+                                    alpha_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, E_idx + i)
+                                    alpha_rho_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, i)
+                                    alpha_rho_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, i)
+                                end do
+
+                                vel_L_rms = 0._wp; vel_R_rms = 0._wp
+                                !$acc loop seq
+                                !For model_eqns == 5, quasi-1D case,
+                                do i = 1, num_dims
+                                    vel_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, contxe + i)
+                                    vel_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, contxe + i)
+                                    vel_L_rms = vel_L_rms + vel_L(i)**2._wp
+                                    vel_R_rms = vel_R_rms + vel_R(i)**2._wp
+                                end do
+
+                                pres_L = qL_prim_rs${XYZ}$_vf(j, k, l, E_idx)
+                                pres_R = qR_prim_rs${XYZ}$_vf(j + 1, k, l, E_idx)
+
+                                rho_L = 0._wp
+                                rho0_L = 0._wp
+                                gamma_L = 0._wp
+                                pi_inf_L = 0._wp
+                                qv_L = 0._wp
+
+                                rho_R = 0._wp
+                                rho0_R = 0._wp
+                                gamma_R = 0._wp
+                                pi_inf_R = 0._wp
+                                qv_R = 0._wp
+
+                                alpha_L_sum = 0._wp
+                                alpha_R_sum = 0._wp
+
+                                ! Change this by splitting it into the cases
+                                ! present in the bubbles
+                                if (mpp_lim) then
+                                    !$acc loop seq
+                                    do i = 1, num_fluids
+                                        qL_prim_rs${XYZ}$_vf(j, k, l, i) = max(0._wp, qL_prim_rs${XYZ}$_vf(j, k, l, i))
+                                        qL_prim_rs${XYZ}$_vf(j, k, l, E_idx + i) = min(max(0._wp, qL_prim_rs${XYZ}$_vf(j, k, l, E_idx + i)), 1._wp)
+                                        alpha_L_sum = alpha_L_sum + qL_prim_rs${XYZ}$_vf(j, k, l, E_idx + i)
+                                    end do
+
+                                    !$acc loop seq
+                                    do i = 1, num_fluids
+                                        qL_prim_rs${XYZ}$_vf(j, k, l, E_idx + i) = qL_prim_rs${XYZ}$_vf(j, k, l, E_idx + i)/max(alpha_L_sum, sgm_eps)
+                                    end do
+
+                                    !$acc loop seq
+                                    do i = 1, num_fluids
+                                        qR_prim_rs${XYZ}$_vf(j + 1, k, l, i) = max(0._wp, qR_prim_rs${XYZ}$_vf(j + 1, k, l, i))
+                                        qR_prim_rs${XYZ}$_vf(j + 1, k, l, E_idx + i) = min(max(0._wp, qR_prim_rs${XYZ}$_vf(j + 1, k, l, E_idx + i)), 1._wp)
+                                        alpha_R_sum = alpha_R_sum + qR_prim_rs${XYZ}$_vf(j + 1, k, l, E_idx + i)
+                                    end do
+
+                                    !$acc loop seq
+                                    do i = 1, num_fluids
+                                        qR_prim_rs${XYZ}$_vf(j + 1, k, l, E_idx + i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, E_idx + i)/max(alpha_R_sum, sgm_eps)
+                                    end do
+                                end if
+
+                                !$acc loop seq
+                                do i = 1, num_fluids
+                                    rho_L = rho_L + qL_prim_rs${XYZ}$_vf(j, k, l, i)
+                                    rho_R = rho_R + qR_prim_rs${XYZ}$_vf(j + 1, k, l, i)
+                                    rho0_L = rho0_L + qL_prim_rs${XYZ}$_vf(j, k, l, E_idx + i)*rho0(i)
+                                    rho0_R = rho0_R + qR_prim_rs${XYZ}$_vf(j, k, l, E_idx + i)*rho0(i)
+                                end do
+
+                                ! Energy adjustments for hypoelastic
+                                if (hypoelasticity) then
+                                    !$acc loop seq
+                                    do i = 1, strxe - strxb + 1
+                                        tau_e_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, strxb - 1 + i)
+                                        tau_e_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, strxb - 1 + i)
+                                    end do
+                                    G_L = 0._wp
+                                    G_R = 0._wp
+                                    !$acc loop seq
+                                    do i = 1, num_fluids
+                                        G_L = G_L + alpha_L(i)*Gs(i)
+                                        G_R = G_R + alpha_R(i)*Gs(i)
+                                    end do
+                                    !$acc loop seq
+                                    do i = 1, strxe - strxb + 1
+                                        ! Elastic contribution to energy if G large enough
+                                        if ((G_L > verysmall) .and. (G_R > verysmall)) then
+                                            E_L = E_L + (tau_e_L(i)*tau_e_L(i))/(4._wp*G_L)
+                                            E_R = E_R + (tau_e_R(i)*tau_e_R(i))/(4._wp*G_R)
+                                            ! Additional terms in 2D and 3D
+                                            if ((i == 2) .or. (i == 4) .or. (i == 5)) then
+                                                E_L = E_L + (tau_e_L(i)*tau_e_L(i))/(4._wp*G_L)
+                                                E_R = E_R + (tau_e_R(i)*tau_e_R(i))/(4._wp*G_R)
+                                            end if
+                                        end if
+                                    end do
+                                end if
+
+                                !E_L = gamma_L*pres_L + pi_inf_L + 5d-1*rho_L*vel_L_rms + qv_L
+                                !E_R = gamma_R*pres_R + pi_inf_R + 5d-1*rho_R*vel_R_rms + qv_R
+
+                                ! Energy corresponding to Mie-Gruneisen EOS
+                                pref_over_gamma = 0._wp
+                                rho_eref = 0._wp
+                                gamma_inv = 0._wp
+                                if (MGEoS_model == 1) then
+                                    do i = 1, num_fluids
+                                        rho_K = alpha_rho_L(i)/alpha_L(i)
+
+                                        gamma_inv = gamma_inv + &
+                                                    alpha_L(i)*(rho_K/rho0(i))**qvps(i)/gammas(i)
+
+                                        xi = 1._wp - rho0(i)/rho_K
+
+                                        pref = pi_infs(i) + rho0(i)*(mg_a(i)**2._wp)*xi &
+                                               /(1._wp - mg_b(i)*xi)**2._wp
+
+                                        if (rho_K >= rho0(i)) then
+                                            pref_over_gamma = pref_over_gamma + &
+                                                              pref*alpha_L(i)*(rho_K/rho0(i))**qvps(i)/gammas(i)
+
+                                            rho_eref = rho_eref + alpha_rho_L(i)*qvs(i) + &
+                                                       0.5_wp*(pref + pi_infs(i))*(alpha_rho_L(i)/rho0(i) - alpha_L(i))
+                                        else
+                                            pref_over_gamma = pref_over_gamma + &
+                                                              alpha_L(i)*(mg_a(i)**2._wp)*(rho_K - &
+                                                                                           rho0(i))*(rho_K/rho0(i))**qvps(i)/gammas(i)
+                                        end if
+                                    end do
+                                    E_L = rho_eref + gamma_inv*pres_L - pref_over_gamma + 0.5_wp*rho_L*vel_L_rms
+                                    pref_over_gamma = 0._wp
+                                    rho_eref = 0._wp
+                                    gamma_inv = 0._wp
+                                    do i = 1, num_fluids
+                                        rho_K = alpha_rho_R(i)/alpha_R(i)
+
+                                        gamma_inv = gamma_inv + &
+                                                    alpha_R(i)/(gammas(i)*(rho0(i)/rho_K)**(qvps(i)))
+
+                                        xi = 1._wp - rho0(i)/rho_K
+
+                                        pref = pi_infs(i) + rho0(i)*(mg_a(i)**2._wp)*xi &
+                                               /(1._wp - mg_b(i)*xi)**2._wp
+
+                                        if (rho_K >= rho0(i)) then
+                                            pref_over_gamma = pref_over_gamma + &
+                                                              pref*alpha_R(i)*(rho_K/rho0(i))**qvps(i)/gammas(i)
+
+                                            rho_eref = rho_eref + alpha_rho_R(i)*qvs(i) + &
+                                                       0.5_wp*(pref + pi_infs(i))*(alpha_rho_R(i)/rho0(i) - alpha_R(i))
+                                        else
+                                            pref_over_gamma = pref_over_gamma + &
+                                                              alpha_R(i)*(mg_a(i)**2._wp)*(rho_K - &
+                                                                                           rho0(i))*(rho_K/rho0(i))**qvps(i)/gammas(i)
+                                        end if
+                                    end do
+                                    E_R = rho_eref + gamma_inv*pres_R - pref_over_gamma + 0.5_wp*rho_R*vel_R_rms
+                                end if
+
+                                H_L = (E_L + pres_L)/rho_L
+                                H_R = (E_R + pres_R)/rho_R
+
+                                @:compute_average_state()
+
+                                call s_compute_speed_of_sound(pres_L, &
+                                                              rho_L, 0._wp, pi_inf_L, H_L, alpha_L, &
+                                                              vel_L_rms, 0._wp, c_L, alpha_rho_L)
+
+                                call s_compute_speed_of_sound(pres_R, &
+                                                              rho_R, 0._wp, pi_inf_R, H_R, alpha_R, &
+                                                              vel_R_rms, 0._wp, c_R, alpha_rho_R)
+
+                                !Added alpha_rho_R above instead of alpha_rho_avg because of alpha_R above instead of alpha_avg
+                                if (wave_speeds == 1) then
+                                    if (hypoplasticity) then
+                                        s_L = min(vel_L(dir_idx(1)) - sqrt(c_L*c_L + &
+                                                                           (((4._wp*G_L)/3._wp))/rho_L), vel_R(dir_idx(1)) - sqrt(c_R*c_R + &
+                                                                                                                                  (((4._wp*G_R)/3._wp))/rho_R))
+                                        s_R = max(vel_R(dir_idx(1)) + sqrt(c_R*c_R + &
+                                                                           (((4._wp*G_R)/3._wp))/rho_R), vel_L(dir_idx(1)) + sqrt(c_L*c_L + &
+                                                                                                                                  (((4._wp*G_L)/3._wp))/rho_L))
+                                        s_S = (pres_R - (rho_R/rho0_R)*tau_e_R(dir_idx_tau(1)) - pres_L + &
+                                               (rho_L/rho0_L)*tau_e_L(dir_idx_tau(1)) + rho_L*vel_L(idx1)*(s_L - vel_L(idx1)) - &
+                                               rho_R*vel_R(idx1)*(s_R - vel_R(idx1)))/(rho_L*(s_L - vel_L(idx1)) - &
+                                                                                       rho_R*(s_R - vel_R(idx1)))
+                                    else
+                                        s_L = min((sqrt(rho_L)*(vel_L(dir_idx(1)) - c_L) + sqrt(rho_R)*(vel_R(dir_idx(1)) - c_R))/(sqrt(rho_L) + sqrt(rho_R)), vel_L(dir_idx(1)) - c_L)
+                                        s_R = max((sqrt(rho_L)*(vel_L(dir_idx(1)) + c_L) + sqrt(rho_R)*(vel_R(dir_idx(1)) + c_R))/(sqrt(rho_L) + sqrt(rho_R)), vel_R(dir_idx(1)) + c_R)
+                                        s_S = (pres_R - pres_L + rho_L*vel_L(dir_idx(1))* &
+                                               (s_L - vel_L(dir_idx(1))) - &
+                                               rho_R*vel_R(dir_idx(1))* &
+                                               (s_R - vel_R(dir_idx(1)))) &
+                                              /(rho_L*(s_L - vel_L(dir_idx(1))) - &
+                                                rho_R*(s_R - vel_R(dir_idx(1))))
+                                    end if
+                                elseif (wave_speeds == 2) then
+                                    pres_SL = 5e-1_wp*(pres_L + pres_R + rho_avg*c_avg* &
+                                                       (vel_L(dir_idx(1)) - &
+                                                        vel_R(dir_idx(1))))
+                                    pres_SR = pres_SL
+                                    Ms_L = max(1._wp, sqrt(1._wp + ((5e-1_wp + gamma_L)/(1._wp + gamma_L))* &
+                                                           (pres_SL/pres_L - 1._wp)*pres_L/ &
+                                                           ((pres_L + pi_inf_L/(1._wp + gamma_L)))))
+                                    Ms_R = max(1._wp, sqrt(1._wp + ((5e-1_wp + gamma_R)/(1._wp + gamma_R))* &
+                                                           (pres_SR/pres_R - 1._wp)*pres_R/ &
+                                                           ((pres_R + pi_inf_R/(1._wp + gamma_R)))))
+
+                                    s_L = vel_L(dir_idx(1)) - c_L*Ms_L
+                                    s_R = vel_R(dir_idx(1)) + c_R*Ms_R
+
+                                    s_S = 5e-1_wp*((vel_L(dir_idx(1)) + vel_R(dir_idx(1))) + &
+                                                   (pres_L - pres_R)/ &
+                                                   (rho_avg*c_avg))
+                                end if
+
+                                ! follows Einfeldt et al.
+                                ! s_M/P = min/max(0.,s_L/R)
+                                s_M = min(0._wp, s_L); s_P = max(0._wp, s_R)
+
+                                ! goes with q_star_L/R = xi_L/R * (variable)
+                                ! xi_L/R = ( ( s_L/R - u_L/R )/(s_L/R - s_star) )
+                                xi_L = (s_L - vel_L(idx1))/(s_L - s_S)
+                                xi_R = (s_R - vel_R(idx1))/(s_R - s_S)
+
+                                ! goes with numerical velocity in x/y/z directions
+                                ! xi_P/M = 0.5 +/m sgn(0.5,s_star)
+                                xi_M = (0.5_wp + sign(0.5_wp, s_S))
+                                xi_P = (0.5_wp - sign(0.5_wp, s_S))
+
+                                ! Computing the HLLC fluxes
+                                !$acc loop seq
+                                do i = 1, contxe
+                                    flux_rs${XYZ}$_vf(j, k, l, i) = &
+                                        xi_M*qL_prim_rs${XYZ}$_vf(j, k, l, i) &
+                                        *(vel_L(idx1) + s_M*(xi_L - 1._wp)) &
+                                        + xi_P*qR_prim_rs${XYZ}$_vf(j + 1, k, l, i) &
+                                        *(vel_R(idx1) + s_P*(xi_R - 1._wp))
+                                end do
+                                ! Momentum flux..
+                                ! f = \rho u u - \sigma, q = \rho u, q_star = \xi * \rho*(s_star, v, w)
+                                !$acc loop seq
+                                do i = 1, num_dims
+                                    idxi = dir_idx(i)
+                                    flux_rs${XYZ}$_vf(j, k, l, contxe + idxi) = &
+                                        xi_M*(rho_L*(vel_L(idx1)* &
+                                                     vel_L(idxi) + &
+                                                     s_M*(xi_L*(dir_flg(idxi)*s_S + &
+                                                                (1._wp - dir_flg(idxi))* &
+                                                                vel_L(idxi)) - vel_L(idxi))) + &
+                                              dir_flg(idxi)*(pres_L)) &
+                                        + xi_P*(rho_R*(vel_R(idx1)* &
+                                                       vel_R(idxi) + &
+                                                       s_P*(xi_R*(dir_flg(idxi)*s_S + &
+                                                                  (1._wp - dir_flg(idxi))* &
+                                                                  vel_R(idxi)) - vel_R(idxi))) + &
+                                                dir_flg(idxi)*(pres_R))
+                                end do
+
+                                ! Energy flux.
+                                ! f = u*(E-\sigma), q = E, q_star = \xi*E+(s-u)(\rho s_star - \sigma/(s-u))
+                                flux_rs${XYZ}$_vf(j, k, l, E_idx) = &
+                                    xi_M*(vel_L(idx1)*(E_L + pres_L) + &
+                                          s_M*(xi_L*(E_L + (s_S - vel_L(idx1))* &
+                                                     (rho_L*s_S + pres_L/ &
+                                                      (s_L - vel_L(idx1)))) - E_L)) &
+                                    + xi_P*(vel_R(idx1)*(E_R + pres_R) + &
+                                            s_P*(xi_R*(E_R + (s_S - vel_R(idx1))* &
+                                                       (rho_R*s_S + pres_R/ &
+                                                        (s_R - vel_R(idx1)))) - E_R))
+
+                                ! Elastic shear stress additions for the momentum and energy flux
+                                if (elasticity) then
+                                    flux_ene_e = 0._wp
+                                    !$acc loop seq
+                                    do i = 1, num_dims
+                                        idxi = dir_idx(i)
+                                        ! Momentum elastic flux.
+                                        flux_rs${XYZ}$_vf(j, k, l, contxe + idxi) = &
+                                            flux_rs${XYZ}$_vf(j, k, l, contxe + idxi) &
+                                            - xi_M*(rho_L/rho0_L)*tau_e_L(dir_idx_tau(i)) &
+                                            - xi_P*(rho_R/rho0_R)*tau_e_R(dir_idx_tau(i))
+                                        ! Energy elastic flux.
+                                        flux_ene_e = flux_ene_e - &
+                                                     xi_M*(vel_L(idxi)*(rho_L/rho0_L)*tau_e_L(dir_idx_tau(i)) + &
+                                                           s_M*(xi_L*((s_S - vel_L(i))*((rho_L/rho0_L)*tau_e_L(dir_idx_tau(i))/(s_L - vel_L(i)))))) - &
+                                                     xi_P*(vel_R(idxi)*(rho_R/rho0_R)*tau_e_R(dir_idx_tau(i)) + &
+                                                           s_P*(xi_R*((s_S - vel_R(i))*((rho_R/rho0_R)*tau_e_R(dir_idx_tau(i))/(s_R - vel_R(i))))))
+                                    end do
+                                    flux_rs${XYZ}$_vf(j, k, l, E_idx) = flux_rs${XYZ}$_vf(j, k, l, E_idx) + flux_ene_e
+                                end if
+
+                                ! Hypoplastic stress evolution flux.
+                                if (hypoelasticity) then
+                                    !$acc loop seq
+                                    do i = 1, strxe - strxb + 1
+                                        flux_rs${XYZ}$_vf(j, k, l, strxb - 1 + i) = &
+                                            xi_M*(rho_L*tau_e_L(i)*vel_L(idx1) + s_M*(xi_L*rho_L*tau_e_L(i) - rho_L*tau_e_L(i))) + &
+                                            xi_P*(rho_R*tau_e_R(i)*vel_R(idx1) + s_P*(xi_R*rho_R*tau_e_R(i) - rho_R*tau_e_R(i)))
+                                    end do
+                                end if
+
+                                ! Volume fraction flux.
+                                !$acc loop seq
+                                do i = advxb, advxe
+                                    flux_rs${XYZ}$_vf(j, k, l, i) = &
+                                        xi_M*qL_prim_rs${XYZ}$_vf(j, k, l, i) &
+                                        *(vel_L(idx1) + s_M*(xi_L - 1._wp)) &
+                                        + xi_P*qR_prim_rs${XYZ}$_vf(j + 1, k, l, i) &
+                                        *(vel_R(idx1) + s_P*(xi_R - 1._wp))
+                                end do
+
+                                ! Volume fraction source flux.
+                                !$acc loop seq
+                                do i = 1, num_dims
+                                    idxi = dir_idx(i)
+                                    vel_src_rs${XYZ}$_vf(j, k, l, idxi) = &
+                                        xi_M*(vel_L(idxi) + &
+                                              dir_flg(idxi)* &
+                                              s_M*(xi_L - 1._wp)) &
+                                        + xi_P*(vel_R(idxi) + &
+                                                dir_flg(idxi)* &
+                                                s_P*(xi_R - 1._wp))
+                                end do
+
+                                flux_src_rs${XYZ}$_vf(j, k, l, advxb) = vel_src_rs${XYZ}$_vf(j, k, l, idx1)
+
+                                ! Isotropic hardening flux.
+                                if (hypoplasticity) then
+                                    xi_d_L = qL_prim_rs${XYZ}$_vf(j, k, l, plasidx)
+                                    xi_d_R = qR_prim_rs${XYZ}$_vf(j + 1, k, l, plasidx)
+                                    flux_rs${XYZ}$_vf(j, k, l, plasidx) = &
+                                        xi_M*(rho_L*xi_d_L*vel_L(idx1) + s_M*(xi_L*rho_L*xi_d_L - rho_L*xi_d_L)) + &
+                                        xi_P*(rho_R*xi_d_R*vel_R(idx1) + s_P*(xi_R*rho_R*xi_d_R - rho_R*xi_d_R))
+                                end if
+                            end do
+                        end do
+                    end do
+                    !$acc end parallel loop
                 else
-                    ! 5-EQUATION MODEL WITH HLLC
+                    ! 5-Equation model with HLLC
                     !$acc parallel loop collapse(3) gang vector default(present) private(vel_L, vel_R, Re_L, Re_R, &
                     !$acc rho_avg, h_avg, gamma_avg, alpha_L, alpha_R, s_L, s_R, s_S, vel_avg_rms, pcorr, zcoef,   &
                     !$acc vel_L_tmp, vel_R_tmp, Ys_L, Ys_R, Xs_L, Xs_R, Gamma_iL, Gamma_iR, Cp_iL, Cp_iR,          &
@@ -2508,8 +2952,8 @@ contains
 
                                 ! goes with numerical velocity in x/y/z directions
                                 ! xi_P/M = 0.5 +/m sgn(0.5,s_star)
-                                xi_M = (5e-1_wp + sign(5e-1_wp, s_S))
-                                xi_P = (5e-1_wp - sign(5e-1_wp, s_S))
+                                xi_M = (0.5_wp + sign(0.5_wp, s_S))
+                                xi_P = (0.5_wp - sign(0.5_wp, s_S))
 
                                 ! Computing the hllc fluxes
 
