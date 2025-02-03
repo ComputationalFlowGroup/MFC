@@ -1,43 +1,10 @@
-This file was created on 2025-02-02 20:55:20.445428.
+This file was created on 2025-02-02 21:11:23.826060.
 
 mfc.sh:
 
-    Invocation: test -j 16 --only 1D --generate -- -c oscar
+    Invocation: test -j 16 --only 14F28013 --generate -- -c oscar
     Lock:       mpi=Yes & gpu=No & debug=No & gcov=No & unified=No & single=No
-    Git:        a20f9d0f945e165ab8bbad8b4befa4b042ba3895 on johnsoncook (dirty)
-
-simulation:
-
-    CMake Configuration:
-    
-        CMake v3.20.2 on node1704.oscar.ccv.brown.edu
-    
-        C       : GNU v11.3.1 (/usr/bin/cc)
-        Fortran : GNU v11.3.1 (/usr/bin/gfortran)
-    
-        PRE_PROCESS   : OFF
-        SIMULATION    : ON
-        POST_PROCESS  : OFF
-        SYSCHECK      : OFF
-        DOCUMENTATION : OFF
-        ALL           : OFF
-    
-        MPI     : ON
-        OpenACC : OFF
-    
-        Fypp    : /users/mrodri97/MFC/build/venv/bin/fypp
-        Doxygen : 
-    
-        Build Type : Release
-    
-    Configuration Environment:
-    
-        CC       : /usr/bin/cc
-        CXX      : /usr/bin/c++
-        FC       : /usr/bin/gfortran
-        OMPI_CC  : 
-        OMPI_CXX : 
-        OMPI_FC  : 
+    Git:        d285d4ca2de89ce546091726380804c1b85d0bb4 on johnsoncook (dirty)
 
 pre_process:
 
@@ -118,6 +85,39 @@ syscheck:
         SIMULATION    : OFF
         POST_PROCESS  : OFF
         SYSCHECK      : ON
+        DOCUMENTATION : OFF
+        ALL           : OFF
+    
+        MPI     : ON
+        OpenACC : OFF
+    
+        Fypp    : /users/mrodri97/MFC/build/venv/bin/fypp
+        Doxygen : 
+    
+        Build Type : Release
+    
+    Configuration Environment:
+    
+        CC       : /usr/bin/cc
+        CXX      : /usr/bin/c++
+        FC       : /usr/bin/gfortran
+        OMPI_CC  : 
+        OMPI_CXX : 
+        OMPI_FC  : 
+
+simulation:
+
+    CMake Configuration:
+    
+        CMake v3.20.2 on node1704.oscar.ccv.brown.edu
+    
+        C       : GNU v11.3.1 (/usr/bin/cc)
+        Fortran : GNU v11.3.1 (/usr/bin/gfortran)
+    
+        PRE_PROCESS   : OFF
+        SIMULATION    : ON
+        POST_PROCESS  : OFF
+        SYSCHECK      : OFF
         DOCUMENTATION : OFF
         ALL           : OFF
     

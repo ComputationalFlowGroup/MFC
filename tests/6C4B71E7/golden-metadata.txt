@@ -1,12 +1,12 @@
-This file was created on 2025-02-02 20:55:27.345281.
+This file was created on 2025-02-02 21:12:06.443236.
 
 mfc.sh:
 
-    Invocation: test -j 16 --only 1D --generate -- -c oscar
+    Invocation: test -j 16 --only 6C4B71E7 --generate -- -c oscar
     Lock:       mpi=Yes & gpu=No & debug=No & gcov=No & unified=No & single=No
-    Git:        a20f9d0f945e165ab8bbad8b4befa4b042ba3895 on johnsoncook (dirty)
+    Git:        d285d4ca2de89ce546091726380804c1b85d0bb4 on johnsoncook (dirty)
 
-simulation:
+post_process:
 
     CMake Configuration:
     
@@ -16,8 +16,8 @@ simulation:
         Fortran : GNU v11.3.1 (/usr/bin/gfortran)
     
         PRE_PROCESS   : OFF
-        SIMULATION    : ON
-        POST_PROCESS  : OFF
+        SIMULATION    : OFF
+        POST_PROCESS  : ON
         SYSCHECK      : OFF
         DOCUMENTATION : OFF
         ALL           : OFF
@@ -72,7 +72,7 @@ pre_process:
         OMPI_CXX : 
         OMPI_FC  : 
 
-post_process:
+syscheck:
 
     CMake Configuration:
     
@@ -83,8 +83,8 @@ post_process:
     
         PRE_PROCESS   : OFF
         SIMULATION    : OFF
-        POST_PROCESS  : ON
-        SYSCHECK      : OFF
+        POST_PROCESS  : OFF
+        SYSCHECK      : ON
         DOCUMENTATION : OFF
         ALL           : OFF
     
@@ -105,7 +105,7 @@ post_process:
         OMPI_CXX : 
         OMPI_FC  : 
 
-syscheck:
+simulation:
 
     CMake Configuration:
     
@@ -115,9 +115,9 @@ syscheck:
         Fortran : GNU v11.3.1 (/usr/bin/gfortran)
     
         PRE_PROCESS   : OFF
-        SIMULATION    : OFF
+        SIMULATION    : ON
         POST_PROCESS  : OFF
-        SYSCHECK      : ON
+        SYSCHECK      : OFF
         DOCUMENTATION : OFF
         ALL           : OFF
     
