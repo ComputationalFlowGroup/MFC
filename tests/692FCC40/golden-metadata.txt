@@ -1,12 +1,12 @@
-This file was created on 2025-02-01 22:24:08.765486.
+This file was created on 2025-02-02 20:26:10.660011.
 
 mfc.sh:
 
-    Invocation: test -j 1 --only 692FCC40 --generate -- -c oscar
+    Invocation: test -j 16 --only 2D Example --generate -- -c oscar
     Lock:       mpi=Yes & gpu=No & debug=No & gcov=No & unified=No & single=No
-    Git:        b3cbe9a0df7ff2f52707813415803db16186009c on johnsoncook (dirty)
+    Git:        20e38887fa97c3424e28b9371611617a46ffc49f on johnsoncook (dirty)
 
-syscheck:
+post_process:
 
     CMake Configuration:
     
@@ -17,8 +17,8 @@ syscheck:
     
         PRE_PROCESS   : OFF
         SIMULATION    : OFF
-        POST_PROCESS  : OFF
-        SYSCHECK      : ON
+        POST_PROCESS  : ON
+        SYSCHECK      : OFF
         DOCUMENTATION : OFF
         ALL           : OFF
     
@@ -32,9 +32,9 @@ syscheck:
     
     Configuration Environment:
     
-        CC       : gcc
-        CXX      : g++
-        FC       : gfortran
+        CC       : 
+        CXX      : 
+        FC       : 
         OMPI_CC  : 
         OMPI_CXX : 
         OMPI_FC  : 
@@ -72,7 +72,7 @@ pre_process:
         OMPI_CXX : 
         OMPI_FC  : 
 
-post_process:
+simulation:
 
     CMake Configuration:
     
@@ -82,8 +82,8 @@ post_process:
         Fortran : GNU v11.3.1 (/usr/bin/gfortran)
     
         PRE_PROCESS   : OFF
-        SIMULATION    : OFF
-        POST_PROCESS  : ON
+        SIMULATION    : ON
+        POST_PROCESS  : OFF
         SYSCHECK      : OFF
         DOCUMENTATION : OFF
         ALL           : OFF
@@ -98,14 +98,14 @@ post_process:
     
     Configuration Environment:
     
-        CC       : 
-        CXX      : 
-        FC       : 
+        CC       : gcc
+        CXX      : g++
+        FC       : gfortran
         OMPI_CC  : 
         OMPI_CXX : 
         OMPI_FC  : 
 
-simulation:
+syscheck:
 
     CMake Configuration:
     
@@ -115,9 +115,9 @@ simulation:
         Fortran : GNU v11.3.1 (/usr/bin/gfortran)
     
         PRE_PROCESS   : OFF
-        SIMULATION    : ON
+        SIMULATION    : OFF
         POST_PROCESS  : OFF
-        SYSCHECK      : OFF
+        SYSCHECK      : ON
         DOCUMENTATION : OFF
         ALL           : OFF
     

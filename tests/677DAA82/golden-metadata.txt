@@ -1,22 +1,23 @@
-This file was created on 2024-06-19 21:07:50.099857.
+This file was created on 2025-02-02 20:54:45.100145.
 
 mfc.sh:
 
-    Invocation: test -f 2A5CFF02 -t 677DAA82 --generate
-    Lock:       mpi=Yes & gpu=No & debug=No & gcov=No & unified=No
+    Invocation: test -j 16 --only 1D --generate -- -c oscar
+    Lock:       mpi=Yes & gpu=No & debug=No & gcov=No & unified=No & single=No
+    Git:        a20f9d0f945e165ab8bbad8b4befa4b042ba3895 on johnsoncook (dirty)
 
-post_process:
+simulation:
 
     CMake Configuration:
     
-        CMake v3.22.1 on GRAM
+        CMake v3.20.2 on node1704.oscar.ccv.brown.edu
     
-        C       : GNU v11.4.0 (/usr/bin/cc)
-        Fortran : GNU v11.4.0 (/usr/bin/gfortran)
+        C       : GNU v11.3.1 (/usr/bin/cc)
+        Fortran : GNU v11.3.1 (/usr/bin/gfortran)
     
         PRE_PROCESS   : OFF
-        SIMULATION    : OFF
-        POST_PROCESS  : ON
+        SIMULATION    : ON
+        POST_PROCESS  : OFF
         SYSCHECK      : OFF
         DOCUMENTATION : OFF
         ALL           : OFF
@@ -24,40 +25,7 @@ post_process:
         MPI     : ON
         OpenACC : OFF
     
-        Fypp    : /home/chris/source/MFC_PR/build/venv/bin/fypp
-        Doxygen : 
-    
-        Build Type : Release
-    
-    Configuration Environment:
-    
-        CC       : /usr/bin/cc
-        CXX      : /usr/bin/c++
-        FC       : /usr/bin/gfortran
-        OMPI_CC  : 
-        OMPI_CXX : 
-        OMPI_FC  : 
-
-syscheck:
-
-    CMake Configuration:
-    
-        CMake v3.22.1 on GRAM
-    
-        C       : GNU v11.4.0 (/usr/bin/cc)
-        Fortran : GNU v11.4.0 (/usr/bin/gfortran)
-    
-        PRE_PROCESS   : OFF
-        SIMULATION    : OFF
-        POST_PROCESS  : OFF
-        SYSCHECK      : ON
-        DOCUMENTATION : OFF
-        ALL           : OFF
-    
-        MPI     : ON
-        OpenACC : OFF
-    
-        Fypp    : /home/chris/source/MFC_PR/build/venv/bin/fypp
+        Fypp    : /users/mrodri97/MFC/build/venv/bin/fypp
         Doxygen : 
     
         Build Type : Release
@@ -75,10 +43,10 @@ pre_process:
 
     CMake Configuration:
     
-        CMake v3.22.1 on GRAM
+        CMake v3.20.2 on node1704.oscar.ccv.brown.edu
     
-        C       : GNU v11.4.0 (/usr/bin/cc)
-        Fortran : GNU v11.4.0 (/usr/bin/gfortran)
+        C       : GNU v11.3.1 (/usr/bin/cc)
+        Fortran : GNU v11.3.1 (/usr/bin/gfortran)
     
         PRE_PROCESS   : ON
         SIMULATION    : OFF
@@ -90,7 +58,7 @@ pre_process:
         MPI     : ON
         OpenACC : OFF
     
-        Fypp    : /home/chris/source/MFC_PR/build/venv/bin/fypp
+        Fypp    : /users/mrodri97/MFC/build/venv/bin/fypp
         Doxygen : 
     
         Build Type : Release
@@ -104,18 +72,18 @@ pre_process:
         OMPI_CXX : 
         OMPI_FC  : 
 
-simulation:
+post_process:
 
     CMake Configuration:
     
-        CMake v3.22.1 on GRAM
+        CMake v3.20.2 on node1704.oscar.ccv.brown.edu
     
-        C       : GNU v11.4.0 (/usr/bin/cc)
-        Fortran : GNU v11.4.0 (/usr/bin/gfortran)
+        C       : GNU v11.3.1 (/usr/bin/cc)
+        Fortran : GNU v11.3.1 (/usr/bin/gfortran)
     
         PRE_PROCESS   : OFF
-        SIMULATION    : ON
-        POST_PROCESS  : OFF
+        SIMULATION    : OFF
+        POST_PROCESS  : ON
         SYSCHECK      : OFF
         DOCUMENTATION : OFF
         ALL           : OFF
@@ -123,7 +91,40 @@ simulation:
         MPI     : ON
         OpenACC : OFF
     
-        Fypp    : /home/chris/source/MFC_PR/build/venv/bin/fypp
+        Fypp    : /users/mrodri97/MFC/build/venv/bin/fypp
+        Doxygen : 
+    
+        Build Type : Release
+    
+    Configuration Environment:
+    
+        CC       : /usr/bin/cc
+        CXX      : /usr/bin/c++
+        FC       : /usr/bin/gfortran
+        OMPI_CC  : 
+        OMPI_CXX : 
+        OMPI_FC  : 
+
+syscheck:
+
+    CMake Configuration:
+    
+        CMake v3.20.2 on node1704.oscar.ccv.brown.edu
+    
+        C       : GNU v11.3.1 (/usr/bin/cc)
+        Fortran : GNU v11.3.1 (/usr/bin/gfortran)
+    
+        PRE_PROCESS   : OFF
+        SIMULATION    : OFF
+        POST_PROCESS  : OFF
+        SYSCHECK      : ON
+        DOCUMENTATION : OFF
+        ALL           : OFF
+    
+        MPI     : ON
+        OpenACC : OFF
+    
+        Fypp    : /users/mrodri97/MFC/build/venv/bin/fypp
         Doxygen : 
     
         Build Type : Release
@@ -141,40 +142,41 @@ CPU:
 
     CPU Info:
     From lscpu
-    Architecture:                       x86_64
-    CPU op-mode(s):                     32-bit, 64-bit
-    Address sizes:                      39 bits physical, 48 bits virtual
-    Byte Order:                         Little Endian
-    CPU(s):                             16
-    On-line CPU(s) list:                0-15
-    Vendor ID:                          GenuineIntel
-    Model name:                         13th Gen Intel(R) Core(TM) i5-1340P
-    CPU family:                         6
-    Model:                              186
-    Thread(s) per core:                 2
-    Core(s) per socket:                 8
-    Socket(s):                          1
-    Stepping:                           2
-    BogoMIPS:                           4377.60
-    Flags:                              fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss ht syscall nx pdpe1gb rdtscp lm constant_tsc rep_good nopl xtopology tsc_reliable nonstop_tsc cpuid pni pclmulqdq vmx ssse3 fma cx16 sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow vnmi ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt clwb sha_ni xsaveopt xsavec xgetbv1 xsaves avx_vnni umip waitpkg gfni vaes vpclmulqdq rdpid movdiri movdir64b fsrm md_clear serialize flush_l1d arch_capabilities
-    Virtualization:                     VT-x
-    Hypervisor vendor:                  Microsoft
-    Virtualization type:                full
-    L1d cache:                          384 KiB (8 instances)
-    L1i cache:                          256 KiB (8 instances)
-    L2 cache:                           10 MiB (8 instances)
-    L3 cache:                           12 MiB (1 instance)
-    Vulnerability Gather data sampling: Not affected
-    Vulnerability Itlb multihit:        Not affected
-    Vulnerability L1tf:                 Not affected
-    Vulnerability Mds:                  Not affected
-    Vulnerability Meltdown:             Not affected
-    Vulnerability Mmio stale data:      Not affected
-    Vulnerability Retbleed:             Mitigation; Enhanced IBRS
-    Vulnerability Spec rstack overflow: Not affected
-    Vulnerability Spec store bypass:    Mitigation; Speculative Store Bypass disabled via prctl and seccomp
-    Vulnerability Spectre v1:           Mitigation; usercopy/swapgs barriers and __user pointer sanitization
-    Vulnerability Spectre v2:           Mitigation; Enhanced IBRS, IBPB conditional, RSB filling, PBRSB-eIBRS SW sequence
-    Vulnerability Srbds:                Not affected
-    Vulnerability Tsx async abort:      Not affected
+    Architecture:                    x86_64
+    CPU op-mode(s):                  32-bit, 64-bit
+    Address sizes:                   46 bits physical, 48 bits virtual
+    Byte Order:                      Little Endian
+    CPU(s):                          32
+    On-line CPU(s) list:             0-31
+    Vendor ID:                       GenuineIntel
+    Model name:                      Intel(R) Xeon(R) Gold 6242 CPU @ 2.80GHz
+    CPU family:                      6
+    Model:                           85
+    Thread(s) per core:              1
+    Core(s) per socket:              16
+    Socket(s):                       2
+    Stepping:                        7
+    CPU max MHz:                     3900.0000
+    CPU min MHz:                     1200.0000
+    BogoMIPS:                        5600.00
+    Flags:                           fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid dca sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb cat_l3 cdp_l3 invpcid_single intel_ppin ssbd mba ibrs ibpb stibp ibrs_enhanced tpr_shadow vnmi flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid cqm mpx rdt_a avx512f avx512dq rdseed adx smap clflushopt clwb intel_pt avx512cd avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves cqm_llc cqm_occup_llc cqm_mbm_total cqm_mbm_local dtherm ida arat pln pts pku ospke avx512_vnni md_clear flush_l1d arch_capabilities
+    Virtualization:                  VT-x
+    L1d cache:                       1 MiB (32 instances)
+    L1i cache:                       1 MiB (32 instances)
+    L2 cache:                        32 MiB (32 instances)
+    L3 cache:                        44 MiB (2 instances)
+    NUMA node(s):                    2
+    NUMA node0 CPU(s):               0-15
+    NUMA node1 CPU(s):               16-31
+    Vulnerability Itlb multihit:     KVM: Mitigation: VMX disabled
+    Vulnerability L1tf:              Not affected
+    Vulnerability Mds:               Not affected
+    Vulnerability Meltdown:          Not affected
+    Vulnerability Mmio stale data:   Mitigation; Clear CPU buffers; SMT disabled
+    Vulnerability Retbleed:          Mitigation; Enhanced IBRS
+    Vulnerability Spec store bypass: Mitigation; Speculative Store Bypass disabled via prctl
+    Vulnerability Spectre v1:        Mitigation; usercopy/swapgs barriers and __user pointer sanitization
+    Vulnerability Spectre v2:        Mitigation; Enhanced IBRS, IBPB conditional, RSB filling, PBRSB-eIBRS SW sequence
+    Vulnerability Srbds:             Not affected
+    Vulnerability Tsx async abort:   Mitigation; TSX disabled
 
