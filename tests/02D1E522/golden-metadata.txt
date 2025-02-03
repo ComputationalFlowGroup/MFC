@@ -1,16 +1,16 @@
-This file was created on 2025-02-02 20:20:34.015412.
+This file was created on 2025-02-02 20:55:26.425474.
 
 mfc.sh:
 
     Invocation: test -j 16 --only 1D --generate -- -c oscar
     Lock:       mpi=Yes & gpu=No & debug=No & gcov=No & unified=No & single=No
-    Git:        f969673c6911e499ff3c023a0aa4cb814c65a0bf on johnsoncook (dirty)
+    Git:        a20f9d0f945e165ab8bbad8b4befa4b042ba3895 on johnsoncook (dirty)
 
 simulation:
 
     CMake Configuration:
     
-        CMake v3.20.2 on login009
+        CMake v3.20.2 on node1704.oscar.ccv.brown.edu
     
         C       : GNU v11.3.1 (/usr/bin/cc)
         Fortran : GNU v11.3.1 (/usr/bin/gfortran)
@@ -32,75 +32,9 @@ simulation:
     
     Configuration Environment:
     
-        CC       : gcc
-        CXX      : g++
-        FC       : gfortran
-        OMPI_CC  : 
-        OMPI_CXX : 
-        OMPI_FC  : 
-
-syscheck:
-
-    CMake Configuration:
-    
-        CMake v3.20.2 on login009
-    
-        C       : GNU v11.3.1 (/usr/bin/cc)
-        Fortran : GNU v11.3.1 (/usr/bin/gfortran)
-    
-        PRE_PROCESS   : OFF
-        SIMULATION    : OFF
-        POST_PROCESS  : OFF
-        SYSCHECK      : ON
-        DOCUMENTATION : OFF
-        ALL           : OFF
-    
-        MPI     : ON
-        OpenACC : OFF
-    
-        Fypp    : /users/mrodri97/MFC/build/venv/bin/fypp
-        Doxygen : 
-    
-        Build Type : Release
-    
-    Configuration Environment:
-    
-        CC       : gcc
-        CXX      : g++
-        FC       : gfortran
-        OMPI_CC  : 
-        OMPI_CXX : 
-        OMPI_FC  : 
-
-post_process:
-
-    CMake Configuration:
-    
-        CMake v3.20.2 on login009
-    
-        C       : GNU v11.3.1 (/usr/bin/cc)
-        Fortran : GNU v11.3.1 (/usr/bin/gfortran)
-    
-        PRE_PROCESS   : OFF
-        SIMULATION    : OFF
-        POST_PROCESS  : ON
-        SYSCHECK      : OFF
-        DOCUMENTATION : OFF
-        ALL           : OFF
-    
-        MPI     : ON
-        OpenACC : OFF
-    
-        Fypp    : /users/mrodri97/MFC/build/venv/bin/fypp
-        Doxygen : 
-    
-        Build Type : Release
-    
-    Configuration Environment:
-    
-        CC       : 
-        CXX      : 
-        FC       : 
+        CC       : /usr/bin/cc
+        CXX      : /usr/bin/c++
+        FC       : /usr/bin/gfortran
         OMPI_CC  : 
         OMPI_CXX : 
         OMPI_FC  : 
@@ -109,7 +43,7 @@ pre_process:
 
     CMake Configuration:
     
-        CMake v3.20.2 on login009
+        CMake v3.20.2 on node1704.oscar.ccv.brown.edu
     
         C       : GNU v11.3.1 (/usr/bin/cc)
         Fortran : GNU v11.3.1 (/usr/bin/gfortran)
@@ -131,9 +65,75 @@ pre_process:
     
     Configuration Environment:
     
-        CC       : gcc
-        CXX      : g++
-        FC       : gfortran
+        CC       : /usr/bin/cc
+        CXX      : /usr/bin/c++
+        FC       : /usr/bin/gfortran
+        OMPI_CC  : 
+        OMPI_CXX : 
+        OMPI_FC  : 
+
+post_process:
+
+    CMake Configuration:
+    
+        CMake v3.20.2 on node1704.oscar.ccv.brown.edu
+    
+        C       : GNU v11.3.1 (/usr/bin/cc)
+        Fortran : GNU v11.3.1 (/usr/bin/gfortran)
+    
+        PRE_PROCESS   : OFF
+        SIMULATION    : OFF
+        POST_PROCESS  : ON
+        SYSCHECK      : OFF
+        DOCUMENTATION : OFF
+        ALL           : OFF
+    
+        MPI     : ON
+        OpenACC : OFF
+    
+        Fypp    : /users/mrodri97/MFC/build/venv/bin/fypp
+        Doxygen : 
+    
+        Build Type : Release
+    
+    Configuration Environment:
+    
+        CC       : /usr/bin/cc
+        CXX      : /usr/bin/c++
+        FC       : /usr/bin/gfortran
+        OMPI_CC  : 
+        OMPI_CXX : 
+        OMPI_FC  : 
+
+syscheck:
+
+    CMake Configuration:
+    
+        CMake v3.20.2 on node1704.oscar.ccv.brown.edu
+    
+        C       : GNU v11.3.1 (/usr/bin/cc)
+        Fortran : GNU v11.3.1 (/usr/bin/gfortran)
+    
+        PRE_PROCESS   : OFF
+        SIMULATION    : OFF
+        POST_PROCESS  : OFF
+        SYSCHECK      : ON
+        DOCUMENTATION : OFF
+        ALL           : OFF
+    
+        MPI     : ON
+        OpenACC : OFF
+    
+        Fypp    : /users/mrodri97/MFC/build/venv/bin/fypp
+        Doxygen : 
+    
+        Build Type : Release
+    
+    Configuration Environment:
+    
+        CC       : /usr/bin/cc
+        CXX      : /usr/bin/c++
+        FC       : /usr/bin/gfortran
         OMPI_CC  : 
         OMPI_CXX : 
         OMPI_FC  : 
