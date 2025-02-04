@@ -1230,7 +1230,7 @@ contains
                         end do
                     end if
 
-                    ! using \rho xi as the conservative formulation stated in Kamrin et al. JFM 2022
+                    ! using \rho xi as the conservative formulation stated in Kamrin et al. JFM 2012
                     if (hyperelasticity) then
                         ! Multiply \xi to \rho \xi
                         do i = xibeg, xiend
