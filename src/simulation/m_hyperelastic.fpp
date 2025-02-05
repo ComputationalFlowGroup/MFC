@@ -162,6 +162,7 @@ contains
                             else
                                 ! derivatives in the x-direction
                                 tensora(1) = tensora(1) + q_prim_vf(xibeg)%sf(j + r, k, l)*fd_coeff_x(r, j)
+                               ! print *, 'computed x derivative, tensora(1)::', tensora(1), 'q_prim_vf(xibeg)::', q_prim_vf(xibeg)%sf(j+r, k,l)
                             end if
                         end do
 
@@ -231,17 +232,22 @@ contains
                         else
                             ! STEP 2a: computing the determinant of the grad_xi tensor
                             tensorb(tensor_size) = tensora(1)
+                           ! print *, 'det gradxi::', tensorb(tensor_size)
                             ! STEP 2b: computing the inverse of the grad_xi tensor
                             tensorb(1) = 1._wp/tensora(1)
+                           ! print *, 'inverse gradxi::', tensorb(1)
+ 
                             if (tensora(tensor_size) > verysmall) then
                                 ! STEP 3: update the btensor b_xx, this is consistent with Riemann solvers
                                 btensor%vf(1)%sf(j, k, l) = tensorb(1)**2
+                           !     print *, 'b_xx::', btensor%vf(1)%sf(j,k,l)
                             end if
                         end if
 
                         !STEP 3b: store the determinant at the last entry of the btensor
                         btensor%vf(b_size)%sf(j, k, l) = tensorb(tensor_size)
-!                        print *, 'btensor%vf(b_size)%sf(j,k,l)::', btensor%vf(b_size)%sf(j,k,l)
+                      !  print *, 'tensor_size::', tensor_size, 'b_size::', b_size
+                      !  print *, 'btensor%vf(b_size)%sf(j,k,l)::', btensor%vf(b_size)%sf(j,k,l)
 
                         ! STEP 4a: updating the Cauchy stress primitive scalar field
                         if (hyper_model == 1) then
@@ -297,13 +303,15 @@ contains
         elseif (n > 0) then
             ! tensor is the symmetric tensor & calculate the trace of the tensor
             trace = btensor(1)%sf(j, k, l) + btensor(3)%sf(j, k, l)
-            print *, 'trace of btensor::', trace
+!            print *, 'trace of btensor::', trace
             ! calculate the deviatoric of the tensor
             btensor(1)%sf(j, k, l) = btensor(1)%sf(j, k, l) - f13*trace
             btensor(3)%sf(j, k, l) = btensor(3)%sf(j, k, l) - f13*trace
         else
+            trace = btensor(1)%sf(j, k, l)
             ! calculate the deviatoric of the tensor
             btensor(1)%sf(j, k, l) = 2._wp*btensor(1)%sf(j, k, l)/3._wp
+!            print *, 'deviatoric of btensor(1)', btensor(1)%sf(j,k,l)
         end if
 
         ! dividing by the jacobian for neo-Hookean model
@@ -312,10 +320,12 @@ contains
         do i = 1, b_size - 1
             q_prim_vf(strxb + i - 1)%sf(j, k, l) = &
                 G*btensor(i)%sf(j, k, l)/btensor(b_size)%sf(j, k, l)
+!            print *, 'cauchy stress::', q_prim_vf(strxb+i-1)%sf(j,k,l)
         end do
         ! compute the invariant without the elastic modulus
         q_prim_vf(xiend + 1)%sf(j, k, l) = &
             0.5_wp*(trace - 3.0_wp)/btensor(b_size)%sf(j, k, l)
+!        print *, 'elastic energy::', q_prim_vf(xiend + 1)%sf(j, k, l)
 
     end subroutine s_neoHookean_cauchy_solver
 
@@ -373,7 +383,7 @@ contains
     subroutine s_finalize_hyperelastic_module()
 
         integer :: i !< iterator
-
+        print *, 'I am deallocating memory'
         ! Deallocating memory
         do i = 1, b_size
             @:DEALLOCATE(btensor%vf(i)%sf)
@@ -386,6 +396,7 @@ contains
             end if
         end if
         @:DEALLOCATE(Gs)
+        print *, 'I deallocated all memory needed in hyper'
 
     end subroutine s_finalize_hyperelastic_module
 
