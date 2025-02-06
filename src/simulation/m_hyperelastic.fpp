@@ -230,17 +230,30 @@ contains
                                 #:endfor
                             end if
                         else
-                            ! STEP 2a: computing the determinant of the grad_xi tensor
-                            tensorb(tensor_size) = tensora(1)
-                           ! print *, 'det gradxi::', tensorb(tensor_size)
-                            ! STEP 2b: computing the inverse of the grad_xi tensor
-                            tensorb(1) = 1._wp/tensora(1)
-                           ! print *, 'inverse gradxi::', tensorb(1)
- 
-                            if (tensora(tensor_size) > verysmall) then
-                                ! STEP 3: update the btensor b_xx, this is consistent with Riemann solvers
-                                btensor%vf(1)%sf(j, k, l) = tensorb(1)**2
-                           !     print *, 'b_xx::', btensor%vf(1)%sf(j,k,l)
+                            ! ! STEP 2a: computing the determinant of the grad_xi tensor
+                            ! ! In 1D, the cofactor is 1
+                            ! tensorb(1) = 1._wp
+                            ! ! STEP 2b: computing the inverse of the grad_xi tensor
+                            ! ! In 1D, the determinant is the value itself
+                            ! tensora(tensor_size) = tensora(1)
+                            ! if (tensora(tensor_size) > verysmall) then
+                            !     ! STEP 2c: compute the inverse of grad_xi which is just 1/grad_xi
+                            !     tensora(1) = 1._wp/tensora(1)
+
+                            !     ! STEP 2d: compute J = det(F)
+                            !     tensorb(tensor_size) = 1._wp/tensora(tensor_size)
+
+                            !     ! STEP 2e: override adjoint (tensorb) to be F'F
+                            !     tensorb(1) = tensora(1)**2
+
+                            !     ! STEP 3: update the btensor b_xx, this is consistent with Riemann solvers
+                            !     btensor%vf(1)%sf(j, k, l) = tensorb(1)
+                            ! end if
+
+                            ! To simplify the above steps:
+                            if (tensora(1) > verysmall) then
+                                tensorb(tensor_size) = 1._wp/tensora(1)
+                                btensor%vf(1)%sf(j, k, l) = 1._wp/(tensora(1)**2)
                             end if
                         end if
 
