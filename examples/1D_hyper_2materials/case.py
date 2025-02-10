@@ -32,7 +32,7 @@ print(
             "avg_state": 2,
             "format": 1,
             "precision": 2,
-            "prim_vars_wrt": "F",
+            "prim_vars_wrt": "T",
             "parallel_io": "F",
             "patch_icpp(1)%pres": 1000000.0,
             "patch_icpp(1)%alpha_rho(1)": 900.0,
@@ -100,9 +100,7 @@ print(
             "patch_icpp(3)%alpha_rho(2)": 100,
             "patch_icpp(3)%alpha(2)": 0.1,
             "fluid_pp(2)%G": 0.0,  # 50000.0
-            "parallel_io": "T",
             "cons_vars_wrt": "T",
-            "prim_vars_wrt": "T",
             "alpha_rho_wrt(1)": "T",
             "rho_wrt": "T",
             "mom_wrt(1)": "T",

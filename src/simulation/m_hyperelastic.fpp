@@ -158,11 +158,11 @@ contains
                                 ! derivatives in the y-direction
                                 tensora(3) = tensora(3) + q_prim_vf(xibeg)%sf(j, k + r, l)*fd_coeff_y(r, k)
                                 tensora(4) = tensora(4) + q_prim_vf(xibeg + 1)%sf(j, k + r, l)*fd_coeff_y(r, k)
-                               ! print *, 'tensora(1)::', tensora,'tensora(2) ::', tensora(2), 'tensora(3) ::', tensora(3), 'tensora(4)::', tensora(4)
+                                ! print *, 'tensora(1)::', tensora,'tensora(2) ::', tensora(2), 'tensora(3) ::', tensora(3), 'tensora(4)::', tensora(4)
                             else
                                 ! derivatives in the x-direction
                                 tensora(1) = tensora(1) + q_prim_vf(xibeg)%sf(j + r, k, l)*fd_coeff_x(r, j)
-                               ! print *, 'computed x derivative, tensora(1)::', tensora(1), 'q_prim_vf(xibeg)::', q_prim_vf(xibeg)%sf(j+r, k,l)
+                                ! print *, 'computed x derivative, tensora(1)::', tensora(1), 'q_prim_vf(xibeg)::', q_prim_vf(xibeg)%sf(j+r, k,l)
                             end if
                         end do
 
@@ -259,8 +259,8 @@ contains
 
                         !STEP 3b: store the determinant at the last entry of the btensor
                         btensor%vf(b_size)%sf(j, k, l) = tensorb(tensor_size)
-                      !  print *, 'tensor_size::', tensor_size, 'b_size::', b_size
-                      !  print *, 'btensor%vf(b_size)%sf(j,k,l)::', btensor%vf(b_size)%sf(j,k,l)
+                        !  print *, 'tensor_size::', tensor_size, 'b_size::', b_size
+                        !  print *, 'btensor%vf(b_size)%sf(j,k,l)::', btensor%vf(b_size)%sf(j,k,l)
 
                         ! STEP 4a: updating the Cauchy stress primitive scalar field
                         if (hyper_model == 1) then
