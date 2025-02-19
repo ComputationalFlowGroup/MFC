@@ -125,10 +125,6 @@ contains
                     !if ( G <= verysmall ) G_K = 0._wp
 
                     if (G > verysmall) then
-                        !$acc loop seq
-                        do i = 1, tensor_size - 1
-                            tensora(i) = tensorb(i)/tensorb(tensor_size)
-                        end do
 
                         ! STEP 1: computing the grad_xi tensor using finite differences
                         ! grad_xi definition / organization
@@ -192,6 +188,16 @@ contains
                         end if
 
                         if (tensorb(tensor_size) > verysmall) then
+                            ! STEP 2c: computing the inverse of grad_xi tensor = F
+                            ! tensorb is the adjoint, tensora becomes F
+                            !$acc loop seq
+                            do i = 1, tensor_size - 1
+                                tensora(i) = tensorb(i)/tensorb(tensor_size)
+                            end do
+
+                            ! STEP 2d: computing the J = det(F) = 1/det(\grad{\xi})
+                            tensorb(tensor_size) = 1._wp/tensorb(tensor_size)
+
                             ! STEP 3: update the btensor, this is consistent with Riemann solvers
                             ! \b_xx
                             btensor%vf(1)%sf(j, k, l) = tensorb(1)**2
@@ -199,7 +205,7 @@ contains
                                 ! STEP 2e: override adjoint (tensorb) to be F transpose F
                                 tensorb(1) = tensora(1)**2 + tensora(2)**2
                                 tensorb(4) = tensora(3)**2 + tensora(4)**2
-                                tensorb(2) = tensora(1)*tensora(3) + tensora(2)*tensora(4)
+                                tensorb(2) = tensora(1)*(-tensora(3)) + (-tensora(2))*tensora(4)
                                 tensorb(3) = tensorb(2) !tensora(3)*tensora(1) + tensora(4)*tensora(2)
                                 ! STEP 3: update the btensor, this is consistent with Riemann solvers
                                 #:for BIJ, TXY in [(1,1),(2,2),(3,4)]
@@ -266,18 +272,20 @@ contains
 
         real(wp) :: trace
         real(wp), parameter :: f13 = 1._wp/3._wp
+        real(wp), parameter :: f12 = 1._wp/2._wp
+        real(wp), parameter :: f23 = 2._wp/3._wp
         integer :: i
 
         ! tensor is the symmetric tensor & calculate the trace of the tensor
         trace = btensor(1)%sf(j, k, l)
         ! calculate the deviatoric of the tensor
-        btensor(1)%sf(j, k, l) = btensor(1)%sf(j, k, l) - f13*trace
+        btensor(1)%sf(j, k, l) = f23*btensor(1)%sf(j, k, l)
         if (n > 0) then
             ! tensor is the symmetric tensor & calculate the trace of the tensor
             trace = btensor(1)%sf(j, k, l) + btensor(3)%sf(j, k, l)
             ! calculate the deviatoric of the tensor
-            btensor(1)%sf(j, k, l) = btensor(1)%sf(j, k, l) - f13*trace
-            btensor(3)%sf(j, k, l) = btensor(3)%sf(j, k, l) - f13*trace
+            btensor(1)%sf(j, k, l) = btensor(1)%sf(j, k, l) - f12*trace
+            btensor(3)%sf(j, k, l) = btensor(3)%sf(j, k, l) - f12*trace
         end if
         if (p > 0) then
             ! tensor is the symmetric tensor & calculate the trace of the tensor

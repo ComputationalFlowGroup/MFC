@@ -20,6 +20,8 @@ program p_main
 
     use m_time_steppers
 
+    use m_mpi_common
+
     use m_nvtx
 
     implicit none
