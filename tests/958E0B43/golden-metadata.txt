@@ -1,0 +1,175 @@
+This file was created on 2025-02-19 10:22:14.061434.
+
+mfc.sh:
+
+    Invocation: test --only 958E0B43 --generate
+    Lock:       mpi=Yes & gpu=No & debug=Yes & gcov=No & unified=No & single=No
+    Git:        94b5c54142f960b3a4f5ee190814d109e1ba3dc5 on quickfix (clean)
+
+simulation:
+
+    CMake Configuration:
+    
+        CMake v3.30.3 on mirelys-QEMU-Virtual-Machine
+    
+        C       : GNU v14.2.0 (/usr/bin/cc)
+        Fortran : GNU v14.2.0 (/usr/bin/gfortran)
+    
+        PRE_PROCESS   : OFF
+        SIMULATION    : ON
+        POST_PROCESS  : OFF
+        SYSCHECK      : OFF
+        DOCUMENTATION : OFF
+        ALL           : OFF
+    
+        MPI     : ON
+        OpenACC : OFF
+    
+        Fypp    : /home/mirelys/source/1dhMFC/build/venv/bin/fypp
+        Doxygen : 
+    
+        Build Type : Debug
+    
+    Configuration Environment:
+    
+        CC       : /usr/bin/cc
+        CXX      : /usr/bin/c++
+        FC       : /usr/bin/gfortran
+        OMPI_CC  : 
+        OMPI_CXX : 
+        OMPI_FC  : 
+
+post_process:
+
+    CMake Configuration:
+    
+        CMake v3.30.3 on mirelys-QEMU-Virtual-Machine
+    
+        C       : GNU v14.2.0 (/usr/bin/cc)
+        Fortran : GNU v14.2.0 (/usr/bin/gfortran)
+    
+        PRE_PROCESS   : OFF
+        SIMULATION    : OFF
+        POST_PROCESS  : ON
+        SYSCHECK      : OFF
+        DOCUMENTATION : OFF
+        ALL           : OFF
+    
+        MPI     : ON
+        OpenACC : OFF
+    
+        Fypp    : /home/mirelys/source/1dhMFC/build/venv/bin/fypp
+        Doxygen : 
+    
+        Build Type : Debug
+    
+    Configuration Environment:
+    
+        CC       : /usr/bin/cc
+        CXX      : /usr/bin/c++
+        FC       : /usr/bin/gfortran
+        OMPI_CC  : 
+        OMPI_CXX : 
+        OMPI_FC  : 
+
+pre_process:
+
+    CMake Configuration:
+    
+        CMake v3.30.3 on mirelys-QEMU-Virtual-Machine
+    
+        C       : GNU v14.2.0 (/usr/bin/cc)
+        Fortran : GNU v14.2.0 (/usr/bin/gfortran)
+    
+        PRE_PROCESS   : ON
+        SIMULATION    : OFF
+        POST_PROCESS  : OFF
+        SYSCHECK      : OFF
+        DOCUMENTATION : OFF
+        ALL           : OFF
+    
+        MPI     : ON
+        OpenACC : OFF
+    
+        Fypp    : /home/mirelys/source/1dhMFC/build/venv/bin/fypp
+        Doxygen : 
+    
+        Build Type : Debug
+    
+    Configuration Environment:
+    
+        CC       : /usr/bin/cc
+        CXX      : /usr/bin/c++
+        FC       : /usr/bin/gfortran
+        OMPI_CC  : 
+        OMPI_CXX : 
+        OMPI_FC  : 
+
+syscheck:
+
+    CMake Configuration:
+    
+        CMake v3.30.3 on mirelys-QEMU-Virtual-Machine
+    
+        C       : GNU v14.2.0 (/usr/bin/cc)
+        Fortran : GNU v14.2.0 (/usr/bin/gfortran)
+    
+        PRE_PROCESS   : OFF
+        SIMULATION    : OFF
+        POST_PROCESS  : OFF
+        SYSCHECK      : ON
+        DOCUMENTATION : OFF
+        ALL           : OFF
+    
+        MPI     : ON
+        OpenACC : OFF
+    
+        Fypp    : /home/mirelys/source/1dhMFC/build/venv/bin/fypp
+        Doxygen : 
+    
+        Build Type : Debug
+    
+    Configuration Environment:
+    
+        CC       : /usr/bin/cc
+        CXX      : /usr/bin/c++
+        FC       : /usr/bin/gfortran
+        OMPI_CC  : 
+        OMPI_CXX : 
+        OMPI_FC  : 
+
+CPU:
+
+    CPU Info:
+    From lscpu
+    Architecture:                         aarch64
+    CPU op-mode(s):                       64-bit
+    Byte Order:                           Little Endian
+    CPU(s):                               4
+    On-line CPU(s) list:                  0-3
+    Vendor ID:                            0x00
+    Model name:                           -
+    Model:                                0
+    Thread(s) per core:                   1
+    Core(s) per socket:                   4
+    Socket(s):                            1
+    Stepping:                             0x0
+    BogoMIPS:                             48.00
+    Flags:                                fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 asimddp sha512 asimdfhm dit uscat ilrcpc flagm ssbs sb paca pacg dcpodp flagm2 frint
+    NUMA node(s):                         1
+    NUMA node0 CPU(s):                    0-3
+    Vulnerability Gather data sampling:   Not affected
+    Vulnerability Itlb multihit:          Not affected
+    Vulnerability L1tf:                   Not affected
+    Vulnerability Mds:                    Not affected
+    Vulnerability Meltdown:               Not affected
+    Vulnerability Mmio stale data:        Not affected
+    Vulnerability Reg file data sampling: Not affected
+    Vulnerability Retbleed:               Not affected
+    Vulnerability Spec rstack overflow:   Not affected
+    Vulnerability Spec store bypass:      Mitigation; Speculative Store Bypass disabled via prctl
+    Vulnerability Spectre v1:             Mitigation; __user pointer sanitization
+    Vulnerability Spectre v2:             Not affected
+    Vulnerability Srbds:                  Not affected
+    Vulnerability Tsx async abort:        Not affected
+
