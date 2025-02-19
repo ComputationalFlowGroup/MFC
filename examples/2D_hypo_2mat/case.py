@@ -6,7 +6,7 @@ import math, json
 
 print(
     json.dumps(
-         {
+        {
             "run_time_info": "T",
             "m": 49,
             "n": 39,
@@ -81,7 +81,7 @@ print(
             "patch_icpp(1)%tau_e(1)": 0.0,
             "patch_icpp(2)%tau_e(1)": 0.0,
             "patch_icpp(3)%tau_e(1)": 0.0,
-            "fluid_pp(1)%G": 1.0e+09,
+            "fluid_pp(1)%G": 1.0e09,
             "fluid_pp(2)%gamma": 0.3,
             "fluid_pp(2)%pi_inf": 780000.0,
             "patch_icpp(1)%alpha_rho(2)": 100,
@@ -96,5 +96,7 @@ print(
             "patch_icpp(2)%tau_e(2)": 0.0,
             "patch_icpp(2)%tau_e(3)": 0.0,
             "patch_icpp(3)%tau_e(2)": 0.0,
-            "patch_icpp(3)%tau_e(3)": 0.0
-}))
+            "patch_icpp(3)%tau_e(3)": 0.0,
+        }
+    )
+)

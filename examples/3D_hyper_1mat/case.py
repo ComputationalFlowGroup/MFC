@@ -95,7 +95,7 @@ print(
             "patch_icpp(1)%tau_e(1)": 0.0,
             "patch_icpp(2)%tau_e(1)": 0.0,
             "patch_icpp(3)%tau_e(1)": 0.0,
-            "fluid_pp(1)%G": 1.0e+09,
+            "fluid_pp(1)%G": 1.0e09,
             "patch_icpp(1)%tau_e(2)": 0.0,
             "patch_icpp(1)%tau_e(3)": 0.0,
             "patch_icpp(2)%tau_e(2)": 0.0,
@@ -110,5 +110,7 @@ print(
             "patch_icpp(2)%tau_e(6)": 0.0,
             "patch_icpp(3)%tau_e(4)": 0.0,
             "patch_icpp(3)%tau_e(5)": 0.0,
-            "patch_icpp(3)%tau_e(6)": 0.0
-}))
+            "patch_icpp(3)%tau_e(6)": 0.0,
+        }
+    )
+)
