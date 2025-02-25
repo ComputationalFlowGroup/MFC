@@ -120,15 +120,13 @@ contains
                         alpha_rho_k(i) = q_cons_vf(i)%sf(j, k, l)
                         alpha_k(i) = q_cons_vf(advxb + i - 1)%sf(j, k, l)
                     end do
- !                   print *, 'I got here 1'
                     ! If in simulation, use acc mixture subroutines
                     call s_convert_species_to_mixture_variables_acc(rho, gamma, pi_inf, qv, alpha_k, &
                                                                     alpha_rho_k, Re, j, k, l, G, Gs)
                     rho = max(rho, sgm_eps)
                     G = max(G, sgm_eps)
                     if ( G <= verysmall ) G = 0._wp
-   !                 print *, 'G ::', G
-   !                 print *, 'I got here 2'
+
                     if (G .gt. 10._wp) then !> verysmall) then !
 
                         ! STEP 1: computing the grad_xi tensor using finite differences
@@ -136,7 +134,6 @@ contains
                         ! tensora(1,2,3):  dxix_dx, dxiy_dx, dxiz_dx
                         ! tensora(4,5,6):  dxix_dy, dxiy_dy, dxiz_dy
                         ! tensora(7,8,9):  dxix_dz, dxiy_dz, dxiz_dz
-  !                      print *, 'I got here 3'
                         !$acc loop seq
                         do r = -fd_number, fd_number
                             ! derivatives in the x-direction
@@ -162,7 +159,6 @@ contains
                                 tensora(9) = tensora(9) + q_prim_vf(xiend)%sf(j, k, l + r)*fd_coeff_z(r, l)
                             end if
                         end do
-   !                     print *, 'I got here 4'
                         if (p > 0) then
                             ! STEP 2a: computing the adjoint of the grad_xi tensor for the inverse
                             tensorb(1) = tensora(5)*tensora(9) - tensora(6)*tensora(8)
@@ -192,7 +188,6 @@ contains
                             ! STEP 2b: computing the inverse of the grad_xi tensor
                             tensorb(1) = 1._wp/tensora(1)
                         end if
-    !                    print *, 'I got here 5'
 
                         if (tensorb(tensor_size) > verysmall) then
                             if (p > 0) then
@@ -235,29 +230,26 @@ contains
                                 ! STEP 3: update the btensor b_xx, this is consistent with Riemann solvers
                                 btensor%vf(1)%sf(j, k, l) = tensorb(1)**2
                             end if
-  !                          print *, 'I got here 6'
+
                             !STEP 3b: store the determinant at the last entry of the btensor
                             btensor%vf(b_size)%sf(j, k, l) = tensorb(tensor_size)
-  !                          print *, "tensorb(tensor_size) ::", tensorb(tensor_size)
+
                             ! STEP 4a: updating the Cauchy stress primitive scalar field
                             if (hyper_model == 1) then
                                 call s_neoHookean_cauchy_solver(btensor%vf, q_prim_vf, G, j, k, l)
                             elseif (hyper_model == 2) then
                                 call s_Mooney_Rivlin_cauchy_solver(btensor%vf, q_prim_vf, G, j, k, l)
                             end if
- !                           print *, 'I got here 11'
+
                             ! STEP 4b: updating the pressure field
                             q_prim_vf(E_idx)%sf(j, k, l) = q_prim_vf(E_idx)%sf(j, k, l) - &
                                                            G*q_prim_vf(xiend + 1)%sf(j, k, l)/gamma
-  !                          print *, 'q_prim_vf(E_idx)::', q_prim_vf(E_idx)%sf(j,k,l)
- !                           print *, 'I got here 12'
+
                             ! STEP 4c: updating the Cauchy stress conservative scalar field
                             !$acc loop seq
                             do i = 1, b_size - 1
                                 q_cons_vf(strxb + i - 1)%sf(j, k, l) = rho*q_prim_vf(strxb + i - 1)%sf(j, k, l)
- !                               print *, 'q_cons_vf(strxb + i -1)%sf(j,k,l) ::', q_cons_vf(strxb + i -1)%sf(j,k,l), 'i ::', i
                             end do
- !                           print *, 'I got here 13'
                         end if
                     end if
                 end do
@@ -288,7 +280,6 @@ contains
         real(wp), parameter :: f12 = 1._wp/2._wp
         real(wp), parameter :: f23 = 2._wp/3._wp
         integer :: i
-!        print *, "I got here 7"
         if (p > 0) then
             ! tensor is the symmetric tensor & calculate the trace of the tensor
             trace = btensor(1)%sf(j, k, l) + btensor(3)%sf(j, k, l) + btensor(6)%sf(j, k, l)
@@ -308,22 +299,16 @@ contains
             ! calculate the deviatoric of the tensor
             btensor(1)%sf(j, k, l) = f23*btensor(1)%sf(j, k, l)
         end if
-!        print *, 'I got here 8'
         ! dividing by the jacobian for neo-Hookean model
         ! setting the tensor to the stresses for riemann solver
         !$acc loop seq
         do i = 1, b_size - 1
             q_prim_vf(strxb + i - 1)%sf(j, k, l) = &
                 G*btensor(i)%sf(j, k, l)/btensor(b_size)%sf(j, k, l)
-!            print *, 'q_prim_vf(strxb + i -1)%sf(j,k,l) ::', q_prim_vf(strxb + i - 1)%sf(j,k,l), 'i ::', i
         end do
-!        print *, "I got here 9"
         ! compute the invariant without the elastic modulus
         q_prim_vf(xiend + 1)%sf(j, k, l) = &
             f12*(trace - 3.0_wp)/btensor(b_size)%sf(j, k, l)
-
-!        print *, "I got here 10"
-!        print *, 'q_prim_vf(xiend+1)%sf(j,k,l) :: ', q_prim_vf(xiend+1)%sf(j,k,l)
     end subroutine s_neoHookean_cauchy_solver
 
     !>  The following subroutine handles the calculation of the btensor

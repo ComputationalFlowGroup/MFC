@@ -667,14 +667,8 @@ contains
 
         call nvtxStartRange("RHS-ELASTIC")
         if (hyperelasticity) then
-     !       print *, 'I got here A'
             call s_hyperelastic_rmt_stress_update(q_cons_qp%vf, q_prim_qp%vf)
-     !       print *, 'I got here B'
-     !       do i = 1, size(q_cons_qp%vf)
-      !          print *, 'q_cons_qp%vf ::', q_cons_qp%vf(i)%sf(0,0,0), 'q_prim_qp%vf ::', q_prim_qp%vf(i)%sf(0,0,0)
-      !      end do
             call s_populate_variables_buffers(q_prim_qp%vf, pb, mv)
-     !       print *, 'I got here C'
         end if
         call nvtxEndRange
 

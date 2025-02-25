@@ -37,7 +37,6 @@ contains
 
         select case (bc_x%beg)
         case (-13:-3) ! Ghost-cell extrap. BC at beginning
- !           print *, 'starting bc for x beg'
             call s_ghost_cell_extrapolation(q_prim_vf, pb, mv, 1, -1)
         case (-2)     ! Symmetry BC at beginning
             call s_symmetry(q_prim_vf, pb, mv, 1, -1)
@@ -54,7 +53,6 @@ contains
 
         select case (bc_x%end)
         case (-13:-3) ! Ghost-cell extrap. BC at end
-   !         print *, 'starting bc for x end'
             call s_ghost_cell_extrapolation(q_prim_vf, pb, mv, 1, 1)
         case (-2)     ! Symmetry BC at end
             call s_symmetry(q_prim_vf, pb, mv, 1, 1)
@@ -97,7 +95,6 @@ contains
 
         select case (bc_y%beg)
         case (-13:-3) ! Ghost-cell extrap. BC at beginning
-  !          print *, 'starting bc for y beg'
             call s_ghost_cell_extrapolation(q_prim_vf, pb, mv, 2, -1)
         case (-14)    ! Axis BC at beginning
             call s_axis(q_prim_vf, pb, mv, 2, -1)
@@ -116,7 +113,6 @@ contains
 
         select case (bc_y%end)
         case (-13:-3) ! Ghost-cell extrap. BC at end
-   !         print *, 'starting bc for y end'
             call s_ghost_cell_extrapolation(q_prim_vf, pb, mv, 2, 1)
         case (-2)     ! Symmetry BC at end
             call s_symmetry(q_prim_vf, pb, mv, 2, 1)
