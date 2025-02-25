@@ -563,11 +563,13 @@ contains
 
                             ! energy adjustments for hyperelastic energy
                             if (hyperelasticity) then
+      !                          print *, 'I got here 14'
                                 !$acc loop seq
                                 do i = 1, num_dims
                                     xi_field_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, xibeg - 1 + i)
                                     xi_field_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, xibeg - 1 + i)
                                 end do
+      !                          print *, 'I got here 15'
                                 G_L = 0_wp; G_R = 0_wp; 
                                 !$acc loop seq
                                 do i = 1, num_fluids
@@ -575,24 +577,27 @@ contains
                                     G_L = G_L + alpha_L(i)*Gs(i)
                                     G_R = G_R + alpha_R(i)*Gs(i)
                                 end do
+      !                          print *, 'I got here 16'
                                 ! Elastic contribution to energy if G large enough
                                 if (G_L > verysmall .and. G_R > verysmall) then
                                     E_L = E_L + G_L*qL_prim_rs${XYZ}$_vf(j, k, l, xiend + 1)
                                     E_R = E_R + G_R*qR_prim_rs${XYZ}$_vf(j + 1, k, l, xiend + 1)
+      !                              print *, 'I got here 17'
                                 end if
                                 !$acc loop seq
                                 do i = 1, b_size - 1
                                     tau_e_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, strxb - 1 + i)
                                     tau_e_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, strxb - 1 + i)
+      !                              print *, 'I got here 18'
                                 end do
                             end if
 
                             ! Enthalpy with elastic energy
                             H_L = (E_L + pres_L)/rho_L
                             H_R = (E_R + pres_R)/rho_R
-
+     !                       print *, 'I got here 19'
                             @:compute_average_state()
-
+     !                       print *, 'I got here 20'
                             call s_compute_speed_of_sound(pres_L, rho_L, gamma_L, pi_inf_L, H_L, alpha_L, &
                                                           vel_L_rms, 0._wp, c_L)
 
@@ -1216,10 +1221,12 @@ contains
 
                                 ! energy adjustments for hyperelastic energy
                                 if (hyperelasticity) then
+   !                                 print *, 'I got here 14'
                                     !$acc loop seq
                                     do i = 1, num_dims
                                         xi_field_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, xibeg - 1 + i)
                                         xi_field_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, xibeg - 1 + i)
+   !                                     print *, 'I got here 15'
                                     end do
                                     G_L = 0_wp; G_R = 0_wp; 
                                     !$acc loop seq
@@ -1227,35 +1234,38 @@ contains
                                         ! Mixture left and right shear modulus
                                         G_L = G_L + alpha_L(i)*Gs(i)
                                         G_R = G_R + alpha_R(i)*Gs(i)
+   !                                     print *, 'I got here 16'
                                     end do
                                     ! Elastic contribution to energy if G large enough
                                     if (G_L > verysmall .and. G_R > verysmall) then
                                         E_L = E_L + G_L*qL_prim_rs${XYZ}$_vf(j, k, l, xiend + 1)
                                         E_R = E_R + G_R*qR_prim_rs${XYZ}$_vf(j + 1, k, l, xiend + 1)
+   !                                     print *, 'I got here 17'
                                     end if
                                     !$acc loop seq
                                     do i = 1, b_size - 1
                                         tau_e_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, strxb - 1 + i)
                                         tau_e_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, strxb - 1 + i)
+   !                                     print *, 'I got here 18'
                                     end do
                                 end if
 
                                 H_L = (E_L + pres_L)/rho_L
                                 H_R = (E_R + pres_R)/rho_R
-
+   !                             print *, 'I got here 19'
                                 @:compute_average_state()
-
+   !                             print *, 'I got here 20'
                                 call s_compute_speed_of_sound(pres_L, rho_L, gamma_L, pi_inf_L, H_L, alpha_L, &
                                                               vel_L_rms, 0._wp, c_L)
-
+   !                             print *, 'I got here 21'
                                 call s_compute_speed_of_sound(pres_R, rho_R, gamma_R, pi_inf_R, H_R, alpha_R, &
                                                               vel_R_rms, 0._wp, c_R)
-
+   !                             print *, 'I got here 22'
                                 !> The computation of c_avg does not require all the variables, and therefore the non '_avg'
                                 ! variables are placeholders to call the subroutine.
                                 call s_compute_speed_of_sound(pres_R, rho_avg, gamma_avg, pi_inf_R, H_avg, alpha_R, &
                                                               vel_avg_rms, 0._wp, c_avg)
-
+   !                             print *, 'I got here 23'
                                 if (viscous) then
                                     !$acc loop seq
                                     do i = 1, 2
