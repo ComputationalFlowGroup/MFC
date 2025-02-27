@@ -569,7 +569,6 @@ contains
                                     xi_field_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, xibeg - 1 + i)
                                 end do
                                 G_L = 0_wp; G_R = 0_wp; 
-
                                 !$acc loop seq
                                 do i = 1, num_fluids
                                     ! Mixture left and right shear modulus

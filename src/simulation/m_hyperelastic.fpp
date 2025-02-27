@@ -71,7 +71,7 @@ contains
 
         ! Computing centered finite difference coefficients
         call s_compute_finite_difference_coefficients(m, x_cc, fd_coeff_x, buff_size, &
-                                                      fd_number, fd_order)     
+                                                      fd_number, fd_order)
 
         !$acc update device(fd_coeff_x)
         if (n > 0) then
@@ -125,9 +125,9 @@ contains
                                                                     alpha_rho_k, Re, j, k, l, G, Gs)
                     rho = max(rho, sgm_eps)
                     G = max(G, sgm_eps)
-                    if ( G <= verysmall ) G = 0._wp
+                    if (G <= verysmall) G = 0._wp
 
-                    if (G .gt. 10._wp) then !> verysmall) then !
+                    if (G > 10._wp) then !> verysmall) then !
 
                         ! STEP 1: computing the grad_xi tensor using finite differences
                         ! grad_xi definition / organization
@@ -191,11 +191,11 @@ contains
 
                         if (tensorb(tensor_size) > verysmall) then
                             if (p > 0) then
-                                 ! STEP 2c: computing the inverse of grad_xi tensor = F
-                                 ! tensorb is the adjoint, tensora becomes F
-                                 !$acc loop seq
+                                ! STEP 2c: computing the inverse of grad_xi tensor = F
+                                ! tensorb is the adjoint, tensora becomes F
+                                !$acc loop seq
                                 do i = 1, tensor_size - 1
-                                   tensora(i) = tensorb(i)/tensorb(tensor_size)
+                                    tensora(i) = tensorb(i)/tensorb(tensor_size)
                                 end do
                                 ! STEP 2e: computing F transpose F
                                 tensorb(1) = tensora(1)**2 + tensora(2)**2 + tensora(3)**2
@@ -293,7 +293,7 @@ contains
             ! calculate the deviatoric of the tensor
             btensor(1)%sf(j, k, l) = btensor(1)%sf(j, k, l) - f12*trace
             btensor(3)%sf(j, k, l) = btensor(3)%sf(j, k, l) - f12*trace
-        else 
+        else
             ! tensor is the symmetric tensor & calculate the trace of the tensor
             trace = btensor(1)%sf(j, k, l)
             ! calculate the deviatoric of the tensor

@@ -1,10 +1,10 @@
-This file was created on 2025-02-19 10:58:53.149964.
+This file was created on 2025-02-27 13:52:52.566471.
 
 mfc.sh:
 
     Invocation: test --only 28F28BAC --generate
-    Lock:       mpi=Yes & gpu=No & debug=Yes & gcov=No & unified=No & single=No
-    Git:        94b5c54142f960b3a4f5ee190814d109e1ba3dc5 on quickfix (clean)
+    Lock:       mpi=Yes & gpu=No & debug=No & gcov=No & unified=No & single=No
+    Git:        5ff3e1485c20fd45a6b16d6e9d3f6cb5c8bd3df5 on 1d2dhyper (dirty)
 
 post_process:
 
@@ -28,73 +28,7 @@ post_process:
         Fypp    : /home/mirelys/source/1dhMFC/build/venv/bin/fypp
         Doxygen : 
     
-        Build Type : Debug
-    
-    Configuration Environment:
-    
-        CC       : /usr/bin/cc
-        CXX      : /usr/bin/c++
-        FC       : /usr/bin/gfortran
-        OMPI_CC  : 
-        OMPI_CXX : 
-        OMPI_FC  : 
-
-simulation:
-
-    CMake Configuration:
-    
-        CMake v3.30.3 on mirelys-QEMU-Virtual-Machine
-    
-        C       : GNU v14.2.0 (/usr/bin/cc)
-        Fortran : GNU v14.2.0 (/usr/bin/gfortran)
-    
-        PRE_PROCESS   : OFF
-        SIMULATION    : ON
-        POST_PROCESS  : OFF
-        SYSCHECK      : OFF
-        DOCUMENTATION : OFF
-        ALL           : OFF
-    
-        MPI     : ON
-        OpenACC : OFF
-    
-        Fypp    : /home/mirelys/source/1dhMFC/build/venv/bin/fypp
-        Doxygen : 
-    
-        Build Type : Debug
-    
-    Configuration Environment:
-    
-        CC       : /usr/bin/cc
-        CXX      : /usr/bin/c++
-        FC       : /usr/bin/gfortran
-        OMPI_CC  : 
-        OMPI_CXX : 
-        OMPI_FC  : 
-
-pre_process:
-
-    CMake Configuration:
-    
-        CMake v3.30.3 on mirelys-QEMU-Virtual-Machine
-    
-        C       : GNU v14.2.0 (/usr/bin/cc)
-        Fortran : GNU v14.2.0 (/usr/bin/gfortran)
-    
-        PRE_PROCESS   : ON
-        SIMULATION    : OFF
-        POST_PROCESS  : OFF
-        SYSCHECK      : OFF
-        DOCUMENTATION : OFF
-        ALL           : OFF
-    
-        MPI     : ON
-        OpenACC : OFF
-    
-        Fypp    : /home/mirelys/source/1dhMFC/build/venv/bin/fypp
-        Doxygen : 
-    
-        Build Type : Debug
+        Build Type : Release
     
     Configuration Environment:
     
@@ -127,7 +61,73 @@ syscheck:
         Fypp    : /home/mirelys/source/1dhMFC/build/venv/bin/fypp
         Doxygen : 
     
-        Build Type : Debug
+        Build Type : Release
+    
+    Configuration Environment:
+    
+        CC       : /usr/bin/cc
+        CXX      : /usr/bin/c++
+        FC       : /usr/bin/gfortran
+        OMPI_CC  : 
+        OMPI_CXX : 
+        OMPI_FC  : 
+
+pre_process:
+
+    CMake Configuration:
+    
+        CMake v3.30.3 on mirelys-QEMU-Virtual-Machine
+    
+        C       : GNU v14.2.0 (/usr/bin/cc)
+        Fortran : GNU v14.2.0 (/usr/bin/gfortran)
+    
+        PRE_PROCESS   : ON
+        SIMULATION    : OFF
+        POST_PROCESS  : OFF
+        SYSCHECK      : OFF
+        DOCUMENTATION : OFF
+        ALL           : OFF
+    
+        MPI     : ON
+        OpenACC : OFF
+    
+        Fypp    : /home/mirelys/source/1dhMFC/build/venv/bin/fypp
+        Doxygen : 
+    
+        Build Type : Release
+    
+    Configuration Environment:
+    
+        CC       : /usr/bin/cc
+        CXX      : /usr/bin/c++
+        FC       : /usr/bin/gfortran
+        OMPI_CC  : 
+        OMPI_CXX : 
+        OMPI_FC  : 
+
+simulation:
+
+    CMake Configuration:
+    
+        CMake v3.30.3 on mirelys-QEMU-Virtual-Machine
+    
+        C       : GNU v14.2.0 (/usr/bin/cc)
+        Fortran : GNU v14.2.0 (/usr/bin/gfortran)
+    
+        PRE_PROCESS   : OFF
+        SIMULATION    : ON
+        POST_PROCESS  : OFF
+        SYSCHECK      : OFF
+        DOCUMENTATION : OFF
+        ALL           : OFF
+    
+        MPI     : ON
+        OpenACC : OFF
+    
+        Fypp    : /home/mirelys/source/1dhMFC/build/venv/bin/fypp
+        Doxygen : 
+    
+        Build Type : Release
     
     Configuration Environment:
     
