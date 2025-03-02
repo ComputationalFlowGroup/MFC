@@ -244,7 +244,7 @@ contains
                         do l = 0, p
                             do k = 0, n
                                 do i = xibeg, xiend
-                                    bc_sum = 0_wp
+                                    bc_sum = 0._wp
                                     !$acc loop seq
                                     do q = 1, j
                                         bc_sum = bc_sum - dx(-q)
@@ -278,7 +278,7 @@ contains
                         do l = 0, p
                             do k = 0, n
                                 do i = xibeg, xiend
-                                    bc_sum = 0_wp
+                                    bc_sum = 0._wp
                                     !$acc loop seq
                                     do q = 1, j
                                         bc_sum = bc_sum + dx(m + q)
@@ -316,7 +316,7 @@ contains
                         do l = -buff_size, m + buff_size
                             do k = 0, p
                                 do i = xibeg, xiend
-                                    bc_sum = 0_wp
+                                    bc_sum = 0._wp
                                     !$acc loop seq
                                     do q = 1, j
                                         bc_sum = bc_sum - dy(-q)
@@ -350,7 +350,7 @@ contains
                         do l = -buff_size, m + buff_size
                             do k = 0, p
                                 do i = xibeg, xiend
-                                    bc_sum = 0_wp
+                                    bc_sum = 0._wp
                                     !$acc loop seq
                                     do q = 1, j
                                         bc_sum = bc_sum + dy(n + q)
