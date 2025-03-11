@@ -140,7 +140,7 @@ if (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
              -fimplicit-none
              #-ffpe-trap=invalid,zero,denormal,overflow
              -fsignaling-nans
-             #-finit-real=snan
+             -finit-real=snan
              -finit-integer=-99999999
 	    )
     endif()
