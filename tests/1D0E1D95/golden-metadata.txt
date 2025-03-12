@@ -1,12 +1,12 @@
-This file was created on 2025-02-27 13:49:12.765521.
+This file was created on 2025-03-12 10:23:50.132899.
 
 mfc.sh:
 
-    Invocation: test --only 1D0E1D95 --generate
-    Lock:       mpi=Yes & gpu=No & debug=No & gcov=No & unified=No & single=No
-    Git:        5ff3e1485c20fd45a6b16d6e9d3f6cb5c8bd3df5 on 1d2dhyper (dirty)
+    Invocation: test --only Example 1D0E1D95 --generate
+    Lock:       mpi=Yes & gpu=No & debug=Yes & gcov=No & unified=No & single=No
+    Git:        7728580e40bd48812018d073468a4e513df806ff on 1d2dhyper (dirty)
 
-post_process:
+syscheck:
 
     CMake Configuration:
     
@@ -17,8 +17,8 @@ post_process:
     
         PRE_PROCESS   : OFF
         SIMULATION    : OFF
-        POST_PROCESS  : ON
-        SYSCHECK      : OFF
+        POST_PROCESS  : OFF
+        SYSCHECK      : ON
         DOCUMENTATION : OFF
         ALL           : OFF
     
@@ -28,7 +28,7 @@ post_process:
         Fypp    : /home/mirelys/source/1dhMFC/build/venv/bin/fypp
         Doxygen : 
     
-        Build Type : Release
+        Build Type : Debug
     
     Configuration Environment:
     
@@ -61,7 +61,7 @@ pre_process:
         Fypp    : /home/mirelys/source/1dhMFC/build/venv/bin/fypp
         Doxygen : 
     
-        Build Type : Release
+        Build Type : Debug
     
     Configuration Environment:
     
@@ -72,7 +72,7 @@ pre_process:
         OMPI_CXX : 
         OMPI_FC  : 
 
-syscheck:
+post_process:
 
     CMake Configuration:
     
@@ -83,8 +83,8 @@ syscheck:
     
         PRE_PROCESS   : OFF
         SIMULATION    : OFF
-        POST_PROCESS  : OFF
-        SYSCHECK      : ON
+        POST_PROCESS  : ON
+        SYSCHECK      : OFF
         DOCUMENTATION : OFF
         ALL           : OFF
     
@@ -94,7 +94,7 @@ syscheck:
         Fypp    : /home/mirelys/source/1dhMFC/build/venv/bin/fypp
         Doxygen : 
     
-        Build Type : Release
+        Build Type : Debug
     
     Configuration Environment:
     
@@ -127,7 +127,7 @@ simulation:
         Fypp    : /home/mirelys/source/1dhMFC/build/venv/bin/fypp
         Doxygen : 
     
-        Build Type : Release
+        Build Type : Debug
     
     Configuration Environment:
     
