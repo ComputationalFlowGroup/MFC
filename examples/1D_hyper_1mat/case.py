@@ -35,7 +35,7 @@ print(
             "prim_vars_wrt": "T",
             "rho_wrt": "T",
             "c_wrt": "T",
-            "parallel_io": "F",
+            "parallel_io": "T",
             "patch_icpp(1)%pres": 1000000.0,
             "patch_icpp(1)%alpha_rho(1)": 1000.0,
             "patch_icpp(1)%alpha(1)": 1.0,
