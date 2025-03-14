@@ -575,11 +575,13 @@ contains
                                     G_L = G_L + alpha_L(i)*Gs(i)
                                     G_R = G_R + alpha_R(i)*Gs(i)
                                 end do
+
                                 ! Elastic contribution to energy if G large enough
                                 if (G_L > verysmall .and. G_R > verysmall) then
                                     E_L = E_L + G_L*qL_prim_rs${XYZ}$_vf(j, k, l, xiend + 1)
                                     E_R = E_R + G_R*qR_prim_rs${XYZ}$_vf(j + 1, k, l, xiend + 1)
                                 end if
+
                                 !$acc loop seq
                                 do i = 1, b_size - 1
                                     tau_e_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, strxb - 1 + i)
