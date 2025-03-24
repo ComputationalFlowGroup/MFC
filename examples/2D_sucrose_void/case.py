@@ -13,8 +13,8 @@ rho = 1.0
 c_l = 3.0776  # mm/us
 
 leng = 2.0  # mm
-#Ny = 768
-#Nx = 1024
+# Ny = 768
+# Nx = 1024
 Ny = 50
 Nx = 50
 dx = leng / Nx
@@ -130,11 +130,11 @@ print(
             "precision": 2,
             "prim_vars_wrt": "T",
             "parallel_io": "T",
-            #"E_wrt": "T",
-            #"c_wrt": "T",
-            #"schlieren_wrt": "T",
-            #"schlieren_alpha(1)": 1.00,
-            #"schlieren_alpha(2)": 0.25,
+            # "E_wrt": "T",
+            # "c_wrt": "T",
+            # "schlieren_wrt": "T",
+            # "schlieren_alpha(1)": 1.00,
+            # "schlieren_alpha(2)": 0.25,
             "fd_order": 2,
             # Patch 1: Background
             "patch_icpp(1)%geometry": 3,
