@@ -32,14 +32,14 @@ jobs:
         with:
           path: pr
 
-      - name: Checkout code from MFC master
+      - name: Checkout code from MFC main
         uses: actions/checkout@v4
         with:
           repository: ${{ github.event.pull_request.repository }}
           ref:        ${{ github.event.pull_request.base.ref }}
           path:       base
           # repository: MFlowCode/MFC
-          # ref:        master
+          # ref:        main
           # path:       base
 
       - name: Get Line Diff
