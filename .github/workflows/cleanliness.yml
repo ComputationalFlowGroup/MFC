@@ -25,18 +25,18 @@ jobs:
       runs-on: "ubuntu-latest"
       env:
           pr_everything: 0
-          master_everything: 0
+          main_everything: 0
       steps:
           - name: Clone - PR
             uses: actions/checkout@v4
             with:
               path: pr
-          - name: Clone - Master
+          - name: Clone - Main
             uses: actions/checkout@v4
             with:
               repository: MFlowCode/MFC
-              ref: master
-              path: master
+              ref: main
+              path: main
 
           - name: Setup Ubuntu
             run: |
@@ -46,14 +46,14 @@ jobs:
           - name: Build
             run: |
               (cd pr && /bin/bash mfc.sh build -j $(nproc) --debug 2> ../pr.txt) 
-              (cd master && /bin/bash mfc.sh build -j $(nproc) --debug 2> ../master.txt)
+              (cd main && /bin/bash mfc.sh build -j $(nproc) --debug 2> ../main.txt)
               sed -i '/\/pr\//d' pr.txt
-              sed -i '/\/master\//d' master.txt
+              sed -i '/\/main\//d' main.txt
           
           - name: Unused Variables Diff
             continue-on-error: true
             run: |
-              grep -F 'Wunused-variable' master.txt > mUnused.txt
+              grep -F 'Wunused-variable' main.txt > mUnused.txt
               grep -F 'Wunused-variable' pr.txt > prUnused.txt
               diff prUnused.txt mUnused.txt
           
@@ -61,21 +61,21 @@ jobs:
             continue-on-error: true
             run: |
               grep -F 'Wunused-dummy-argument' pr.txt > prDummy.txt 
-              grep -F 'Wunused-dummy-argument' master.txt > mDummy.txt
+              grep -F 'Wunused-dummy-argument' main.txt > mDummy.txt
               diff prDummy.txt mDummy.txt
 
           - name: Unused Value Diff
             continue-on-error: true
             run: |
               grep -F 'Wunused-value' pr.txt > prUnused_val.txt
-              grep -F 'Wunused-value' master.txt > mUnused_val.txt
+              grep -F 'Wunused-value' main.txt > mUnused_val.txt
               diff prUnused_val.txt mUnused_val.txt
 
           - name: Maybe Uninitialized Variables Diff
             continue-on-error: true
             run: |
               grep -F 'Wmaybe-uninitialized' pr.txt > prMaybe.txt
-              grep -F 'Wmaybe-uninitialized' master.txt > mMaybe.txt
+              grep -F 'Wmaybe-uninitialized' main.txt > mMaybe.txt
               diff prMaybe.txt mMaybe.txt
 
 
@@ -83,7 +83,7 @@ jobs:
             continue-on-error: true
             run: |
               grep '\-W' pr.txt > pr_every.txt
-              grep '\-W' master.txt > m_every.txt
+              grep '\-W' main.txt > m_every.txt
               diff pr_every.txt m_every.txt
 
           - name: List of Warnings
@@ -100,28 +100,28 @@ jobs:
               pr_uninit=$(grep -c -F 'Wmaybe-uninitialized' pr.txt)
               pr_everything=$(grep -c '\-W' pr.txt)
 
-              master_variable=$(grep -c -F 'Wunused-variable' master.txt)
-              master_argument=$(grep -c -F 'Wunused-dummy-argument' master.txt)
-              master_value=$(grep -c -F 'Wunused-value' master.txt)
-              master_uninit=$(grep -c -F 'Wmaybe-uninitialized' master.txt)
-              master_everything=$(grep -c '\-W' master.txt  )    
+              main_variable=$(grep -c -F 'Wunused-variable' main.txt)
+              main_argument=$(grep -c -F 'Wunused-dummy-argument' main.txt)
+              main_value=$(grep -c -F 'Wunused-value' main.txt)
+              main_uninit=$(grep -c -F 'Wmaybe-uninitialized' main.txt)
+              main_everything=$(grep -c '\-W' main.txt  )    
 
               echo "pr_everything=$pr_everything" >> $GITHUB_ENV
-              echo "master_everything=$master_everything" >> $GITHUB_ENV
+              echo "main_everything=$main_everything" >> $GITHUB_ENV
 
-              echo "Difference is how many warnings were added or removed from master to PR."
+              echo "Difference is how many warnings were added or removed from main to PR."
               echo "Negative numbers are better since you are removing warnings." 
               echo " "
-              echo "Unused Variable Count: $pr_variable, Difference: $((pr_variable - master_variable))"
-              echo "Unused Dummy Argument: $pr_argument, Difference: $((pr_argument - master_argument))"
-              echo "Unused Value: $pr_value, Difference: $((pr_value - master_value))"
-              echo "Maybe Uninitialized: $pr_uninit, Difference: $((pr_uninit - master_uninit))"
-              echo "Everything: $pr_everything, Difference: $((pr_everything - master_everything))"
+              echo "Unused Variable Count: $pr_variable, Difference: $((pr_variable - main_variable))"
+              echo "Unused Dummy Argument: $pr_argument, Difference: $((pr_argument - main_argument))"
+              echo "Unused Value: $pr_value, Difference: $((pr_value - main_value))"
+              echo "Maybe Uninitialized: $pr_uninit, Difference: $((pr_uninit - main_uninit))"
+              echo "Everything: $pr_everything, Difference: $((pr_everything - main_everything))"
           
           
           - name: Check Differences
-            if: env.pr_everything > env.master_everything 
+            if: env.pr_everything > env.main_everything 
             run: |
-              echo "Difference between warning count in PR is greater than in master."
+              echo "Difference between warning count in PR is greater than in main."
 
 
