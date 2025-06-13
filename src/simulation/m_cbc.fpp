@@ -106,9 +106,9 @@ module m_cbc
     integer :: flux_cbc_index
     !$acc declare create(dj, bcxb, bcxe, bcyb, bcye, bczb, bcze, cbc_dir, cbc_loc, flux_cbc_index)
 
-    !! GRCBC inputs for subsonic inflow and outflow conditions consisting of
-    !! inflow velocities, pressure, density and void fraction as well as
-    !! outflow velocities and pressure
+    ! grCBC inputs for subsonic inflow and outflow conditions consisting of
+    ! inflow velocities, pressure, density and void fraction as well as
+    ! outflow velocities and pressure
 
     real(wp), allocatable, dimension(:) :: pres_in, pres_out, Del_in, Del_out
     real(wp), allocatable, dimension(:, :) :: vel_in, vel_out
@@ -411,13 +411,13 @@ contains
             !$acc update device(bczb, bcze)
         end if
 
-        ! Allocate GRCBC inputs
+        ! Allocate grCBC inputs
         @:ALLOCATE(pres_in(1:num_dims), pres_out(1:num_dims))
         @:ALLOCATE(Del_in(1:num_dims), Del_out(1:num_dims))
         @:ALLOCATE(vel_in(1:num_dims, 1:num_dims), vel_out(1:num_dims, 1:num_dims))
         @:ALLOCATE(alpha_rho_in(1:num_fluids, 1:num_dims), alpha_in(1:num_fluids, 1:num_dims))
 
-        ! Assign and update GRCBC inputs
+        ! Assign and update grCBC inputs
         #:for CBC_DIR, XYZ in [(1, 'x'), (2, 'y'), (3, 'z')]
             if (${CBC_DIR}$ <= num_dims) then
                 vel_in(${CBC_DIR}$, 1) = bc_${XYZ}$%vel_in(1)
@@ -945,7 +945,7 @@ contains
                             if (bc_${XYZ}$%grcbc_out) then
                                 L(advxe) = c*(1._wp - Ma)*(pres - pres_out(${CBC_DIR}$))/Del_out(${CBC_DIR}$)
 
-                                ! Add GRCBC for Subsonic Outflow (Normal Velocity)
+                                ! Add grCBC for Subsonic Outflow (Normal Velocity)
                                 if (bc_${XYZ}$%grcbc_vel_out) then
                                     L(advxe) = L(advxe) + rho*c**2._wp*(1._wp - Ma)*(vel(dir_idx(1)) + vel_out(${CBC_DIR}$, dir_idx(1))*sign(1, cbc_loc))/Del_out(${CBC_DIR}$)
                                 end if
@@ -1619,7 +1619,7 @@ contains
         ! Deallocating the cell-width distribution in the s-direction
         @:DEALLOCATE(ds)
 
-        ! Deallocating GRCBC inputs
+        ! Deallocating grCBC inputs
         @:DEALLOCATE(vel_in, vel_out, pres_in, pres_out, Del_in, Del_out, alpha_rho_in, alpha_in)
 
         ! Deallocating CBC Coefficients in x-direction

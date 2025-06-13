@@ -130,6 +130,34 @@
             q_prim_vf(advxe)%sf(i, j, 0) = patch_icpp(1)%alpha(2)
         end if
 
+    case (207) ! (2D lung geometry in X direction with smoothing)
+
+        lam = 200.e-06_wp
+        amp = patch_icpp(patch_id)%a(2)
+        h = 0.125_wp*amp
+
+        intH = amp/2_wp*(cos(2._wp*pi*y_cc(j)/lam))
+
+        alph = patch_icpp(2)%alpha(1) + (patch_icpp(1)%alpha(1) - patch_icpp(2)%alpha(1))/(h)*(x_cc(i) - (intH - h/2._wp))
+
+        if (x_cc(i) > intH + h/2._wp) then
+
+            q_prim_vf(advxb)%sf(i, j, 0) = patch_icpp(1)%alpha(1)
+            q_prim_vf(advxe)%sf(i, j, 0) = patch_icpp(1)%alpha(2)
+            q_prim_vf(contxb)%sf(i, j, 0) = patch_icpp(1)%alpha_rho(1)
+            q_prim_vf(contxe)%sf(i, j, 0) = patch_icpp(1)%alpha_rho(2)
+            q_prim_vf(E_idx)%sf(i, j, 0) = patch_icpp(1)%pres
+
+        else if ((x_cc(i) <= intH + h/2._wp) .and. (x_cc(i) >= intH - h/2._wp)) then
+
+            q_prim_vf(advxb)%sf(i, j, 0) = alph
+            q_prim_vf(advxe)%sf(i, j, 0) = 1._wp - alph
+            q_prim_vf(contxb)%sf(i, j, 0) = patch_icpp(1)%alpha_rho(1)/patch_icpp(1)%alpha(1)*alph
+            q_prim_vf(contxe)%sf(i, j, 0) = patch_icpp(2)%alpha_rho(2)/patch_icpp(2)%alpha(2)*(1 - alph)
+            q_prim_vf(E_idx)%sf(i, j, 0) = patch_icpp(1)%pres
+
+        end if
+
     case (250) ! MHD Orszag-Tang vortex
         ! gamma = 5/3
         !   rho = 25/(36*pi)

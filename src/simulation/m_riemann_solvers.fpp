@@ -483,7 +483,6 @@ contains
                                 !$acc loop seq
                                 do i = 1, 2
                                     Re_R(i) = dflt_real
-
                                     if (Re_size(i) > 0) Re_R(i) = 0._wp
 
                                     !$acc loop seq
@@ -541,8 +540,8 @@ contains
                                 call get_mixture_energy_mass(T_L, Ys_L, E_L)
                                 call get_mixture_energy_mass(T_R, Ys_R, E_R)
 
-                                E_L = rho_L*E_L + 5e-1*rho_L*vel_L_rms
-                                E_R = rho_R*E_R + 5e-1*rho_R*vel_R_rms
+                                E_L = rho_L*E_L + 5e-1_wp*rho_L*vel_L_rms
+                                E_R = rho_R*E_R + 5e-1_wp*rho_R*vel_R_rms
                                 H_L = (E_L + pres_L)/rho_L
                                 H_R = (E_R + pres_R)/rho_R
                             elseif (mhd .and. relativity) then
@@ -560,8 +559,8 @@ contains
                                 B2%L = B%L(1)**2._wp + B%L(2)**2._wp + B%L(3)**2._wp
                                 B2%R = B%R(1)**2._wp + B%R(2)**2._wp + B%R(3)**2._wp
 
-                                pres_mag%L = 0.5_wp*(B2%L/Ga%L**2._wp + vdotB%L**2._wp)
-                                pres_mag%R = 0.5_wp*(B2%R/Ga%R**2._wp + vdotB%R**2._wp)
+                                pres_mag%L = 5e-1_wp*(B2%L/Ga%L**2._wp + vdotB%L**2._wp)
+                                pres_mag%R = 5e-1_wp*(B2%R/Ga%R**2._wp + vdotB%R**2._wp)
 
                                 ! Hard-coded EOS
                                 H_L = 1._wp + (gamma_L + 1)*pres_L/rho_L
@@ -574,18 +573,18 @@ contains
                                 cm%R(2) = (rho_R*H_R*Ga%R**2 + B2%R)*vel_R(2) - vdotB%R*B%R(2)
                                 cm%R(3) = (rho_R*H_R*Ga%R**2 + B2%R)*vel_R(3) - vdotB%R*B%R(3)
 
-                                E_L = rho_L*H_L*Ga%L**2 - pres_L + 0.5_wp*(B2%L + vel_L_rms*B2%L - vdotB%L**2._wp) - rho_L*Ga%L
-                                E_R = rho_R*H_R*Ga%R**2 - pres_R + 0.5_wp*(B2%R + vel_R_rms*B2%R - vdotB%R**2._wp) - rho_R*Ga%R
+                                E_L = rho_L*H_L*Ga%L**2 - pres_L + 5e-1_wp*(B2%L + vel_L_rms*B2%L - vdotB%L**2._wp) - rho_L*Ga%L
+                                E_R = rho_R*H_R*Ga%R**2 - pres_R + 5e-1_wp*(B2%R + vel_R_rms*B2%R - vdotB%R**2._wp) - rho_R*Ga%R
                             elseif (mhd .and. .not. relativity) then
-                                pres_mag%L = 0.5_wp*(B%L(1)**2._wp + B%L(2)**2._wp + B%L(3)**2._wp)
-                                pres_mag%R = 0.5_wp*(B%R(1)**2._wp + B%R(2)**2._wp + B%R(3)**2._wp)
-                                E_L = gamma_L*pres_L + pi_inf_L + 0.5_wp*rho_L*vel_L_rms + qv_L + pres_mag%L
-                                E_R = gamma_R*pres_R + pi_inf_R + 0.5_wp*rho_R*vel_R_rms + qv_R + pres_mag%R ! includes magnetic energy
+                                pres_mag%L = 5e-1_wp*(B%L(1)**2._wp + B%L(2)**2._wp + B%L(3)**2._wp)
+                                pres_mag%R = 5e-1_wp*(B%R(1)**2._wp + B%R(2)**2._wp + B%R(3)**2._wp)
+                                E_L = gamma_L*pres_L + pi_inf_L + 5e-1_wp*rho_L*vel_L_rms + qv_L + pres_mag%L
+                                E_R = gamma_R*pres_R + pi_inf_R + 5e-1_wp*rho_R*vel_R_rms + qv_R + pres_mag%R ! includes magnetic energy
                                 H_L = (E_L + pres_L - pres_mag%L)/rho_L
                                 H_R = (E_R + pres_R - pres_mag%R)/rho_R ! stagnation enthalpy here excludes magnetic energy (only used to find speed of sound)
                             else
-                                E_L = gamma_L*pres_L + pi_inf_L + 5e-1*rho_L*vel_L_rms + qv_L
-                                E_R = gamma_R*pres_R + pi_inf_R + 5e-1*rho_R*vel_R_rms + qv_R
+                                E_L = gamma_L*pres_L + pi_inf_L + 5e-1_wp*rho_L*vel_L_rms + qv_L
+                                E_R = gamma_R*pres_R + pi_inf_R + 5e-1_wp*rho_R*vel_R_rms + qv_R
                                 H_L = (E_L + pres_L)/rho_L
                                 H_R = (E_R + pres_R)/rho_R
                             end if
@@ -605,12 +604,13 @@ contains
                                     G_R = G_R*max((1._wp - qR_prim_rs${XYZ}$_vf(j, k, l, damage_idx)), 0._wp)
                                 end if
 
+                                !$acc loop seq
                                 do i = 1, strxe - strxb + 1
                                     tau_e_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, strxb - 1 + i)
                                     tau_e_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, strxb - 1 + i)
                                     ! Elastic contribution to energy if G large enough
                                     !TODO take out if statement if stable without
-                                    if ((G_L > 1000) .and. (G_R > 1000)) then
+                                    if ((G_L > verysmall) .and. (G_R > verysmall)) then
                                         E_L = E_L + (tau_e_L(i)*tau_e_L(i))/(4._wp*G_L)
                                         E_R = E_R + (tau_e_R(i)*tau_e_R(i))/(4._wp*G_R)
                                         ! Double for shear stresses
@@ -622,37 +622,31 @@ contains
                                 end do
                             end if
 
-                            ! elastic energy update
-                            !if ( hyperelasticity ) then
-                            !    G_L = 0._wp
-                            !    G_R = 0._wp
-                            !
-                            !    !$acc loop seq
-                            !    do i = 1, num_fluids
-                            !        G_L = G_L + alpha_L(i)*Gs(i)
-                            !        G_R = G_R + alpha_R(i)*Gs(i)
-                            !    end do
-                            !    ! Elastic contribution to energy if G large enough
-                            !    if ((G_L > 1e-3_wp) .and. (G_R > 1e-3_wp)) then
-                            !    E_L = E_L + G_L*qL_prim_rs${XYZ}$_vf(j, k, l, xiend + 1)
-                            !    E_R = E_R + G_R*qR_prim_rs${XYZ}$_vf(j + 1, k, l, xiend + 1)
-                            !    !$acc loop seq
-                            !    do i = 1, b_size-1
-                            !        tau_e_L(i) = G_L*qL_prim_rs${XYZ}$_vf(j, k, l, strxb - 1 + i)
-                            !        tau_e_R(i) = G_R*qR_prim_rs${XYZ}$_vf(j + 1, k, l, strxb - 1 + i)
-                            !    end do
-                            !    !$acc loop seq
-                            !    do i = 1, b_size-1
-                            !        tau_e_L(i) = 0_wp
-                            !        tau_e_R(i) = 0_wp
-                            !    end do
-                            !    !$acc loop seq
-                            !    do i = 1, num_dims
-                            !        xi_field_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, xibeg - 1 + i)
-                            !        xi_field_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, xibeg - 1 + i)
-                            !    end do
-                            !    end if
-                            !end if
+                            ! energy adjustments for hyperelastic energy
+                            if (hyperelasticity) then
+                                !$acc loop seq
+                                do i = 1, num_dims
+                                    xi_field_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, xibeg - 1 + i)
+                                    xi_field_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, xibeg - 1 + i)
+                                end do
+                                G_L = 0._wp; G_R = 0._wp; 
+                                !$acc loop seq
+                                do i = 1, num_fluids
+                                    ! Mixture left and right shear modulus
+                                    G_L = G_L + alpha_L(i)*Gs(i)
+                                    G_R = G_R + alpha_R(i)*Gs(i)
+                                end do
+                                ! Elastic contribution to energy if G large enough
+                                if (G_L > verysmall .and. G_R > verysmall) then
+                                    E_L = E_L + G_L*qL_prim_rs${XYZ}$_vf(j, k, l, xiend + 1)
+                                    E_R = E_R + G_R*qR_prim_rs${XYZ}$_vf(j + 1, k, l, xiend + 1)
+                                end if
+                                !$acc loop seq
+                                do i = 1, b_size - 1
+                                    tau_e_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, strxb - 1 + i)
+                                    tau_e_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, strxb - 1 + i)
+                                end do
+                            end if
 
                             @:compute_average_state()
 
@@ -713,6 +707,7 @@ contains
                                        (s_R - vel_R(dir_idx(1)))) &
                                       /(rho_L*(s_L - vel_L(dir_idx(1))) - &
                                         rho_R*(s_R - vel_R(dir_idx(1))))
+
                             elseif (wave_speeds == 2) then
                                 pres_SL = 5e-1_wp*(pres_L + pres_R + rho_avg*c_avg* &
                                                    (vel_L(dir_idx(1)) - &
@@ -858,7 +853,7 @@ contains
                                         /(s_M - s_P) &
                                         + (s_M/s_L)*(s_P/s_R)*pcorr*(vel_R(dir_idx(i)) - vel_L(dir_idx(i)))
                                 end do
-                            else if (hypoelasticity) then
+                            else if (elasticity) then
                                 !$acc loop seq
                                 do i = 1, num_vels
                                     flux_rs${XYZ}$_vf(j, k, l, contxe + dir_idx(i)) = &
@@ -914,7 +909,7 @@ contains
                                      + s_M*s_P*(E_L - E_R)) &
                                     /(s_M - s_P) &
                                     + (s_M/s_L)*(s_P/s_R)*pcorr*(vel_R_rms - vel_L_rms)/2._wp
-                            else if (hypoelasticity) then
+                            else if (elasticity) then
                                 !TODO: simplify this so it's not split into 3
                                 if (num_dims == 1) then
                                     flux_rs${XYZ}$_vf(j, k, l, E_idx) = &
@@ -956,9 +951,9 @@ contains
                                     + (s_M/s_L)*(s_P/s_R)*pcorr*(vel_R_rms - vel_L_rms)/2._wp
                             end if
 
-                            ! Elastic Stresses
+                            ! elastic stresses flux.
                             if (hypoelasticity) then
-                                do i = 1, strxe - strxb + 1 !TODO: this indexing may be slow
+                                do i = 1, strxe - strxb + 1
                                     flux_rs${XYZ}$_vf(j, k, l, strxb - 1 + i) = &
                                         (s_M*(rho_R*vel_R(dir_idx(1)) &
                                               *tau_e_R(i)) &
@@ -970,7 +965,19 @@ contains
                                 end do
                             end if
 
-                            ! Advection
+                            ! reference map flux.
+                            if (hyperelasticity) then
+                                do i = 1, num_dims
+                                    flux_rs${XYZ}$_vf(j, k, l, xibeg - 1 + i) = &
+                                        (s_M*rho_R*vel_R(dir_idx(1))*xi_field_R(i) &
+                                         - s_P*rho_L*vel_L(dir_idx(1))*xi_field_L(i) &
+                                         + s_M*s_P*(rho_L*xi_field_L(i) &
+                                                    - rho_R*xi_field_R(i))) &
+                                        /(s_M - s_P)
+                                end do
+                            end if
+
+                            ! advection flux.
                             !$acc loop seq
                             do i = advxb, advxe
                                 flux_rs${XYZ}$_vf(j, k, l, i) = &
@@ -982,18 +989,6 @@ contains
                                      - s_P*qL_prim_rs${XYZ}$_vf(j, k, l, i)) &
                                     /(s_M - s_P)
                             end do
-
-                            ! Xi field
-                            !if ( hyperelasticity ) then
-                            !    do i = 1, num_dims
-                            !      flux_rs${XYZ}$_vf(j, k, l, xibeg - 1 + i) = &
-                            !        (s_M*rho_R*vel_R(dir_idx(1))*xi_field_R(i) &
-                            !         - s_P*rho_L*vel_L(dir_idx(1))*xi_field_L(i) &
-                            !         + s_M*s_P*(rho_L*xi_field_L(i) &
-                            !                    - rho_R*xi_field_R(i))) &
-                            !        /(s_M - s_P)
-                            !    end do
-                            !end if
 
                             ! Div(U)?
                             !$acc loop seq
@@ -1291,7 +1286,7 @@ contains
                     !$acc s_L, s_R, s_S, vel_avg_rms, alpha_L, alpha_R, Ys_L, Ys_R, Xs_L, Xs_R,     &
                     !$acc Gamma_iL, Gamma_iR, Cp_iL, Cp_iR, Yi_avg, Phi_avg, h_iL, h_iR, h_avg_2,   &
                     !$acc tau_e_L, tau_e_R, G_L, G_R, flux_ene_e, xi_field_L, xi_field_R, pcorr,    &
-                    !$acc zcoef, vel_L_tmp, vel_R_tmp)
+                    !$acc zcoef, vel_L_tmp, vel_R_tmp, xi_L, xi_R)
                     do l = is3%beg, is3%end
                         do k = is2%beg, is2%end
                             do j = is1%beg, is1%end
@@ -1378,7 +1373,6 @@ contains
                                             Re_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, E_idx + Re_idx(i, q))/Res(i, q) &
                                                       + Re_L(i)
                                         end do
-
                                         Re_L(i) = 1._wp/max(Re_L(i), sgm_eps)
 
                                     end do
@@ -1400,17 +1394,16 @@ contains
                                 end if
 
                                 E_L = gamma_L*pres_L + pi_inf_L + 5e-1_wp*rho_L*vel_L_rms + qv_L
-
                                 E_R = gamma_R*pres_R + pi_inf_R + 5e-1_wp*rho_R*vel_R_rms + qv_R
 
-                                ! ENERGY ADJUSTMENTS FOR HYPOELASTIC ENERGY
+                                ! energy adjustments for hypoelastic energy
                                 if (hypoelasticity) then
                                     !$acc loop seq
                                     do i = 1, strxe - strxb + 1
                                         tau_e_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, strxb - 1 + i)
                                         tau_e_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, strxb - 1 + i)
                                     end do
-                                    G_L = 0_wp; G_R = 0_wp
+                                    G_L = 0._wp; G_R = 0._wp
                                     !$acc loop seq
                                     do i = 1, num_fluids
                                         G_L = G_L + alpha_L(i)*Gs(i)
@@ -1431,14 +1424,14 @@ contains
                                     end do
                                 end if
 
-                                ! ENERGY ADJUSTMENTS FOR HYPERELASTIC ENERGY
+                                ! energy adjustments for hyperelastic energy
                                 if (hyperelasticity) then
                                     !$acc loop seq
                                     do i = 1, num_dims
                                         xi_field_L(i) = qL_prim_rs${XYZ}$_vf(j, k, l, xibeg - 1 + i)
                                         xi_field_R(i) = qR_prim_rs${XYZ}$_vf(j + 1, k, l, xibeg - 1 + i)
                                     end do
-                                    G_L = 0_wp; G_R = 0_wp; 
+                                    G_L = 0._wp; G_R = 0._wp; 
                                     !$acc loop seq
                                     do i = 1, num_fluids
                                         ! Mixture left and right shear modulus
@@ -1485,7 +1478,7 @@ contains
                                     @:compute_low_Mach_correction()
                                 end if
 
-                                ! COMPUTING THE DIRECT WAVE SPEEDS
+                                ! computing the direct wave speeds
                                 if (wave_speeds == 1) then
                                     if (elasticity) then
                                         s_L = min(vel_L(dir_idx(1)) - sqrt(c_L*c_L + &
@@ -1539,8 +1532,8 @@ contains
 
                                 ! goes with numerical star velocity in x/y/z directions
                                 ! xi_P/M = 0.5 +/m sgn(0.5,s_star)
-                                xi_M = (5e-1_wp + sign(0.5_wp, s_S))
-                                xi_P = (5e-1_wp - sign(0.5_wp, s_S))
+                                xi_M = (5e-1_wp + sign(5e-1_wp, s_S))
+                                xi_P = (5e-1_wp - sign(5e-1_wp, s_S))
 
                                 ! goes with the numerical velocity in x/y/z directions
                                 ! xi_P/M (pressure) = min/max(0. sgn(1,sL/sR))
@@ -1557,7 +1550,7 @@ contains
                                 rho_Star = xi_M*(rho_L*(xi_MP*xi_L + 1._wp - xi_MP)) + &
                                            xi_P*(rho_R*(xi_PP*xi_R + 1._wp - xi_PP))
 
-                                vel_K_Star = vel_L(idx1)*(1_wp - xi_MP) + xi_MP*vel_R(idx1) + &
+                                vel_K_Star = vel_L(idx1)*(1._wp - xi_MP) + xi_MP*vel_R(idx1) + &
                                              xi_MP*xi_PP*(s_S - vel_R(idx1))
 
                                 ! Low Mach correction
@@ -1567,8 +1560,8 @@ contains
                                     pcorr = 0._wp
                                 end if
 
-                                ! COMPUTING FLUXES
-                                ! MASS FLUX.
+                                ! computing fluxes
+                                ! mass flux.
                                 !$acc loop seq
                                 do i = 1, contxe
                                     flux_rs${XYZ}$_vf(j, k, l, i) = &
@@ -1576,7 +1569,7 @@ contains
                                         xi_P*qR_prim_rs${XYZ}$_vf(j + 1, k, l, i)*(vel_R(idx1) + s_P*(xi_R - 1._wp))
                                 end do
 
-                                ! MOMENTUM FLUX.
+                                ! momentum flux.
                                 ! f = \rho u u - \sigma, q = \rho u, q_star = \xi * \rho*(s_star, v, w)
                                 !$acc loop seq
                                 do i = 1, num_dims
@@ -1586,22 +1579,22 @@ contains
                                                                                 + (s_M/s_L)*(s_P/s_R)*dir_flg(idxi)*pcorr
                                 end do
 
-                                ! ENERGY FLUX.
+                                ! energy flux.
                                 ! f = u*(E-\sigma), q = E, q_star = \xi*E+(s-u)(\rho s_star - \sigma/(s-u))
                                 flux_rs${XYZ}$_vf(j, k, l, E_idx) = (E_star + p_Star)*vel_K_Star &
                                                                     + (s_M/s_L)*(s_P/s_R)*pcorr*s_S
 
-                                ! ELASTICITY. Elastic shear stress additions for the momentum and energy flux
+                                ! elasticity. elastic shear stress additions for the momentum and energy flux
                                 if (elasticity) then
-                                    flux_ene_e = 0_wp; 
+                                    flux_ene_e = 0._wp; 
                                     !$acc loop seq
                                     do i = 1, num_dims
                                         idxi = dir_idx(i)
-                                        ! MOMENTUM ELASTIC FLUX.
+                                        ! momentum elastic flux.
                                         flux_rs${XYZ}$_vf(j, k, l, contxe + idxi) = &
                                             flux_rs${XYZ}$_vf(j, k, l, contxe + idxi) &
                                             - xi_M*tau_e_L(dir_idx_tau(i)) - xi_P*tau_e_R(dir_idx_tau(i))
-                                        ! ENERGY ELASTIC FLUX.
+                                        ! energy elastic flux.
                                         flux_ene_e = flux_ene_e - &
                                                      xi_M*(vel_L(idxi)*tau_e_L(dir_idx_tau(i)) + &
                                                            s_M*(xi_L*((s_S - vel_L(i))*(tau_e_L(dir_idx_tau(i))/(s_L - vel_L(i)))))) - &
@@ -1611,7 +1604,7 @@ contains
                                     flux_rs${XYZ}$_vf(j, k, l, E_idx) = flux_rs${XYZ}$_vf(j, k, l, E_idx) + flux_ene_e
                                 end if
 
-                                ! VOLUME FRACTION FLUX.
+                                ! volume fraction flux.
                                 !$acc loop seq
                                 do i = advxb, advxe
                                     flux_rs${XYZ}$_vf(j, k, l, i) = &
@@ -1619,7 +1612,7 @@ contains
                                         xi_P*qR_prim_rs${XYZ}$_vf(j + 1, k, l, i)*s_S
                                 end do
 
-                                ! SOURCE TERM FOR VOLUME FRACTION ADVECTION FLUX.
+                                ! source term for volume fraction advection flux.
                                 !$acc loop seq
                                 do i = 1, num_dims
                                     idxi = dir_idx(i)
@@ -1628,14 +1621,14 @@ contains
                                         xi_P*(vel_R(idxi) + dir_flg(idxi)*(s_S*(xi_PP*(xi_R - 1) + 1) - vel_R(idxi)))
                                 end do
 
-                                ! INTERNAL ENERGIES ADVECTION FLUX.
+                                ! internal energies advection flux.
                                 ! K-th pressure and velocity in preparation for the internal energy flux
                                 !$acc loop seq
                                 do i = 1, num_fluids
-                                    p_K_Star = xi_M*(xi_MP*((pres_L + pi_infs(i)/(1_wp + gammas(i)))* &
-                                                            xi_L**(1_wp/gammas(i) + 1_wp) - pi_infs(i)/(1_wp + gammas(i)) - pres_L) + pres_L) + &
-                                               xi_P*(xi_PP*((pres_R + pi_infs(i)/(1_wp + gammas(i)))* &
-                                                            xi_R**(1_wp/gammas(i) + 1_wp) - pi_infs(i)/(1_wp + gammas(i)) - pres_R) + pres_R)
+                                    p_K_Star = xi_M*(xi_MP*((pres_L + pi_infs(i)/(1._wp + gammas(i)))* &
+                                                            xi_L**(1._wp/gammas(i) + 1._wp) - pi_infs(i)/(1._wp + gammas(i)) - pres_L) + pres_L) + &
+                                               xi_P*(xi_PP*((pres_R + pi_infs(i)/(1._wp + gammas(i)))* &
+                                                            xi_R**(1._wp/gammas(i) + 1._wp) - pi_infs(i)/(1._wp + gammas(i)) - pres_R) + pres_R)
 
                                     flux_rs${XYZ}$_vf(j, k, l, i + intxb - 1) = &
                                         ((xi_M*qL_prim_rs${XYZ}$_vf(j, k, l, i + advxb - 1) + xi_P*qR_prim_rs${XYZ}$_vf(j + 1, k, l, i + advxb - 1))* &
@@ -1647,7 +1640,7 @@ contains
 
                                 flux_src_rs${XYZ}$_vf(j, k, l, advxb) = vel_src_rs${XYZ}$_vf(j, k, l, idx1)
 
-                                ! HYPOELASTIC STRESS EVOLUTION FLUX.
+                                ! hypoelastic stress evolution flux.
                                 if (hypoelasticity) then
                                     !$acc loop seq
                                     do i = 1, strxe - strxb + 1
@@ -1657,7 +1650,7 @@ contains
                                     end do
                                 end if
 
-                                ! REFERENCE MAP FLUX.
+                                ! reference map flux.
                                 if (hyperelasticity) then
                                     !$acc loop seq
                                     do i = 1, num_dims
@@ -1669,7 +1662,7 @@ contains
                                     end do
                                 end if
 
-                                ! COLOR FUNCTION FLUX
+                                ! color function flux.
                                 if (surface_tension) then
                                     flux_rs${XYZ}$_vf(j, k, l, c_idx) = &
                                         (xi_M*qL_prim_rs${XYZ}$_vf(j, k, l, c_idx) + &
@@ -1694,7 +1687,7 @@ contains
                                         ! Geometrical source of the void fraction(s) is zero
                                         !$acc loop seq
                                         do i = advxb, advxe
-                                            flux_gsrc_rs${XYZ}$_vf(j, k, l, i) = 0_wp
+                                            flux_gsrc_rs${XYZ}$_vf(j, k, l, i) = 0._wp
                                         end do
                                     end if
                                 #:endif
@@ -1702,7 +1695,7 @@ contains
                                     if (grid_geometry == 3) then
                                         !$acc loop seq
                                         do i = 1, sys_size
-                                            flux_gsrc_rs${XYZ}$_vf(j, k, l, i) = 0_wp
+                                            flux_gsrc_rs${XYZ}$_vf(j, k, l, i) = 0._wp
                                         end do
                                         flux_gsrc_rs${XYZ}$_vf(j, k, l, momxb - 1 + dir_idx(1)) = &
                                             flux_gsrc_rs${XYZ}$_vf(j, k, l, momxb - 1 + dir_idx(1)) - p_Star
@@ -1710,7 +1703,6 @@ contains
                                         flux_gsrc_rs${XYZ}$_vf(j, k, l, momxe) = flux_rs${XYZ}$_vf(j, k, l, momxb + 1)
                                     end if
                                 #:endif
-
                             end do
                         end do
                     end do
@@ -2071,7 +2063,6 @@ contains
                                         !$acc loop seq
                                         do i = 1, 2
                                             Re_R(i) = dflt_real
-
                                             if (Re_size(i) > 0) Re_R(i) = 0._wp
 
                                             !$acc loop seq
@@ -2079,14 +2070,12 @@ contains
                                                 Re_R(i) = (1._wp - qR_prim_rs${XYZ}$_vf(j + 1, k, l, E_idx + Re_idx(i, q)))/Res(i, q) &
                                                           + Re_R(i)
                                             end do
-
                                             Re_R(i) = 1._wp/max(Re_R(i), sgm_eps)
                                         end do
                                     end if
                                 end if
 
                                 E_L = gamma_L*pres_L + pi_inf_L + 5e-1_wp*rho_L*vel_L_rms
-
                                 E_R = gamma_R*pres_R + pi_inf_R + 5e-1_wp*rho_R*vel_R_rms
 
                                 H_L = (E_L + pres_L)/rho_L
@@ -2597,20 +2586,19 @@ contains
                                     call get_mixture_energy_mass(T_L, Ys_L, E_L)
                                     call get_mixture_energy_mass(T_R, Ys_R, E_R)
 
-                                    E_L = rho_L*E_L + 5e-1*rho_L*vel_L_rms
-                                    E_R = rho_R*E_R + 5e-1*rho_R*vel_R_rms
+                                    E_L = rho_L*E_L + 5e-1_wp*rho_L*vel_L_rms
+                                    E_R = rho_R*E_R + 5e-1_wp*rho_R*vel_R_rms
                                     H_L = (E_L + pres_L)/rho_L
                                     H_R = (E_R + pres_R)/rho_R
                                 else
-                                    E_L = gamma_L*pres_L + pi_inf_L + 5e-1*rho_L*vel_L_rms + qv_L
-
-                                    E_R = gamma_R*pres_R + pi_inf_R + 5e-1*rho_R*vel_R_rms + qv_R
+                                    E_L = gamma_L*pres_L + pi_inf_L + 5e-1_wp*rho_L*vel_L_rms + qv_L
+                                    E_R = gamma_R*pres_R + pi_inf_R + 5e-1_wp*rho_R*vel_R_rms + qv_R
 
                                     H_L = (E_L + pres_L)/rho_L
                                     H_R = (E_R + pres_R)/rho_R
                                 end if
 
-                                ! ENERGY ADJUSTMENTS FOR HYPOELASTIC ENERGY
+                                ! energy adjustments for hypoelastic energy
                                 if (hypoelasticity) then
                                     !$acc loop seq
                                     do i = 1, strxe - strxb + 1
@@ -2639,7 +2627,7 @@ contains
                                     end do
                                 end if
 
-                                ! ENERGY ADJUSTMENTS FOR HYPERELASTIC ENERGY
+                                ! energy adjustments for hyperelastic energy
                                 if (hyperelasticity) then
                                     !$acc loop seq
                                     do i = 1, num_dims
@@ -2757,8 +2745,9 @@ contains
                                     pcorr = 0._wp
                                 end if
 
-                                ! COMPUTING THE HLLC FLUXES
-                                ! MASS FLUX.
+                                ! Computing the hllc fluxes
+
+                                ! mass flux.
                                 !$acc loop seq
                                 do i = 1, contxe
                                     flux_rs${XYZ}$_vf(j, k, l, i) = &
@@ -2768,7 +2757,7 @@ contains
                                         *(vel_R(idx1) + s_P*(xi_R - 1._wp))
                                 end do
 
-                                ! MOMENTUM FLUX.
+                                ! momentum flux.
                                 ! f = \rho u u - \sigma, q = \rho u, q_star = \xi * \rho*(s_star, v, w)
                                 !$acc loop seq
                                 do i = 1, num_dims
@@ -2789,7 +2778,7 @@ contains
                                         + (s_M/s_L)*(s_P/s_R)*dir_flg(idxi)*pcorr
                                 end do
 
-                                ! ENERGY FLUX.
+                                ! energy flux.
                                 ! f = u*(E-\sigma), q = E, q_star = \xi*E+(s-u)(\rho s_star - \sigma/(s-u))
                                 flux_rs${XYZ}$_vf(j, k, l, E_idx) = &
                                     xi_M*(vel_L(idx1)*(E_L + pres_L) + &
@@ -2802,17 +2791,19 @@ contains
                                                         (s_R - vel_R(idx1)))) - E_R)) &
                                     + (s_M/s_L)*(s_P/s_R)*pcorr*s_S
 
-                                ! ELASTICITY. Elastic shear stress additions for the momentum and energy flux
+                                ! elasticity. elastic shear stress additions for the momentum and energy flux
                                 if (elasticity) then
                                     flux_ene_e = 0_wp
                                     !$acc loop seq
                                     do i = 1, num_dims
                                         idxi = dir_idx(i)
-                                        ! MOMENTUM ELASTIC FLUX.
+
+                                        ! momentum elastic flux
                                         flux_rs${XYZ}$_vf(j, k, l, contxe + idxi) = &
                                             flux_rs${XYZ}$_vf(j, k, l, contxe + idxi) &
                                             - xi_M*tau_e_L(dir_idx_tau(i)) - xi_P*tau_e_R(dir_idx_tau(i))
-                                        ! ENERGY ELASTIC FLUX.
+
+                                        ! energy elastic flux
                                         flux_ene_e = flux_ene_e - &
                                                      xi_M*(vel_L(idxi)*tau_e_L(dir_idx_tau(i)) + &
                                                            s_M*(xi_L*((s_S - vel_L(i))*(tau_e_L(dir_idx_tau(i))/(s_L - vel_L(i)))))) - &
@@ -2822,7 +2813,7 @@ contains
                                     flux_rs${XYZ}$_vf(j, k, l, E_idx) = flux_rs${XYZ}$_vf(j, k, l, E_idx) + flux_ene_e
                                 end if
 
-                                ! HYPOELASTIC STRESS EVOLUTION FLUX.
+                                ! hypoelastic stress evolution flux
                                 if (hypoelasticity) then
                                     !$acc loop seq
                                     do i = 1, strxe - strxb + 1
@@ -2832,7 +2823,7 @@ contains
                                     end do
                                 end if
 
-                                ! VOLUME FRACTION FLUX.
+                                ! volume fraction flux
                                 !$acc loop seq
                                 do i = advxb, advxe
                                     flux_rs${XYZ}$_vf(j, k, l, i) = &
@@ -2842,7 +2833,7 @@ contains
                                         *(vel_R(idx1) + s_P*(xi_R - 1._wp))
                                 end do
 
-                                ! VOLUME FRACTION SOURCE FLUX.
+                                ! volume fraction source flux
                                 !$acc loop seq
                                 do i = 1, num_dims
                                     idxi = dir_idx(i)
@@ -2855,7 +2846,7 @@ contains
                                                 s_P*(xi_R - 1._wp))
                                 end do
 
-                                ! COLOR FUNCTION FLUX
+                                ! color function flux.
                                 if (surface_tension) then
                                     flux_rs${XYZ}$_vf(j, k, l, c_idx) = &
                                         xi_M*qL_prim_rs${XYZ}$_vf(j, k, l, c_idx) &
@@ -2864,7 +2855,7 @@ contains
                                         *(vel_R(idx1) + s_P*(xi_R - 1._wp))
                                 end if
 
-                                ! REFERENCE MAP FLUX.
+                                ! reference map flux
                                 if (hyperelasticity) then
                                     !$acc loop seq
                                     do i = 1, num_dims
@@ -3122,10 +3113,10 @@ contains
                                 qv%R = qv%R + alpha_rho_R(i)*qvs(i)
                             end do
 
-                            pres_mag%L = 0.5_wp*sum(B%L**2._wp)
-                            pres_mag%R = 0.5_wp*sum(B%R**2._wp)
-                            E%L = gamma%L*pres%L + pi_inf%L + 0.5_wp*rho%L*vel_rms%L + qv%L + pres_mag%L
-                            E%R = gamma%R*pres%R + pi_inf%R + 0.5_wp*rho%R*vel_rms%R + qv%R + pres_mag%R ! includes magnetic energy
+                            pres_mag%L = 5e-1_wp*sum(B%L**2._wp)
+                            pres_mag%R = 5e-1_wp*sum(B%R**2._wp)
+                            E%L = gamma%L*pres%L + pi_inf%L + 5e-1_wp*rho%L*vel_rms%L + qv%L + pres_mag%L
+                            E%R = gamma%R*pres%R + pi_inf%R + 5e-1_wp*rho%R*vel_rms%R + qv%R + pres_mag%R ! includes magnetic energy
                             H_no_mag%L = (E%L + pres%L - pres_mag%L)/rho%L
                             H_no_mag%R = (E%R + pres%R - pres_mag%R)/rho%R ! stagnation enthalpy here excludes magnetic energy (only used to find speed of sound)
 
@@ -3228,7 +3219,7 @@ contains
 
                             E_doubleL = E_starL - sqrt_rhoL_star*((vL_star*B%L(2) + wL_star*B%L(3)) - (v_double*By_double + w_double*Bz_double))*sign_Bx
                             E_doubleR = E_starR + sqrt_rhoR_star*((vR_star*B%R(2) + wR_star*B%R(3)) - (v_double*By_double + w_double*Bz_double))*sign_Bx
-                            E_double = 0.5_wp*(E_doubleL + E_doubleR)
+                            E_double = 5e-1_wp*(E_doubleL + E_doubleR)
 
                             U_doubleL(1) = rhoL_star
                             U_doubleL(2) = rhoL_star*s_M
@@ -3987,19 +3978,19 @@ contains
                     ! For cylindrical: x-dir ~ axial (z_cyl), y-dir ~ radial (r_cyl), z-dir ~ azimuthal (theta_cyl)
                     !$acc loop seq
                     do i_vel = 1, num_dims
-                        avg_v_int(i_vel) = 0.5_wp*(velL_vf(i_vel)%sf(j, k, l) + velR_vf(i_vel)%sf(idx_rp(1), idx_rp(2), idx_rp(3)))
+                        avg_v_int(i_vel) = 5e-1_wp*(velL_vf(i_vel)%sf(j, k, l) + velR_vf(i_vel)%sf(idx_rp(1), idx_rp(2), idx_rp(3)))
 
-                        avg_dvdx_int(i_vel) = 0.5_wp*(dvelL_dx_vf(i_vel)%sf(j, k, l) + &
-                                                      dvelR_dx_vf(i_vel)%sf(idx_rp(1), idx_rp(2), idx_rp(3)))
+                        avg_dvdx_int(i_vel) = 5e-1_wp*(dvelL_dx_vf(i_vel)%sf(j, k, l) + &
+                                                       dvelR_dx_vf(i_vel)%sf(idx_rp(1), idx_rp(2), idx_rp(3)))
                         if (num_dims > 1) then
-                            avg_dvdy_int(i_vel) = 0.5_wp*(dvelL_dy_vf(i_vel)%sf(j, k, l) + &
-                                                          dvelR_dy_vf(i_vel)%sf(idx_rp(1), idx_rp(2), idx_rp(3)))
+                            avg_dvdy_int(i_vel) = 5e-1_wp*(dvelL_dy_vf(i_vel)%sf(j, k, l) + &
+                                                           dvelR_dy_vf(i_vel)%sf(idx_rp(1), idx_rp(2), idx_rp(3)))
                         else
                             avg_dvdy_int(i_vel) = 0.0_wp
                         end if
                         if (num_dims > 2) then
-                            avg_dvdz_int(i_vel) = 0.5_wp*(dvelL_dz_vf(i_vel)%sf(j, k, l) + &
-                                                          dvelR_dz_vf(i_vel)%sf(idx_rp(1), idx_rp(2), idx_rp(3)))
+                            avg_dvdz_int(i_vel) = 5e-1_wp*(dvelL_dz_vf(i_vel)%sf(j, k, l) + &
+                                                           dvelR_dz_vf(i_vel)%sf(idx_rp(1), idx_rp(2), idx_rp(3)))
                         else
                             avg_dvdz_int(i_vel) = 0.0_wp
                         end if
@@ -4149,15 +4140,15 @@ contains
 
                     vel_grad_avg = 0.0_wp
                     do vel_comp_idx = 1, num_dims
-                        vel_grad_avg(vel_comp_idx, 1) = 0.5_wp*(dvelL_dx_vf(vel_comp_idx)%sf(j_loop, k_loop, l_loop) + &
-                                                                dvelR_dx_vf(vel_comp_idx)%sf(idx_right_phys(1), idx_right_phys(2), idx_right_phys(3)))
+                        vel_grad_avg(vel_comp_idx, 1) = 5e-1_wp*(dvelL_dx_vf(vel_comp_idx)%sf(j_loop, k_loop, l_loop) + &
+                                                                 dvelR_dx_vf(vel_comp_idx)%sf(idx_right_phys(1), idx_right_phys(2), idx_right_phys(3)))
                         if (num_dims > 1) then
-                            vel_grad_avg(vel_comp_idx, 2) = 0.5_wp*(dvelL_dy_vf(vel_comp_idx)%sf(j_loop, k_loop, l_loop) + &
-                                                                    dvelR_dy_vf(vel_comp_idx)%sf(idx_right_phys(1), idx_right_phys(2), idx_right_phys(3)))
+                            vel_grad_avg(vel_comp_idx, 2) = 5e-1_wp*(dvelL_dy_vf(vel_comp_idx)%sf(j_loop, k_loop, l_loop) + &
+                                                                     dvelR_dy_vf(vel_comp_idx)%sf(idx_right_phys(1), idx_right_phys(2), idx_right_phys(3)))
                         end if
                         if (num_dims > 2) then
-                            vel_grad_avg(vel_comp_idx, 3) = 0.5_wp*(dvelL_dz_vf(vel_comp_idx)%sf(j_loop, k_loop, l_loop) + &
-                                                                    dvelR_dz_vf(vel_comp_idx)%sf(idx_right_phys(1), idx_right_phys(2), idx_right_phys(3)))
+                            vel_grad_avg(vel_comp_idx, 3) = 5e-1_wp*(dvelL_dz_vf(vel_comp_idx)%sf(j_loop, k_loop, l_loop) + &
+                                                                     dvelR_dz_vf(vel_comp_idx)%sf(idx_right_phys(1), idx_right_phys(2), idx_right_phys(3)))
                         end if
                     end do
 

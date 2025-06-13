@@ -1127,6 +1127,16 @@ contains
                         end do
                     end if
 
+#ifdef MFC_POST_PROCESS
+                    if (hyperelasticity .and. p /= 0) then
+                        ! to save von Mises stress instead of elastic internal energy
+                        qK_prim_vf(xiend + 1)%sf(j, k, l) = sqrt((3_wp/2_wp)*(qK_prim_vf(strxb)%sf(j, k, l)**2_wp + &
+                                                                              2_wp*qK_prim_vf(strxb + 1)%sf(j, k, l)**2_wp + qK_prim_vf(strxb + 2)%sf(j, k, l)**2_wp + &
+                                                                              2_wp*qK_prim_vf(strxb + 3)%sf(j, k, l)**2_wp + 2_wp*qK_prim_vf(strxb + 4)%sf(j, k, l)**2_wp + &
+                                                                              qK_prim_vf(strxe)%sf(j, k, l)**2_wp))
+                    end if
+#endif
+
                     !$acc loop seq
                     do i = advxb, advxe
                         qK_prim_vf(i)%sf(j, k, l) = qK_cons_vf(i)%sf(j, k, l)
@@ -1505,7 +1515,6 @@ contains
                     end if
 
                     ! Computing the energy from the pressure
-
                     if (chemistry) then
                         !$acc loop seq
                         do i = chemxb, chemxe
@@ -1655,7 +1664,7 @@ contains
                         (rho*(1._wp - adv(num_fluids)))
                 end if
             else
-                c = ((H - 5e-1*vel_sum)/gamma)
+                c = ((H - 5e-1_wp*vel_sum)/gamma)
             end if
 
             if (mixture_err .and. c < 0._wp) then

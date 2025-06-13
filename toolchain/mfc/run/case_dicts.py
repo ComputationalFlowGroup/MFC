@@ -290,6 +290,7 @@ SIMULATION.update({
     'low_Mach': ParamType.INT,
     'surface_tension': ParamType.LOG,
     'viscous': ParamType.LOG,
+    'hyper_model': ParamType.INT,
     'bubbles_lagrange': ParamType.LOG,
     'num_bc_patches': ParamType.INT,
     'powell': ParamType.LOG,
@@ -433,6 +434,7 @@ POST_PROCESS.update({
     't_stop': ParamType.REAL,
     'n_start': ParamType.INT,
     'surface_tension': ParamType.LOG,
+    'kymograph': ParamType.LOG,
     'output_partial_domain': ParamType.LOG,
     'bubbles_lagrange': ParamType.LOG,
 })

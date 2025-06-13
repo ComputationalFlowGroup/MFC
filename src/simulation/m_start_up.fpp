@@ -176,8 +176,9 @@ contains
             bf_x, bf_y, bf_z, &
             k_x, k_y, k_z, w_x, w_y, w_z, p_x, p_y, p_z, &
             g_x, g_y, g_z, n_start, t_save, t_stop, &
-            cfl_adap_dt, cfl_const_dt, cfl_target, &
-            viscous, surface_tension, &
+            cfl_adap_dt, cfl_const_dt, cfl_target,  &
+            viscous, surface_tension,               & 
+            hyperelasticity, hyper_model, R0ref, &
             bubbles_lagrange, lag_params, &
             hyperelasticity, R0ref, num_bc_patches, Bx0, powell, &
             cont_damage, tau_star, cont_damage_s, alpha_bar

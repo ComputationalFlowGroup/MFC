@@ -33,6 +33,7 @@ contains
         call s_check_inputs_volume_fraction
         call s_check_inputs_vorticity
         call s_check_inputs_schlieren
+        call s_check_inputs_elasticity
         call s_check_inputs_surface_tension
         call s_check_inputs_no_flow_variables
 
@@ -128,6 +129,13 @@ contains
                 "schlieren_alpha("//trim(iStr)//") should be set only with schlieren_wrt enabled")
         end do
     end subroutine s_check_inputs_schlieren
+
+    !> Checks constraints on elasticity parameters
+    subroutine s_check_inputs_elasticity
+        ! Note: 'elasticity' variable isn't initialized yet; use (hypoelasticity .or. hyperelasticity) instead
+        @:PROHIBIT(.not. hyperelasticity .and. kymograph)
+        @:PROHIBIT(format == 2 .and. kymograph, 'Binary output format does not support kymograph')
+    end subroutine
 
     !> Checks constraints on surface tension parameters (cf_wrt and sigma)
     impure subroutine s_check_inputs_surface_tension
