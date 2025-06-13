@@ -124,6 +124,7 @@ contains
                     !if ( G <= verysmall ) G_K = 0_wp
 
                     if (G > verysmall) then
+                       
                         !$acc loop seq
                         do i = 1, tensor_size
                             tensora(i) = 0_wp
@@ -188,12 +189,17 @@ contains
                             #:endfor
                             ! store the determinant at the last entry of the btensor
                             btensor%vf(b_size)%sf(j, k, l) = tensorb(tensor_size)
+
+                            !do i = 1, b_size - 1
+                            !   print *, 'btensor, i :: ',i,', ',btensor%vf(i)%sf(j,k,l)
+                            !end do 
+
                             ! STEP 5a: updating the Cauchy stress primitive scalar field
-                            if (hyper_model == 1) then
+                            !if (hyper_model == 1) then
                                 call s_neoHookean_cauchy_solver(btensor%vf, q_prim_vf, G, j, k, l)
-                            elseif (hyper_model == 2) then
-                                call s_Mooney_Rivlin_cauchy_solver(btensor%vf, q_prim_vf, G, j, k, l)
-                            end if
+                            !elseif (hyper_model == 2) then
+                            !    call s_Mooney_Rivlin_cauchy_solver(btensor%vf, q_prim_vf, G, j, k, l)
+                            !end if
                             ! STEP 5b: updating the pressure field
                             q_prim_vf(E_idx)%sf(j, k, l) = q_prim_vf(E_idx)%sf(j, k, l) - &
                                                            G*q_prim_vf(xiend + 1)%sf(j, k, l)/gamma
@@ -202,6 +208,9 @@ contains
                             do i = 1, b_size - 1
                                 q_cons_vf(strxb + i - 1)%sf(j, k, l) = &
                                     rho*q_prim_vf(strxb + i - 1)%sf(j, k, l)
+                            !    if (proc_rank==0) then
+                             !           print *,'tau=::',q_prim_vf(strxb + i - 1)%sf(j, k, l)
+                             !   end if
                             end do
                         end if
                     end if
@@ -243,7 +252,12 @@ contains
         do i = 1, b_size - 1
             q_prim_vf(strxb + i - 1)%sf(j, k, l) = &
                 G*btensor(i)%sf(j, k, l)/btensor(b_size)%sf(j, k, l)
+
+            !print *, 'tau, i :: ',i,', ',q_prim_vf(strxb+i-1)%sf(j,k,l)
+
         end do
+
+
         ! compute the invariant without the elastic modulus
         q_prim_vf(xiend + 1)%sf(j, k, l) = &
             0.5_wp*(trace - 3.0_wp)/btensor(b_size)%sf(j, k, l)
