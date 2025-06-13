@@ -22,6 +22,7 @@ class ParamType(Enum):
         return self.STR
 
 COMMON = {
+    'mhd': ParamType.LOG,
     'hypoelasticity': ParamType.LOG,
     'hyperelasticity': ParamType.LOG,
     'cyl_coord': ParamType.LOG,
@@ -56,7 +57,9 @@ COMMON = {
     'cfl_const_dt': ParamType.LOG,
     'chemistry': ParamType.LOG,
     'cantera_file': ParamType.STR,
-    'rkck_adap_dt': ParamType.LOG, 
+    'Bx0': ParamType.REAL,
+    'relativity': ParamType.LOG,
+    'cont_damage': ParamType.LOG,
 }
 
 PRE_PROCESS = COMMON.copy()
@@ -94,6 +97,9 @@ PRE_PROCESS.update({
     'surface_tension': ParamType.LOG,
     'elliptic_smoothing': ParamType.LOG,
     'elliptic_smoothing_iters': ParamType.INT,
+    'num_bc_patches': ParamType.INT,
+    'viscous': ParamType.LOG,
+    'bubbles_lagrange': ParamType.LOG,
 })
 
 for ib_id in range(1, 10+1):
@@ -134,6 +140,16 @@ for f_id in range(1, 10+1):
                       "mu_v", "k_v", "cp_v", "G", "cv", "qv", "qvp" ]:
         PRE_PROCESS[f"fluid_pp({f_id})%{real_attr}"] = ParamType.REAL
 
+for bc_p_id in range(1, 10+1):
+    for attribute in ["geometry","type","dir","loc"]:
+        PRE_PROCESS[f"patch_bc({bc_p_id})%{attribute}"] = ParamType.INT
+
+    for attribute in ["centroid","length"]:
+        for d_id in range(1, 3+1):
+            PRE_PROCESS[f"patch_bc({bc_p_id})%{attribute}({d_id})"] = ParamType.REAL
+
+    PRE_PROCESS[f"patch_bc({bc_p_id})%radius"] = ParamType.REAL
+
 for p_id in range(1, 10+1):
     for attribute, ty in [("geometry", ParamType.INT), ("smoothen", ParamType.LOG),
                       ("smooth_patch_id", ParamType.INT), ("hcid", ParamType.INT)]:
@@ -149,6 +165,10 @@ for p_id in range(1, 10+1):
         PRE_PROCESS[f"patch_icpp({p_id})%a({real_attr})"] = ParamType.REAL
 
     PRE_PROCESS[f"patch_icpp({p_id})%pres"] = ParamType.REAL.analytic()
+
+    PRE_PROCESS[f"patch_icpp({p_id})%Bx"] = ParamType.REAL.analytic()
+    PRE_PROCESS[f"patch_icpp({p_id})%By"] = ParamType.REAL.analytic()
+    PRE_PROCESS[f"patch_icpp({p_id})%Bz"] = ParamType.REAL.analytic()
 
     for i in range(100):
         PRE_PROCESS[f"patch_icpp({p_id})%Y({i})"] = ParamType.REAL.analytic()
@@ -187,6 +207,29 @@ for p_id in range(1, 10+1):
             PRE_PROCESS[f'patch_icpp({p_id})%alter_patch({alter_id})'] = ParamType.LOG
 
     PRE_PROCESS[f'patch_icpp({p_id})%cf_val'] = ParamType.REAL.analytic()
+
+    for cmp in ["x", "y", "z"]:
+        PRE_PROCESS[f'bc_{cmp}%beg'] = ParamType.INT
+        PRE_PROCESS[f'bc_{cmp}%end'] = ParamType.INT
+        PRE_PROCESS[f'bc_{cmp}%vb1'] = ParamType.REAL
+        PRE_PROCESS[f'bc_{cmp}%vb2'] = ParamType.REAL
+        PRE_PROCESS[f'bc_{cmp}%vb3'] = ParamType.REAL
+        PRE_PROCESS[f'bc_{cmp}%ve1'] = ParamType.REAL
+        PRE_PROCESS[f'bc_{cmp}%ve2'] = ParamType.REAL
+        PRE_PROCESS[f'bc_{cmp}%ve3'] = ParamType.REAL
+        PRE_PROCESS[f'bc_{cmp}%pres_in'] = ParamType.REAL
+        PRE_PROCESS[f'bc_{cmp}%pres_out'] = ParamType.REAL
+        PRE_PROCESS[f'bc_{cmp}%grcbc_in'] = ParamType.LOG
+        PRE_PROCESS[f'bc_{cmp}%grcbc_out'] = ParamType.LOG
+        PRE_PROCESS[f'bc_{cmp}%grcbc_vel_out'] = ParamType.LOG
+
+        for int_id in range(1, 10+1):
+            PRE_PROCESS[f"bc_{cmp}%alpha_rho_in({int_id})"] = ParamType.REAL
+            PRE_PROCESS[f"bc_{cmp}%alpha_in({int_id})"] = ParamType.REAL
+
+        for int_id in range(1, 3+1):
+            PRE_PROCESS[f"bc_{cmp}%vel_in({int_id})"] = ParamType.REAL
+            PRE_PROCESS[f"bc_{cmp}%vel_out({int_id})"] = ParamType.REAL
 
 # NOTE: Currently unused.
 # for f_id in range(1, 10+1):
@@ -237,6 +280,7 @@ SIMULATION.update({
     'ptgalpha_eps': ParamType.REAL,
     'pi_fac': ParamType.REAL,
     'adap_dt': ParamType.LOG,
+    'adap_dt_tol': ParamType.REAL,
     'ib': ParamType.LOG,
     'num_ibs': ParamType.INT,
     'n_start': ParamType.INT,
@@ -247,7 +291,11 @@ SIMULATION.update({
     'surface_tension': ParamType.LOG,
     'viscous': ParamType.LOG,
     'bubbles_lagrange': ParamType.LOG,
-    'rkck_tolerance': ParamType.REAL,
+    'num_bc_patches': ParamType.INT,
+    'powell': ParamType.LOG,
+    'tau_star': ParamType.REAL,
+    'cont_damage_s': ParamType.REAL,
+    'alpha_bar': ParamType.REAL,
 })
 
 for var in [ 'heatTransfer_model', 'massTransfer_model', 'pressure_corrector',
@@ -422,7 +470,7 @@ ALL.update(PRE_PROCESS)
 ALL.update(SIMULATION)
 ALL.update(POST_PROCESS)
 
-CASE_OPTIMIZATION = [ "mapped_weno", "wenoz", "teno", "wenoz_q", "nb", "weno_order", "num_fluids" ]
+CASE_OPTIMIZATION = [ "mapped_weno", "wenoz", "teno", "wenoz_q", "nb", "weno_order", "num_fluids", "mhd", "relativity" ]
 
 _properties = { k: v.value for k, v in ALL.items() }
 

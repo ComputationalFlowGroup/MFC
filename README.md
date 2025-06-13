@@ -132,6 +132,8 @@ They are organized below.
 * Ideal and stiffened gas equations of state
 * Body forces
 * Acoustic wave generation (one- and two-way sound sources)
+* Magnetohydrodynamics (MHD)
+* Relativistic Magnetohydrodynamics (RMHD)
 </details>
 
 ### Numerics
@@ -142,7 +144,7 @@ They are organized below.
   	* WENO variants: WENO-JS, WENO-M, WENO-Z, TENO
    	* Monotonicity-preserving reconstructions
 	* Reliable handling of large density ratios
-* Exact and approximate (e.g., HLL, HLLC) Riemann solvers
+* Exact and approximate (e.g., HLL, HLLC, HLLD) Riemann solvers
 * Boundary conditions
 	* Periodic, reflective, extrapolation/Neumann
 	* Slip and no-slip
@@ -224,3 +226,8 @@ MFC computations have used many supercomputing systems. A partial list is below
   * PSC Bridges(1/2), NCSA Delta, SDSC Comet and Expanse, Purdue Anvil, TACC Stampede(1-3), and TAMU ACES via ACCESS-CI allocations from Bryngelson, Colonius, Rodriguez, and more.
   * DOD systems Onyx, Carpenter, Nautilus, and Narwhal via the DOD HPCMP program
   * Sandia National Labs systems Doom and Attaway and testbed systems Weaver and Vortex
+
+
+## Contributors
+
+[![Contributors](https://contributors-img.web.app/image?repo=mflowcode/mfc)](https://github.com/mflowcode/mfc/graphs/contributors)

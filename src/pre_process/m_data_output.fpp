@@ -29,6 +29,10 @@ module m_data_output
 
     use m_delay_file_access
 
+    use m_boundary_common
+
+    use m_boundary_conditions
+
     use m_thermochem, only: species_names
 
     implicit none
@@ -47,15 +51,19 @@ module m_data_output
         !! @param ib_markers track if a cell is within the immersed boundary
         !! @param levelset closest distance from every cell to the IB
         !! @param levelset_norm normalized vector from every cell to the closest point to the IB
-        subroutine s_write_abstract_data_files(q_cons_vf, ib_markers, levelset, levelset_norm)
+        impure subroutine s_write_abstract_data_files(q_cons_vf, q_prim_vf, ib_markers, levelset, levelset_norm, bc_type)
 
             import :: scalar_field, integer_field, sys_size, m, n, p, &
-                pres_field, levelset_field, levelset_norm_field
+                pres_field, levelset_field, levelset_norm_field, num_dims
 
             ! Conservative variables
             type(scalar_field), &
                 dimension(sys_size), &
-                intent(in) :: q_cons_vf
+                intent(in) :: q_cons_vf, q_prim_vf
+
+            type(integer_field), &
+                dimension(1:num_dims, -1:1), &
+                intent(in) :: bc_type
 
             ! IB markers
             type(integer_field), &
@@ -88,10 +96,15 @@ contains
         !! @param ib_markers track if a cell is within the immersed boundary
         !! @param levelset closest distance from every cell to the IB
         !! @param levelset_norm normalized vector from every cell to the closest point to the IB
-    subroutine s_write_serial_data_files(q_cons_vf, ib_markers, levelset, levelset_norm)
+    impure subroutine s_write_serial_data_files(q_cons_vf, q_prim_vf, ib_markers, levelset, levelset_norm, bc_type)
         type(scalar_field), &
             dimension(sys_size), &
-            intent(in) :: q_cons_vf
+            intent(in) :: q_cons_vf, q_prim_vf
+
+        ! BC types
+        type(integer_field), &
+            dimension(1:num_dims, -1:1), &
+            intent(in) :: bc_type
 
         ! IB markers
         type(integer_field), &
@@ -118,7 +131,7 @@ contains
         character(LEN=len_trim(t_step_dir) + name_len) :: file_loc !<
             !! Generic string used to store the address of a particular file
 
-        integer :: i, j, k, l, r, c, dir !< Generic loop iterator
+        integer :: i, j, k, l, r, c !< Generic loop iterator
         integer :: t_step
 
         real(wp), dimension(nb) :: nRtmp         !< Temporary bubble concentration
@@ -127,10 +140,11 @@ contains
         real(wp) :: rho                          !< Temporary density
         real(wp) :: pres, T                         !< Temporary pressure
 
-        real(wp) :: nR3
-        real(wp) :: ntmp
-
         real(wp) :: rhoYks(1:num_species) !< Temporary species mass fractions
+
+        real(wp) :: pres_mag
+
+        pres_mag = 0._wp
 
         T = dflt_T_guess
 
@@ -142,6 +156,10 @@ contains
             status = 'old'
         else
             status = 'new'
+        end if
+
+        if (bc_io) then
+            call s_write_serial_boundary_condition_files(q_prim_vf, bc_type, t_step_dir)
         end if
 
         ! x-coordinate direction
@@ -299,12 +317,26 @@ contains
                         else if (i == stress_idx%beg) then !tau_e
                             write (2, FMT) x_cb(j), q_cons_vf(stress_idx%beg)%sf(j, 0, 0)/rho
                         else if (i == E_idx) then !p
+                            if (mhd) then
+                                pres_mag = 0.5_wp*(Bx0**2 + q_cons_vf(B_idx%beg)%sf(j, 0, 0)**2 + q_cons_vf(B_idx%beg + 1)%sf(j, 0, 0)**2)
+                            end if
+
                             call s_compute_pressure( &
                                 q_cons_vf(E_idx)%sf(j, 0, 0), &
                                 q_cons_vf(alf_idx)%sf(j, 0, 0), &
                                 0.5_wp*(q_cons_vf(mom_idx%beg)%sf(j, 0, 0)**2._wp)/rho, &
-                                pi_inf, gamma, rho, qv, rhoYks, pres, T)
+                                pi_inf, gamma, rho, qv, rhoYks, pres, T, pres_mag=pres_mag)
                             write (2, FMT) x_cb(j), pres
+                        else if (mhd) then
+                            if (i == mom_idx%beg + 1) then ! v
+                                write (2, FMT) x_cb(j), q_cons_vf(mom_idx%beg + 1)%sf(j, 0, 0)/rho
+                            else if (i == mom_idx%beg + 2) then ! w
+                                write (2, FMT) x_cb(j), q_cons_vf(mom_idx%beg + 2)%sf(j, 0, 0)/rho
+                            else if (i == B_idx%beg) then ! By
+                                write (2, FMT) x_cb(j), q_cons_vf(B_idx%beg)%sf(j, 0, 0)/rho
+                            else if (i == B_idx%beg + 1) then ! Bz
+                                write (2, FMT) x_cb(j), q_cons_vf(B_idx%beg + 1)%sf(j, 0, 0)/rho
+                            end if
                         else if ((i >= bub_idx%beg) .and. (i <= bub_idx%end) .and. bubbles_euler) then
 
                             if (qbmm) then
@@ -322,6 +354,8 @@ contains
                             end if
                             write (2, FMT) x_cb(j), q_cons_vf(i)%sf(j, 0, 0)/nbub
                         else if (i == n_idx .and. adv_n .and. bubbles_euler) then
+                            write (2, FMT) x_cb(j), q_cons_vf(i)%sf(j, 0, 0)
+                        else if (i == damage_idx) then
                             write (2, FMT) x_cb(j), q_cons_vf(i)%sf(j, 0, 0)
                         end if
                     end do
@@ -519,12 +553,16 @@ contains
         !! @param ib_markers track if a cell is within the immersed boundary
         !! @param levelset closest distance from every cell to the IB
         !! @param levelset_norm normalized vector from every cell to the closest point to the IB
-    subroutine s_write_parallel_data_files(q_cons_vf, ib_markers, levelset, levelset_norm)
+    impure subroutine s_write_parallel_data_files(q_cons_vf, q_prim_vf, ib_markers, levelset, levelset_norm, bc_type)
 
         ! Conservative variables
         type(scalar_field), &
             dimension(sys_size), &
-            intent(in) :: q_cons_vf
+            intent(in) :: q_cons_vf, q_prim_vf
+
+        type(integer_field), &
+            dimension(1:num_dims, -1:1), &
+            intent(in) :: bc_type
 
         ! IB markers
         type(integer_field), &
@@ -823,11 +861,15 @@ contains
         end if
 #endif
 
+        if (bc_io) then
+            call s_write_parallel_boundary_condition_files(q_prim_vf, bc_type)
+        end if
+
     end subroutine s_write_parallel_data_files
 
     !> Computation of parameters, allocation procedures, and/or
         !!              any other tasks needed to properly setup the module
-    subroutine s_initialize_data_output_module
+    impure subroutine s_initialize_data_output_module
         ! Generic string used to store the address of a particular file
         character(LEN=len_trim(case_dir) + 2*name_len) :: file_loc
         character(len=15) :: temp
@@ -921,7 +963,7 @@ contains
     end subroutine s_initialize_data_output_module
 
     !> Resets s_write_data_files pointer
-    subroutine s_finalize_data_output_module
+    impure subroutine s_finalize_data_output_module
 
         s_write_data_files => null()
 

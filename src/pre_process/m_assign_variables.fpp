@@ -66,7 +66,7 @@ module m_assign_variables
 
 contains
 
-    subroutine s_initialize_assign_variables_module
+    impure subroutine s_initialize_assign_variables_module
 
         allocate (alf_sum%sf(0:m, 0:n, 0:p))
 
@@ -101,8 +101,8 @@ contains
         !! @param eta pseudo volume fraction
         !! @param q_prim_vf Primitive variables
         !! @param patch_id_fp Array to track patch ids
-    subroutine s_assign_patch_mixture_primitive_variables(patch_id, j, k, l, &
-                                                          eta, q_prim_vf, patch_id_fp)
+    pure subroutine s_assign_patch_mixture_primitive_variables(patch_id, j, k, l, &
+                                                               eta, q_prim_vf, patch_id_fp)
         !$acc routine seq
 
         integer, intent(in) :: patch_id
@@ -111,14 +111,7 @@ contains
         type(scalar_field), dimension(1:sys_size), intent(inout) :: q_prim_vf
         integer, dimension(0:m, 0:n, 0:p), intent(inout) :: patch_id_fp
 
-        real(wp) :: rho    !< density
-        real(wp), dimension(int(E_idx - mom_idx%beg)) :: vel    !< velocity
-        real(wp) :: pres   !< pressure
-        real(wp) :: gamma  !< specific heat ratio function
-        real(wp) :: x_centroid, y_centroid
-        real(wp) :: epsilon, beta
         real(wp) :: Ys(1:num_species)
-        real(wp) :: mean_molecular_weight
 
         integer :: smooth_patch_id
         integer :: i !< generic loop operator
@@ -197,7 +190,7 @@ contains
     !! @param k the y-dir node index
     !! @param l the z-dir node index
     !! @param q_prim_vf Primitive variables
-    subroutine s_perturb_primitive(j, k, l, q_prim_vf)
+    pure subroutine s_perturb_primitive(j, k, l, q_prim_vf)
 
         integer, intent(in) :: j, k, l
         type(scalar_field), dimension(1:sys_size), intent(inout) :: q_prim_vf
@@ -281,8 +274,8 @@ contains
         !! @param eta pseudo volume fraction
         !! @param q_prim_vf Primitive variables
         !! @param patch_id_fp Array to track patch ids
-    subroutine s_assign_patch_species_primitive_variables(patch_id, j, k, l, &
-                                                          eta, q_prim_vf, patch_id_fp)
+    impure subroutine s_assign_patch_species_primitive_variables(patch_id, j, k, l, &
+                                                                 eta, q_prim_vf, patch_id_fp)
         !$acc routine seq
 
         integer, intent(in) :: patch_id
@@ -308,13 +301,7 @@ contains
         real(wp) :: rcoord, theta, phi, xi_sph
         real(wp), dimension(3) :: xi_cart
 
-        real(wp), dimension(int(E_idx - mom_idx%beg)) :: vel    !< velocity
-        real(wp) :: pres   !< pressure
-        real(wp) :: x_centroid, y_centroid
-        real(wp) :: epsilon, beta
-
         real(wp) :: Ys(1:num_species)
-        real(wp) :: mean_molecular_weight
 
         real(wp), dimension(sys_size) :: orig_prim_vf !<
             !! Vector to hold original values of cell for smoothing purposes
@@ -476,6 +463,27 @@ contains
                 eta*patch_icpp(patch_id)%alpha(i - E_idx) &
                 + (1._wp - eta)*orig_prim_vf(i)
         end do
+
+        if (mhd) then
+            if (n == 0) then ! 1D: By, Bz
+                q_prim_vf(B_idx%beg)%sf(j, k, l) = &
+                    eta*patch_icpp(patch_id)%By &
+                    + (1._wp - eta)*orig_prim_vf(B_idx%beg)
+                q_prim_vf(B_idx%beg + 1)%sf(j, k, l) = &
+                    eta*patch_icpp(patch_id)%Bz &
+                    + (1._wp - eta)*orig_prim_vf(B_idx%beg + 1)
+            else ! 2D/3D: Bx, By, Bz
+                q_prim_vf(B_idx%beg)%sf(j, k, l) = &
+                    eta*patch_icpp(patch_id)%Bx &
+                    + (1._wp - eta)*orig_prim_vf(B_idx%beg)
+                q_prim_vf(B_idx%beg + 1)%sf(j, k, l) = &
+                    eta*patch_icpp(patch_id)%By &
+                    + (1._wp - eta)*orig_prim_vf(B_idx%beg + 1)
+                q_prim_vf(B_idx%beg + 2)%sf(j, k, l) = &
+                    eta*patch_icpp(patch_id)%Bz &
+                    + (1._wp - eta)*orig_prim_vf(B_idx%beg + 2)
+            end if
+        end if
 
         ! Elastic Shear Stress
         if (elasticity) then
@@ -683,7 +691,7 @@ contains
 
     end subroutine s_assign_patch_species_primitive_variables
 
-    subroutine s_finalize_assign_variables_module
+    impure subroutine s_finalize_assign_variables_module
 
         ! Nullifying procedure pointer to the subroutine assigning either
         ! the patch mixture or species primitive variables to a cell in the

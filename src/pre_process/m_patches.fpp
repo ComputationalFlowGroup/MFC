@@ -20,6 +20,8 @@ module m_patches
 
     use m_helper
 
+    use m_compute_levelset      ! Subroutines to calculate levelsets for IBs
+
     use m_mpi_common
 
     use m_assign_variables
@@ -28,29 +30,7 @@ module m_patches
 
     implicit none
 
-    private; 
-    public :: s_line_segment, &
-              s_spiral, &
-              s_circle, &
-              s_airfoil, &
-              s_3D_airfoil, &
-              s_varcircle, &
-              s_3dvarcircle, &
-              s_ellipse, &
-              s_ellipsoid, &
-              s_rectangle, &
-              s_sweep_line, &
-              s_2D_TaylorGreen_vortex, &
-              s_1D_analytical, &
-              s_1d_bubble_pulse, &
-              s_2D_analytical, &
-              s_3D_analytical, &
-              s_spherical_harmonic, &
-              s_sphere, &
-              s_cuboid, &
-              s_cylinder, &
-              s_sweep_plane, &
-              s_model
+    private; public :: s_apply_domain_patches
 
     real(wp) :: x_centroid, y_centroid, z_centroid
     real(wp) :: length_x, length_y, length_z
@@ -83,6 +63,181 @@ module m_patches
     character(len=5) :: istr ! string to store int to string result for error checking
 
 contains
+
+    impure subroutine s_apply_domain_patches(patch_id_fp, q_prim_vf, ib_markers_sf, levelset, levelset_norm)
+
+        type(scalar_field), dimension(1:sys_size), intent(inout) :: q_prim_vf
+        integer, dimension(0:m, 0:m, 0:m), intent(inout) :: patch_id_fp, ib_markers_sf
+        type(levelset_field), intent(inout) :: levelset !< Levelset determined by models
+        type(levelset_norm_field), intent(inout) :: levelset_norm !< Levelset_norm determined by models
+
+        integer :: i
+
+        !  3D Patch Geometries
+        if (p > 0) then
+
+            do i = 1, num_patches
+
+                if (proc_rank == 0) then
+                    print *, 'Processing patch', i
+                end if
+
+                !> ICPP Patches
+                !> @{
+                ! Spherical patch
+                if (patch_icpp(i)%geometry == 8) then
+                    call s_sphere(i, patch_id_fp, q_prim_vf)
+                    ! Cuboidal patch
+                elseif (patch_icpp(i)%geometry == 9) then
+                    call s_cuboid(i, patch_id_fp, q_prim_vf)
+                    ! Cylindrical patch
+                elseif (patch_icpp(i)%geometry == 10) then
+                    call s_cylinder(i, patch_id_fp, q_prim_vf)
+                    ! Swept plane patch
+                elseif (patch_icpp(i)%geometry == 11) then
+                    call s_sweep_plane(i, patch_id_fp, q_prim_vf)
+                    ! Ellipsoidal patch
+                elseif (patch_icpp(i)%geometry == 12) then
+                    call s_ellipsoid(i, patch_id_fp, q_prim_vf)
+                    ! Analytical function patch for testing purposes
+                elseif (patch_icpp(i)%geometry == 13) then
+                    call s_3D_analytical(i, patch_id_fp, q_prim_vf)
+                    ! Spherical harmonic patch
+                elseif (patch_icpp(i)%geometry == 14) then
+                    call s_spherical_harmonic(i, patch_id_fp, q_prim_vf)
+                    ! 3D Modified circular patch
+                elseif (patch_icpp(i)%geometry == 19) then
+                    call s_3dvarcircle(i, patch_id_fp, q_prim_vf)
+                    ! 3D STL patch
+                elseif (patch_icpp(i)%geometry == 21) then
+                    call s_model(i, patch_id_fp, q_prim_vf)
+                end if
+            end do
+            !> @}
+
+            !> IB Patches
+            !> @{
+            ! Spherical patch
+            do i = 1, num_ibs
+                if (proc_rank == 0) then
+                    print *, 'Processing 3D ib patch ', i
+                end if
+
+                if (patch_ib(i)%geometry == 8) then
+                    call s_sphere(i, ib_markers_sf, q_prim_vf, ib)
+                    call s_sphere_levelset(levelset, levelset_norm, i)
+                elseif (patch_ib(i)%geometry == 9) then
+                    call s_cuboid(i, ib_markers_sf, q_prim_vf, ib)
+                    call s_cuboid_levelset(levelset, levelset_norm, i)
+                elseif (patch_ib(i)%geometry == 10) then
+                    call s_cylinder(i, ib_markers_sf, q_prim_vf, ib)
+                    call s_cylinder_levelset(levelset, levelset_norm, i)
+                elseif (patch_ib(i)%geometry == 11) then
+                    call s_3D_airfoil(i, ib_markers_sf, q_prim_vf, ib)
+                    call s_3D_airfoil_levelset(levelset, levelset_norm, i)
+                    ! STL+IBM patch
+                elseif (patch_ib(i)%geometry == 12) then
+                    call s_model(i, ib_markers_sf, q_prim_vf, ib, levelset, levelset_norm)
+                end if
+            end do
+            !> @}
+
+            ! 2D Patch Geometries
+        elseif (n > 0) then
+
+            do i = 1, num_patches
+
+                if (proc_rank == 0) then
+                    print *, 'Processing patch', i
+                end if
+
+                !> ICPP Patches
+                !> @{
+                ! Circular patch
+                if (patch_icpp(i)%geometry == 2) then
+                    call s_circle(i, patch_id_fp, q_prim_vf)
+                    ! Rectangular patch
+                elseif (patch_icpp(i)%geometry == 3) then
+                    call s_rectangle(i, patch_id_fp, q_prim_vf)
+                    ! Swept line patch
+                elseif (patch_icpp(i)%geometry == 4) then
+                    call s_sweep_line(i, patch_id_fp, q_prim_vf)
+                    ! Elliptical patch
+                elseif (patch_icpp(i)%geometry == 5) then
+                    call s_ellipse(i, patch_id_fp, q_prim_vf)
+                    ! Unimplemented patch (formerly isentropic vortex)
+                elseif (patch_icpp(i)%geometry == 6) then
+                    call s_mpi_abort('This used to be the isentropic vortex patch, '// &
+                                     'which no longer exists. See Examples. Exiting.')
+                    ! Analytical function patch for testing purposes
+                elseif (patch_icpp(i)%geometry == 7) then
+                    call s_2D_analytical(i, patch_id_fp, q_prim_vf)
+                    ! Spherical Harmonic Patch
+                elseif (patch_icpp(i)%geometry == 14) then
+                    call s_spherical_harmonic(i, patch_id_fp, q_prim_vf)
+                    ! Spiral patch
+                elseif (patch_icpp(i)%geometry == 17) then
+                    call s_spiral(i, patch_id_fp, q_prim_vf)
+                    ! Modified circular patch
+                elseif (patch_icpp(i)%geometry == 18) then
+                    call s_varcircle(i, patch_id_fp, q_prim_vf)
+                    ! TaylorGreen vortex patch
+                elseif (patch_icpp(i)%geometry == 20) then
+                    call s_2D_TaylorGreen_vortex(i, patch_id_fp, q_prim_vf)
+                    ! STL patch
+                elseif (patch_icpp(i)%geometry == 21) then
+                    call s_model(i, patch_id_fp, q_prim_vf)
+                end if
+                !> @}
+            end do
+
+            !> IB Patches
+            !> @{
+            do i = 1, num_ibs
+                if (proc_rank == 0) then
+                    print *, 'Processing 2D ib patch ', i
+                end if
+                if (patch_ib(i)%geometry == 2) then
+                    call s_circle(i, ib_markers_sf, q_prim_vf, ib)
+                    call s_circle_levelset(levelset, levelset_norm, i)
+                elseif (patch_ib(i)%geometry == 3) then
+                    call s_rectangle(i, ib_markers_sf, q_prim_vf, ib)
+                    call s_rectangle_levelset(levelset, levelset_norm, i)
+                elseif (patch_ib(i)%geometry == 4) then
+                    call s_airfoil(i, ib_markers_sf, q_prim_vf, ib)
+                    call s_airfoil_levelset(levelset, levelset_norm, i)
+                    ! STL+IBM patch
+                elseif (patch_ib(i)%geometry == 5) then
+                    call s_model(i, ib_markers_sf, q_prim_vf, ib, levelset, levelset_norm)
+                end if
+            end do
+            !> @}
+
+            ! 1D Patch Geometries
+        else
+
+            do i = 1, num_patches
+
+                if (proc_rank == 0) then
+                    print *, 'Processing patch', i
+                end if
+
+                ! Line segment patch
+                if (patch_icpp(i)%geometry == 1) then
+                    call s_line_segment(i, patch_id_fp, q_prim_vf)
+                    ! 1d analytical
+                elseif (patch_icpp(i)%geometry == 15) then
+                    call s_1d_analytical(i, patch_id_fp, q_prim_vf)
+                    ! 1d bubble screen with sinusoidal pressure pulse
+                elseif (patch_icpp(i)%geometry == 16) then
+                    call s_1d_bubble_pulse(i, patch_id_fp, q_prim_vf)
+                end if
+            end do
+
+        end if
+
+    end subroutine s_apply_domain_patches
+
     !>          The line segment patch is a 1D geometry that may be used,
     !!              for example, in creating a Riemann problem. The geometry
     !!              of the patch is well-defined when its centroid and length
@@ -150,7 +305,7 @@ contains
         !! @param patch_id patch identifier
         !! @param patch_id_fp Array to track patch ids
         !! @param q_prim_vf Array of primitive variables
-    subroutine s_spiral(patch_id, patch_id_fp, q_prim_vf)
+    impure subroutine s_spiral(patch_id, patch_id_fp, q_prim_vf)
 
         integer, intent(in) :: patch_id
         integer, dimension(0:m, 0:n, 0:p), intent(inout) :: patch_id_fp
@@ -300,8 +455,8 @@ contains
         type(scalar_field), dimension(1:sys_size), intent(inout) :: q_prim_vf
         logical, optional, intent(in) :: ib
 
-        real(wp) :: x0, y0, f, x_act, y_act, ca, pa, ma, ta, theta, xa, ya, yt, xu, yu, xl, yl, xc, yc, dycdxc, sin_c, cos_c
-        integer :: i, j, k, l
+        real(wp) :: x0, y0, f, x_act, y_act, ca, pa, ma, ta, theta, xa, yt, xu, yu, xl, yl, xc, yc, dycdxc, sin_c, cos_c
+        integer :: i, j, k
         integer :: Np1, Np2
 
         if (.not. present(ib)) return
@@ -462,7 +617,7 @@ contains
         type(scalar_field), dimension(1:sys_size), intent(inout) :: q_prim_vf
         logical, optional, intent(in) :: ib
 
-        real(wp) :: x0, y0, z0, lz, z_max, z_min, f, x_act, y_act, ca, pa, ma, ta, theta, xa, ya, yt, xu, yu, xl, yl, xc, yc, dycdxc, sin_c, cos_c
+        real(wp) :: x0, y0, z0, lz, z_max, z_min, f, x_act, y_act, ca, pa, ma, ta, theta, xa, yt, xu, yu, xl, yl, xc, yc, dycdxc, sin_c, cos_c
         integer :: i, j, k, l
         integer :: Np1, Np2
 
@@ -1142,9 +1297,9 @@ contains
         type(scalar_field), dimension(1:sys_size), intent(inout) :: q_prim_vf
 
         ! Generic loop iterators
-        integer :: i, j, k
+        integer :: i
         ! Placeholders for the cell boundary values
-        real(wp) :: a, b, c, d, pi_inf, gamma, lit_gamma
+        real(wp) :: pi_inf, gamma, lit_gamma
 
         @:Hardcoded1DVariables()
 
@@ -1204,7 +1359,7 @@ contains
         ! Generic loop iterators
         integer :: i, j, k
         ! Placeholders for the cell boundary values
-        real(wp) :: fac, a, b, c, d, pi_inf, gamma, lit_gamma
+        real(wp) :: pi_inf, gamma, lit_gamma
 
         pi_inf = fluid_pp(1)%pi_inf
         gamma = fluid_pp(1)%gamma
@@ -1255,8 +1410,8 @@ contains
         integer, dimension(0:m, 0:n, 0:p), intent(inout) :: patch_id_fp
         type(scalar_field), dimension(1:sys_size), intent(inout) :: q_prim_vf
 
-        integer :: i, j, k !< generic loop iterators
-        real(wp) :: a, b, c, d !< placeholderrs for the cell boundary values
+        integer :: i, j !< generic loop iterators
+
         real(wp) :: pi_inf, gamma, lit_gamma !< equation of state parameters
         real(wp) :: l, U0 !< Taylor Green Vortex parameters
 
@@ -1415,9 +1570,7 @@ contains
 
         integer :: i, j, k !< generic loop iterators
 
-        real(wp) :: epsilon, beta
         complex(wp), parameter :: cmplx_i = (0._wp, 1._wp)
-        complex(wp) :: H
 
         ! Transferring the patch's centroid and radius information
         x_centroid = patch_icpp(patch_id)%x_centroid
@@ -1565,8 +1718,7 @@ contains
         integer :: i, j, k !< generic loop iterators
         real(wp) :: radius
 
-        real(wp) :: radius_pressure, pressure_bubble, pressure_inf !<
-            !! Variables to initialize the pressure field that corresponds to the
+        !! Variables to initialize the pressure field that corresponds to the
             !! bubble-collapse test case found in Tiwari et al. (2013)
 
         ! Transferring spherical patch's radius, centroid, smoothing patch
@@ -2147,8 +2299,7 @@ contains
                             if (interpolate) then
                                 STL_levelset%sf(i, j, k, patch_id) = f_interpolated_distance(interpolated_boundary_v, &
                                                                                              total_vertices, &
-                                                                                             point, &
-                                                                                             (/dx, dy, dz/))
+                                                                                             point)
                             else
                                 STL_levelset%sf(i, j, k, patch_id) = distance
                             end if
@@ -2171,15 +2322,12 @@ contains
                                 ! Get the shortest distance between the cell center and the model boundary
                                 STL_levelset%sf(i, j, 0, patch_id) = f_interpolated_distance(interpolated_boundary_v, &
                                                                                              total_vertices, &
-                                                                                             point, &
-                                                                                             (/dx, dy, dz/))
+                                                                                             point)
                             else
                                 ! Get the shortest distance between the cell center and the interpolated model boundary
                                 STL_levelset%sf(i, j, 0, patch_id) = f_distance(boundary_v, &
-                                                                                boundary_vertex_count, &
                                                                                 boundary_edge_count, &
-                                                                                point, &
-                                                                                (/dx, dy, dz/))
+                                                                                point)
                             end if
 
                             ! Correct the sign of the levelset
@@ -2189,10 +2337,9 @@ contains
 
                             ! Get the boundary normals
                             call f_normals(boundary_v, &
-                                            boundary_vertex_count, &
-                                            boundary_edge_count, &
-                                            point, &
-                                            & (/dx, dy, dz/), normals)
+                                           boundary_edge_count, &
+                                           point, &
+                                           normals)
 
                             ! Correct the sign of the levelset_norm
                             if (patch_id_fp(i, j, k) == 0) then
@@ -2243,7 +2390,7 @@ contains
 
     end subroutine s_convert_cylindrical_to_cartesian_coord
 
-    function f_convert_cyl_to_cart(cyl) result(cart)
+    pure function f_convert_cyl_to_cart(cyl) result(cart)
 
         !$acc routine seq
 
@@ -2269,7 +2416,7 @@ contains
     !! @param myth Angle
     !! @param offset Thickness
     !! @param a Starting position
-    function f_r(myth, offset, a)
+    pure elemental function f_r(myth, offset, a)
         !$acc routine seq
         real(wp), intent(in) :: myth, offset, a
         real(wp) :: b
