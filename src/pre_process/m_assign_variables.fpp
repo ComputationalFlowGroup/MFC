@@ -506,6 +506,7 @@ contains
             xi_cart(1) = x_cc(j)
             if (n > 0) xi_cart(2) = y_cc(k)
             if (p > 0) xi_cart(3) = z_cc(l)
+
             ! assigning the reference map to the q_prim vector field
             do i = 1, num_dims
                 q_prim_vf(i + xibeg - 1)%sf(j, k, l) = eta*xi_cart(i) + &

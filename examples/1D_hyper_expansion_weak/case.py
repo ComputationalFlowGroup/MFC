@@ -8,7 +8,8 @@ dx = 1.0 / (1.0 * (Nx + 1))
 
 Tend = 64e-06
 Nt = 4000
-mydt = Tend / (1.0e00 * Nt)
+mydt = Tend / (1.0 * Nt)
+
 # Configuring case dictionary
 print(
     json.dumps(
@@ -48,12 +49,11 @@ print(
             "format": 1,
             "precision": 2,
             "prim_vars_wrt": "T",
-            "tau_wrt": "T",
             "parallel_io": "F",
             "patch_icpp(1)%geometry": 1,
             "patch_icpp(1)%x_centroid": 0.25,
             "patch_icpp(1)%length_x": 0.5,
-            "patch_icpp(1)%vel(1)": 10,
+            "patch_icpp(1)%vel(1)": -50,
             "patch_icpp(1)%pres": 1.0e5,
             "patch_icpp(1)%alpha_rho(1)": 1000,
             "patch_icpp(1)%alpha(1)": 1.0,
@@ -61,14 +61,14 @@ print(
             "patch_icpp(2)%geometry": 1,
             "patch_icpp(2)%x_centroid": 0.75,
             "patch_icpp(2)%length_x": 0.5,
-            "patch_icpp(2)%vel(1)": -10,
+            "patch_icpp(2)%vel(1)": 50,
             "patch_icpp(2)%pres": 1.0e05,
             "patch_icpp(2)%alpha_rho(1)": 1000,
             "patch_icpp(2)%alpha(1)": 1.0,
             "patch_icpp(2)%tau_e(1)": 0.0,
             "fluid_pp(1)%gamma": 1.0e00 / (4.4e00 - 1.0e00),
             "fluid_pp(1)%pi_inf": 4.4e00 * 6.0e08 / (4.4e00 - 1.0e00),
-            "fluid_pp(1)%G": 1.0e010,
+            "fluid_pp(1)%G": 1e010,
         }
     )
 )
