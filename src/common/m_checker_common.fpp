@@ -193,12 +193,7 @@ contains
         !! Called by s_check_inputs_common for all three stages
     subroutine s_check_inputs_elasticity
         @:PROHIBIT(elasticity .and. .not. (model_eqns == 2 .or. model_eqns == 3))
-        #:for X in ['x', 'y', 'z']
-            #:for BOUND in ['beg', 'end']
-                @:PROHIBIT(hyperelasticity .and. bc_${X}$%${BOUND}$ /= dflt_int .and. (bc_${X}$%${BOUND}$ < -3))
-            #:endfor
-        #:endfor
-    end subroutine s_check_inputs_elasticity
+   end subroutine s_check_inputs_elasticity
 
     !> Checks constraints on dimensionality and the number of cells for the grid.
         !! Called by s_check_inputs_common for all three stages
