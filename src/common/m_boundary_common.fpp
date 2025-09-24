@@ -331,8 +331,8 @@ contains
                 if (hyperelasticity) then
                     do j = 1, buff_size
                         do i = xibeg, xiend
-                            q_prim_vf(i)%sf(l, -j, k) = &
-                                q_prim_vf(i)%sf(l, 0, k) - j*(y_cc(1) - y_cc(0))
+                            q_prim_vf(i)%sf(k, -j, l) = &
+                                q_prim_vf(i)%sf(k, 0, l) - j*(y_cc(1) - y_cc(0))
                         end do
                     end do
                 end if
@@ -348,8 +348,8 @@ contains
                 if (hyperelasticity) then
                     do j = 1, buff_size
                         do i = xibeg, xiend
-                            q_prim_vf(i)%sf(l, n + j, k) = &
-                                q_prim_vf(i)%sf(l, n, k) + j*(y_cc(n) - y_cc(n - 1))
+                            q_prim_vf(i)%sf(k, n + j, l) = &
+                                q_prim_vf(i)%sf(k, n, l) + j*(y_cc(n) - y_cc(n - 1))
                         end do
                     end do
                 end if
@@ -1043,7 +1043,7 @@ contains
 
                         if (hyperelasticity) then
 
-                            q_prim_vf(xibeg + 1)%sf(l, n + j, k) = &
+                            q_prim_vf(xibeg + 1)%sf(k, n + j, l) = &
                                 y_cc(n + j)
 
                         end if
