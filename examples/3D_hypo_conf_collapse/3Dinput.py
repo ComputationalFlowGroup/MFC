@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3
 import math, json
 
 ## 1 FOR BACKGROUND, 2 FOR BUBBLE, 3 FOR GEL
@@ -167,7 +167,7 @@ gel_wg = 1.00e00 - gel_wl - gel_wv - gel_wa
 Gl = 0
 Gv = 0
 Ga = 0
-Gg = 0.57e02 #originally 0.57E3
+Gg = 0.57e02  # originally 0.57E3
 
 ## SIMULATION PARAMETERS
 
@@ -179,20 +179,20 @@ R0 = 244.8e-06
 
 # number of elements
 Nx = 62  # 404 #249
-Ny = 2*Nx  # 179 #124
-Nz = 2*Nx  # 179 #124
+Ny = 2 * Nx  # 179 #124
+Nz = 2 * Nx  # 179 #124
 Nx0 = Nx
 
 # domain boundaries
-lref =  R0
+lref = R0
 xb = 0.00
-xe = 1.25*lref
+xe = 1.25 * lref
 
 yb = 0.00
-ye =4* lref
+ye = 4 * lref
 
 zb = 0.00
-ze =4* lref
+ze = 4 * lref
 
 lenx = xe - xb
 leny = ye - yb
@@ -268,18 +268,18 @@ print(
             "stretch_x": "T",
             "loops_x": 1,
             "a_x": 4.0e0,
-            "x_a": 0.00, #-1.75 * R0 * (abs(sod) + 1),
-            "x_b":  R0,
+            "x_a": 0.00,  # -1.75 * R0 * (abs(sod) + 1),
+            "x_b": R0,
             "stretch_y": "T",
             "loops_y": 1,
             "a_y": 1.0e0,
-            "y_a": 0.00, # -1.5 * R0 * abs(sod),
+            "y_a": 0.00,  # -1.5 * R0 * abs(sod),
             "y_b": 1.5 * R0,  # * abs(sod),
             "stretch_z": "T",
             "loops_z": 1,
             "a_z": 1.0e0,
-            "z_a": 0.00, # -1.5 * R0 * abs(sod),
-            "z_b": 1.5 * R0, # * abs(sod),
+            "z_a": 0.00,  # -1.5 * R0 * abs(sod),
+            "z_b": 1.5 * R0,  # * abs(sod),
             "cyl_coord": "F",
             "m": Nx,
             "n": Ny,
@@ -294,13 +294,13 @@ print(
             "num_fluids": 3,
             "hypoelasticity": "T",
             "hyperelasticity": "F",
-            #"hyper_model"    : 1,
+            # "hyper_model"    : 1,
             "mpp_lim": "T",
             "mixture_err": "T",
-            #"relax": "T",
-            #"relax_model": 6,
-            #"palpha_eps": 1.0e-6,
-            #"ptgalpha_eps": 1.0e-2,
+            # "relax": "T",
+            # "relax_model": 6,
+            # "palpha_eps": 1.0e-6,
+            # "ptgalpha_eps": 1.0e-2,
             "time_stepper": 3,
             "weno_order": 3,
             "weno_eps": 1.0e-16,
@@ -331,26 +331,25 @@ print(
             "probe(1)%z": 0.0,
             # Patch 1: High pressured water
             # Specify the cubic water background grid geometry
-            #"patch_icpp(1)%geometry": 9,
-            #"patch_icpp(1)%x_centroid": 20 * xcenl,
-            #"patch_icpp(1)%y_centroid": 20 * ycenl,
-            #"patch_icpp(1)%z_centroid": 20 * zcenl,
-            #"patch_icpp(1)%length_x": 20 * lenx,
-            #"patch_icpp(1)%length_y": 20 * leny,
-            #"patch_icpp(1)%length_z": 20 * lenz,
-            #"patch_icpp(1)%vel(1)": 0.0e00,
-            #"patch_icpp(1)%vel(2)": 0.0e00,
-            #"patch_icpp(1)%vel(3)": 0.0e00,
-            #"patch_icpp(1)%pres": p01,
-            #"patch_icpp(1)%alpha_rho(4)": liq_wl * rho0wl1,
-            #"patch_icpp(1)%alpha_rho(2)": liq_wv * rho0wv1,
-            #"patch_icpp(1)%alpha_rho(3)": liq_wa * rho0wa1,
-            #"patch_icpp(1)%alpha_rho(1)": liq_wg * rho0wg1,
-            #"patch_icpp(1)%alpha(4)": liq_wl,
-            #"patch_icpp(1)%alpha(2)": liq_wv,
-            #"patch_icpp(1)%alpha(3)": liq_wa,
-            #"patch_icpp(1)%alpha(1)": liq_wg,
-
+            # "patch_icpp(1)%geometry": 9,
+            # "patch_icpp(1)%x_centroid": 20 * xcenl,
+            # "patch_icpp(1)%y_centroid": 20 * ycenl,
+            # "patch_icpp(1)%z_centroid": 20 * zcenl,
+            # "patch_icpp(1)%length_x": 20 * lenx,
+            # "patch_icpp(1)%length_y": 20 * leny,
+            # "patch_icpp(1)%length_z": 20 * lenz,
+            # "patch_icpp(1)%vel(1)": 0.0e00,
+            # "patch_icpp(1)%vel(2)": 0.0e00,
+            # "patch_icpp(1)%vel(3)": 0.0e00,
+            # "patch_icpp(1)%pres": p01,
+            # "patch_icpp(1)%alpha_rho(4)": liq_wl * rho0wl1,
+            # "patch_icpp(1)%alpha_rho(2)": liq_wv * rho0wv1,
+            # "patch_icpp(1)%alpha_rho(3)": liq_wa * rho0wa1,
+            # "patch_icpp(1)%alpha_rho(1)": liq_wg * rho0wg1,
+            # "patch_icpp(1)%alpha(4)": liq_wl,
+            # "patch_icpp(1)%alpha(2)": liq_wv,
+            # "patch_icpp(1)%alpha(3)": liq_wa,
+            # "patch_icpp(1)%alpha(1)": liq_wg,
             # Patch 2: (Vapor) Bubble
             "patch_icpp(2)%geometry": 8,
             "patch_icpp(2)%x_centroid": xcenb,
@@ -361,11 +360,11 @@ print(
             "patch_icpp(2)%vel(2)": 0.0e00,
             "patch_icpp(2)%vel(3)": 0.0e00,
             "patch_icpp(2)%pres": p02,
-            #"patch_icpp(2)%alpha_rho(4)": bub_wl * rho0wl2,
+            # "patch_icpp(2)%alpha_rho(4)": bub_wl * rho0wl2,
             "patch_icpp(2)%alpha_rho(2)": bub_wv * rho0wv2,
             "patch_icpp(2)%alpha_rho(3)": bub_wa * rho0wa2,
             "patch_icpp(2)%alpha_rho(1)": bub_wg * rho0wg2,
-            #"patch_icpp(2)%alpha(4)": bub_wl,
+            # "patch_icpp(2)%alpha(4)": bub_wl,
             "patch_icpp(2)%alpha(2)": bub_wv,
             "patch_icpp(2)%alpha(3)": bub_wa,
             "patch_icpp(2)%alpha(1)": bub_wg,
@@ -382,22 +381,22 @@ print(
             "patch_icpp(1)%vel(2)": 0.0e00,
             "patch_icpp(1)%vel(3)": 0.0e00,
             "patch_icpp(1)%pres": p03,
-            #"patch_icpp(1)%alpha_rho(4)": gel_wl * rho0wl3,
+            # "patch_icpp(1)%alpha_rho(4)": gel_wl * rho0wl3,
             "patch_icpp(1)%alpha_rho(2)": gel_wv * rho0wv3,
             "patch_icpp(1)%alpha_rho(3)": gel_wa * rho0wa3,
             "patch_icpp(1)%alpha_rho(1)": gel_wg * rho0wg3,
-            #"patch_icpp(1)%alpha(4)": gel_wl,
+            # "patch_icpp(1)%alpha(4)": gel_wl,
             "patch_icpp(1)%alpha(2)": gel_wv,
             "patch_icpp(1)%alpha(3)": gel_wa,
             "patch_icpp(1)%alpha(1)": gel_wg,
-            #"patch_icpp(1)%alter_patch(1)": "T",
+            # "patch_icpp(1)%alter_patch(1)": "T",
             # Fluids Physical Parameters
-            #"fluid_pp(4)%gamma": 1.0e00 / (gamwl - 1),
-            #"fluid_pp(4)%pi_inf": gamwl * piwl / (gamwl - 1),
-            #"fluid_pp(4)%cv": cvwl,
-            #"fluid_pp(4)%qv": qvwl,
-            #"fluid_pp(4)%qvp": qvpwl,
-            #"fluid_pp(4)%G": Gl,
+            # "fluid_pp(4)%gamma": 1.0e00 / (gamwl - 1),
+            # "fluid_pp(4)%pi_inf": gamwl * piwl / (gamwl - 1),
+            # "fluid_pp(4)%cv": cvwl,
+            # "fluid_pp(4)%qv": qvwl,
+            # "fluid_pp(4)%qvp": qvpwl,
+            # "fluid_pp(4)%G": Gl,
             "fluid_pp(2)%gamma": 1.0e00 / (gamwv - 1),
             "fluid_pp(2)%pi_inf": gamwv * piwv / (gamwv - 1),
             "fluid_pp(2)%cv": cvwv,

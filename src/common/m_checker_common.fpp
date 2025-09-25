@@ -193,7 +193,7 @@ contains
         !! Called by s_check_inputs_common for all three stages
     subroutine s_check_inputs_elasticity
         @:PROHIBIT(elasticity .and. .not. (model_eqns == 2 .or. model_eqns == 3))
-   end subroutine s_check_inputs_elasticity
+    end subroutine s_check_inputs_elasticity
 
     !> Checks constraints on dimensionality and the number of cells for the grid.
         !! Called by s_check_inputs_common for all three stages
