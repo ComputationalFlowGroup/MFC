@@ -555,6 +555,7 @@ contains
                 end do
             end if
 
+
             if (bodyForces) call s_apply_bodyforces(q_cons_ts(1)%vf, q_prim_vf, rhs_vf, rk_coef(s, 3)*dt/rk_coef(s, 4))
 
             if (grid_geometry == 3) call s_apply_fourier_filter(q_cons_ts(1)%vf)
@@ -562,6 +563,8 @@ contains
             if (model_eqns == 3 .and. (.not. relax)) then
                 call s_pressure_relaxation_procedure(q_cons_ts(1)%vf)
             end if
+
+            if (hyperelasticity) call s_hyperelastic_rmt_stress_update(q_cons_ts(1)%vf, q_prim_vf)
 
             if (adv_n) call s_comp_alpha_from_n(q_cons_ts(1)%vf)
 
