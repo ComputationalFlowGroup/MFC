@@ -139,14 +139,22 @@ contains
                         do r = -fd_number, fd_number
                             ! derivatives in the x-direction
                             tensora(1) = tensora(1) + q_prim_vf(xibeg)%sf(j + r, k, l)*fd_coeff_x(r, j)
-                            if (n > 0) then
+                        end do 
+                        if (n > 0) then
+                           $:GPU_LOOP(parallelism='[seq]')
+                           do r = -fd_number, fd_number
+                            ! derivatives in the x-direction
                                 ! derivatives in the x-direction
                                 tensora(2) = tensora(2) + q_prim_vf(xibeg + 1)%sf(j + r, k, l)*fd_coeff_x(r, j)
                                 ! derivatives in the y-direction
                                 tensora(3) = tensora(3) + q_prim_vf(xibeg)%sf(j, k + r, l)*fd_coeff_y(r, k)
                                 tensora(4) = tensora(4) + q_prim_vf(xibeg + 1)%sf(j, k + r, l)*fd_coeff_y(r, k)
+end do
                             end if
                             if (p > 0) then
+                           $:GPU_LOOP(parallelism='[seq]')
+                           do r = -fd_number, fd_number
+
                                 ! derivatives in the x-direction
                                 tensora(2) = tensora(2) + q_prim_vf(xibeg + 1)%sf(j + r, k, l)*fd_coeff_x(r, j)
                                 tensora(3) = tensora(3) + q_prim_vf(xiend)%sf(j + r, k, l)*fd_coeff_x(r, j)
@@ -158,8 +166,8 @@ contains
                                 tensora(7) = tensora(7) + q_prim_vf(xibeg)%sf(j, k, l + r)*fd_coeff_z(r, l)
                                 tensora(8) = tensora(8) + q_prim_vf(xibeg + 1)%sf(j, k, l + r)*fd_coeff_z(r, l)
                                 tensora(9) = tensora(9) + q_prim_vf(xiend)%sf(j, k, l + r)*fd_coeff_z(r, l)
-                            end if
                         end do
+                            end if
 
                         ! STEP 2a: computing the determinant of the grad_xi tensor
                         tensorb(tensor_size) = tensora(1)
