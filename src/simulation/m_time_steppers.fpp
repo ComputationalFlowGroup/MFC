@@ -555,7 +555,6 @@ contains
                 end do
             end if
 
-
             if (bodyForces) call s_apply_bodyforces(q_cons_ts(1)%vf, q_prim_vf, rhs_vf, rk_coef(s, 3)*dt/rk_coef(s, 4))
 
             if (grid_geometry == 3) call s_apply_fourier_filter(q_cons_ts(1)%vf)
