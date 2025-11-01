@@ -893,17 +893,17 @@ contains
                                         /(s_M - s_P)
                                 end do
 
-                            ! reference map flux.
-                            if (hyperelasticity) then
-                                do i = 1, num_dims
-                                    flux_rs${XYZ}$_vf(j, k, l, xibeg - 1 + i) = &
-                                        (s_M*rho_R*vel_R(dir_idx(1))*xi_field_R(i) &
-                                         - s_P*rho_L*vel_L(dir_idx(1))*xi_field_L(i) &
-                                         + s_M*s_P*(rho_L*xi_field_L(i) &
-                                                    - rho_R*xi_field_R(i))) &
-                                        /(s_M - s_P)
-                                end do
-                            end if
+                                ! reference map flux.
+                                if (hyperelasticity) then
+                                    do i = 1, num_dims
+                                        flux_rs${XYZ}$_vf(j, k, l, xibeg - 1 + i) = &
+                                            (s_M*rho_R*vel_R(dir_idx(1))*xi_field_R(i) &
+                                             - s_P*rho_L*vel_L(dir_idx(1))*xi_field_L(i) &
+                                             + s_M*s_P*(rho_L*xi_field_L(i) &
+                                                        - rho_R*xi_field_R(i))) &
+                                            /(s_M - s_P)
+                                    end do
+                                end if
 
                                 if (bubbles_euler) then
                                     ! From HLLC: Kills mass transport @ bubble gas density
