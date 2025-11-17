@@ -1,15 +1,15 @@
-import re, os, sys, typing, dataclasses
+import re, os, sys, typing, dataclasses, shlex
 
 from glob import glob
 
 from mako.lookup   import TemplateLookup
 from mako.template import Template
 
-from ..build   import get_targets, build, REQUIRED_TARGETS
+from ..build   import get_targets, build, REQUIRED_TARGETS, SIMULATION
 from ..printer import cons
 from ..state   import ARG, ARGS, CFG
 from ..common  import MFCException, isspace, file_read, does_command_exist
-from ..common  import MFC_TEMPLATEDIR, file_write, system, MFC_ROOTDIR
+from ..common  import MFC_TEMPLATE_DIR, file_write, system, MFC_ROOT_DIR
 from ..common  import format_list_to_string, file_dump_yaml
 
 from . import queues, input
@@ -45,26 +45,38 @@ def __profiler_prepend() -> typing.List[str]:
 
         return ["nsys", "profile", "--stats=true", "--trace=mpi,nvtx,openacc"] + ARG("nsys")
 
+    if ARG("rcu") is not None:
+        if not does_command_exist("rocprof-compute"):
+            raise MFCException("Failed to locate [bold red]ROCM rocprof-compute[/bold red] (rocprof-compute).")
+
+        return ["rocprof-compute", "profile", "-n", ARG("name").replace('-', '_').replace('.', '_')] + ARG("rcu") + ["--"]
+
+    if ARG("rsys") is not None:
+        if not does_command_exist("rocprof"):
+            raise MFCException("Failed to locate [bold red]ROCM rocprof-systems[/bold red] (rocprof-systems).")
+
+        return ["rocprof"] + ARG("rsys")
+
     return []
 
 
 def get_baked_templates() -> dict:
     return {
         os.path.splitext(os.path.basename(f))[0] : file_read(f)
-        for f in glob(os.path.join(MFC_TEMPLATEDIR, "*.mako"))
+        for f in glob(os.path.join(MFC_TEMPLATE_DIR, "*.mako"))
     }
 
 
 def __job_script_filepath() -> str:
     return os.path.abspath(os.sep.join([
         os.path.dirname(ARG("input")),
-        f"{ARG('name')}.sh"
+        f"{ARG('name')}.{'bat' if os.name == 'nt' else 'sh'}"
     ]))
 
 
 def __get_template() -> Template:
     computer = ARG("computer")
-    lookup   = TemplateLookup(directories=[MFC_TEMPLATEDIR, os.path.join(MFC_TEMPLATEDIR, "include")])
+    lookup   = TemplateLookup(directories=[MFC_TEMPLATE_DIR, os.path.join(MFC_TEMPLATE_DIR, "include")])
     baked    = get_baked_templates()
 
     if (content := baked.get(computer)) is not None:
@@ -78,31 +90,35 @@ def __get_template() -> Template:
     raise MFCException(f"Failed to find a template for --computer '{computer}'. Baked-in templates are: {format_list_to_string(list(baked.keys()), 'magenta')}.")
 
 
-def __generate_job_script(targets):
+def __generate_job_script(targets, case: input.MFCInputFile):
     env = {}
     if ARG('gpus') is not None:
-        env['CUDA_VISIBLE_DEVICES'] = ','.join([str(_) for _ in ARG('gpus')])
+        gpu_ids = ','.join([str(_) for _ in ARG('gpus')])
+        env.update({
+            'CUDA_VISIBLE_DEVICES': gpu_ids,
+            'HIP_VISIBLE_DEVICES':  gpu_ids
+        })
 
     content = __get_template().render(
         **{**ARGS(), 'targets': targets},
         ARG=ARG,
         env=env,
-        MFC_ROOTDIR=MFC_ROOTDIR,
+        case=case,
+        MFC_ROOT_DIR=MFC_ROOT_DIR,
+        SIMULATION=SIMULATION,
         qsystem=queues.get_system(),
-        profiler=__profiler_prepend(),
+        profiler=shlex.join(__profiler_prepend())
     )
 
     file_write(__job_script_filepath(), content)
 
 
-def __generate_input_files(targets):
-    input_file = input.load()
-
+def __generate_input_files(targets, case: input.MFCInputFile):
     for target in targets:
         cons.print(f"Generating input files for [magenta]{target.name}[/magenta]...")
         cons.indent()
         cons.print()
-        input_file.generate_inp(target)
+        case.generate_inp(target)
         cons.print()
         cons.unindent()
 
@@ -117,20 +133,27 @@ def __execute_job_script(qsystem: queues.QueueSystem):
         raise MFCException(f"Submitting batch file for {qsystem.name} failed. It can be found here: {__job_script_filepath()}. Please check the file for errors.")
 
 
-def run(targets = None):
+def run(targets = None, case = None):
     targets = get_targets(list(REQUIRED_TARGETS) + (targets or ARG("targets")))
+    case    = case or input.load(ARG("input"), ARG("--"))
 
     build(targets)
 
     cons.print("[bold]Run[/bold]")
     cons.indent()
 
+    if ARG("clean"):
+        cons.print("Cleaning up previous run...")
+        cons.indent()
+        case.clean(targets)
+        cons.unindent()
+
     qsystem = queues.get_system()
     cons.print(f"Using queue system [magenta]{qsystem.name}[/magenta].")
 
-    __generate_job_script(targets)
+    __generate_job_script(targets, case)
     __validate_job_options()
-    __generate_input_files(targets)
+    __generate_input_files(targets, case)
 
     if not ARG("dry_run"):
         if ARG("output_summary") is not None:

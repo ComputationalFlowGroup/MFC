@@ -4,10 +4,8 @@
 
 #:include 'macros.fpp'
 
-!> @brief This module is used to compute the ensemble-averaged bubble dynamic variables
+!> @brief This module contains the procedures shared by the ensemble-averaged and volume-averaged bubble models.
 module m_bubbles
-
-    ! Dependencies =============================================================
 
     use m_derived_types        !< Definitions of the derived types
 
@@ -17,352 +15,85 @@ module m_bubbles
 
     use m_variables_conversion !< State variables type conversion procedures
 
-    ! ==========================================================================
+    use m_helper_basic         !< Functions to compare floating point numbers
 
     implicit none
 
-    real(kind(0.d0)) :: chi_vw  !< Bubble wall properties (Ando 2010)
-    real(kind(0.d0)) :: k_mw    !< Bubble wall properties (Ando 2010)
-    real(kind(0.d0)) :: rho_mw  !< Bubble wall properties (Ando 2010)
-    !$acc declare create(chi_vw, k_mw, rho_mw)
-
-    !> @name Bubble dynamic source terms
-    !> @{
-    real(kind(0d0)), allocatable, dimension(:, :, :) :: bub_adv_src
-    real(kind(0d0)), allocatable, dimension(:, :, :, :) :: bub_r_src, bub_v_src, bub_p_src, bub_m_src
-    !$acc declare create(bub_adv_src, bub_r_src, bub_v_src, bub_p_src, bub_m_src)
-
-    type(scalar_field) :: divu !< matrix for div(u)
-    !$acc declare create(divu)
-
-    integer, allocatable, dimension(:) :: rs, vs, ms, ps
-    !$acc declare create(rs, vs, ms, ps)
+    real(wp) :: chi_vw  !< Bubble wall properties (Ando 2010)
+    real(wp) :: k_mw    !< Bubble wall properties (Ando 2010)
+    real(wp) :: rho_mw  !< Bubble wall properties (Ando 2010)
+    $:GPU_DECLARE(create='[chi_vw,k_mw,rho_mw]')
 
 contains
 
-    subroutine s_initialize_bubbles_module()
+    !> Function that computes the bubble radial acceleration based on bubble models
+        !!  @param fRho Current density
+        !!  @param fP Current driving pressure
+        !!  @param fR Current bubble radius
+        !!  @param fV Current bubble velocity
+        !!  @param fR0 Equilibrium bubble radius
+        !!  @param fpb Internal bubble pressure
+        !!  @param fpbdot Time-derivative of internal bubble pressure
+        !!  @param alf bubble volume fraction
+        !!  @param fntait Tait EOS parameter
+        !!  @param fBtait Tait EOS parameter
+        !!  @param f_bub_adv_src Source for bubble volume fraction
+        !!  @param f_divu Divergence of velocity
+        !!  @param fCson Speed of sound from fP (EL)
+    elemental function f_rddot(fRho, fP, fR, fV, fR0, fpb, fpbdot, alf, fntait, fBtait, f_bub_adv_src, f_divu, fCson)
+        $:GPU_ROUTINE(parallelism='[seq]')
+        real(wp), intent(in) :: fRho, fP, fR, fV, fR0, fpb, fpbdot, alf
+        real(wp), intent(in) :: fntait, fBtait, f_bub_adv_src, f_divu
+        real(wp), intent(in) :: fCson
 
-        integer :: i, j, k, l, q
-        type(int_bounds_info) :: ix, iy, iz
+        real(wp) :: fCpbw, fCpinf, fCpinf_dot, fH, fHdot, c_gas, c_liquid
+        real(wp) :: f_rddot
 
-        ! Configuring Coordinate Direction Indexes =========================
-        ix%beg = -buff_size; iy%beg = 0; iz%beg = 0
-
-        if (n > 0) iy%beg = -buff_size; if (p > 0) iz%beg = -buff_size
-
-        ix%end = m - ix%beg; iy%end = n - iy%beg; iz%end = p - iz%beg
-        ! ==================================================================
-
-        @:ALLOCATE(rs(1:nb))
-        @:ALLOCATE(vs(1:nb))
-        if (.not. polytropic) then
-            @:ALLOCATE(ps(1:nb))
-            @:ALLOCATE(ms(1:nb))
-        end if
-
-        do l = 1, nb
-            rs(l) = bub_idx%rs(l)
-            vs(l) = bub_idx%vs(l)
-            if (.not. polytropic) then
-                ps(l) = bub_idx%ps(l)
-                ms(l) = bub_idx%ms(l)
+        if (bubble_model == 1) then
+            ! Gilmore bubbles
+            fCpinf = fP - pref
+            fCpbw = f_cpbw(fR0, fR, fV, fpb)
+            fH = f_H(fCpbw, fCpinf, fntait, fBtait)
+            c_gas = f_cgas(fCpinf, fntait, fBtait, fH)
+            fCpinf_dot = f_cpinfdot(fRho, fP, alf, fntait, fBtait, f_bub_adv_src, f_divu)
+            fHdot = f_Hdot(fCpbw, fCpinf, fCpinf_dot, fntait, fBtait, fR, fV, fR0, fpbdot)
+            f_rddot = f_rddot_G(fCpbw, fR, fV, fH, fHdot, c_gas, fntait, fBtait)
+        else if (bubble_model == 2) then
+            ! Keller-Miksis bubbles
+            fCpinf = fP
+            fCpbw = f_cpbw_KM(fR0, fR, fV, fpb)
+            if (bubbles_euler) then
+                c_liquid = sqrt(fntait*(fP + fBtait)/(fRho*(1._wp - alf)))
+            else
+                c_liquid = fCson
             end if
-        end do
-
-        !$acc update device(rs, vs)
-        if (.not. polytropic) then
-            !$acc update device(ps, ms)
+            f_rddot = f_rddot_KM(fpbdot, fCpinf, fCpbw, fRho, fR, fV, fR0, c_liquid)
+        else if (bubble_model == 3) then
+            ! Rayleigh-Plesset bubbles
+            fCpbw = f_cpbw_KM(fR0, fR, fV, fpb)
+            f_rddot = f_rddot_RP(fP, fRho, fR, fV, fCpbw)
+        else
+            ! Default: No bubble dynamics
+            f_rddot = 0._wp
         end if
 
-        @:ALLOCATE(divu%sf(ix%beg:ix%end, iy%beg:iy%end, iz%beg:iz%end))
-
-        @:ALLOCATE(bub_adv_src(0:m, 0:n, 0:p))
-        @:ALLOCATE(bub_r_src(0:m, 0:n, 0:p, 1:nb))
-        @:ALLOCATE(bub_v_src(0:m, 0:n, 0:p, 1:nb))
-        @:ALLOCATE(bub_p_src(0:m, 0:n, 0:p, 1:nb))
-        @:ALLOCATE(bub_m_src(0:m, 0:n, 0:p, 1:nb))
-
-    end subroutine
-
-    subroutine s_compute_bubbles_rhs(idir, q_prim_vf)
-
-        type(scalar_field), dimension(sys_size), intent(IN) :: q_prim_vf
-        integer :: idir
-        integer :: i, j, k, l, q
-
-        if (idir == 1) then
-
-            if (.not. qbmm) then
-                !$acc parallel loop collapse(3) gang vector default(present)
-                do l = 0, p
-                    do k = 0, n
-                        do j = 0, m
-                            divu%sf(j, k, l) = 0d0
-                            divu%sf(j, k, l) = &
-                                5d-1/dx(j)*(q_prim_vf(contxe + idir)%sf(j + 1, k, l) - &
-                                            q_prim_vf(contxe + idir)%sf(j - 1, k, l))
-
-                        end do
-                    end do
-                end do
-            end if
-
-        elseif (idir == 2) then
-
-            !$acc parallel loop collapse(3) gang vector default(present)
-            do l = 0, p
-                do k = 0, n
-                    do j = 0, m
-                        divu%sf(j, k, l) = divu%sf(j, k, l) + &
-                                           5d-1/dy(k)*(q_prim_vf(contxe + idir)%sf(j, k + 1, l) - &
-                                                       q_prim_vf(contxe + idir)%sf(j, k - 1, l))
-
-                    end do
-                end do
-            end do
-
-        elseif (idir == 3) then
-
-            !$acc parallel loop collapse(3) gang vector default(present)
-            do l = 0, p
-                do k = 0, n
-                    do j = 0, m
-                        divu%sf(j, k, l) = divu%sf(j, k, l) + &
-                                           5d-1/dz(l)*(q_prim_vf(contxe + idir)%sf(j, k, l + 1) - &
-                                                       q_prim_vf(contxe + idir)%sf(j, k, l - 1))
-
-                    end do
-                end do
-            end do
-
-        end if
-
-    end subroutine
-
-    !>  The purpose of this procedure is to compute the source terms
-        !!      that are needed for the bubble modeling
-        !!  @param q_prim_vf Primitive variables
-        !!  @param q_cons_vf Conservative variables
-        !!  @param divu Divergence of velocity
-        !!  @param bub_adv_src Advection equation source due to bubble compression/expansion
-        !!  @param bub_r_src   Bubble radius equation source
-        !!  @param bub_v_src   Bubble velocity equation source
-        !!  @param bub_p_src   Bubble pressure equation source
-        !!  @param bub_m_src   Bubble mass equation source
-    subroutine s_compute_bubble_source(nbub, q_cons_vf, q_prim_vf, t_step, id, rhs_vf)
-
-        type(scalar_field), dimension(sys_size), intent(IN) :: q_prim_vf, q_cons_vf
-        type(scalar_field), dimension(sys_size), intent(INOUT) :: rhs_vf
-        real(kind(0d0)), dimension(0:m, 0:n, 0:p), intent(INOUT) :: nbub
-        integer, intent(IN) :: t_step, id
-
-        !< Bubble number density
-
-        real(kind(0d0)) :: tmp1, tmp2, tmp3, tmp4, &
-                           c_gas, c_liquid, &
-                           Cpbw, Cpinf, Cpinf_dot, &
-                           myH, myHdot, rddot, alf_gas
-
-        real(kind(0d0)) :: pb, mv, vflux, pldot, pbdot
-
-        real(kind(0d0)) :: n_tait, B_tait
-
-        real(kind(0d0)), dimension(nb) :: Rtmp, Vtmp
-        real(kind(0d0)) :: myR, myV, alf, myP, myRho, R2Vav, R3
-        real(kind(0d0)), dimension(num_fluids) :: myalpha, myalpha_rho
-        real(kind(0d0)) :: start, finish
-
-        real(kind(0d0)), dimension(2) :: Re !< Reynolds number
-
-        integer :: i, j, k, l, q, ii !< Loop variables
-        integer :: ndirs  !< Number of coordinate directions
-
-        !$acc parallel loop collapse(3) gang vector default(present) private(Rtmp, Vtmp)
-        do l = 0, p
-            do k = 0, n
-                do j = 0, m
-                    bub_adv_src(j, k, l) = 0d0
-
-                    !$acc loop seq
-                    do q = 1, nb
-                        bub_r_src(j, k, l, q) = 0d0
-                        bub_v_src(j, k, l, q) = 0d0
-                        bub_p_src(j, k, l, q) = 0d0
-                        bub_m_src(j, k, l, q) = 0d0
-                    end do
-                end do
-            end do
-        end do
-
-        !$acc parallel loop collapse(3) gang vector default(present) private(Rtmp, Vtmp)
-        do l = 0, p
-            do k = 0, n
-                do j = 0, m
-
-                    !$acc loop seq
-                    do q = 1, nb
-                        Rtmp(q) = q_prim_vf(rs(q))%sf(j, k, l)
-                        Vtmp(q) = q_prim_vf(vs(q))%sf(j, k, l)
-                    end do
-
-                    R3 = 0d0
-
-                    !$acc loop seq
-                    do q = 1, nb
-                        R3 = R3 + weight(q)*Rtmp(q)**3.d0
-                    end do
-
-                    nbub(j, k, l) = (3.d0/(4.d0*pi))*q_prim_vf(alf_idx)%sf(j, k, l)/R3
-
-                    R2Vav = 0d0
-
-                    !$acc loop seq
-                    do q = 1, nb
-                        R2Vav = R2Vav + weight(q)*Rtmp(q)**2.d0*Vtmp(q)
-                    end do
-
-                    bub_adv_src(j, k, l) = 4.d0*pi*nbub(j, k, l)*R2Vav
-
-                end do
-            end do
-        end do
-
-        !$acc parallel loop collapse(3) gang vector default(present) private(myalpha_rho, myalpha)
-        do l = 0, p
-            do k = 0, n
-                do j = 0, m
-                    !$acc loop seq
-                    do q = 1, nb
-
-                        bub_r_src(j, k, l, q) = q_cons_vf(vs(q))%sf(j, k, l)
-
-                        !$acc loop seq
-                        do ii = 1, num_fluids
-                            myalpha_rho(ii) = q_cons_vf(ii)%sf(j, k, l)
-                            myalpha(ii) = q_cons_vf(advxb + ii - 1)%sf(j, k, l)
-                        end do
-
-                        myRho = 0d0
-                        n_tait = 0d0
-                        B_tait = 0d0
-
-                        if (mpp_lim .and. (num_fluids > 2)) then
-                            !$acc loop seq
-                            do ii = 1, num_fluids
-                                myRho = myRho + myalpha_rho(ii)
-                                n_tait = n_tait + myalpha(ii)*gammas(ii)
-                                B_tait = B_tait + myalpha(ii)*pi_infs(ii)
-                            end do
-                        else if (num_fluids > 2) then
-                            !$acc loop seq
-                            do ii = 1, num_fluids - 1
-                                myRho = myRho + myalpha_rho(ii)
-                                n_tait = n_tait + myalpha(ii)*gammas(ii)
-                                B_tait = B_tait + myalpha(ii)*pi_infs(ii)
-                            end do
-                        else
-                            myRho = myalpha_rho(1)
-                            n_tait = gammas(1)
-                            B_tait = pi_infs(1)
-                        end if
-
-                        n_tait = 1.d0/n_tait + 1.d0 !make this the usual little 'gamma'
-                        B_tait = B_tait*(n_tait - 1)/n_tait ! make this the usual pi_inf
-
-                        myRho = q_prim_vf(1)%sf(j, k, l)
-                        myP = q_prim_vf(E_idx)%sf(j, k, l)
-                        alf = q_prim_vf(alf_idx)%sf(j, k, l)
-                        myR = q_prim_vf(rs(q))%sf(j, k, l)
-                        myV = q_prim_vf(vs(q))%sf(j, k, l)
-
-                        if (.not. polytropic) then
-                            pb = q_prim_vf(ps(q))%sf(j, k, l)
-                            mv = q_prim_vf(ms(q))%sf(j, k, l)
-                            call s_bwproperty(pb, q)
-                            vflux = f_vflux(myR, myV, mv, q)
-                            pbdot = f_bpres_dot(vflux, myR, myV, pb, mv, q)
-
-                            bub_p_src(j, k, l, q) = nbub(j, k, l)*pbdot
-                            bub_m_src(j, k, l, q) = nbub(j, k, l)*vflux*4.d0*pi*(myR**2.d0)
-                        else
-                            pb = 0d0; mv = 0d0; vflux = 0d0; pbdot = 0d0
-                        end if
-
-                        if (bubble_model == 1) then
-                            ! Gilmore bubbles
-                            Cpinf = myP - pref
-                            Cpbw = f_cpbw(R0(q), myR, myV, pb)
-                            myH = f_H(Cpbw, Cpinf, n_tait, B_tait)
-                            c_gas = f_cgas(Cpinf, n_tait, B_tait, myH)
-                            Cpinf_dot = f_cpinfdot(myRho, myP, alf, n_tait, B_tait, bub_adv_src(j, k, l), divu%sf(j, k, l))
-                            myHdot = f_Hdot(Cpbw, Cpinf, Cpinf_dot, n_tait, B_tait, myR, myV, R0(q), pbdot)
-                            rddot = f_rddot(Cpbw, myR, myV, myH, myHdot, c_gas, n_tait, B_tait)
-                        else if (bubble_model == 2) then
-                            ! Keller-Miksis bubbles
-                            Cpinf = myP
-                            Cpbw = f_cpbw_KM(R0(q), myR, myV, pb)
-                            ! c_gas = dsqrt( n_tait*(Cpbw+B_tait) / myRho)
-                            c_liquid = DSQRT(n_tait*(myP + B_tait)/(myRho*(1.d0 - alf)))
-                            rddot = f_rddot_KM(pbdot, Cpinf, Cpbw, myRho, myR, myV, R0(q), c_liquid)
-                        else if (bubble_model == 3) then
-                            ! Rayleigh-Plesset bubbles
-                            Cpbw = f_cpbw_KM(R0(q), myR, myV, pb)
-                            rddot = f_rddot_RP(myP, myRho, myR, myV, R0(q), Cpbw)
-                        end if
-
-                        bub_v_src(j, k, l, q) = nbub(j, k, l)*rddot
-
-                        if (alf < 1.d-11) then
-                            bub_adv_src(j, k, l) = 0d0
-                            bub_r_src(j, k, l, q) = 0d0
-                            bub_v_src(j, k, l, q) = 0d0
-                            if (.not. polytropic) then
-                                bub_p_src(j, k, l, q) = 0d0
-                                bub_m_src(j, k, l, q) = 0d0
-                            end if
-                        end if
-                    end do
-                end do
-            end do
-        end do
-
-        !$acc parallel loop collapse(3) gang vector default(present)
-        do l = 0, p
-            do q = 0, n
-                do i = 0, m
-                    rhs_vf(alf_idx)%sf(i, q, l) = rhs_vf(alf_idx)%sf(i, q, l) + bub_adv_src(i, q, l)
-                    if (num_fluids > 1) rhs_vf(advxb)%sf(i, q, l) = &
-                        rhs_vf(advxb)%sf(i, q, l) - bub_adv_src(i, q, l)
-                    !$acc loop seq
-                    do k = 1, nb
-                        rhs_vf(rs(k))%sf(i, q, l) = rhs_vf(rs(k))%sf(i, q, l) + bub_r_src(i, q, l, k)
-                        rhs_vf(vs(k))%sf(i, q, l) = rhs_vf(vs(k))%sf(i, q, l) + bub_v_src(i, q, l, k)
-                        if (polytropic .neqv. .true.) then
-                            rhs_vf(ps(k))%sf(i, q, l) = rhs_vf(ps(k))%sf(i, q, l) + bub_p_src(i, q, l, k)
-                            rhs_vf(ms(k))%sf(i, q, l) = rhs_vf(ms(k))%sf(i, q, l) + bub_m_src(i, q, l, k)
-                        end if
-                    end do
-                end do
-            end do
-        end do
-
-    end subroutine s_compute_bubble_source
+    end function f_rddot
 
     !>  Function that computes that bubble wall pressure for Gilmore bubbles
         !!  @param fR0 Equilibrium bubble radius
         !!  @param fR Current bubble radius
         !!  @param fV Current bubble velocity
         !!  @param fpb Internal bubble pressure
-    function f_cpbw(fR0, fR, fV, fpb)
-        !$acc routine seq
-        real(kind(0d0)), intent(IN) :: fR0, fR, fV, fpb
+    elemental function f_cpbw(fR0, fR, fV, fpb)
+        $:GPU_ROUTINE(parallelism='[seq]')
+        real(wp), intent(in) :: fR0, fR, fV, fpb
 
-        real(kind(0d0)) :: f_cpbw
+        real(wp) :: f_cpbw
 
         if (polytropic) then
-            f_cpbw = (Ca + 2.d0/Web/fR0)*((fR0/fR)**(3.d0*gam)) - Ca - 4.d0*Re_inv*fV/fR - 2.d0/(fR*Web)
+            f_cpbw = (Ca + 2._wp/Web/fR0)*((fR0/fR)**(3._wp*gam)) - Ca - 4._wp*Re_inv*fV/fR - 2._wp/(fR*Web)
         else
-            f_cpbw = fpb - 1.d0 - 4.d0*Re_inv*fV/fR - 2.d0/(fR*Web)
+            f_cpbw = fpb - 1._wp - 4._wp*Re_inv*fV/fR - 2._wp/(fR*Web)
         end if
 
     end function f_cpbw
@@ -372,18 +103,18 @@ contains
         !!  @param fCpinf Driving bubble pressure
         !!  @param fntait Tait EOS parameter
         !!  @param fBtait Tait EOS parameter
-    function f_H(fCpbw, fCpinf, fntait, fBtait)
-        !$acc routine seq
-        real(kind(0d0)), intent(IN) :: fCpbw, fCpinf, fntait, fBtait
+    elemental function f_H(fCpbw, fCpinf, fntait, fBtait)
+        $:GPU_ROUTINE(parallelism='[seq]')
+        real(wp), intent(in) :: fCpbw, fCpinf, fntait, fBtait
 
-        real(kind(0d0)) :: tmp1, tmp2, tmp3
-        real(kind(0d0)) :: f_H
+        real(wp) :: tmp1, tmp2, tmp3
+        real(wp) :: f_H
 
-        tmp1 = (fntait - 1.d0)/fntait
-        tmp2 = (fCpbw/(1.d0 + fBtait) + 1.d0)**tmp1
-        tmp3 = (fCpinf/(1.d0 + fBtait) + 1.d0)**tmp1
+        tmp1 = (fntait - 1._wp)/fntait
+        tmp2 = (fCpbw/(1._wp + fBtait) + 1._wp)**tmp1
+        tmp3 = (fCpinf/(1._wp + fBtait) + 1._wp)**tmp1
 
-        f_H = (tmp2 - tmp3)*fntait*(1.d0 + fBtait)/(fntait - 1.d0)
+        f_H = (tmp2 - tmp3)*fntait*(1._wp + fBtait)/(fntait - 1._wp)
 
     end function f_H
 
@@ -392,18 +123,18 @@ contains
         !! @param fntait Tait EOS parameter
         !! @param fBtait Tait EOS parameter
         !! @param fH Bubble enthalpy
-    function f_cgas(fCpinf, fntait, fBtait, fH)
-        !$acc routine seq
-        real(kind(0d0)), intent(IN) :: fCpinf, fntait, fBtait, fH
+    elemental function f_cgas(fCpinf, fntait, fBtait, fH)
+        $:GPU_ROUTINE(parallelism='[seq]')
+        real(wp), intent(in) :: fCpinf, fntait, fBtait, fH
 
-        real(kind(0d0)) :: tmp
-        real(kind(0d0)) :: f_cgas
+        real(wp) :: tmp
+        real(wp) :: f_cgas
 
         ! get sound speed for Gilmore equations "C" -> c_gas
-        tmp = (fCpinf/(1.d0 + fBtait) + 1.d0)**((fntait - 1.d0)/fntait)
-        tmp = fntait*(1.d0 + fBtait)*tmp
+        tmp = (fCpinf/(1._wp + fBtait) + 1._wp)**((fntait - 1._wp)/fntait)
+        tmp = fntait*(1._wp + fBtait)*tmp
 
-        f_cgas = DSQRT(tmp + (fntait - 1.d0)*fH)
+        f_cgas = sqrt(tmp + (fntait - 1._wp)*fH)
 
     end function f_cgas
 
@@ -415,19 +146,19 @@ contains
         !!  @param fBtait Tait EOS parameter
         !!  @param advsrc Advection equation source term
         !!  @param divu Divergence of velocity
-    function f_cpinfdot(fRho, fP, falf, fntait, fBtait, advsrc, divu)
-        !$acc routine seq
-        real(kind(0d0)), intent(IN) :: fRho, fP, falf, fntait, fBtait, advsrc, divu
+    elemental function f_cpinfdot(fRho, fP, falf, fntait, fBtait, advsrc, divu)
+        $:GPU_ROUTINE(parallelism='[seq]')
+        real(wp), intent(in) :: fRho, fP, falf, fntait, fBtait, advsrc, divu
 
-        real(kind(0d0)) :: c2_liquid
-        real(kind(0d0)) :: f_cpinfdot
+        real(wp) :: c2_liquid
+        real(wp) :: f_cpinfdot
 
         ! get sound speed squared for liquid (only needed for pbdot)
         ! c_l^2 = gam (p+B) / (rho*(1-alf))
         if (mpp_lim) then
             c2_liquid = fntait*(fP + fBtait)/fRho
         else
-            c2_liquid = fntait*(fP + fBtait)/(fRho*(1.d0 - falf))
+            c2_liquid = fntait*(fP + fBtait)/(fRho*(1._wp - falf))
         end if
 
         ! \dot{Cp_inf} = rho sound^2 (alf_src - divu)
@@ -441,36 +172,36 @@ contains
         !!  @param fCpinf_dot Time derivative of the driving pressure
         !!  @param fntait Tait EOS parameter
         !!  @param fBtait Tait EOS parameter
-        !!  @param fR0 Equilibrium bubble radius
         !!  @param fR Current bubble radius
         !!  @param fV Current bubble velocity
+        !!  @param fR0 Equilibrium bubble radius
         !!  @param fpbdot Time derivative of the internal bubble pressure
-    function f_Hdot(fCpbw, fCpinf, fCpinf_dot, fntait, fBtait, fR, fV, fR0, fpbdot)
-        !$acc routine seq
-        real(kind(0d0)), intent(IN) :: fCpbw, fCpinf, fCpinf_dot, fntait, fBtait
-        real(kind(0d0)), intent(IN) :: fR, fV, fR0, fpbdot
+    elemental function f_Hdot(fCpbw, fCpinf, fCpinf_dot, fntait, fBtait, fR, fV, fR0, fpbdot)
+        $:GPU_ROUTINE(parallelism='[seq]')
+        real(wp), intent(in) :: fCpbw, fCpinf, fCpinf_dot, fntait, fBtait
+        real(wp), intent(in) :: fR, fV, fR0, fpbdot
 
-        real(kind(0d0)) :: tmp1, tmp2
-        real(kind(0d0)) :: f_Hdot
+        real(wp) :: tmp1, tmp2
+        real(wp) :: f_Hdot
 
         if (polytropic) then
-            tmp1 = (fR0/fR)**(3.d0*gam)
-            tmp1 = -3.d0*gam*(Ca + 2d0/Web/fR0)*tmp1*fV/fR
+            tmp1 = (fR0/fR)**(3._wp*gam)
+            tmp1 = -3._wp*gam*(Ca + 2._wp/Web/fR0)*tmp1*fV/fR
         else
             tmp1 = fpbdot
         end if
-        tmp2 = (2.d0/Web + 4.d0*Re_inv*fV)*fV/(fR**2.d0)
+        tmp2 = (2._wp/Web + 4._wp*Re_inv*fV)*fV/(fR**2._wp)
 
         f_Hdot = &
-            (fCpbw/(1.d0 + fBtait) + 1.d0)**(-1.d0/fntait)*(tmp1 + tmp2) &
-            - (fCpinf/(1.d0 + fBtait) + 1.d0)**(-1.d0/fntait)*fCpinf_dot
+            (fCpbw/(1._wp + fBtait) + 1._wp)**(-1._wp/fntait)*(tmp1 + tmp2) &
+            - (fCpinf/(1._wp + fBtait) + 1._wp)**(-1._wp/fntait)*fCpinf_dot
 
         ! Hdot = (Cpbw/(1+B) + 1)^(-1/n_tait)*(-3 gam)*(R0/R)^(3gam) V/R
-        !f_Hdot = ((fCpbw/(1d0+fBtait)+1.d0)**(-1.d0/fntait))*(-3.d0)*gam * &
-        !            ( (fR0/fR)**(3.d0*gam ))*(fV/fR)
+        !f_Hdot = ((fCpbw/(1._wp+fBtait)+1._wp)**(-1._wp/fntait))*(-3._wp)*gam * &
+        !            ( (fR0/fR)**(3._wp*gam ))*(fV/fR)
 
         ! Hdot = Hdot - (Cpinf/(1+B) + 1)^(-1/n_tait) Cpinfdot
-        !f_Hdot = f_Hdot - ((fCpinf/(1.d0+fBtait)+1.d0)**(-1.d0/fntait))*fCpinf_dot
+        !f_Hdot = f_Hdot - ((fCpinf/(1._wp+fBtait)+1._wp)**(-1._wp/fntait))*fCpinf_dot
 
     end function f_Hdot
 
@@ -481,16 +212,17 @@ contains
         !!  @param fV Current bubble velocity
         !!  @param fR0 Equilibrium bubble radius
         !!  @param fCpbw Boundary wall pressure
-    function f_rddot_RP(fCp, fRho, fR, fV, fR0, fCpbw)
-        !$acc routine seq
-        real(kind(0d0)), intent(IN) :: fCp, fRho, fR, fV, fR0, fCpbw
-        real(kind(0d0)) :: f_rddot_RP
+    elemental function f_rddot_RP(fCp, fRho, fR, fV, fCpbw)
+        $:GPU_ROUTINE(parallelism='[seq]')
+        real(wp), intent(in) :: fCp, fRho, fR, fV, fCpbw
+
+        real(wp) :: f_rddot_RP
 
             !! rddot = (1/r) (  -3/2 rdot^2 + ((r0/r)^3\gamma - Cp)/rho )
             !! rddot = (1/r) (  -3/2 rdot^2 + (tmp1 - Cp)/rho )
             !! rddot = (1/r) (  tmp2 )
 
-        f_rddot_RP = (-1.5d0*(fV**2d0) + (fCpbw - fCp)/fRho)/fR
+        f_rddot_RP = (-1.5_wp*(fV**2._wp) + (fCpbw - fCp)/fRho)/fR
 
     end function f_rddot_RP
 
@@ -503,44 +235,44 @@ contains
         !!  @param fcgas Current gas sound speed
         !!  @param fntait Tait EOS parameter
         !!  @param fBtait Tait EOS parameter
-    function f_rddot(fCpbw, fR, fV, fH, fHdot, fcgas, fntait, fBtait)
-        !$acc routine seq
-        real(kind(0d0)), intent(IN) :: fCpbw, fR, fV, fH, fHdot
-        real(kind(0d0)), intent(IN) :: fcgas, fntait, fBtait
+    elemental function f_rddot_G(fCpbw, fR, fV, fH, fHdot, fcgas, fntait, fBtait)
+        $:GPU_ROUTINE(parallelism='[seq]')
+        real(wp), intent(in) :: fCpbw, fR, fV, fH, fHdot
+        real(wp), intent(in) :: fcgas, fntait, fBtait
 
-        real(kind(0d0)) :: tmp1, tmp2, tmp3
-        real(kind(0d0)) :: f_rddot
+        real(wp) :: tmp1, tmp2, tmp3
+        real(wp) :: f_rddot_G
 
         tmp1 = fV/fcgas
-        tmp2 = 1.d0 + 4.d0*Re_inv/fcgas/fR*(fCpbw/(1.d0 + fBtait) + 1.d0) &
-               **(-1.d0/fntait)
-        tmp3 = 1.5d0*fV**2d0*(tmp1/3.d0 - 1.d0) + fH*(1.d0 + tmp1) &
-               + fR*fHdot*(1.d0 - tmp1)/fcgas
+        tmp2 = 1._wp + 4._wp*Re_inv/fcgas/fR*(fCpbw/(1._wp + fBtait) + 1._wp) &
+               **(-1._wp/fntait)
+        tmp3 = 1.5_wp*fV**2._wp*(tmp1/3._wp - 1._wp) + fH*(1._wp + tmp1) &
+               + fR*fHdot*(1._wp - tmp1)/fcgas
 
-        f_rddot = tmp3/(fR*(1.d0 - tmp1)*tmp2)
+        f_rddot_G = tmp3/(fR*(1._wp - tmp1)*tmp2)
 
-    end function f_rddot
+    end function f_rddot_G
 
     !>  Function that computes the bubble wall pressure for Keller--Miksis bubbles
         !!  @param fR0 Equilibrium bubble radius
         !!  @param fR Current bubble radius
         !!  @param fV Current bubble velocity
         !!  @param fpb Internal bubble pressure
-    function f_cpbw_KM(fR0, fR, fV, fpb)
-        !$acc routine seq
-        real(kind(0d0)), intent(IN) :: fR0, fR, fV, fpb
-        real(kind(0d0)) :: f_cpbw_KM
+    elemental function f_cpbw_KM(fR0, fR, fV, fpb)
+        $:GPU_ROUTINE(parallelism='[seq]')
+        real(wp), intent(in) :: fR0, fR, fV, fpb
+        real(wp) :: f_cpbw_KM
 
         if (polytropic) then
-            f_cpbw_KM = Ca*((fR0/fR)**(3.d0*gam)) - Ca + 1d0
-            if (Web /= dflt_real) f_cpbw_KM = f_cpbw_KM + &
-                                              (2.d0/(Web*fR0))*((fR0/fR)**(3.d0*gam))
+            f_cpbw_KM = Ca*((fR0/fR)**(3._wp*gam)) - Ca + 1._wp
+            if (.not. f_is_default(Web)) f_cpbw_KM = f_cpbw_KM + &
+                                                     (2._wp/(Web*fR0))*((fR0/fR)**(3._wp*gam))
         else
             f_cpbw_KM = fpb
         end if
 
-        if (Web /= dflt_real) f_cpbw_KM = f_cpbw_KM - 2.d0/(fR*Web)
-        if (Re_inv /= dflt_real) f_cpbw_KM = f_cpbw_KM - 4.d0*Re_inv*fV/fR
+        if (.not. f_is_default(Web)) f_cpbw_KM = f_cpbw_KM - 2._wp/(fR*Web)
+        if (.not. f_is_default(Re_inv)) f_cpbw_KM = f_cpbw_KM - 4._wp*Re_inv*fV/fR
 
     end function f_cpbw_KM
 
@@ -553,86 +285,116 @@ contains
         !!  @param fV Current bubble velocity
         !!  @param fR0 Equilibrium bubble radius
         !!  @param fC Current sound speed
-    function f_rddot_KM(fpbdot, fCp, fCpbw, fRho, fR, fV, fR0, fC)
-        !$acc routine seq
-        real(kind(0d0)), intent(IN) :: fpbdot, fCp, fCpbw
-        real(kind(0d0)), intent(IN) :: fRho, fR, fV, fR0, fC
+    elemental function f_rddot_KM(fpbdot, fCp, fCpbw, fRho, fR, fV, fR0, fC)
+        $:GPU_ROUTINE(parallelism='[seq]')
+        real(wp), intent(in) :: fpbdot, fCp, fCpbw
+        real(wp), intent(in) :: fRho, fR, fV, fR0, fC
 
-        real(kind(0d0)) :: tmp1, tmp2, cdot_star
-        real(kind(0d0)) :: f_rddot_KM
-
+        real(wp) :: tmp1, tmp2, cdot_star
+        real(wp) :: f_rddot_KM
         if (polytropic) then
-            cdot_star = -3d0*gam*Ca*((fR0/fR)**(3d0*gam))*fV/fR
-            if (Web /= dflt_real) cdot_star = cdot_star - &
-                                              3d0*gam*(2d0/(Web*fR0))*((fR0/fR)**(3d0*gam))*fV/fR
+            cdot_star = -3._wp*gam*Ca*((fR0/fR)**(3._wp*gam))*fV/fR
+            if (.not. f_is_default(Web)) cdot_star = cdot_star - &
+                                                     3._wp*gam*(2._wp/(Web*fR0))*((fR0/fR)**(3._wp*gam))*fV/fR
         else
             cdot_star = fpbdot
         end if
 
-        if (Web /= dflt_real) cdot_star = cdot_star + (2d0/Web)*fV/(fR**2d0)
-        if (Re_inv /= dflt_real) cdot_star = cdot_star + 4d0*Re_inv*((fV/fR)**2d0)
+        if (.not. f_is_default(Web)) cdot_star = cdot_star + (2._wp/Web)*fV/(fR**2._wp)
+        if (.not. f_is_default(Re_inv)) cdot_star = cdot_star + 4._wp*Re_inv*((fV/fR)**2._wp)
 
         tmp1 = fV/fC
-        tmp2 = 1.5d0*(fV**2d0)*(tmp1/3d0 - 1d0) + &
-               (1d0 + tmp1)*(fCpbw - fCp)/fRho + &
+        tmp2 = 1.5_wp*(fV**2._wp)*(tmp1/3._wp - 1._wp) + &
+               (1._wp + tmp1)*(fCpbw - fCp)/fRho + &
                cdot_star*fR/(fRho*fC)
 
-        if (Re_inv == dflt_real) then
-            f_rddot_KM = tmp2/(fR*(1d0 - tmp1))
+        if (f_is_default(Re_inv)) then
+            f_rddot_KM = tmp2/(fR*(1._wp - tmp1))
         else
-            f_rddot_KM = tmp2/(fR*(1d0 - tmp1) + 4d0*Re_inv/(fRho*fC))
+            f_rddot_KM = tmp2/(fR*(1._wp - tmp1) + 4._wp*Re_inv/(fRho*fC))
         end if
 
     end function f_rddot_KM
 
     !>  Subroutine that computes bubble wall properties for vapor bubbles
-    !>  @param pb Internal bubble pressure
-    !>  @param iR0 Current bubble size index
-    subroutine s_bwproperty(pb, iR0)
-        !$acc routine seq
-        real(kind(0.d0)), intent(IN) :: pb
-        integer, intent(IN) :: iR0
-
-        real(kind(0.d0)) :: x_vw
+        !!  @param pb Internal bubble pressure
+        !!  @param iR0 Current bubble size index
+    elemental subroutine s_bwproperty(pb_in, iR0, chi_vw_out, k_mw_out, rho_mw_out)
+        $:GPU_ROUTINE(parallelism='[seq]')
+        real(wp), intent(in) :: pb_in
+        integer, intent(in) :: iR0
+        real(wp), intent(out) :: chi_vw_out  !< Bubble wall properties (Ando 2010)
+        real(wp), intent(out) :: k_mw_out    !< Bubble wall properties (Ando 2010)
+        real(wp), intent(out) :: rho_mw_out  !< Bubble wall properties (Ando 2010)
+        real(wp) :: x_vw
 
         ! mass fraction of vapor
-        chi_vw = 1.d0/(1.d0 + R_v/R_n*(pb/pv - 1.d0))
+        chi_vw_out = 1._wp/(1._wp + R_v/R_n*(pb_in/pv - 1._wp))
         ! mole fraction of vapor & thermal conductivity of gas mixture
-        x_vw = M_n*chi_vw/(M_v + (M_n - M_v)*chi_vw)
-        k_mw = x_vw*k_v(iR0)/(x_vw + (1.d0 - x_vw)*phi_vn) &
-               + (1.d0 - x_vw)*k_n(iR0)/(x_vw*phi_nv + 1.d0 - x_vw)
+        x_vw = M_n*chi_vw_out/(M_v + (M_n - M_v)*chi_vw_out)
+        k_mw_out = x_vw*k_v(iR0)/(x_vw + (1._wp - x_vw)*phi_vn) &
+                   + (1._wp - x_vw)*k_n(iR0)/(x_vw*phi_nv + 1._wp - x_vw)
         ! gas mixture density
-        rho_mw = pv/(chi_vw*R_v*Tw)
+        rho_mw_out = pv/(chi_vw_out*R_v*Tw)
 
     end subroutine s_bwproperty
 
     !>  Function that computes the vapour flux
         !!  @param fR Current bubble radius
         !!  @param fV Current bubble velocity
+        !!  @param fpb
         !!  @param fmass_v Current mass of vapour
-        !!  @param iR0 Bubble size index
-    function f_vflux(fR, fV, fmass_v, iR0)
-        !$acc routine seq
-        real(kind(0.d0)), intent(IN) :: fR
-        real(kind(0.d0)), intent(IN) :: fV
-        real(kind(0.d0)), intent(IN) :: fmass_v
-        integer, intent(IN) :: iR0
+        !!  @param iR0 Bubble size index (EE) or bubble identifier (EL)
+        !!  @param fmass_n Current gas mass (EL)
+        !!  @param fbeta_c Mass transfer coefficient (EL)
+        !!  @param fR_m Mixture gas constant (EL)
+        !!  @param fgamma_m Mixture gamma (EL)
+    elemental subroutine s_vflux(fR, fV, fpb, fmass_v, iR0, vflux, fmass_n, fbeta_c, fR_m, fgamma_m)
+        $:GPU_ROUTINE(parallelism='[seq]')
+        real(wp), intent(in) :: fR
+        real(wp), intent(in) :: fV
+        real(wp), intent(in) :: fpb
+        real(wp), intent(in) :: fmass_v
+        integer, intent(in) :: iR0
+        real(wp), intent(out) :: vflux
+        real(wp), intent(in), optional :: fmass_n, fbeta_c
+        real(wp), intent(out), optional :: fR_m, fgamma_m
 
-        real(kind(0.d0)) :: chi_bar
-        real(kind(0.d0)) :: grad_chi
-        real(kind(0.d0)) :: f_vflux
+        real(wp) :: chi_bar
+        real(wp) :: rho_mw_lag
+        real(wp) :: grad_chi
+        real(wp) :: conc_v
 
         if (thermal == 3) then !transfer
             ! constant transfer model
-            chi_bar = fmass_v/(fmass_v + mass_n0(iR0))
-            grad_chi = -Re_trans_c(iR0)*(chi_bar - chi_vw)
-            f_vflux = rho_mw*grad_chi/Pe_c/(1.d0 - chi_vw)/fR
+            if (bubbles_lagrange) then
+                ! Mixture properties (gas+vapor) in the bubble
+                conc_v = fmass_v/(fmass_v + fmass_n)
+                if (lag_params%massTransfer_model) then
+                    conc_v = 1._wp/(1._wp + (R_v/R_n)*(fpb/pv - 1._wp))
+                end if
+                fR_m = (fmass_n*R_n + fmass_v*R_v)
+                fgamma_m = conc_v*gamma_v + (1._wp - conc_v)*gamma_n
+
+                ! Vapor flux
+                chi_bar = fmass_v/(fmass_v + fmass_n)
+                grad_chi = (chi_bar - conc_v)
+                rho_mw_lag = (fmass_n + fmass_v)/(4._wp/3._wp*pi*fR**3._wp)
+                vflux = 0._wp
+                if (lag_params%massTransfer_model) then
+                    vflux = -fbeta_c*rho_mw_lag*grad_chi/(1._wp - conc_v)/fR
+                end if
+            else
+                chi_bar = fmass_v/(fmass_v + mass_n0(iR0))
+                grad_chi = -Re_trans_c(iR0)*(chi_bar - chi_vw)
+                vflux = rho_mw*grad_chi/Pe_c/(1._wp - chi_vw)/fR
+            end if
         else
             ! polytropic
-            f_vflux = pv*fV/(R_v*Tw)
+            vflux = pv*fV/(R_v*Tw)
         end if
 
-    end function f_vflux
+    end subroutine s_vflux
 
     !>  Function that computes the time derivative of
         !!  the internal bubble pressure
@@ -641,31 +403,398 @@ contains
         !!  @param fV Current bubble velocity
         !!  @param fpb Current internal bubble pressure
         !!  @param fmass_v Current mass of vapour
-        !!  @param iR0 Bubble size index
-    function f_bpres_dot(fvflux, fR, fV, fpb, fmass_v, iR0)
-        !$acc routine seq
-        real(kind(0.d0)), intent(IN) :: fvflux
-        real(kind(0.d0)), intent(IN) :: fR
-        real(kind(0.d0)), intent(IN) :: fV
-        real(kind(0.d0)), intent(IN) :: fpb
-        real(kind(0.d0)), intent(IN) :: fmass_v
-        integer, intent(IN) :: iR0
+        !!  @param iR0 Bubble size index (EE) or bubble identifier (EL)
+        !!  @param fbeta_t Mass transfer coefficient (EL)
+        !!  @param fR_m Mixture gas constant (EL)
+        !!  @param fgamma_m Mixture gamma (EL)
+    elemental function f_bpres_dot(fvflux, fR, fV, fpb, fmass_v, iR0, fbeta_t, fR_m, fgamma_m)
+        $:GPU_ROUTINE(parallelism='[seq]')
+        real(wp), intent(in) :: fvflux
+        real(wp), intent(in) :: fR
+        real(wp), intent(in) :: fV
+        real(wp), intent(in) :: fpb
+        real(wp), intent(in) :: fmass_v
+        integer, intent(in) :: iR0
+        real(wp), intent(in), optional :: fbeta_t, fR_m, fgamma_m
 
-        real(kind(0.d0)) :: T_bar
-        real(kind(0.d0)) :: grad_T
-        real(kind(0.d0)) :: tmp1, tmp2
-        real(kind(0.d0)) :: f_bpres_dot
+        real(wp) :: T_bar
+        real(wp) :: grad_T
+        real(wp) :: f_bpres_dot
+        real(wp) :: heatflux
 
         if (thermal == 3) then
+            if (bubbles_lagrange) then
+                T_bar = fpb*(4._wp/3._wp*pi*fR**3._wp)/fR_m
+                grad_T = -fbeta_t*(T_bar - Tw)
+                heatflux = (fgamma_m - 1._wp)/fgamma_m*grad_T/fR
+                f_bpres_dot = 3._wp*fgamma_m*(-fV*fpb + fvflux*R_v*Tw &
+                                              + heatflux)/fR
+                return
+            end if
             T_bar = Tw*(fpb/pb0(iR0))*(fR/R0(iR0))**3 &
                     *(mass_n0(iR0) + mass_v0(iR0))/(mass_n0(iR0) + fmass_v)
             grad_T = -Re_trans_T(iR0)*(T_bar - Tw)
-            f_bpres_dot = 3.d0*gamma_m*(-fV*fpb + fvflux*R_v*Tw &
-                                        + pb0(iR0)*k_mw*grad_T/Pe_T(iR0)/fR)/fR
+            f_bpres_dot = 3._wp*gamma_m*(-fV*fpb + fvflux*R_v*Tw &
+                                         + pb0(iR0)*k_mw*grad_T/Pe_T(iR0)/fR)/fR
         else
-            f_bpres_dot = -3.d0*gamma_m*fV/fR*(fpb - pv)
+            f_bpres_dot = -3._wp*gamma_m*fV/fR*(fpb - pv)
         end if
 
     end function f_bpres_dot
+
+    !> Adaptive time stepping routine for subgrid bubbles
+        !!  (See Heirer, E. Hairer S.P.Nørsett G. Wanner, Solving Ordinary
+        !!  Differential Equations I, Chapter II.4)
+        !!  @param fRho Current density
+        !!  @param fP Current driving pressure
+        !!  @param fR Current bubble radius
+        !!  @param fV Current bubble radial velocity
+        !!  @param fR0 Equilibrium bubble radius
+        !!  @param fpb Internal bubble pressure
+        !!  @param fpbdot Time-derivative of internal bubble pressure
+        !!  @param alf bubble volume fraction
+        !!  @param fntait Tait EOS parameter
+        !!  @param fBtait Tait EOS parameter
+        !!  @param f_bub_adv_src Source for bubble volume fraction
+        !!  @param f_divu Divergence of velocity
+        !!  @param bub_id Bubble identifier (EL)
+        !!  @param fmass_v Current mass of vapour (EL)
+        !!  @param fmass_n Current mass of gas (EL)
+        !!  @param fbeta_c Mass transfer coefficient (EL)
+        !!  @param fbeta_t Heat transfer coefficient (EL)
+        !!  @param fCson Speed of sound (EL)
+        !!  @param adap_dt_stop Fail-safe exit if max iteration count reached
+    subroutine s_advance_step(fRho, fP, fR, fV, fR0, fpb, fpbdot, alf, &
+                              fntait, fBtait, f_bub_adv_src, f_divu, &
+                              bub_id, fmass_v, fmass_n, fbeta_c, &
+                              fbeta_t, fCson, adap_dt_stop)
+        $:GPU_ROUTINE(function_name='s_advance_step',parallelism='[seq]', &
+            & cray_inline=True)
+
+        real(wp), intent(inout) :: fR, fV, fpb, fmass_v
+        real(wp), intent(in) :: fRho, fP, fR0, fpbdot, alf
+        real(wp), intent(in) :: fntait, fBtait, f_bub_adv_src, f_divu
+        integer, intent(in) :: bub_id
+        real(wp), intent(in) :: fmass_n, fbeta_c, fbeta_t, fCson
+        integer, intent(inout) :: adap_dt_stop
+
+        real(wp), dimension(5) :: err !< Error estimates for adaptive time stepping
+        real(wp) :: t_new !< Updated time step size
+        real(wp) :: h !< Time step size
+        real(wp), dimension(4) :: myR_tmp1, myV_tmp1, myR_tmp2, myV_tmp2 !< Bubble radius, radial velocity, and radial acceleration for the inner loop
+        real(wp), dimension(4) :: myPb_tmp1, myMv_tmp1, myPb_tmp2, myMv_tmp2 !< Gas pressure and vapor mass for the inner loop (EL)
+        real(wp) :: fR2, fV2, fpb2, fmass_v2
+        integer :: iter_count
+
+        call s_initial_substep_h(fRho, fP, fR, fV, fR0, fpb, fpbdot, alf, &
+                                 fntait, fBtait, f_bub_adv_src, f_divu, fCson, h)
+
+        ! Advancing one step
+        t_new = 0._wp
+        iter_count = 0
+        adap_dt_stop = 0
+
+        do
+
+            if (t_new + h > 0.5_wp*dt) then
+                h = 0.5_wp*dt - t_new
+            end if
+
+            ! Advancing one sub-step
+            do while (iter_count < adap_dt_max_iters)
+
+                iter_count = iter_count + 1
+
+                ! Advance one sub-step
+                call s_advance_substep(err(1), &
+                                       fRho, fP, fR, fV, fR0, fpb, fpbdot, alf, &
+                                       fntait, fBtait, f_bub_adv_src, f_divu, &
+                                       bub_id, fmass_v, fmass_n, fbeta_c, &
+                                       fbeta_t, fCson, h, &
+                                       myR_tmp1, myV_tmp1, myPb_tmp1, myMv_tmp1)
+
+                ! Advance one sub-step by advancing two half steps
+                call s_advance_substep(err(2), &
+                                       fRho, fP, fR, fV, fR0, fpb, fpbdot, alf, &
+                                       fntait, fBtait, f_bub_adv_src, f_divu, &
+                                       bub_id, fmass_v, fmass_n, fbeta_c, &
+                                       fbeta_t, fCson, 0.5_wp*h, &
+                                       myR_tmp2, myV_tmp2, myPb_tmp2, myMv_tmp2)
+
+                fR2 = myR_tmp2(4); fV2 = myV_tmp2(4)
+                fpb2 = myPb_tmp2(4); fmass_v2 = myMv_tmp2(4)
+
+                call s_advance_substep(err(3), &
+                                       fRho, fP, fR2, fV2, fR0, fpb2, fpbdot, alf, &
+                                       fntait, fBtait, f_bub_adv_src, f_divu, &
+                                       bub_id, fmass_v2, fmass_n, fbeta_c, &
+                                       fbeta_t, fCson, 0.5_wp*h, &
+                                       myR_tmp2, myV_tmp2, myPb_tmp2, myMv_tmp2)
+
+                err(4) = abs((myR_tmp1(4) - myR_tmp2(4))/myR_tmp1(4))
+                err(5) = abs((myV_tmp1(4) - myV_tmp2(4))/myV_tmp1(4))
+                if (abs(myV_tmp1(4)) < verysmall) err(5) = 0._wp
+
+                ! Determine acceptance/rejection and update step size
+                !   Rule 1: err1, err2, err3 < tol
+                !   Rule 2: myR_tmp1(4) > 0._wp
+                !   Rule 3: abs((myR_tmp1(4) - myR_tmp2(4))/fR) < tol
+                !   Rule 4: abs((myV_tmp1(4) - myV_tmp2(4))/fV) < tol
+                if ((err(1) <= adap_dt_tol) .and. (err(2) <= adap_dt_tol) .and. &
+                    (err(3) <= adap_dt_tol) .and. (err(4) < adap_dt_tol) .and. &
+                    (err(5) < adap_dt_tol) .and. myR_tmp1(4) > 0._wp) then
+
+                    ! Accepted. Finalize the sub-step
+                    t_new = t_new + h
+
+                    ! Update R and V
+                    fR = myR_tmp1(4)
+                    fV = myV_tmp1(4)
+
+                    if (bubbles_lagrange) then
+                        ! Update pb and mass_v
+                        fpb = myPb_tmp1(4)
+                        fmass_v = myMv_tmp1(4)
+                    end if
+
+                    ! Update step size for the next sub-step
+                    h = h*min(2._wp, max(0.5_wp, (adap_dt_tol/err(1))**(1._wp/3._wp)))
+
+                    exit
+                else
+                    ! Rejected. Update step size for the next try on sub-step
+                    if (err(2) <= adap_dt_tol) then
+                        h = 0.5_wp*h
+                    else
+                        h = 0.25_wp*h
+                    end if
+                end if
+            end do
+
+            ! Exit the loop if the final time reached dt
+            if (f_approx_equal(t_new, 0.5_wp*dt) .or. iter_count >= adap_dt_max_iters) exit
+
+        end do
+
+        if (iter_count >= adap_dt_max_iters) adap_dt_stop = 1
+
+    end subroutine s_advance_step
+
+    !> Choose the initial time step size for the adaptive time stepping routine
+        !!  (See Heirer, E. Hairer S.P.Nørsett G. Wanner, Solving Ordinary
+        !!  Differential Equations I, Chapter II.4)
+        !!  @param fRho Current density
+        !!  @param fP Current driving pressure
+        !!  @param fR Current bubble radius
+        !!  @param fV Current bubble velocity
+        !!  @param fR0 Equilibrium bubble radius
+        !!  @param fpb Internal bubble pressure
+        !!  @param fpbdot Time-derivative of internal bubble pressure
+        !!  @param alf bubble volume fraction
+        !!  @param fntait Tait EOS parameter
+        !!  @param fBtait Tait EOS parameter
+        !!  @param f_bub_adv_src Source for bubble volume fraction
+        !!  @param f_divu Divergence of velocity
+        !!  @param fCson Speed of sound (EL)
+        !!  @param h Time step size
+    subroutine s_initial_substep_h(fRho, fP, fR, fV, fR0, fpb, fpbdot, alf, &
+                                   fntait, fBtait, f_bub_adv_src, f_divu, &
+                                   fCson, h)
+        $:GPU_ROUTINE(function_name='s_initial_substep_h',parallelism='[seq]', &
+            & cray_inline=True)
+
+        real(wp), intent(IN) :: fRho, fP, fR, fV, fR0, fpb, fpbdot, alf
+        real(wp), intent(IN) :: fntait, fBtait, f_bub_adv_src, f_divu
+        real(wp), intent(IN) :: fCson
+        real(wp), intent(OUT) :: h
+
+        real(wp), dimension(2) :: h_size !< Time step size (h0, h1)
+        real(wp), dimension(3) :: d_norms !< norms (d_0, d_1, d_2)
+        real(wp), dimension(2) :: myR_tmp, myV_tmp, myA_tmp !< Bubble radius, radial velocity, and radial acceleration
+
+        ! Determine the starting time step
+        ! Evaluate f(x0,y0)
+        myR_tmp(1) = fR
+        myV_tmp(1) = fV
+        myA_tmp(1) = f_rddot(fRho, fP, myR_tmp(1), myV_tmp(1), fR0, &
+                             fpb, fpbdot, alf, fntait, fBtait, &
+                             f_bub_adv_src, f_divu, &
+                             fCson)
+
+        ! Compute d_0 = ||y0|| and d_1 = ||f(x0,y0)||
+        d_norms(1) = sqrt((myR_tmp(1)**2._wp + myV_tmp(1)**2._wp)/2._wp)
+        d_norms(2) = sqrt((myV_tmp(1)**2._wp + myA_tmp(1)**2._wp)/2._wp)
+        if (d_norms(1) < threshold_first_guess .or. d_norms(2) < threshold_first_guess) then
+            h_size(1) = small_guess
+        else
+            h_size(1) = scale_guess*(d_norms(1)/d_norms(2))
+        end if
+
+        ! Evaluate f(x0+h0,y0+h0*f(x0,y0))
+        myR_tmp(2) = myR_tmp(1) + h_size(1)*myV_tmp(1)
+        myV_tmp(2) = myV_tmp(1) + h_size(1)*myA_tmp(1)
+        myA_tmp(2) = f_rddot(fRho, fP, myR_tmp(2), myV_tmp(2), fR0, &
+                             fpb, fpbdot, alf, fntait, fBtait, &
+                             f_bub_adv_src, f_divu, &
+                             fCson)
+
+        ! Compute d_2 = ||f(x0+h0,y0+h0*f(x0,y0))-f(x0,y0)||/h0
+        d_norms(3) = sqrt(((myV_tmp(2) - myV_tmp(1))**2._wp + (myA_tmp(2) - myA_tmp(1))**2._wp)/2._wp)/h_size(1)
+
+        ! Set h1 = (0.01/max(d_1,d_2))^{1/(p+1)}
+        !      if max(d_1,d_2) < 1.e-15_wp, h_size(2) = max(1.e-6_wp, h0*1.e-3_wp)
+        if (max(d_norms(2), d_norms(3)) < threshold_second_guess) then
+            h_size(2) = max(small_guess, h_size(1)*scale_first_guess)
+        else
+            h_size(2) = (scale_guess/max(d_norms(2), d_norms(3)))**(1._wp/3._wp)
+        end if
+
+        h = min(h_size(1)/scale_guess, h_size(2))
+
+    end subroutine s_initial_substep_h
+
+    !>  Integrate bubble variables over the given time step size, h, using a
+        !!      third-order accurate embedded Runge–Kutta scheme.
+        !!  @param err Estimated error
+        !!  @param fRho Current density
+        !!  @param fP Current driving pressure
+        !!  @param fR Current bubble radius
+        !!  @param fV Current bubble velocity
+        !!  @param fR0 Equilibrium bubble radius
+        !!  @param fpb Internal bubble pressure
+        !!  @param fpbdot Time-derivative of internal bubble pressure
+        !!  @param alf bubble volume fraction
+        !!  @param fntait Tait EOS parameter
+        !!  @param fBtait Tait EOS parameter
+        !!  @param f_bub_adv_src Source for bubble volume fraction
+        !!  @param f_divu Divergence of velocity
+        !!  @param bub_id Bubble identifier (EL)
+        !!  @param fmass_v Current mass of vapour (EL)
+        !!  @param fmass_n Current mass of gas (EL)
+        !!  @param fbeta_c Mass transfer coefficient (EL)
+        !!  @param fbeta_t Heat transfer coefficient (EL)
+        !!  @param fCson Speed of sound (EL)
+        !!  @param h Time step size
+        !!  @param myR_tmp Bubble radius at each stage
+        !!  @param myV_tmp Bubble radial velocity at each stage
+        !!  @param myPb_tmp Internal bubble pressure at each stage (EL)
+        !!  @param myMv_tmp Mass of vapor in the bubble at each stage (EL)
+    subroutine s_advance_substep(err, fRho, fP, fR, fV, fR0, fpb, fpbdot, alf, &
+                                 fntait, fBtait, f_bub_adv_src, f_divu, &
+                                 bub_id, fmass_v, fmass_n, fbeta_c, &
+                                 fbeta_t, fCson, h, &
+                                 myR_tmp, myV_tmp, myPb_tmp, myMv_tmp)
+        $:GPU_ROUTINE(function_name='s_advance_substep',parallelism='[seq]', &
+            & cray_inline=True)
+
+        real(wp), intent(OUT) :: err
+        real(wp), intent(IN) :: fRho, fP, fR, fV, fR0, fpb, fpbdot, alf
+        real(wp), intent(IN) :: fntait, fBtait, f_bub_adv_src, f_divu, h
+        integer, intent(IN) :: bub_id
+        real(wp), intent(IN) :: fmass_v, fmass_n, fbeta_c, fbeta_t, fCson
+        real(wp), dimension(4), intent(OUT) :: myR_tmp, myV_tmp, myPb_tmp, myMv_tmp
+
+        real(wp), dimension(4) :: myA_tmp, mydPbdt_tmp, mydMvdt_tmp
+        real(wp) :: err_R, err_V
+
+        myPb_tmp(1:4) = fpb
+        mydPbdt_tmp(1:4) = fpbdot
+
+        ! Stage 0
+        myR_tmp(1) = fR
+        myV_tmp(1) = fV
+        if (bubbles_lagrange) then
+            myPb_tmp(1) = fpb
+            myMv_tmp(1) = fmass_v
+            call s_advance_EL(myR_tmp(1), myV_tmp(1), myPb_tmp(1), myMv_tmp(1), bub_id, &
+                              fmass_n, fbeta_c, fbeta_t, mydPbdt_tmp(1), mydMvdt_tmp(1))
+        end if
+        myA_tmp(1) = f_rddot(fRho, fP, myR_tmp(1), myV_tmp(1), fR0, &
+                             myPb_tmp(1), mydPbdt_tmp(1), alf, fntait, fBtait, &
+                             f_bub_adv_src, f_divu, &
+                             fCson)
+
+        ! Stage 1
+        myR_tmp(2) = myR_tmp(1) + h*myV_tmp(1)
+        myV_tmp(2) = myV_tmp(1) + h*myA_tmp(1)
+        if (bubbles_lagrange) then
+            myPb_tmp(2) = myPb_tmp(1) + h*mydPbdt_tmp(1)
+            myMv_tmp(2) = myMv_tmp(1) + h*mydMvdt_tmp(1)
+            call s_advance_EL(myR_tmp(2), myV_tmp(2), myPb_tmp(2), myMv_tmp(2), &
+                              bub_id, fmass_n, fbeta_c, fbeta_t, mydPbdt_tmp(2), mydMvdt_tmp(2))
+        end if
+        myA_tmp(2) = f_rddot(fRho, fP, myR_tmp(2), myV_tmp(2), fR0, &
+                             myPb_tmp(2), mydPbdt_tmp(2), alf, fntait, fBtait, &
+                             f_bub_adv_src, f_divu, &
+                             fCson)
+
+        ! Stage 2
+        myR_tmp(3) = myR_tmp(1) + (h/4._wp)*(myV_tmp(1) + myV_tmp(2))
+        myV_tmp(3) = myV_tmp(1) + (h/4._wp)*(myA_tmp(1) + myA_tmp(2))
+        if (bubbles_lagrange) then
+            myPb_tmp(3) = myPb_tmp(1) + (h/4._wp)*(mydPbdt_tmp(1) + mydPbdt_tmp(2))
+            myMv_tmp(3) = myMv_tmp(1) + (h/4._wp)*(mydMvdt_tmp(1) + mydMvdt_tmp(2))
+            call s_advance_EL(myR_tmp(3), myV_tmp(3), myPb_tmp(3), myMv_tmp(3), &
+                              bub_id, fmass_n, fbeta_c, fbeta_t, mydPbdt_tmp(3), mydMvdt_tmp(3))
+        end if
+        myA_tmp(3) = f_rddot(fRho, fP, myR_tmp(3), myV_tmp(3), fR0, &
+                             myPb_tmp(3), mydPbdt_tmp(3), alf, fntait, fBtait, &
+                             f_bub_adv_src, f_divu, &
+                             fCson)
+
+        ! Stage 3
+        myR_tmp(4) = myR_tmp(1) + (h/6._wp)*(myV_tmp(1) + myV_tmp(2) + 4._wp*myV_tmp(3))
+        myV_tmp(4) = myV_tmp(1) + (h/6._wp)*(myA_tmp(1) + myA_tmp(2) + 4._wp*myA_tmp(3))
+        if (bubbles_lagrange) then
+            myPb_tmp(4) = myPb_tmp(1) + (h/6._wp)*(mydPbdt_tmp(1) + mydPbdt_tmp(2) + 4._wp*mydPbdt_tmp(3))
+            myMv_tmp(4) = myMv_tmp(1) + (h/6._wp)*(mydMvdt_tmp(1) + mydMvdt_tmp(2) + 4._wp*mydMvdt_tmp(3))
+            call s_advance_EL(myR_tmp(4), myV_tmp(4), myPb_tmp(4), myMv_tmp(4), &
+                              bub_id, fmass_n, fbeta_c, fbeta_t, mydPbdt_tmp(4), mydMvdt_tmp(4))
+        end if
+        myA_tmp(4) = f_rddot(fRho, fP, myR_tmp(4), myV_tmp(4), fR0, &
+                             myPb_tmp(4), mydPbdt_tmp(4), alf, fntait, fBtait, &
+                             f_bub_adv_src, f_divu, &
+                             fCson)
+
+        ! Estimate error
+        err_R = (-5._wp*h/24._wp)*(myV_tmp(2) + myV_tmp(3) - 2._wp*myV_tmp(4)) &
+                /max(abs(myR_tmp(1)), abs(myR_tmp(4)))
+        err_V = (-5._wp*h/24._wp)*(myA_tmp(2) + myA_tmp(3) - 2._wp*myA_tmp(4)) &
+                /max(abs(myV_tmp(1)), abs(myV_tmp(4)))
+        ! Error correction for non-oscillating bubbles
+        if (bubbles_lagrange .and. f_approx_equal(myA_tmp(1), 0._wp) .and. f_approx_equal(myA_tmp(2), 0._wp) .and. &
+            f_approx_equal(myA_tmp(3), 0._wp) .and. f_approx_equal(myA_tmp(4), 0._wp)) then
+            err_V = 0._wp
+        end if
+        err = sqrt((err_R**2._wp + err_V**2._wp)/2._wp)
+
+    end subroutine s_advance_substep
+
+    !>  Changes of pressure and vapor mass in the lagrange bubbles.
+        !!  @param bub_id Bubble identifier
+        !!  @param fmass_n Current mass of gas
+        !!  @param fbeta_c Mass transfer coefficient
+        !!  @param fbeta_t Heat transfer coefficient
+        !!  @param fR_tmp Bubble radius
+        !!  @param fV_tmp Bubble radial velocity
+        !!  @param fPb_tmp Internal bubble pressure
+        !!  @param fMv_tmp Mass of vapor in the bubble
+        !!  @param fdPbdt_tmp Rate of change of the internal bubble pressure
+        !!  @param fdMvdt_tmp Rate of change of the mass of vapor in the bubble
+    elemental subroutine s_advance_EL(fR_tmp, fV_tmp, fPb_tmp, fMv_tmp, bub_id, &
+                                      fmass_n, fbeta_c, fbeta_t, fdPbdt_tmp, advance_EL)
+        $:GPU_ROUTINE(parallelism='[seq]')
+        real(wp), intent(IN) :: fR_tmp, fV_tmp, fPb_tmp, fMv_tmp
+        real(wp), intent(IN) :: fmass_n, fbeta_c, fbeta_t
+        integer, intent(IN) :: bub_id
+        real(wp), intent(INOUT) :: fdPbdt_tmp
+        real(wp), intent(out) :: advance_EL
+        real(wp) :: fVapFlux, myR_m, mygamma_m
+
+        call s_vflux(fR_tmp, fV_tmp, fPb_tmp, fMv_tmp, bub_id, fVapFlux, fmass_n, fbeta_c, myR_m, mygamma_m)
+        fdPbdt_tmp = f_bpres_dot(fVapFlux, fR_tmp, fV_tmp, fPb_tmp, fMv_tmp, bub_id, fbeta_t, myR_m, mygamma_m)
+        advance_EL = 4._wp*pi*fR_tmp**2._wp*fVapFlux
+
+    end subroutine s_advance_EL
 
 end module m_bubbles

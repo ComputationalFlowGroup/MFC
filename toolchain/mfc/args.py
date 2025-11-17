@@ -1,12 +1,13 @@
-import re, os.path, argparse, dataclasses
+import re, sys, os.path, argparse, dataclasses
 
 from .run.run      import get_baked_templates
-from .build        import TARGETS, DEFAULT_TARGETS, DEPENDENCY_TARGETS
+from .build        import TARGETS, DEFAULT_TARGETS
 from .common       import MFCException, format_list_to_string
-from .test.cases   import generate_cases
+from .test.cases   import list_cases
+from .state        import gpuConfigOptions, MFCConfig
 
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
-def parse(config):
+def parse(config: MFCConfig):
     parser = argparse.ArgumentParser(
         prog="./mfc.sh",
         description="""\
@@ -17,16 +18,23 @@ started, run ./mfc.sh build -h.""",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
+    # Here are all of the parser arguments that call functions in other python files
     parsers = parser.add_subparsers(dest="command")
-    run        = parsers.add_parser(name="run",        help="Run a case with MFC.",                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    test       = parsers.add_parser(name="test",       help="Run MFC's test suite.",                formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    build      = parsers.add_parser(name="build",      help="Build MFC and its dependencies.",      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    clean      = parsers.add_parser(name="clean",      help="Clean build artifacts.",               formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    bench      = parsers.add_parser(name="bench",      help="Benchmark MFC (for CI).",              formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    bench_diff = parsers.add_parser(name="bench_diff", help="Compare MFC Benchmarks (for CI).",     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    count      = parsers.add_parser(name="count",      help="Count LOC in MFC.",                    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    count_diff = parsers.add_parser(name="count_diff", help="Count LOC in MFC.",                    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    packer     = parsers.add_parser(name="packer",     help="Packer utility (pack/unpack/compare)", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    run        = parsers.add_parser(name="run",        help="Run a case with MFC.",                   formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    test       = parsers.add_parser(name="test",       help="Run MFC's test suite.",                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    build      = parsers.add_parser(name="build",      help="Build MFC and its dependencies.",        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    clean      = parsers.add_parser(name="clean",      help="Clean build artifacts.",                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    bench      = parsers.add_parser(name="bench",      help="Benchmark MFC (for CI).",                formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    bench_diff = parsers.add_parser(name="bench_diff", help="Compare MFC Benchmarks (for CI).",       formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    count      = parsers.add_parser(name="count",      help="Count LOC in MFC.",                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    count_diff = parsers.add_parser(name="count_diff", help="Count LOC in MFC.",                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    packer     = parsers.add_parser(name="packer",     help="Packer utility (pack/unpack/compare).",  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    # These parser arguments all call BASH scripts, and they only exist so that they show up in the help message
+    parsers.add_parser(name="load",       help="Loads the MFC environment with source.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parsers.add_parser(name="lint",       help="Lints all code after editing.",          formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parsers.add_parser(name="format",     help="Formats all code after editing.",        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parsers.add_parser(name="spelling",   help="Runs the spell checker after editing.",  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     packers = packer.add_subparsers(dest="packer")
     pack = packers.add_parser(name="pack", help="Pack a case into a single file.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -39,7 +47,7 @@ started, run ./mfc.sh build -h.""",
     compare.add_argument("-rel", "--reltol", metavar="RELTOL", type=float, default=1e-12, help="Relative tolerance.")
     compare.add_argument("-abs", "--abstol", metavar="ABSTOL", type=float, default=1e-12, help="Absolute tolerance.")
 
-    def add_common_arguments(p, mask = None):
+    def add_common_arguments(p: argparse.ArgumentParser, mask = None):
         if mask is None:
             mask = ""
 
@@ -50,6 +58,10 @@ started, run ./mfc.sh build -h.""",
 
         if "m" not in mask:
             for f in dataclasses.fields(config):
+                if f.name == 'gpu':
+                    p.add_argument(f"--{f.name}", action="store", nargs='?', const= gpuConfigOptions.ACC.value,default=gpuConfigOptions.ACC.value, dest=f.name, choices=[e.value for e in gpuConfigOptions], help=f"Turn the {f.name} option to OpenACC or OpenMP.")
+                    p.add_argument(f"--no-{f.name}", action="store_const", const = gpuConfigOptions.NONE.value, dest=f.name, help=f"Turn the {f.name} option OFF.")
+                    continue
                 p.add_argument(   f"--{f.name}", action="store_true",               help=f"Turn the {f.name} option ON.")
                 p.add_argument(f"--no-{f.name}", action="store_false", dest=f.name, help=f"Turn the {f.name} option OFF.")
 
@@ -61,47 +73,39 @@ started, run ./mfc.sh build -h.""",
         if "v" not in mask:
             p.add_argument("-v", "--verbose", action="store_true", help="Enables verbose compiler & linker output.")
 
-        if "n" not in mask:
-            for target in DEPENDENCY_TARGETS:
-                p.add_argument(f"--no-{target.name}", action="store_true", help=f"Do not build the {target.name} dependency. Use the system's instead.")
-
         if "g" not in mask:
             p.add_argument("-g", "--gpus", nargs="+", type=int, default=None, help="(Optional GPU override) List of GPU #s to use (environment default if unspecified).")
 
-    # === BUILD ===
+    # BUILD
     add_common_arguments(build, "g")
     build.add_argument("-i", "--input", type=str, default=None, help="(GPU Optimization) Build a version of MFC optimized for a case.")
     build.add_argument("--case-optimization", action="store_true", default=False, help="(GPU Optimization) Compile MFC targets with some case parameters hard-coded (requires --input).")
 
-    # === CLEAN ===
-    add_common_arguments(clean, "jg")
-
-    # === TEST ===
-    test_cases = generate_cases()
+    # TEST
+    test_cases = list_cases()
 
     add_common_arguments(test, "t")
     test.add_argument("-l", "--list",         action="store_true", help="List all available tests.")
     test.add_argument("-f", "--from",         default=test_cases[0].get_uuid(), type=str, help="First test UUID to run.")
     test.add_argument("-t", "--to",           default=test_cases[-1].get_uuid(), type=str, help="Last test UUID to run.")
-    test.add_argument("-o", "--only",         nargs="+", type=str, default=[], metavar="L", help="Only run tests with UUIDs or hashes L.")
-    test.add_argument("-r", "--relentless",   action="store_true", default=False, help="Run all tests, even if multiple fail.")
-    test.add_argument("-a", "--test-all",     action="store_true", default=False, help="Run the Post Process Tests too.")
-    test.add_argument("-%", "--percent",      type=int, default=100, help="Percentage of tests to run.")
-    test.add_argument("-m", "--max-attempts", type=int, default=3, help="Maximum number of attempts to run a test.")
-
-    test.add_argument("--case-optimization", action="store_true", default=False, help="(GPU Optimization) Compile MFC targets with some case parameters hard-coded.")
+    test.add_argument("-o", "--only",         nargs="+", type=str,     default=[], metavar="L", help="Only run tests with specified properties.")
+    test.add_argument("-a", "--test-all",     action="store_true",     default=False,     help="Run the Post Process Tests too.")
+    test.add_argument("-%", "--percent",      type=int,                default=100,       help="Percentage of tests to run.")
+    test.add_argument("-m", "--max-attempts", type=int,                default=1,         help="Maximum number of attempts to run a test.")
+    test.add_argument(      "--rdma-mpi",     action="store_true",     default=False,     help="Run tests with RDMA MPI enabled")
+    test.add_argument(      "--no-build",     action="store_true",     default=False,     help="(Testing) Do not rebuild MFC.")
+    test.add_argument(      "--no-examples",  action="store_true",     default=False,     help="Do not test example cases." )
+    test.add_argument("--case-optimization",  action="store_true",     default=False,     help="(GPU Optimization) Compile MFC targets with some case parameters hard-coded.")
+    test.add_argument(      "--dry-run",      action="store_true",     default=False,     help="Build and generate case files but do not run tests.")
 
     test_meg = test.add_mutually_exclusive_group()
     test_meg.add_argument("--generate",          action="store_true", default=False, help="(Test Generation) Generate golden files.")
     test_meg.add_argument("--add-new-variables", action="store_true", default=False, help="(Test Generation) If new variables are found in D/ when running tests, add them to the golden files.")
     test_meg.add_argument("--remove-old-tests",  action="store_true", default=False, help="(Test Generation) Delete tests directories that are no longer.")
 
-    test.add_argument(metavar="FORWARDED", default=[], dest="--", nargs="*", help="Arguments to forward to the ./mfc.sh run invocations.")
-
-    # === RUN ===
+    # RUN
     add_common_arguments(run)
     run.add_argument("input",                      metavar="INPUT",              type=str,                     help="Input file to run.")
-    run.add_argument("arguments",                  metavar="ARGUMENTS", nargs="*", type=str, default=[],       help="Additional positional arguments to pass to the case file.")
     run.add_argument("-e", "--engine",             choices=["interactive", "batch"],              type=str, default="interactive", help="Job execution/submission engine choice.")
     run.add_argument("-p", "--partition",          metavar="PARTITION",          type=str, default="",         help="(Batch) Partition for job submission.")
     run.add_argument("-q", "--quality_of_service", metavar="QOS",          type=str, default="",         help="(Batch) Quality of Service for job submission.")
@@ -113,34 +117,41 @@ started, run ./mfc.sh build -h.""",
     run.add_argument("-#", "--name",               metavar="NAME",               type=str, default="MFC",      help="(Batch) Job name.")
     run.add_argument("-s", "--scratch",            action="store_true",                    default=False,      help="Build from scratch.")
     run.add_argument("-b", "--binary",             choices=["mpirun", "jsrun", "srun", "mpiexec"],             type=str, default=None,       help="(Interactive) Override MPI execution binary")
-    run.add_argument("--ncu",                      nargs=argparse.REMAINDER,     type=str,                     help="Profile with NVIDIA Nsight Compute.")
-    run.add_argument("--nsys",                     nargs=argparse.REMAINDER,     type=str,                     help="Profile with NVIDIA Nsight Systems.")
     run.add_argument(      "--dry-run",            action="store_true",                    default=False,      help="(Batch) Run without submitting batch file.")
     run.add_argument("--case-optimization",        action="store_true",                    default=False,      help="(GPU Optimization) Compile MFC targets with some case parameters hard-coded.")
     run.add_argument(      "--no-build",           action="store_true",                    default=False,      help="(Testing) Do not rebuild MFC.")
     run.add_argument("--wait",                     action="store_true",                    default=False,      help="(Batch) Wait for the job to finish.")
-    run.add_argument("-f", "--flags",              metavar="FLAGS", dest="--", nargs=argparse.REMAINDER, type=str, default=[], help="Arguments to forward to the MPI invocation.")
     run.add_argument("-c", "--computer",           metavar="COMPUTER",           type=str, default="default",  help=f"(Batch) Path to a custom submission file template or one of {format_list_to_string(list(get_baked_templates().keys()))}.")
     run.add_argument("-o", "--output-summary",     metavar="OUTPUT",             type=str, default=None,       help="Output file (YAML) for summary.")
+    run.add_argument("--clean",                    action="store_true",                    default=False,      help="Clean the case before running.")
+    run.add_argument("--ncu",                      nargs=argparse.REMAINDER,     type=str,                     help="Profile with NVIDIA Nsight Compute.")
+    run.add_argument("--nsys",                     nargs=argparse.REMAINDER,     type=str,                     help="Profile with NVIDIA Nsight Systems.")
+    run.add_argument("--rcu",                      nargs=argparse.REMAINDER,     type=str,                     help="Profile with ROCM rocprof-compute.")
+    run.add_argument("--rsys",                     nargs=argparse.REMAINDER,     type=str,                     help="Profile with ROCM rocprof-systems.")
 
-    # === BENCH ===
+    # BENCH
     add_common_arguments(bench)
     bench.add_argument("-o", "--output", metavar="OUTPUT", default=None, type=str, required="True", help="Path to the YAML output file to write the results to.")
-    bench.add_argument(metavar="FORWARDED", default=[], dest='--', nargs="*", help="Arguments to forward to the ./mfc.sh run invocations.")
+    bench.add_argument("-m", "--mem", metavar="MEM", default=1, type=int, help="Memory per task for benchmarking cases")
 
-    # === BENCH_DIFF ===
+    # BENCH_DIFF
     add_common_arguments(bench_diff, "t")
     bench_diff.add_argument("lhs", metavar="LHS", type=str, help="Path to a benchmark result YAML file.")
     bench_diff.add_argument("rhs", metavar="RHS", type=str, help="Path to a benchmark result YAML file.")
 
-    # === COUNT ===
+    # COUNT
     add_common_arguments(count, "g")
 
-    # === COUNT ===
+    # COUNT
     add_common_arguments(count_diff, "g")
 
-    args: dict = vars(parser.parse_args())
-    args["--"] = args.get("--", [])
+    try:
+        extra_index = sys.argv.index('--')
+    except ValueError:
+        extra_index = len(sys.argv)
+
+    args: dict = vars(parser.parse_args(sys.argv[1:extra_index]))
+    args["--"] = sys.argv[extra_index + 1:]
 
     # Add default arguments of other subparsers
     for name, parser in [("run",    run),   ("test",   test), ("build", build),

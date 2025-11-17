@@ -6,20 +6,15 @@
 !!              grid data for the multicomponent flow code.
 program p_main
 
-    ! Dependencies =============================================================
-
     use m_global_parameters     !< Global parameters for the code
 
     use m_start_up
 
-    ! ==========================================================================
-
     implicit none
 
-    integer :: i
     logical :: file_exists
-    real(kind(0d0)) :: start, finish, time_avg, time_final
-    real(kind(0d0)), allocatable, dimension(:) :: proc_time
+    real(wp) :: start, finish, time_avg, time_final
+    real(wp), allocatable, dimension(:) :: proc_time
 
     call random_seed()
 
@@ -33,7 +28,7 @@ program p_main
 
     allocate (proc_time(0:num_procs - 1))
 
-    call s_apply_initial_condition(start, finish, proc_time, time_avg, time_final, file_exists)
+    call s_apply_initial_condition(start, finish)
 
     time_avg = abs(finish - start)
 

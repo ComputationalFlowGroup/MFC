@@ -1,39 +1,53 @@
 #!/bin/bash
 
+# Function to display help message
+show_help() {
+  echo "Usage: $(basename "$0") [OPTIONS]"
+  echo "This function formats all code in and below the current execution directory."
+  echo ""
+  echo "Options:"
+  echo "  -h, --help            Display this help message and exit."
+  echo "  -j, --jobs JOBS       Runs JOBS number of jobs."
+  echo ""
+  exit 0
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -j|--jobs)
+            JOBS="$2"
+            shift
+            ;;
+        -h | --help)
+            show_help
+            ;;
+        *)
+            echo "Format, unknown argument: $1."
+            exit 1
+            ;;
+    esac
+
+    shift
+done
+
 log "Formatting MFC:"
 
-fortran_files=$(find ${@:-src} -type f | grep -Ev 'src/.+/autogen/')
+if ! find ${@:-src} -type f | grep -Ev 'autogen' | grep -E '\.(f90|fpp)$' \
+        | xargs -L 1 -P ${JOBS:-1} $SHELL toolchain/bootstrap/format_file.sh; then
+    error "Formatting MFC source failed."
+    exit 1
+fi
 
-longest=0
-for filepath in $fortran_files; do
-    if [ "${#filepath}" -gt "$longest" ]; then
-        longest="${#filepath}"
-    fi
-done
+if ! find ${@:-examples} -type f | grep -E '\.(py)$' \
+        | xargs -L 1 -P ${JOBS:-1} $SHELL toolchain/bootstrap/format_python.sh; then
+    error "Formatting MFC examples failed."
+    exit 1
+fi
 
-for filepath in $fortran_files; do
-    echo -n " > $filepath $(printf '%*s' "$((longest - ${#filepath}))" '')"
-
-    before=$(sha256sum "$filepath" | cut -d' ' -f1)
-
-    python3 toolchain/indenter.py "$filepath"
-
-    if ! fprettify "$filepath" \
-        --silent --indent 4 --c-relations --enable-replacements --enable-decl \
-        --whitespace-comma 1 --whitespace-multdiv 0 --whitespace-plusminus 1 \
-        --case 1 1 1 1 --strict-indent --line-length 1000; then
-        error "failed to execute fprettify."
-        error "MFC has not been fprettify'ied."
-        exit 1
-    fi
-
-    after=$(sha256sum "$filepath" | cut -d' ' -f1)
-
-    if [ "$before" != "$after" ]; then
-        echo -e "$YELLOW[formatted]$COLOR_RESET"
-    else
-        echo -e "$GREEN[unchanged]$COLOR_RESET"
-    fi
-done
+if ! find ${@:-benchmarks} -type f | grep -E '\.(py)$' \
+        | xargs -L 1 -P ${JOBS:-1} $SHELL toolchain/bootstrap/format_python.sh; then
+    error "Formatting MFC examples failed."
+    exit 1
+fi
 
 ok "Done. MFC has been formatted."

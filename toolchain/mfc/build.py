@@ -1,10 +1,12 @@
 import os, typing, hashlib, dataclasses
 
+from .case    import Case
 from .printer import cons
 from .common  import MFCException, system, delete_directory, create_directory, \
                      format_list_to_string
 from .state   import ARG, CFG
 from .run     import input
+from .state   import gpuConfigOptions
 
 @dataclasses.dataclass
 class MFCTarget:
@@ -16,12 +18,12 @@ class MFCTarget:
 
         def compute(self) -> typing.Set:
             r  = self.all[:]
-            r += self.gpu[:] if ARG("gpu") else self.cpu[:]
+            r += self.gpu[:] if (ARG("gpu") != gpuConfigOptions.NONE.value) else self.cpu[:]
 
             return r
 
     name:         str              # Name of the target
-    flags:        typing.List[str] # Extra flags to pass to CMake
+    flags:        typing.List[str] # Extra flags to pass to CMakeMFCTarget
     isDependency: bool             # Is it a dependency of an MFC target?
     isDefault:    bool             # Should it be built by default? (unspecified -t | --targets)
     isRequired:   bool             # Should it always be built? (no matter what -t | --targets is)
@@ -31,20 +33,23 @@ class MFCTarget:
     def __hash__(self) -> int:
         return hash(self.name)
 
-    # Get path to directory that will store the build files
-    def get_build_dirpath(self) -> str:
+    def get_slug(self, case: Case ) -> str:
         if self.isDependency:
-            slug = self.name
-        else:
-            slug = f"{CFG().make_slug()}-{self.name}"
+            return self.name
 
-            if ARG("case_optimization"):
-                m = hashlib.sha256()
-                m.update(input.load().get_fpp(self).encode())
+        m = hashlib.sha256()
+        m.update(self.name.encode())
+        m.update(CFG().make_slug().encode())
+        m.update(case.get_fpp(self, False).encode())
 
-                slug = f"{slug}-{m.hexdigest()[:6]}"
+        if case.params.get('chemistry', 'F') == 'T':
+            m.update(case.get_cantera_solution().name.encode())
 
-        return os.sep.join([os.getcwd(), "build", slug ])
+        return m.hexdigest()[:10]
+
+    # Get path to directory that will store the build files
+    def get_staging_dirpath(self, case: Case ) -> str:
+        return os.sep.join([os.getcwd(), "build", "staging", self.get_slug(case) ])
 
     # Get the directory that contains the target's CMakeLists.txt
     def get_cmake_dirpath(self) -> str:
@@ -56,56 +61,52 @@ class MFCTarget:
             os.sep.join(["toolchain", "dependencies"]) if self.isDependency else "",
         ])
 
-    def get_install_dirpath(self) -> str:
-        # The install directory is located:
-        # Regular:    <root>/build/install/<configuration_slug>
-        # Dependency: <root>/build/install/dependencies (shared)
-        return os.sep.join([
-            os.getcwd(),
-            "build",
-            "install",
-            'dependencies' if self.isDependency else CFG().make_slug()
-        ])
+    def get_install_dirpath(self, case: Case ) -> str:
+        # The install directory is located <root>/build/install/<slug>
+        return os.sep.join([os.getcwd(), "build", "install", self.get_slug(case)])
 
-    def get_install_binpath(self) -> str:
+    def get_home_dirpath(self) -> str:
+        return os.sep.join([os.getcwd()])
+
+    def get_install_binpath(self, case: Case ) -> str:
         # <root>/install/<slug>/bin/<target>
-        return os.sep.join([self.get_install_dirpath(), "bin", self.name])
+        return os.sep.join([self.get_install_dirpath(case), "bin", self.name])
 
-    def is_configured(self) -> bool:
+    def is_configured(self, case: Case ) -> bool:
         # We assume that if the CMakeCache.txt file exists, then the target is
         # configured. (this isn't perfect, but it's good enough for now)
         return os.path.isfile(
-            os.sep.join([self.get_build_dirpath(), "CMakeCache.txt"])
+            os.sep.join([self.get_staging_dirpath(case), "CMakeCache.txt"])
         )
 
-    def get_configuration_txt(self) -> typing.Optional[dict]:
-        if not self.is_configured():
+    def get_configuration_txt(self, case: Case ) -> typing.Optional[dict]:
+        if not self.is_configured(case):
             return None
 
-        configpath = os.path.join(self.get_build_dirpath(), "configuration.txt")
+        configpath = os.path.join(self.get_staging_dirpath(case), "configuration.txt")
         if not os.path.exists(configpath):
             return None
 
         with open(configpath) as f:
             return f.read()
 
-        return None
-
     def is_buildable(self) -> bool:
         if ARG("no_build"):
             return False
 
-        if self.isDependency and ARG(f"no_{self.name}"):
+        if self.isDependency and ARG(f"sys_{self.name}", False):
             return False
 
         return True
 
-    def configure(self):
-        build_dirpath   = self.get_build_dirpath()
+    def configure(self, case: Case):
+        build_dirpath   = self.get_staging_dirpath(case)
         cmake_dirpath   = self.get_cmake_dirpath()
-        install_dirpath = self.get_install_dirpath()
+        install_dirpath = self.get_install_dirpath(case)
 
-        install_prefixes = ';'.join([install_dirpath, get_dependency_install_dirpath()])
+        install_prefixes = ';'.join([
+            t.get_install_dirpath(case) for t in self.requires.compute()
+        ])
 
         flags: list = self.flags.copy() + [
             # Disable CMake warnings intended for developers (us).
@@ -130,31 +131,44 @@ class MFCTarget:
             # First directory that FIND_LIBRARY searches.
             # See: https://cmake.org/cmake/help/latest/command/find_library.html.
             f"-DCMAKE_FIND_ROOT_PATH={install_prefixes}",
+            # First directory that FIND_PACKAGE searches.
+            # See: https://cmake.org/cmake/help/latest/variable/CMAKE_FIND_PACKAGE_REDIRECTS_DIR.html.
+            f"-DCMAKE_FIND_PACKAGE_REDIRECTS_DIR={install_prefixes}",
             # Location prefix to install bin/, lib/, include/, etc.
             # See: https://cmake.org/cmake/help/latest/command/install.html.
             f"-DCMAKE_INSTALL_PREFIX={install_dirpath}",
+            f"-DMFC_SINGLE_PRECISION={'ON' if ARG('single') else 'OFF'}"
         ]
+
+        if ARG("verbose"):
+            flags.append('--debug-find')
 
         if not self.isDependency:
             flags.append(f"-DMFC_MPI={    'ON' if ARG('mpi') else 'OFF'}")
-            flags.append(f"-DMFC_OpenACC={'ON' if ARG('gpu') else 'OFF'}")
+            # flags.append(f"-DMFC_OpenACC={'ON' if ARG('acc') else 'OFF'}")
+            # flags.append(f"-DMFC_OpenMP={'ON' if ARG('mp') else 'OFF'}")
+            flags.append(f"-DMFC_OpenACC={'ON' if (ARG('gpu') == gpuConfigOptions.ACC.value) else 'OFF'}")
+            flags.append(f"-DMFC_OpenMP={'ON' if (ARG('gpu') == gpuConfigOptions.MP.value) else 'OFF'}")
+            flags.append(f"-DMFC_GCov={   'ON' if ARG('gcov') else 'OFF'}")
+            flags.append(f"-DMFC_Unified={'ON' if ARG('unified') else 'OFF'}")
+            flags.append(f"-DMFC_Fastmath={'ON' if ARG('fastmath') else 'OFF'}")
 
         command = ["cmake"] + flags + ["-S", cmake_dirpath, "-B", build_dirpath]
 
         delete_directory(build_dirpath)
         create_directory(build_dirpath)
 
-        input.load({}).generate_fpp(self)
+        case.generate_fpp(self)
 
         if system(command).returncode != 0:
             raise MFCException(f"Failed to configure the [bold magenta]{self.name}[/bold magenta] target.")
 
         cons.print(no_indent=True)
 
-    def build(self):
-        input.load({}).generate_fpp(self)
+    def build(self, case: input.MFCInputFile):
+        case.generate_fpp(self)
 
-        command = ["cmake", "--build",    self.get_build_dirpath(),
+        command = ["cmake", "--build",    self.get_staging_dirpath(case),
                             "--target",   self.name,
                             "--parallel", ARG("jobs"),
                             "--config",   'Debug' if ARG('debug') else 'Release']
@@ -166,40 +180,27 @@ class MFCTarget:
 
         cons.print(no_indent=True)
 
-    def install(self):
-        command = ["cmake", "--install", self.get_build_dirpath()]
+    def install(self, case: input.MFCInputFile):
+        command = ["cmake", "--install", self.get_staging_dirpath(case)]
 
         if system(command).returncode != 0:
             raise MFCException(f"Failed to install the [bold magenta]{self.name}[/bold magenta] target.")
 
         cons.print(no_indent=True)
 
-    def clean(self):
-        build_dirpath = self.get_build_dirpath()
-
-        if not os.path.isdir(build_dirpath):
-            return
-
-        command = ["cmake", "--build",  build_dirpath, "--target", "clean",
-                            "--config", "Debug" if ARG("debug") else "Release" ]
-
-        if ARG("verbose"):
-            command.append("--verbose")
-
-        if system(command).returncode != 0:
-            raise MFCException(f"Failed to clean the [bold magenta]{self.name}[/bold magenta] target.")
-
-
+#                         name             flags                       isDep  isDef  isReq  dependencies                        run order
 FFTW          = MFCTarget('fftw',          ['-DMFC_FFTW=ON'],          True,  False, False, MFCTarget.Dependencies([], [], []), -1)
 HDF5          = MFCTarget('hdf5',          ['-DMFC_HDF5=ON'],          True,  False, False, MFCTarget.Dependencies([], [], []), -1)
 SILO          = MFCTarget('silo',          ['-DMFC_SILO=ON'],          True,  False, False, MFCTarget.Dependencies([HDF5], [], []), -1)
+LAPACK        = MFCTarget('lapack',        ['-DMFC_LAPACK=ON'],        True,  False, False, MFCTarget.Dependencies([],[],[]), -1)
+HIPFORT       = MFCTarget('hipfort',       ['-DMFC_HIPFORT=ON'],       True,  False, False, MFCTarget.Dependencies([], [], []), -1)
 PRE_PROCESS   = MFCTarget('pre_process',   ['-DMFC_PRE_PROCESS=ON'],   False, True,  False, MFCTarget.Dependencies([], [], []), 0)
-SIMULATION    = MFCTarget('simulation',    ['-DMFC_SIMULATION=ON'],    False, True,  False, MFCTarget.Dependencies([], [FFTW], []), 1)
-POST_PROCESS  = MFCTarget('post_process',  ['-DMFC_POST_PROCESS=ON'],  False, True,  False, MFCTarget.Dependencies([FFTW, SILO], [], []), 2)
-SYSCHECK      = MFCTarget('syscheck',      ['-DMFC_SYSCHECK=ON'],      False, False, True,  MFCTarget.Dependencies([], [], []), -1)
+SIMULATION    = MFCTarget('simulation',    ['-DMFC_SIMULATION=ON'],    False, True,  False, MFCTarget.Dependencies([], [FFTW], [HIPFORT]), 1)
+POST_PROCESS  = MFCTarget('post_process',  ['-DMFC_POST_PROCESS=ON'],  False, True,  False, MFCTarget.Dependencies([FFTW, HDF5, SILO, LAPACK], [], []), 2)
+SYSCHECK      = MFCTarget('syscheck',      ['-DMFC_SYSCHECK=ON'],      False, False, True,  MFCTarget.Dependencies([], [], [HIPFORT]), -1)
 DOCUMENTATION = MFCTarget('documentation', ['-DMFC_DOCUMENTATION=ON'], False, False, False, MFCTarget.Dependencies([], [], []), -1)
 
-TARGETS = { FFTW, HDF5, SILO, PRE_PROCESS, SIMULATION, POST_PROCESS, SYSCHECK, DOCUMENTATION }
+TARGETS = { FFTW, HDF5, SILO, LAPACK, HIPFORT, PRE_PROCESS, SIMULATION, POST_PROCESS, SYSCHECK, DOCUMENTATION }
 
 DEFAULT_TARGETS    = { target for target in TARGETS if target.isDefault }
 REQUIRED_TARGETS   = { target for target in TARGETS if target.isRequired }
@@ -221,17 +222,7 @@ def get_targets(targets: typing.List[typing.Union[str, MFCTarget]]) -> typing.Li
     return [ get_target(t) for t in targets ]
 
 
-def get_dependency_install_dirpath() -> str:
-    # Since dependencies share the same install directory, we can just return
-    # the install directory of the first dependency we find.
-    for target in TARGETS:
-        if target.isDependency:
-            return target.get_install_dirpath()
-
-    raise MFCException("No dependency target found.")
-
-
-def __build_target(target: typing.Union[MFCTarget, str], history: typing.Set[str] = None):
+def __build_target(target: typing.Union[MFCTarget, str], case: input.MFCInputFile, history: typing.Set[str] = None):
     if history is None:
         history = set()
 
@@ -242,58 +233,57 @@ def __build_target(target: typing.Union[MFCTarget, str], history: typing.Set[str
 
     history.add(target.name)
 
-    build(target.requires.compute(), history)
+    for dep in target.requires.compute():
+        # If we have already built and installed this target,
+        # do not do so again. This can be inferred by whether
+        # the target requesting this dependency is already configured.
+        if dep.isDependency and target.is_configured(case):
+            continue
 
-    if not target.is_configured():
-        target.configure()
+        build([dep], case, history)
 
-    target.build()
-    target.install()
+    if not target.is_configured(case):
+        target.configure(case)
 
-
-def get_configured_targets() -> typing.List[MFCTarget]:
-    return [ target for target in TARGETS if target.is_configured() ]
+    target.build(case)
+    target.install(case)
 
 
-def __generate_header(step_name: str, targets: typing.List):
-    caseopt_info = "Generic Build"
+def get_configured_targets(case: input.MFCInputFile) -> typing.List[MFCTarget]:
+    return [ target for target in TARGETS if target.is_configured(case) ]
+
+
+def __generate_header(case: input.MFCInputFile, targets: typing.List):
+    feature_flags = [
+        'Build',
+        format_list_to_string([ t.name for t in get_targets(targets) ], 'magenta')
+    ]
     if ARG("case_optimization"):
-        caseopt_info = f"Case Optimized for [magenta]{ARG('input')}[/magenta]"
+        feature_flags.append(f"Case Optimized: [magenta]{ARG('input')}[/magenta]")
+    if case.params.get('chemistry', 'F') == 'T':
+        feature_flags.append(f"Chemistry: [magenta]{case.get_cantera_solution().source}[/magenta]")
 
-    targets     = get_targets(targets)
-    target_list = format_list_to_string([ t.name for t in targets ], 'magenta')
-
-    return f"[bold]{step_name} | {target_list} | {caseopt_info}[/bold]"
+    return f"[bold]{' | '.join(feature_flags or ['Generic'])}[/bold]"
 
 
-def build(targets = None, history: typing.Set[str] = None):
+def build(targets = None, case: input.MFCInputFile = None, history: typing.Set[str] = None):
     if history is None:
         history = set()
+    if isinstance(targets, (MFCTarget, str)):
+        targets = [ targets ]
     if targets is None:
         targets = ARG("targets")
 
     targets = get_targets(list(REQUIRED_TARGETS) + targets)
+    case    = case or input.load(ARG("input"), ARG("--"), {})
+    case.validate_params()
 
     if len(history) == 0:
-        cons.print(__generate_header("Build", targets))
+        cons.print(__generate_header(case, targets))
         cons.print(no_indent=True)
 
     for target in targets:
-        __build_target(target, history)
+        __build_target(target, case, history)
 
     if len(history) == 0:
         cons.print(no_indent=True)
-
-
-def clean(targets = None):
-    targets = get_targets(list(REQUIRED_TARGETS) + (targets or ARG("targets")))
-
-    cons.print(__generate_header("Clean", targets))
-    cons.print(no_indent=True)
-
-    for target in targets:
-        if target.is_configured():
-            target.clean()
-
-    cons.print(no_indent=True)
-    cons.unindent()

@@ -1,7 +1,6 @@
 name: Spell Check
-on:
-  push:
-  workflow_dispatch:
+
+on: [push, pull_request, workflow_dispatch]
 
 jobs:
   run:
@@ -9,7 +8,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
-
+      uses: actions/checkout@v4
+      
+    - name: MFC Python Setup
+      run:  ./mfc.sh init
+      
     - name: Spell Check
-      uses: crate-ci/typos@master
+      run:  ./mfc.sh spelling

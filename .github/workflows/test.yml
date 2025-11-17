@@ -1,131 +1,150 @@
 name: 'Test Suite'
 
-on:
-  push:
-    paths:
-      - '**.f90'
-      - '**.fpp'
-      - '**.py'
-      - '**.yml'
-      - 'mfc.sh'
-      - 'golden.txt'
-      - 'CMakeLists.txt'
-      - 'requirements.txt'
-
-  pull_request:
-
-  workflow_dispatch:
+on: [push, pull_request, workflow_dispatch]
     
 jobs:
+  file-changes:
+    name: Detect File Changes
+    runs-on: 'ubuntu-latest'
+    outputs: 
+      checkall: ${{ steps.changes.outputs.checkall }}
+    steps:
+      - name: Clone
+        uses: actions/checkout@v4
+
+      - name: Detect Changes
+        uses: dorny/paths-filter@v3
+        id: changes
+        with: 
+          filters: ".github/file-filter.yml"
+
   github:
     name: Github
+    if: needs.file-changes.outputs.checkall == 'true'
+    needs: file-changes
     strategy:
       matrix:
         os:    ['ubuntu', 'macos']
-        mpi:   ['mpi', 'no-mpi']
+        mpi:   ['mpi']
+        precision: ['']
         debug: ['debug', 'no-debug']
         intel: [true, false]
         exclude:
-          - intel: true
-            os:    macos
+          - os:    macos
+            intel: true
+
+        include:
+          - os:    ubuntu
+            mpi:   no-mpi
+            precision: single
+            debug: no-debug
+            intel: false
+
       fail-fast: false
     continue-on-error: true
     runs-on: ${{ matrix.os }}-latest
+
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
 
       - name: Setup MacOS
         if:   matrix.os == 'macos'
-        run: |
-          echo "CC=gcc-13"      >> $GITHUB_ENV
-          echo "CXX=g++-13"     >> $GITHUB_ENV
-          echo "FC=gfortran-13" >> $GITHUB_ENV
-          brew install wget make python make cmake coreutils gcc@13
-          
-      - name: (MacOS) Build OpenMPI
-        if:   matrix.os == 'macos' && matrix.mpi == 'mpi'
-        run: |
-          echo "OMPI_FC=gfortran-13" >> $GITHUB_ENV
-          echo "OMPI_CXX=g++-13"     >> $GITHUB_ENV
-          echo "OMPI_MPICC=gcc-13"   >> $GITHUB_ENV
-          HOMEBREW_MAKE_JOBS=$(nproc) brew install --cc=gcc-13 --verbose --build-from-source open-mpi
+        run:  |
+          brew update
+          brew upgrade
+          brew install coreutils python fftw hdf5 gcc@15 boost open-mpi lapack
+          echo "FC=gfortran-15" >> $GITHUB_ENV
+          echo "BOOST_INCLUDE=/opt/homebrew/include/" >> $GITHUB_ENV
 
       - name: Setup Ubuntu
         if:   matrix.os == 'ubuntu' && matrix.intel == false
         run: |
            sudo apt update -y
-           sudo apt install -y tar wget make cmake gcc g++ python3 python3-dev "openmpi-*" libopenmpi-dev
-     
+           sudo apt install -y cmake gcc g++ python3 python3-dev hdf5-tools \
+                    libfftw3-dev libhdf5-dev openmpi-bin libopenmpi-dev \
+                    libblas-dev liblapack-dev
+
       - name: Setup Ubuntu (Intel)
         if:   matrix.os == 'ubuntu' && matrix.intel == true
         run: |
-          sudo apt update -y
-          sudo apt install -y tar wget make cmake python3 python3-dev
           wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
           sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-          rm GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-          sudo echo "deb https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
+          sudo add-apt-repository "deb https://apt.repos.intel.com/oneapi all main"
           sudo apt-get update
-          sudo apt-get install -y intel-oneapi-common-vars intel-oneapi-compiler-fortran-2022.1.0 intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic-2022.1.0 intel-oneapi-mkl-2021.4.0 intel-oneapi-mpi-2021.7.1 intel-oneapi-mpi-devel-2021.7.1
+          sudo apt-get install -y intel-oneapi-compiler-fortran intel-oneapi-mpi intel-oneapi-mpi-devel
           source /opt/intel/oneapi/setvars.sh
-          echo "CXX=$(which icpc)"          >> $GITHUB_ENV
-          echo "CC=$(which icc)"            >> $GITHUB_ENV
-          echo "FC=$(which ifort)"          >> $GITHUB_ENV
-          echo "OMPI_FC=$(which ifort)"     >> $GITHUB_ENV
-          echo "OMPI_CXX=$(which icpc)"     >> $GITHUB_ENV
-          echo "OMPI_MPICC=$(which icc)"    >> $GITHUB_ENV
-          echo "MPI_HOME=/opt/intel/oneapi/mpi/2021.7.1/"    >> $GITHUB_ENV
-          echo "I_MPI_ROOT=/opt/intel/oneapi/mpi/2021.7.1/"    >> $GITHUB_ENV
+          printenv >> $GITHUB_ENV
+
 
       - name: Build
         run:  |
-          if [ '${{ matrix.intel }}' == 'true' ]; then source /opt/intel/oneapi/setvars.sh; fi
-          /bin/bash mfc.sh build -j $(nproc) --${{ matrix.debug }} --${{ matrix.mpi }} 
+          /bin/bash mfc.sh test --dry-run -j $(nproc) --${{ matrix.debug }} --${{ matrix.mpi }} --${{ matrix.precision }} 
 
       - name: Test
         run:  |
-          if [ '${{ matrix.intel }}' == 'true' ]; then source /opt/intel/oneapi/setvars.sh; fi
-          /bin/bash mfc.sh test -j $(nproc) $OPT1 $OPT2
+          /bin/bash mfc.sh test --max-attempts 3 -j $(nproc) $OPT1 $OPT2
         env:
           OPT1: ${{ matrix.mpi == 'mpi' && '--test-all' || '' }}
           OPT2: ${{ matrix.debug == 'debug' && '-% 20' || '' }}
 
-  docker:
-    name:    Github | Docker
-    runs-on: ubuntu-latest
-    steps:
-    - name: Clone
-      uses: actions/checkout@v3
-
-    - name: Test
-      run:  sudo ./mfc.sh docker ./mfc.sh test -j $(nproc) -a
-
   self:
-    name: Georgia Tech | Phoenix (NVHPC)
-    if: github.repository == 'MFlowCode/MFC'
-    continue-on-error: true
+    name: Self Hosted
+    if: github.repository == 'MFlowCode/MFC' && needs.file-changes.outputs.checkall == 'true'
+    needs: file-changes
+    continue-on-error: false
+    timeout-minutes: 1400
     strategy:
       matrix:
-        device: ['cpu', 'gpu']
+        device: ['gpu']
+        interface: ['acc', 'omp']
+        lbl: ['gt', 'frontier']
+        include:
+          - device: 'cpu'
+            interface: 'none'
+            lbl: 'gt'
+          - device: 'cpu'
+            interface: 'none'
+            lbl: 'frontier'
+        exclude:
+          - device: 'gpu'
+            interface: 'omp'
+            lbl: 'frontier'
     runs-on:
       group:  phoenix
-      labels: gt
+      labels: ${{ matrix.lbl }}
+    env:
+      NODE_OPTIONS: ${{ matrix.lbl == 'gt' && '--max-old-space-size=2048' || '' }}
+      ACTIONS_RUNNER_FORCE_ACTIONS_NODE_VERSION: node16
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Build & Test
-        run:  bash .github/workflows/phoenix/submit.sh .github/workflows/phoenix/test.sh ${{ matrix.device }}
+        if:   matrix.lbl == 'gt'
+        run:  bash .github/workflows/phoenix/submit.sh .github/workflows/phoenix/test.sh ${{ matrix.device }} ${{ matrix.interface }}
+
+      - name: Build
+        if:   matrix.lbl == 'frontier'
+        run:  bash .github/workflows/frontier/build.sh ${{ matrix.device }} ${{ matrix.interface }}
+
+      - name: Test
+        if:   matrix.lbl == 'frontier'
+        run:  bash .github/workflows/frontier/submit.sh .github/workflows/frontier/test.sh ${{matrix.device}} ${{ matrix.interface }}
 
       - name: Print Logs
         if:   always()
-        run:  cat test-${{ matrix.device }}.out
+        run:  cat test-${{ matrix.device }}-${{ matrix.interface }}.out
 
       - name: Archive Logs
-        uses: actions/upload-artifact@v3
-        if:   always()
+        uses: actions/upload-artifact@v4
+        if:   matrix.lbl == 'frontier'
         with:
-          name: logs
-          path: test-${{ matrix.device }}.out
-
+          name: logs-${{ strategy.job-index }}-${{ matrix.device }}-${{ matrix.interface }}
+          path: test-${{ matrix.device }}-${{ matrix.interface }}.out

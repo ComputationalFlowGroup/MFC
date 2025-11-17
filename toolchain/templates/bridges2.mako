@@ -30,7 +30,7 @@
 ${helpers.template_prologue()}
 
 ok ":) Loading modules:\n"
-cd "${MFC_ROOTDIR}"
+cd "${MFC_ROOT_DIR}"
 . ./mfc.sh load -c b -m ${'g' if gpu else 'c'}
 cd - > /dev/null
 echo
@@ -39,12 +39,11 @@ echo
     ${helpers.run_prologue(target)}
 
     % if not mpi:
-        (set -x; ${' '.join([f"'{x}'" for x in profiler ])} "${target.get_install_binpath()}")
+        (set -x; ${profiler} "${target.get_install_binpath(case)}")
     % else:
-        (set -x; ${' '.join([f"'{x}'" for x in profiler ])}             \
-            mpirun -np ${nodes*tasks_per_node}                 \
-                   ${' '.join([f"'{x}'" for x in ARG('--') ])} \
-                   "${target.get_install_binpath()}")
+        (set -x; ${profiler}                              \
+            mpirun -np ${nodes*tasks_per_node}            \
+                   "${target.get_install_binpath(case)}")
     % endif
 
     ${helpers.run_epilogue(target)}

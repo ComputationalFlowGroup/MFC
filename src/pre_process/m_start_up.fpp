@@ -8,12 +8,13 @@
 !!                initial condition procedures.
 module m_start_up
 
-    ! Dependencies =============================================================
     use m_derived_types         !< Definitions of the derived types
 
     use m_global_parameters     !< Global parameters for the code
 
     use m_mpi_proxy             !< Message passing interface (MPI) module proxy
+
+    use m_mpi_common
 
     use m_variables_conversion  !< Subroutines to change the state variables from
                                 !! one form to another
@@ -27,16 +28,20 @@ module m_start_up
 
     use m_compile_specific      !< Compile-specific procedures
 
-    use m_patches
+    use m_ib_patches
+
+    use m_icpp_patches
 
     use m_assign_variables
 
     use m_phase_change          !< Phase-change module
 
+    use m_helper_basic          !< Functions to compare floating point numbers
+
     use m_helper
 
 #ifdef MFC_MPI
-    use mpi                      !< Message passing interface (MPI) module
+    use mpi                     !< Message passing interface (MPI) module
 #endif
 
     use m_check_patches
@@ -45,48 +50,54 @@ module m_start_up
 
     use m_helper
 
+    use m_checker_common
+
     use m_checker
-    ! ==========================================================================
+
+    use m_boundary_common
+
+    use m_boundary_conditions
 
     implicit none
 
-    private; public :: s_read_input_file, &
- s_check_input_file, &
- s_read_grid_data_files, &
- s_read_ic_data_files, &
- s_read_serial_grid_data_files, &
- s_read_serial_ic_data_files, &
- s_read_parallel_grid_data_files, &
- s_read_parallel_ic_data_files, &
- s_check_grid_data_files, &
- s_initialize_modules, &
- s_initialize_mpi_domain, &
- s_finalize_modules, &
- s_apply_initial_condition, &
- s_save_data, s_read_grid
+    private; 
+    public :: s_read_input_file, &
+              s_check_input_file, &
+              s_read_grid_data_files, &
+              s_read_ic_data_files, &
+              s_read_serial_grid_data_files, &
+              s_read_serial_ic_data_files, &
+              s_read_parallel_grid_data_files, &
+              s_read_parallel_ic_data_files, &
+              s_check_grid_data_files, &
+              s_initialize_modules, &
+              s_initialize_mpi_domain, &
+              s_finalize_modules, &
+              s_apply_initial_condition, &
+              s_save_data, s_read_grid
 
-    abstract interface ! ===================================================
+    abstract interface
 
-        subroutine s_read_abstract_grid_data_files()! ----------
+        impure subroutine s_read_abstract_grid_data_files
 
-        end subroutine s_read_abstract_grid_data_files ! ---------------
+        end subroutine s_read_abstract_grid_data_files
 
-        subroutine s_read_abstract_ic_data_files(q_cons_vf, ib_markers) ! -----------
+        !! @param q_cons_vf Conservative variables
+        !! @param ib_markers track if a cell is within the immersed boundary
+        impure subroutine s_read_abstract_ic_data_files(q_cons_vf_in, ib_markers_in)
 
             import :: scalar_field, integer_field, sys_size, pres_field
 
-            ! Conservative variables
             type(scalar_field), &
                 dimension(sys_size), &
-                intent(INOUT) :: q_cons_vf
+                intent(inout) :: q_cons_vf_in
 
-            ! IB markers
             type(integer_field), &
-                intent(INOUT) :: ib_markers
+                intent(inout) :: ib_markers_in
 
-        end subroutine s_read_abstract_ic_data_files ! -----------------
+        end subroutine s_read_abstract_ic_data_files
 
-    end interface ! ========================================================
+    end interface
 
     character(LEN=path_len + name_len) :: proc_rank_dir !<
     !! Location of the folder associated with the rank of the local processor
@@ -103,7 +114,7 @@ contains
     !>  Reads the configuration file pre_process.inp, in order to
         !!      populate the parameters in module m_global_parameters.f90
         !!      with the user provided inputs
-    subroutine s_read_input_file() ! ---------------------------------------
+    impure subroutine s_read_input_file
 
         character(LEN=name_len) :: file_loc  !<
             !! Generic string used to store the address of a particular file
@@ -122,20 +133,26 @@ contains
             t_step_old, t_step_start, m, n, p, x_domain, y_domain, z_domain, &
             stretch_x, stretch_y, stretch_z, a_x, a_y, &
             a_z, x_a, y_a, z_a, x_b, y_b, z_b, &
-            model_eqns, num_fluids, &
-            adv_alphan, mpp_lim, &
+            model_eqns, num_fluids, mpp_lim, &
             weno_order, bc_x, bc_y, bc_z, num_patches, &
-            hypoelasticity, patch_icpp, fluid_pp, &
-            precision, parallel_io, vel_profile, instability_wave, &
-            perturb_flow, perturb_flow_fluid, perturb_flow_mag, &
+            hypoelasticity, mhd, patch_icpp, fluid_pp, precision, parallel_io, &
+            mixlayer_vel_profile, mixlayer_vel_coef, &
+            mixlayer_perturb, mixlayer_perturb_nk, mixlayer_perturb_k0, &
+            pi_fac, perturb_flow, perturb_flow_fluid, perturb_flow_mag, &
             perturb_sph, perturb_sph_fluid, fluid_rho, &
             cyl_coord, loops_x, loops_y, loops_z, &
-            rhoref, pref, bubbles, R0ref, nb, &
+            rhoref, pref, bubbles_euler, R0ref, nb, &
             polytropic, thermal, Ca, Web, Re_inv, &
             polydisperse, poly_sigma, qbmm, &
-            sigR, sigV, dist_type, rhoRV, R0_type, &
+            sigR, sigV, dist_type, rhoRV, &
             file_per_process, relax, relax_model, &
-            palpha_eps, ptgalpha_eps, ib, num_ibs, patch_ib
+            palpha_eps, ptgalpha_eps, ib, num_ibs, patch_ib, &
+            sigma, adv_n, cfl_adap_dt, cfl_const_dt, n_start, &
+            n_start_old, surface_tension, hyperelasticity, pre_stress, &
+            elliptic_smoothing, elliptic_smoothing_iters, &
+            viscous, bubbles_lagrange, bc_x, bc_y, bc_z, num_bc_patches, &
+            patch_bc, Bx0, relativity, cont_damage, igr, igr_order, &
+            down_sample, recon_type, muscl_order, fft_wrt
 
         ! Inquiring the status of the pre_process.inp file
         file_loc = 'pre_process.inp'
@@ -152,26 +169,37 @@ contains
                 read (1, fmt='(A)') line
                 print *, 'Invalid line in namelist: '//trim(line)
                 call s_mpi_abort('Invalid line in pre_process.inp. It is '// &
-                                 'likely due to a datatype mismatch. Exiting ...')
+                                 'likely due to a datatype mismatch. Exiting.')
             end if
             close (1)
+
+            call s_update_cell_bounds(cells_bounds, m, n, p)
+
             ! Store m,n,p into global m,n,p
             m_glb = m
             n_glb = n
             p_glb = p
 
-            nGlobal = (m_glb + 1)*(n_glb + 1)*(p_glb + 1)
+            nGlobal = int(m_glb + 1, kind=8)*int(n_glb + 1, kind=8)*int(p_glb + 1, kind=8)
+
+            if (cfl_adap_dt .or. cfl_const_dt) cfl_dt = .true.
+
+            if (any((/bc_x%beg, bc_x%end, bc_y%beg, bc_y%end, bc_z%beg, bc_z%end/) == BC_DIRICHLET) .or. &
+                num_bc_patches > 0) then
+                bc_io = .true.
+            end if
+
         else
-            call s_mpi_abort('File pre_process.inp is missing. Exiting ...')
+            call s_mpi_abort('File pre_process.inp is missing. Exiting.')
         end if
 
-    end subroutine s_read_input_file ! -------------------------------------
+    end subroutine s_read_input_file
 
     !>  Checking that the user inputs make sense, i.e. that the
     !!      individual choices are compatible with the code's options
     !!      and that the combination of these choices results into a
     !!      valid configuration for the pre-process
-    subroutine s_check_input_file() ! --------------------------------------
+    impure subroutine s_check_input_file
 
         character(LEN=len_trim(case_dir)) :: file_loc !<
             !! Generic string used to store the address of a particular file
@@ -190,9 +218,10 @@ contains
             print '(A)', 'WARNING: Ensure that compiler flags/choices in Makefiles match your compiler! '
             print '(A)', 'WARNING: Ensure that preprocessor flags are enabled! '
             call s_mpi_abort('Unsupported choice for the value of case_dir.'// &
-                             'Exiting ...')
+                             'Exiting.')
         end if
 
+        call s_check_inputs_common()
         call s_check_inputs()
 
         ! Check all the patch properties
@@ -200,12 +229,12 @@ contains
 
         if (ib) call s_check_ib_patches()
 
-    end subroutine s_check_input_file ! ------------------------------------
+    end subroutine s_check_input_file
 
     !> The goal of this subroutine is to read in any preexisting
         !!      grid data as well as based on the imported grid, complete
         !!      the necessary global computational domain parameters.
-    subroutine s_read_serial_grid_data_files() ! ---
+    impure subroutine s_read_serial_grid_data_files
 
         ! Generic string used to store the address of a particular file
         character(LEN=len_trim(case_dir) + 3*name_len) :: file_loc
@@ -231,10 +260,10 @@ contains
         ! If the time-step directory is missing, the pre-process exits
         if (dir_check .neqv. .true.) then
             call s_mpi_abort('Time-step folder '//trim(t_step_dir)// &
-                             ' is missing. Exiting ...')
+                             ' is missing. Exiting.')
         end if
 
-        ! Reading the Grid Data File for the x-direction ===================
+        ! Reading the Grid Data File for the x-direction
 
         ! Checking whether x_cb.dat exists
         file_loc = trim(t_step_dir)//'/x_cb.dat'
@@ -248,11 +277,11 @@ contains
             close (1)
         else
             call s_mpi_abort('File x_cb.dat is missing in '// &
-                             trim(t_step_dir)//'. Exiting ...')
+                             trim(t_step_dir)//'. Exiting.')
         end if
 
         ! Computing cell-center locations
-        x_cc(0:m) = (x_cb(0:m) + x_cb(-1:(m - 1)))/2d0
+        x_cc(0:m) = (x_cb(0:m) + x_cb(-1:(m - 1)))/2._wp
 
         ! Computing minimum cell-width
         dx = minval(x_cb(0:m) - x_cb(-1:m - 1))
@@ -262,9 +291,7 @@ contains
         x_domain%beg = x_cb(-1)
         x_domain%end = x_cb(m)
 
-        ! ==================================================================
-
-        ! Reading the Grid Data File for the y-direction ===================
+        ! Reading the Grid Data File for the y-direction
 
         if (n > 0) then
 
@@ -280,11 +307,11 @@ contains
                 close (1)
             else
                 call s_mpi_abort('File y_cb.dat is missing in '// &
-                                 trim(t_step_dir)//'. Exiting ...')
+                                 trim(t_step_dir)//'. Exiting.')
             end if
 
             ! Computing cell-center locations
-            y_cc(0:n) = (y_cb(0:n) + y_cb(-1:(n - 1)))/2d0
+            y_cc(0:n) = (y_cb(0:n) + y_cb(-1:(n - 1)))/2._wp
 
             ! Computing minimum cell-width
             dy = minval(y_cb(0:n) - y_cb(-1:n - 1))
@@ -294,10 +321,7 @@ contains
             y_domain%beg = y_cb(-1)
             y_domain%end = y_cb(n)
 
-            ! ==================================================================
-
-            ! Reading the Grid Data File for the z-direction ===================
-
+            ! Reading the Grid Data File for the z-direction
             if (p > 0) then
 
                 ! Checking whether z_cb.dat exists
@@ -312,11 +336,11 @@ contains
                     close (1)
                 else
                     call s_mpi_abort('File z_cb.dat is missing in '// &
-                                     trim(t_step_dir)//'. Exiting ...')
+                                     trim(t_step_dir)//'. Exiting.')
                 end if
 
                 ! Computing cell-center locations
-                z_cc(0:p) = (z_cb(0:p) + z_cb(-1:(p - 1)))/2d0
+                z_cc(0:p) = (z_cb(0:p) + z_cb(-1:(p - 1)))/2._wp
 
                 ! Computing minimum cell-width
                 dz = minval(z_cb(0:p) - z_cb(-1:p - 1))
@@ -330,8 +354,6 @@ contains
 
         end if
 
-        ! ==================================================================
-
         ! If only the preexisting grid data files are read in and there will
         ! not be any preexisting initial condition data files imported, then
         ! the directory associated with the rank of the local processor may
@@ -343,72 +365,67 @@ contains
             call s_create_directory(trim(proc_rank_dir)//'/0')
         end if
 
-    end subroutine s_read_serial_grid_data_files ! --------------------------------
+    end subroutine s_read_serial_grid_data_files
 
     !> Cell-boundary data are checked for consistency by looking
         !!      at the (non-)uniform cell-width distributions for all the
         !!      active coordinate directions and making sure that all of
         !!      the cell-widths are positively valued
-    subroutine s_check_grid_data_files() ! -----------------
+    impure subroutine s_check_grid_data_files
 
-        ! Cell-boundary Data Consistency Check in x-direction ==============
+        ! Cell-boundary Data Consistency Check in x-direction
 
-        if (any(x_cb(0:m) - x_cb(-1:m - 1) <= 0d0)) then
+        if (any(x_cb(0:m) - x_cb(-1:m - 1) <= 0._wp)) then
             call s_mpi_abort('x_cb.dat in '//trim(t_step_dir)// &
-                             ' contains non-positive cell-spacings. Exiting ...')
+                             ' contains non-positive cell-spacings. Exiting.')
         end if
 
-        ! ==================================================================
-
-        ! Cell-boundary Data Consistency Check in y-direction ==============
+        ! Cell-boundary Data Consistency Check in y-direction
 
         if (n > 0) then
 
-            if (any(y_cb(0:n) - y_cb(-1:n - 1) <= 0d0)) then
+            if (any(y_cb(0:n) - y_cb(-1:n - 1) <= 0._wp)) then
                 call s_mpi_abort('y_cb.dat in '//trim(t_step_dir)// &
                                  ' contains non-positive cell-spacings. '// &
-                                 'Exiting ...')
+                                 'Exiting.')
             end if
 
-            ! ==================================================================
-
-            ! Cell-boundary Data Consistency Check in z-direction ==============
+            ! Cell-boundary Data Consistency Check in z-direction
 
             if (p > 0) then
 
-                if (any(z_cb(0:p) - z_cb(-1:p - 1) <= 0d0)) then
+                if (any(z_cb(0:p) - z_cb(-1:p - 1) <= 0._wp)) then
                     call s_mpi_abort('z_cb.dat in '//trim(t_step_dir)// &
                                      ' contains non-positive cell-spacings'// &
-                                     ' .Exiting ...')
+                                     ' .Exiting.')
                 end if
 
             end if
 
         end if
 
-        ! ==================================================================
-
-    end subroutine s_check_grid_data_files ! -------------------------------
+    end subroutine s_check_grid_data_files
 
     !> The goal of this subroutine is to read in any preexisting
         !!      initial condition data files so that they may be used by
         !!      the pre-process as a starting point in the creation of an
         !!      all new initial condition.
         !! @param q_cons_vf Conservative variables
-    subroutine s_read_serial_ic_data_files(q_cons_vf, ib_markers) ! ---------------------------
+        !! @param ib_markers track if a cell is within the immersed boundary
+    impure subroutine s_read_serial_ic_data_files(q_cons_vf_in, ib_markers_in)
 
         type(scalar_field), &
             dimension(sys_size), &
-            intent(INOUT) :: q_cons_vf
+            intent(inout) :: q_cons_vf_in
 
         type(integer_field), &
-            intent(INOUT) :: ib_markers
+            intent(inout) :: ib_markers_in
 
         character(LEN=len_trim(case_dir) + 3*name_len) :: file_loc !<
         ! Generic string used to store the address of a particular file
 
         character(LEN= &
-                  int(floor(log10(real(sys_size, kind(0d0))))) + 1) :: file_num !<
+                  int(floor(log10(real(sys_size, wp)))) + 1) :: file_num !<
             !! Used to store the variable position, in character form, of the
             !! currently manipulated conservative variable file
 
@@ -418,7 +435,7 @@ contains
 
         integer :: i, r !< Generic loop iterator
 
-        ! Reading the Conservative Variables Data Files ====================
+        ! Reading the Conservative Variables Data Files
         do i = 1, sys_size
 
             ! Checking whether data file associated with variable position
@@ -432,12 +449,12 @@ contains
             if (file_check) then
                 open (1, FILE=trim(file_loc), FORM='unformatted', &
                       STATUS='old', ACTION='read')
-                read (1) q_cons_vf(i)%sf
+                read (1) q_cons_vf_in(i)%sf
                 close (1)
             else
                 call s_mpi_abort('File q_cons_vf'//trim(file_num)// &
                                  '.dat is missing in '//trim(t_step_dir)// &
-                                 '. Exiting ...')
+                                 '. Exiting.')
             end if
 
         end do
@@ -462,7 +479,7 @@ contains
                     else
                         call s_mpi_abort('File pb'//trim(file_num)// &
                                          '.dat is missing in '//trim(t_step_dir)// &
-                                         '. Exiting ...')
+                                         '. Exiting.')
                     end if
                 end do
 
@@ -486,7 +503,7 @@ contains
                     else
                         call s_mpi_abort('File mv'//trim(file_num)// &
                                          '.dat is missing in '//trim(t_step_dir)// &
-                                         '. Exiting ...')
+                                         '. Exiting.')
                     end if
                 end do
 
@@ -503,16 +520,14 @@ contains
             if (file_check) then
                 open (1, FILE=trim(file_loc), FORM='unformatted', &
                       STATUS='old', ACTION='read')
-                read (1) ib_markers%sf(0:m, 0:n, 0:p)
+                read (1) ib_markers_in%sf(0:m, 0:n, 0:p)
                 close (1)
             else
                 call s_mpi_abort('File ib.dat is missing in ' &
                                  //trim(t_step_dir)// &
-                                 '. Exiting ...')
+                                 '. Exiting.')
             end if
         end if
-
-        ! ==================================================================
 
         ! Since the preexisting grid and initial condition data files have
         ! been read in, the directory associated with the rank of the local
@@ -522,17 +537,17 @@ contains
         call s_create_directory(trim(proc_rank_dir)//'/*')
         call s_create_directory(trim(proc_rank_dir)//'/0')
 
-    end subroutine s_read_serial_ic_data_files ! ----------------------------------
+    end subroutine s_read_serial_ic_data_files
 
     !> Cell-boundary data are checked for consistency by looking
         !!      at the (non-)uniform cell-width distributions for all the
         !!      active coordinate directions and making sure that all of
         !!      the cell-widths are positively valued
-    subroutine s_read_parallel_grid_data_files()
+    impure subroutine s_read_parallel_grid_data_files
 
 #ifdef MFC_MPI
 
-        real(kind(0d0)), allocatable, dimension(:) :: x_cb_glb, y_cb_glb, z_cb_glb
+        real(wp), allocatable, dimension(:) :: x_cb_glb, y_cb_glb, z_cb_glb
 
         integer :: ifile, ierr, data_size
         integer, dimension(MPI_STATUS_SIZE) :: status
@@ -551,16 +566,16 @@ contains
         if (file_exist) then
             data_size = m_glb + 2
             call MPI_FILE_OPEN(MPI_COMM_WORLD, file_loc, MPI_MODE_RDONLY, mpi_info_int, ifile, ierr)
-            call MPI_FILE_READ_ALL(ifile, x_cb_glb, data_size, MPI_DOUBLE_PRECISION, status, ierr)
+            call MPI_FILE_READ_ALL(ifile, x_cb_glb, data_size, mpi_p, status, ierr)
             call MPI_FILE_CLOSE(ifile, ierr)
         else
-            call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting... ')
+            call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting. ')
         end if
 
         ! Assigning local cell boundary locations
         x_cb(-1:m) = x_cb_glb((start_idx(1) - 1):(start_idx(1) + m))
         ! Computing cell center locations
-        x_cc(0:m) = (x_cb(0:m) + x_cb(-1:(m - 1)))/2d0
+        x_cc(0:m) = (x_cb(0:m) + x_cb(-1:(m - 1)))/2._wp
         ! Computing minimum cell width
         dx = minval(x_cb(0:m) - x_cb(-1:(m - 1)))
         if (num_procs > 1) call s_mpi_reduce_min(dx)
@@ -576,16 +591,16 @@ contains
             if (file_exist) then
                 data_size = n_glb + 2
                 call MPI_FILE_OPEN(MPI_COMM_WORLD, file_loc, MPI_MODE_RDONLY, mpi_info_int, ifile, ierr)
-                call MPI_FILE_READ_ALL(ifile, y_cb_glb, data_size, MPI_DOUBLE_PRECISION, status, ierr)
+                call MPI_FILE_READ_ALL(ifile, y_cb_glb, data_size, mpi_p, status, ierr)
                 call MPI_FILE_CLOSE(ifile, ierr)
             else
-                call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting... ')
+                call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting. ')
             end if
 
             ! Assigning local cell boundary locations
             y_cb(-1:n) = y_cb_glb((start_idx(2) - 1):(start_idx(2) + n))
             ! Computing cell center locations
-            y_cc(0:n) = (y_cb(0:n) + y_cb(-1:(n - 1)))/2d0
+            y_cc(0:n) = (y_cb(0:n) + y_cb(-1:(n - 1)))/2._wp
             ! Computing minimum cell width
             dy = minval(y_cb(0:n) - y_cb(-1:(n - 1)))
             if (num_procs > 1) call s_mpi_reduce_min(dy)
@@ -601,16 +616,16 @@ contains
                 if (file_exist) then
                     data_size = p_glb + 2
                     call MPI_FILE_OPEN(MPI_COMM_WORLD, file_loc, MPI_MODE_RDONLY, mpi_info_int, ifile, ierr)
-                    call MPI_FILE_READ_ALL(ifile, z_cb_glb, data_size, MPI_DOUBLE_PRECISION, status, ierr)
+                    call MPI_FILE_READ_ALL(ifile, z_cb_glb, data_size, mpi_p, status, ierr)
                     call MPI_FILE_CLOSE(ifile, ierr)
                 else
-                    call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting... ')
+                    call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting. ')
                 end if
 
                 ! Assigning local cell boundary locations
                 z_cb(-1:p) = z_cb_glb((start_idx(3) - 1):(start_idx(3) + p))
                 ! Computing cell center locations
-                z_cc(0:p) = (z_cb(0:p) + z_cb(-1:(p - 1)))/2d0
+                z_cc(0:p) = (z_cb(0:p) + z_cb(-1:(p - 1)))/2._wp
                 ! Computing minimum cell width
                 dz = minval(z_cb(0:p) - z_cb(-1:(p - 1)))
                 if (num_procs > 1) call s_mpi_reduce_min(dz)
@@ -625,21 +640,22 @@ contains
 
 #endif
 
-    end subroutine s_read_parallel_grid_data_files ! -----------------------
+    end subroutine s_read_parallel_grid_data_files
 
     !> The goal of this subroutine is to read in any preexisting
         !!      initial condition data files so that they may be used by
         !!      the pre-process as a starting point in the creation of an
         !!      all new initial condition.
         !! @param q_cons_vf Conservative variables
-    subroutine s_read_parallel_ic_data_files(q_cons_vf, ib_markers) ! ------------------
+        !! @param ib_markers track if a cell is within the immersed boundary
+    impure subroutine s_read_parallel_ic_data_files(q_cons_vf_in, ib_markers_in)
 
         type(scalar_field), &
             dimension(sys_size), &
-            intent(INOUT) :: q_cons_vf
+            intent(inout) :: q_cons_vf_in
 
         type(integer_field), &
-            intent(INOUT) :: ib_markers
+            intent(inout) :: ib_markers_in
 
 #ifdef MFC_MPI
 
@@ -657,7 +673,11 @@ contains
         integer :: i
 
         ! Open the file to read
-        write (file_loc, '(I0,A)') t_step_start, '.dat'
+        if (cfl_adap_dt) then
+            write (file_loc, '(I0,A)') n_start, '.dat'
+        else
+            write (file_loc, '(I0,A)') t_step_start, '.dat'
+        end if
         file_loc = trim(restart_dir)//trim(mpiiofs)//trim(file_loc)
         inquire (FILE=trim(file_loc), EXIST=file_exist)
 
@@ -666,9 +686,9 @@ contains
 
             ! Initialize MPI data I/O
             if (ib) then
-                call s_initialize_mpi_data(q_cons_vf, ib_markers)
+                call s_initialize_mpi_data(q_cons_vf_in, ib_markers_in, levelset, levelset_norm)
             else
-                call s_initialize_mpi_data(q_cons_vf)
+                call s_initialize_mpi_data(q_cons_vf_in)
             end if
 
             ! Size of local arrays
@@ -678,8 +698,8 @@ contains
             m_MOK = int(m_glb + 1, MPI_OFFSET_KIND)
             n_MOK = int(n_glb + 1, MPI_OFFSET_KIND)
             p_MOK = int(p_glb + 1, MPI_OFFSET_KIND)
-            WP_MOK = int(8d0, MPI_OFFSET_KIND)
-            MOK = int(1d0, MPI_OFFSET_KIND)
+            WP_MOK = int(8._wp, MPI_OFFSET_KIND)
+            MOK = int(1._wp, MPI_OFFSET_KIND)
             str_MOK = int(name_len, MPI_OFFSET_KIND)
             NVARS_MOK = int(sys_size, MPI_OFFSET_KIND)
 
@@ -690,10 +710,10 @@ contains
                 ! Initial displacement to skip at beginning of file
                 disp = m_MOK*max(MOK, n_MOK)*max(MOK, p_MOK)*WP_MOK*(var_MOK - 1)
 
-                call MPI_FILE_SET_VIEW(ifile, disp, MPI_DOUBLE_PRECISION, MPI_IO_DATA%view(i), &
+                call MPI_FILE_SET_VIEW(ifile, disp, mpi_p, MPI_IO_DATA%view(i), &
                                        'native', mpi_info_int, ierr)
                 call MPI_FILE_READ(ifile, MPI_IO_DATA%var(i)%sf, data_size, &
-                                   MPI_DOUBLE_PRECISION, status, ierr)
+                                   mpi_p, status, ierr)
             end do
 
             if (qbmm .and. .not. polytropic) then
@@ -703,10 +723,10 @@ contains
                     ! Initial displacement to skip at beginning of file
                     disp = m_MOK*max(MOK, n_MOK)*max(MOK, p_MOK)*WP_MOK*(var_MOK - 1)
 
-                    call MPI_FILE_SET_VIEW(ifile, disp, MPI_DOUBLE_PRECISION, MPI_IO_DATA%view(i), &
+                    call MPI_FILE_SET_VIEW(ifile, disp, mpi_p, MPI_IO_DATA%view(i), &
                                            'native', mpi_info_int, ierr)
                     call MPI_FILE_READ(ifile, MPI_IO_DATA%var(i)%sf, data_size, &
-                                       MPI_DOUBLE_PRECISION, status, ierr)
+                                       mpi_p, status, ierr)
                 end do
             end if
 
@@ -715,7 +735,7 @@ contains
             call MPI_FILE_CLOSE(ifile, ierr)
 
         else
-            call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting... ')
+            call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting. ')
         end if
 
         if (ib) then
@@ -736,7 +756,7 @@ contains
                                    MPI_INTEGER, status, ierr)
 
             else
-                call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting...')
+                call s_mpi_abort('File '//trim(file_loc)//' is missing. Exiting.')
             end if
 
         end if
@@ -745,32 +765,39 @@ contains
 
 #endif
 
-    end subroutine s_read_parallel_ic_data_files ! -------------------------
+    end subroutine s_read_parallel_ic_data_files
 
-    subroutine s_initialize_modules()
+    impure subroutine s_initialize_modules
         ! Computation of parameters, allocation procedures, and/or any other tasks
         ! needed to properly setup the modules
         call s_initialize_global_parameters_module()
         !Quadrature weights and nodes for polydisperse simulations
-        if (bubbles .and. nb > 1) then
-            call s_simpson
+        if (bubbles_euler .and. nb > 1) then
+            call s_simpson(weight, R0)
         end if
         !Initialize variables for non-polytropic (Preston) model
-        if (bubbles .and. .not. polytropic) then
+        if (bubbles_euler .and. .not. polytropic) then
             call s_initialize_nonpoly()
         end if
         !Initialize pb based on surface tension for qbmm (polytropic)
-        if (qbmm .and. polytropic .and. Web /= dflt_real) then
-            pb0 = pref + 2d0*fluid_pp(1)%ss/(R0*R0ref)
-            pb0 = pb0/pref
-            pref = 1d0
+        if (qbmm .and. polytropic .and. (.not. f_is_default(Web))) then
+            pb0(:) = pref + 2._wp*fluid_pp(1)%ss/(R0(:)*R0ref)
+            pb0(:) = pb0(:)/pref
+            pref = 1._wp
         end if
+        call s_initialize_mpi_common_module()
         call s_initialize_data_output_module()
         call s_initialize_variables_conversion_module()
         call s_initialize_grid_module()
         call s_initialize_initial_condition_module()
+        call s_initialize_perturbation_module()
         call s_initialize_assign_variables_module()
+        call s_initialize_boundary_common_module()
         if (relax) call s_initialize_phasechange_module()
+
+        ! Create the D directory if it doesn't exit, to store
+        ! the serial data files
+        call s_create_directory('D')
 
         ! Associate pointers for serial or parallel I/O
         if (parallel_io .neqv. .true.) then
@@ -778,10 +805,6 @@ contains
             s_read_grid_data_files => s_read_serial_grid_data_files
             s_read_ic_data_files => s_read_serial_ic_data_files
             s_write_data_files => s_write_serial_data_files
-
-            ! Create the D directory if it doesn't exit, to store
-            ! the serial data files
-            call s_create_directory('D')
         else
             s_generate_grid => s_generate_parallel_grid
             s_read_grid_data_files => s_read_parallel_grid_data_files
@@ -791,7 +814,7 @@ contains
 
     end subroutine s_initialize_modules
 
-    subroutine s_read_grid()
+    impure subroutine s_read_grid()
 
         if (old_grid) then
             call s_read_grid_data_files()
@@ -809,11 +832,9 @@ contains
 
     end subroutine s_read_grid
 
-    subroutine s_apply_initial_condition(start, finish, proc_time, time_avg, time_final, file_exists)
+    impure subroutine s_apply_initial_condition(start, finish)
 
-        logical, intent(INOUT) :: file_exists
-        real(kind(0d0)), intent(INOUT) :: start, finish, time_avg, time_final
-        real(kind(0d0)), dimension(:), intent(INOUT) :: proc_time
+        real(wp), intent(inout) :: start, finish
 
         ! Setting up the grid and the initial condition. If the grid is read in from
         ! preexisting grid data files, it is checked for consistency. If the grid is
@@ -837,18 +858,23 @@ contains
 &                pTg-equilirium (relax = "T" activated)'
             end if
 
-            call s_relaxation_solver(q_cons_vf)
+            call s_infinite_relaxation_k(q_cons_vf)
         end if
 
-        call s_write_data_files(q_cons_vf, ib_markers)
+        if (ib) then
+            call s_write_data_files(q_cons_vf, q_prim_vf, bc_type, ib_markers, levelset, levelset_norm)
+        else
+            call s_write_data_files(q_cons_vf, q_prim_vf, bc_type)
+        end if
 
         call cpu_time(finish)
     end subroutine s_apply_initial_condition
 
-    subroutine s_save_data(proc_time, time_avg, time_final, file_exists)
-        logical, intent(INOUT) :: file_exists
-        real(kind(0d0)), intent(INOUT) :: time_avg, time_final
-        real(kind(0d0)), dimension(:), intent(INOUT) :: proc_time
+    impure subroutine s_save_data(proc_time, time_avg, time_final, file_exists)
+
+        real(wp), dimension(:), intent(inout) :: proc_time
+        real(wp), intent(inout) :: time_avg, time_final
+        logical, intent(inout) :: file_exists
 
         call s_mpi_barrier()
 
@@ -857,13 +883,13 @@ contains
         end if
 
         if (proc_rank == 0) then
-            time_final = 0d0
+            time_final = 0._wp
             if (num_procs == 1) then
                 time_final = time_avg
-                print *, "Final Time", time_final
+                print *, "Elapsed Time", time_final
             else
                 time_final = maxval(proc_time)
-                print *, "Final Time", time_final
+                print *, "Elapsed Time", time_final
             end if
             inquire (FILE='pre_time_data.dat', EXIST=file_exists)
             if (file_exists) then
@@ -878,7 +904,7 @@ contains
         end if
     end subroutine s_save_data
 
-    subroutine s_initialize_mpi_domain()
+    impure subroutine s_initialize_mpi_domain
         ! Initialization of the MPI environment
 
         call s_mpi_initialize()
@@ -893,7 +919,7 @@ contains
             call s_read_input_file()
             call s_check_input_file()
 
-            print '(" Pre-processing a "I0"x"I0"x"I0" case on "I0" rank(s)")', m, n, p, num_procs
+            print '(" Pre-processing a ", I0, "x", I0, "x", I0, " case on ", I0, " rank(s)")', m, n, p, num_procs
         end if
 
         ! Broadcasting the user inputs to all of the processors and performing the
@@ -904,7 +930,7 @@ contains
         call s_mpi_decompose_computational_domain()
     end subroutine s_initialize_mpi_domain
 
-    subroutine s_finalize_modules()
+    impure subroutine s_finalize_modules
         ! Disassociate pointers for serial and parallel I/O
         s_generate_grid => null()
         s_read_grid_data_files => null()
@@ -912,11 +938,14 @@ contains
         s_write_data_files => null()
 
         ! Deallocation procedures for the modules
+        call s_finalize_mpi_common_module()
         call s_finalize_grid_module()
         call s_finalize_variables_conversion_module()
         call s_finalize_data_output_module()
         call s_finalize_global_parameters_module()
         call s_finalize_assign_variables_module()
+        call s_finalize_perturbation_module()
+        call s_finalize_boundary_common_module()
         if (relax) call s_finalize_relaxation_solver_module()
 
         ! Finalization of the MPI environment

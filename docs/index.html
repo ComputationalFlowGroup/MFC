@@ -7,14 +7,16 @@
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-    
+
       gtag('config', 'G-SY496B9L99');
     </script>
-    
+
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MFC | Home</title>
+    <meta name="description" content="MFC is an exascale multiphysics CFD solver maintained by the research groups of Profs. Bryngelson and Colonius." />
+    <meta name=”keywords” content="exascale, fluid dynamics, cfd, computational fluid dynamics, compressible, hpc, bryngelson, colonius, subgrid, multiphase, frontier, summit, el capitan, aurora, amd gpu, gpu, nvidia"/>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="icon" type="image/x-icon" href="res/icon.ico">
@@ -36,7 +38,7 @@
 
         ghapi("https://api.github.com/repos/MFlowCode/MFC/releases/latest").then((r) => {
             onHTML(() => {
-                document.getElementById("release-ver").innerText = r["tag_name"];    
+                document.getElementById("release-ver").innerText = r["tag_name"];
             })
         });
 
@@ -70,13 +72,17 @@
                 this.source       = source;
             }
         };
-    
+
         const sims = [
-            new FS("Shedding water droplet - Vorticity", "res/simulations/a.png", "Summit", "2016 V100s", "1h", "https://doi.org/10.48550/arXiv.2305.09163"),
-            new FS("Cavitating bubble cloud - Wall pressure", "res/simulations/b.png", "Summit", "216 V100s", "3h", "https://doi.org/10.48550/arXiv.2305.09163"),
-            new FS("Cavitating bubble cloud - Streamlines", "res/simulations/c.png", "Summit", "216 V100s", "3h", "https://doi.org/10.48550/arXiv.2305.09163"),
-            new FS("Kidney stone near a collapsing bubble cloud - Maximum principal stresses", "res/simulations/d.png", "Summit", "576 V100s", "30 min", "https://doi.org/10.48550/arXiv.2305.09163"),
-            new FS("Breakup of vibrated interface", "res/simulations/f.png", "Summit", "128 V100s", "4h","https://youtu.be/qQV2ZRDpf2M")
+            new FS("Viscous Taylor-Green vortex","res/simulations/h.png","Delta", "128 A100s", "17h" , "https://vimeo.com/1019922003?share=copy"),
+            new FS("Shedding water droplet", "res/simulations/a.png", "Summit", "960 V100s", "4h", "https://player.vimeo.com/video/905208069"),
+            new FS("Flow over an airfoil (vorticity)", "res/simulations/g.png", "Delta", "128 A100s", "19h", "https://vimeo.com/917305340/c05fd414c8?share=copy"),
+            new FS("Cavitation fragments kidney stone", "res/simulations/d.png", "Summit", "576 V100s", "30 min", "https://doi.org/10.48550/arXiv.2305.09163"),
+            new FS("Breakup of vibrated interface", "res/simulations/f.png", "Summit", "128 V100s", "4h","https://player.vimeo.com/video/922022757"),
+            new FS("Mach 2 flow over a sphere", "res/simulations/i.png", "Phoenix", "36 V100s", "30m", "https://vimeo.com/1020775531?share=copy"),
+            new FS("Mach 2 shear layer", "res/simulations/j.png", "Phoenix", "32 V100s", "15m", "https://vimeo.com/1020775541?share=copy"),
+            new FS("Collapsing bubbles (pressure)", "res/simulations/b.png", "Summit", "216 V100s", "3h", "https://doi.org/10.48550/arXiv.2305.09163"),
+            new FS("Collapsing bubbles (streamlines)", "res/simulations/c.png", "Summit", "216 V100s", "3h", "https://doi.org/10.48550/arXiv.2305.09163"),
         ];
 
         /*
@@ -87,11 +93,11 @@
             <div class="flex flex-row items-center">
                 <img class="h-10 bg-white" src="res/logo.png" />
                 <div class="flex-1 font-semibold text-center">
-                    Bubble collapse from monopole
-                </div>  
+                    Bubble collapse from acoustic source
+                </div>
                 <a class="w-10 text-center" href="#">
                     <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                </a>                              
+                </a>
             </div>
             <div class="grid grid-cols-3 gap-4 px-4 py-2">
                 <div class="flex flex-row items-center">
@@ -127,14 +133,14 @@
 
                 let middiv = document.createElement("div");
                 middiv.classList.add("flex", "flex-row", "items-center");
-                
+
                 let logoDiv = document.createElement("div");
                 logoDiv.classList.add("flex", "flex-col", "h-full", "bg-white", "justify-center");
 
                 let logo = document.createElement("img");
                 logo.src = "res/logo.png";
                 logo.classList.add("h-10");
-                
+
                 logoDiv.appendChild(logo);
                 middiv.appendChild(logoDiv);
 
@@ -196,17 +202,16 @@
                 this.computer     = computer;
             }
         };
-    
+
         scalings = [
-            new FScale("res/weakScaling/frontier.svg", "Frontier"),
-            new FScale("res/weakScaling/summit.svg", "Summit")
-            ]
+            new FScale("res/weakScaling/frontier.svg", "Oak Ridge Frontier (AMD MI250X GPUs)"),
+            new FScale("res/weakScaling/summit.svg", "Oak Ridge Summit (NVIDIA V100 GPUs)")
+        ];
 
-
-         onHTML(() => {
+        onHTML(() => {
             for (let scl of scalings) {
                 let container = document.createElement("div");
-                container.classList.add("flex", "flex-col", "text-white", "rounded", "bg-slate-900", "rounded-b-lg");
+                container.classList.add("flex", "md:w-2/6", "flex-col", "text-white", "rounded", "bg-slate-900", "rounded-b-lg");
 
                 let topdiv = document.createElement("div");
                 topdiv.classList.add("flex-1", "grid", "bg-white", "pb-2");
@@ -220,7 +225,7 @@
 
                 let middiv = document.createElement("div");
                 middiv.classList.add("flex", "flex-row", "items-center");
-                
+
                 let logoDiv = document.createElement("div");
                 logoDiv.classList.add("flex", "flex-col", "h-full", "bg-white", "justify-center");
 
@@ -240,7 +245,6 @@
                 document.getElementById("ft-scaling").appendChild(container);
             }
         });
-
     </script>
 </head>
 <body class="flex flex-col min-h-screen bg-slate-900">
@@ -257,8 +261,7 @@
                     <img src="res/banner.png" class="h-20 md:h-24 mx-auto">
                 </div>
                 <div class="w-full flex flex-col text-white text-md md:text-lg text-justify font-semibold">
-                    MFC simulates compressible multi-component and multi-phase flows, amongst other things.
-                    It scales ideally to tens of thousands of GPUs.
+                    An exascale compressible multiphase and multiphysics flow code.
                 </div>
             </div>
             <div class="flex mx-auto">
@@ -270,21 +273,21 @@
                     <a class="px-4 flex flex-row items-center py-4 border-b-2 hover:border-amber-400" href="https://github.com/MFlowCode/MFC/releases/latest">
                         <i class="pr-4 fa-solid fa-download"></i>
                         <div class="flex-1">
-                            <span class="hidden sm:inline-block">Download </span>
+                            <span class="hidden sm:inline-block">Download</span>
                             <span id="release-ver"></span>
                         </div>
                     </a>
                     <a class="px-4 flex flex-row items-center py-4 border-b-2 hover:border-amber-400" href="documentation/md_getting-started.html">
                         <i class="pr-4 fa-solid fa-rocket"></i>
-                        <span class="flex-1">Start</span>
+                        <span class="flex-1">Quick Start</span>
                     </a>
-                    <a class="px-4 flex flex-row items-center py-4 border-b-2 hover:border-amber-400" href="documentation/index.html">
+                    <a class="px-4 flex flex-row items-center py-4 border-b-2 hover:border-amber-400" href="documentation/md_readme.html">
                         <i class="pr-4 fa-solid fa-book"></i>
                         <span class="flex-1">Documentation</span>
                     </a>
-                    <a class="px-4 flex flex-row items-center py-4 border-b-2 hover:border-amber-400" href="https://doi.org/10.1016/j.cpc.2020.107396">
+                    <a class="px-4 flex flex-row items-center py-4 border-b-2 hover:border-amber-400" href="documentation/md_papers.html">
                         <i class="pr-4 fa-solid fa-newspaper"></i>
-                        <span class="flex-1">Primary Paper</span>
+                        <span class="flex-1">Papers</span>
                     </a>
                 </div>
             </div>
@@ -297,7 +300,7 @@
                     <div class="text-xl md:text-2xl font-extrabold">
                         Featured Simulations
                     </div>
-                  
+
                     <!--
                     <div class="text-sm md:text-md text-justify">
                         A small collection of visualizations of simulations completed using MFC.
@@ -307,14 +310,14 @@
                 <div id="ft-sim" class="flex-1 grid grid-cols-1 md:grid-cols-3 gap-8">
                     <!-- ... -->
                 </div>
-            </div> 
-            <div class="weak-scaling flex-col gap-4">
+            </div>
+            <div class="weak-scaling flex flex-col gap-4">
                 <h1 class="flex-1 flex flex-col justify-center gap-y-4">
                     <div class="text-xl md:text-2xl font-extrabold">
                         Weak Scaling Results
                     </div>
                 </h1>
-                <div id="ft-scaling" class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-8"> 
+                <div id="ft-scaling" class="flex-1 flex flex-col md:flex-row gap-8 md:justify-around">
                     <!-- ... -->
                 </div>
             </div>
@@ -324,7 +327,7 @@
                         Contributors
                     </div>
                 </h1>
-                    
+
                 <div id="ft-contrib" class="rounded">
                     <!-- ... -->
                 </div>
@@ -333,11 +336,11 @@
     </main>
     <div class="flex flex-col w-full px-4 md:px-0 text-white py-8 gap-4 container mx-auto">
         <div class="font-bold text-center text-sm md:text-md md:text-left">
-            &copy; 2021-2024 <a href="https://comp-physics.group/">Spencer Bryngelson and Tim Colonius</a>
+            &copy; 2021 <a href="https://comp-physics.group/">Spencer H. Bryngelson and Tim Colonius</a>
         </div>
         <div class="text-justify flex-1 text-xs md:text-sm text-neutral-300">
-            Multiple federal sponsors have supported MFC development, including the US Department of Defense (DOD), National Institutes of Health (NIH), Department of Energy (DOE), and National Science Foundation (NSF).
-            MFC computations use OLCF Frontier, Summit, and Wombat under allocation CFD154 (PI Bryngelson) and ACCESS-CI under allocations TG-CTS120005 (PI Colonius) and TG-PHY210084 (PI Bryngelson).
+            Multiple federal sponsors have supported MFC development, including the US Department of Defense (DOD), the National Institutes of Health (NIH), the Department of Energy (DOE), and the National Science Foundation (NSF).
+            MFC computations use OLCF Frontier, Summit, and Wombat; LLNC LC Tuolumne and Lassen; and many ACCESS-CI systems
         </div>
     </div>
 </body>

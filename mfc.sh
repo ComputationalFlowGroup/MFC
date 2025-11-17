@@ -22,24 +22,34 @@ if [ -d "$(pwd)/bootstrap" ] || [ -d "$(pwd)/dependencies" ] || [ -f "$(pwd)/bui
 fi
 
 # If the user wishes to run the "load" script
-if [ "$1" == 'load' ]; then
+if [ "$1" '==' 'load' ]; then
     shift; . "$(pwd)/toolchain/bootstrap/modules.sh" $@; return
-elif [ "$1" == "lint" ]; then
+elif [ "$1" '==' "lint" ]; then
     . "$(pwd)/toolchain/bootstrap/python.sh"
 
     shift; . "$(pwd)/toolchain/bootstrap/lint.sh"    $@; exit 0
-elif [ "$1" == "format" ]; then
+elif [ "$1" '==' "format" ]; then
     . "$(pwd)/toolchain/bootstrap/python.sh"
 
     shift; . "$(pwd)/toolchain/bootstrap/format.sh"  $@; exit 0
-elif [ "$1" == "docker" ]; then
-    shift; . "$(pwd)/toolchain/bootstrap/docker.sh"  $@; exit 0
+elif [ "$1" '==' "venv" ]; then
+    shift; . "$(pwd)/toolchain/bootstrap/python.sh"  $@; return
+elif [ "$1" '==' "clean" ]; then
+    rm -rf "$(pwd)/build"; exit 0
+elif [ "$1" '==' "spelling" ]; then
+    . "$(pwd)/toolchain/bootstrap/python.sh"
+
+    shift; . "$(pwd)/toolchain/bootstrap/spelling.sh" $@; exit 0
 fi
 
 mkdir -p "$(pwd)/build"
 
 . "$(pwd)/toolchain/bootstrap/cmake.sh"
 . "$(pwd)/toolchain/bootstrap/python.sh"
+
+if [ "$1" '==' 'init' ]; then
+    exit 0
+fi
 
 echo
 
@@ -50,7 +60,7 @@ code=$?
 echo
 
 if [ $code -ne 0 ]; then
-    error "mfc.py finished with a $code exit code."
+    error "main.py finished with a $code exit code."
 fi
 
 # Deactivate the Python virtualenv in case the user "source"'d this script
