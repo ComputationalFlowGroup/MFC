@@ -5,7 +5,6 @@
     real(wp) :: rcoord, theta, phi, xi_sph, x_bcen, y_bcen, z_bcen, Rinit
     real(wp) :: x_ccs, y_ccs, z_ccs
     real(wp), dimension(num_dims) :: xi_cart
-    integer :: l
 
     ! IGR Jets
     ! Arrays to stor position and radii of jets from input file
