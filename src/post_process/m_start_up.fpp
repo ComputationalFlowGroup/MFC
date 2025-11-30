@@ -119,7 +119,7 @@ contains
             lag_rad_wrt, lag_rvel_wrt, lag_r0_wrt, lag_rmax_wrt, &
             lag_rmin_wrt, lag_dphidt_wrt, lag_pres_wrt, lag_mv_wrt, &
             lag_mg_wrt, lag_betaT_wrt, lag_betaC_wrt, &
-            kymograph
+            kymograph, alpha_rho_e_wrt
 
         ! Inquiring the status of the post_process.inp file
         file_loc = 'post_process.inp'
@@ -426,6 +426,19 @@ contains
 
             varname(:) = ' '
 
+        end if
+
+        ! Adding the individual energies to the formatted database file
+        if (model_eqns == 3) then
+            do i = 1, num_fluids
+                if (alpha_rho_e_wrt(i) .or. cons_vars_wrt) then
+                    q_sf = q_cons_vf(i + intxb - 1)%sf(x_beg:x_end, y_beg:y_end, z_beg:z_end)
+                    write (varname, '(A,I0)') 'alpha_rho_e', i
+                    call s_write_variable_to_formatted_database_file(varname, t_step)
+
+                    varname(:) = ' '
+                end if
+            end do
         end if
 
         !Adding Energy cascade FFT
