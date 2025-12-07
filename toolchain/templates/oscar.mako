@@ -14,9 +14,10 @@
 % if account:
 #SBATCH --account="${account}"
 % endif
-% if gpu:
-#SBATCH --gpu-bind=verbose,closest
-#SBATCH --gres=gpu:v100-16:${tasks_per_node}
+% if gpu_enabled:
+#SBATCH --gpus-per-node=${tasks_per_node}
+#SBATCH --mem=64G
+#SBATCH --gpu-bind=closest
 % endif
 #SBATCH --output="${name}.out"
 #SBATCH --error="${name}.err"
@@ -30,8 +31,8 @@
 ${helpers.template_prologue()}
 
 ok ":) Loading modules:\n"
-cd "${MFC_ROOT_DIR}"
-. ./mfc.sh load -c o -m ${'g' if gpu else 'c'}
+cd "${MFC_ROOTDIR}"
+. ./mfc.sh load -c o -m ${'g' if gpu_enabled else 'c'}
 cd - > /dev/null
 echo
 
