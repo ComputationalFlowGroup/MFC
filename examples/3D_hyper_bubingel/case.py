@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-import math, json
+import math
+import json
 
-## 1 FOR BACKGROUND, 2 FOR BUBBLE, 3 FOR GEL
+# 1 FOR BACKGROUND, 2 FOR BUBBLE, 3 FOR GEL
 # Pressure [Pa]
 p01 = 5e6
 p02 = 3550
@@ -124,7 +125,7 @@ c_g1 = math.sqrt(gamwg * (p01 + pig) / rho0wg1)
 c_g2 = math.sqrt(gamwg * (p02 + pig) / rho0wg2)
 c_g3 = math.sqrt(gamwg * (p03 + pig) / rho0wg3)
 
-## SHOCK RELATIONS
+# SHOCK RELATIONS
 p02Op01 = p02 / p01
 
 # Mach number of the shocked region - this should agree with Min, if everything is correct
@@ -163,13 +164,13 @@ gel_wv = 0
 gel_wa = 0
 gel_wg = 1.00e00 - gel_wl - gel_wv - gel_wa
 
-## Elasticity
+# Elasticity
 Gl = 0
 Gv = 0
 Ga = 0
 Gg = 0.57e03
 
-## SIMULATION PARAMETERS
+# SIMULATION PARAMETERS
 
 # CFL
 cfl = 0.30

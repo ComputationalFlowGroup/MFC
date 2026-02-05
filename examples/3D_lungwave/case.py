@@ -146,7 +146,7 @@ print(
             "acoustic(1)%support": 3,
             "acoustic(1)%loc(1)": 4,
             "acoustic(1)%loc(2)": dlengy / 2,
-            #'acoustic(1)%loc(3)'            : dlengz/2,
+            # 'acoustic(1)%loc(3)'            : dlengz/2,
             "acoustic(1)%pulse": 3,
             "acoustic(1)%npulse": 1,
             # wavelength of the signal
@@ -172,11 +172,11 @@ print(
             "patch_icpp(1)%alpha_rho(2)": rhog_n * alphag_back,
             "patch_icpp(1)%alpha(1)": alphal_back,
             "patch_icpp(1)%alpha(2)": alphag_back,
-            #'patch_icpp(1)%tau_e(1)'       : 0.0,
+            # 'patch_icpp(1)%tau_e(1)'       : 0.0,
             # Patch 2: Lung
             "patch_icpp(2)%geometry": 9,
             "patch_icpp(2)%hcid": 303,
-            #'patch_icpp(2)%geometry'       : 9,
+            # 'patch_icpp(2)%geometry'       : 9,
             "patch_icpp(2)%alter_patch(1)": "T",
             "patch_icpp(2)%x_centroid": -998,  # -dlengx/4.,    #
             "patch_icpp(2)%y_centroid": dlengy / 2.0,
