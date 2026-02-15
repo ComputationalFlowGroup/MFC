@@ -7,6 +7,8 @@ Each section notes the input parameter(s) that activate the corresponding physic
 
 The models and algorithms described here are detailed in \cite Wilfong26 (MFC 5.0) and \cite Bryngelson21. Foundational references for each model are cited inline; see the \ref citelist "Bibliography" for full details.
 
+For parameter details and allowed values, see @ref case "Case Files" and the @ref parameters "Case Parameters" reference.
+
 ---
 
 ## 1. Overview
@@ -775,7 +777,7 @@ Used for viscous fluxes and velocity gradients.
 | `-15` | Slip wall |
 | `-16` | No-slip wall |
 
-### 16.2 Characteristic BCs (\cite Thompson87, \cite Thompson90; `bc_x%beg = -5` to `-12`)
+### 16.2 Characteristic BCs (\cite Thompson87, \cite Thompson90; `bc_x%%beg = -5` to `-12`)
 
 **Characteristic decomposition:**
 
