@@ -110,13 +110,20 @@
             `).join("");
 
             document.getElementById("ft-scaling").innerHTML = scalings.map(s => `
-                <a href="documentation/expectedPerformance.html" class="flex md:w-2/6 mx-auto flex-col text-white rounded bg-slate-900 rounded-b-lg hover:ring-2 hover:ring-amber-400 transition-shadow no-underline">
+                <div class="flex md:w-1/2 mx-auto flex-col text-white rounded bg-slate-900 rounded-b-lg">
                     <div class="flex-1 grid bg-white pb-2">
                         <img class="place-self-center" src="${s.image}" alt="${s.label}">
                     </div>
-                    <div class="flex-1 p-2 font-semibold text-center">${s.label}</div>
-                </a>
+                    <div class="flex flex-row items-center">
+                        <div class="flex-1 p-2 font-semibold text-center">${s.label}</div>
+                        <a class="w-10 text-center text-xl hover:text-amber-400 transition-colors" href="documentation/expectedPerformance.html">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                        </a>
+                    </div>
+                </div>
             `).join("");
+
+            document.getElementById("copyright-year").textContent = new Date().getFullYear();
 
             fetch("https://api.github.com/repos/MFlowCode/MFC/releases/latest")
                 .then(r => r.json())
@@ -165,7 +172,7 @@
                 </div>
             </div>
             <div class="flex mx-auto">
-                <div class="justify-center grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-4 md:gap-x-8 text-md md:text-xl text-center text-white font-medium">
+                <div class="justify-center grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-x-4 md:gap-x-8 text-md md:text-xl text-center text-white font-medium">
                     <a class="px-4 flex flex-row items-center py-4 border-b-2 hover:border-amber-400" href="https://github.com/MFlowCode/MFC">
                         <i class="pr-4 fa-brands fa-github"></i>
                         <span class="flex-1">GitHub</span>
@@ -184,6 +191,10 @@
                     <a class="px-4 flex flex-row items-center py-4 border-b-2 hover:border-amber-400" href="documentation/index.html">
                         <i class="pr-4 fa-solid fa-book"></i>
                         <span class="flex-1">Documentation</span>
+                    </a>
+                    <a class="px-4 flex flex-row items-center py-4 border-b-2 hover:border-amber-400" href="simulation/index.html">
+                        <i class="pr-4 fa-solid fa-code"></i>
+                        <span class="flex-1">API</span>
                     </a>
                     <a class="px-4 flex flex-row items-center py-4 border-b-2 hover:border-amber-400" href="documentation/papers.html">
                         <i class="pr-4 fa-solid fa-newspaper"></i>
@@ -240,10 +251,11 @@
     </main>
     <div class="flex flex-col w-full px-4 md:px-0 text-white py-8 gap-4 container mx-auto">
         <div class="font-bold text-center text-sm md:text-md md:text-left">
-            &copy; 2021 <a href="https://comp-physics.group/">Spencer H. Bryngelson and Tim Colonius</a>
+            &copy; <span id="copyright-year"></span> <a href="https://comp-physics.group/">Spencer H. Bryngelson and Tim Colonius</a>
+            &middot; <a href="https://comp-physics.group/" class="text-amber-400 hover:underline">Computational Physics Group @ Georgia Tech</a>
         </div>
         <div class="text-justify flex-1 text-xs md:text-sm text-neutral-300">
-            Multiple federal sponsors have supported MFC development, including the US Department of Defense (DOD), the National Institutes of Health (NIH), the Department of Energy (DOE), and the National Science Foundation (NSF).
+            Multiple federal sponsors have supported MFC development, including the US Department of Defense (DOD), the National Institutes of Health (NIH), the Department of Energy (DOE), the National Nuclear Security Administration (NNSA), and the National Science Foundation (NSF).
             MFC computations use OLCF Frontier, Summit, and Wombat; LLNL El Capitan, Tuolumne, and Lassen; and many ACCESS-CI systems
         </div>
     </div>
