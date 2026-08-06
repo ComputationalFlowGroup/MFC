@@ -128,6 +128,7 @@ TAG_DISPLAY_NAMES = {
     "elasticity": "Elasticity",
     "surface_tension": "Surface tension",
     "acoustic": "Acoustic",
+    "graded": "Graded",
     "ib": "Immersed boundary",
     "reactive_burn": "Reactive burn",
     "probes": "Probe/integral",
@@ -639,6 +640,9 @@ def _load():
     _r("num_source", INT, {"acoustic"})
     _r("acoustic_source", LOG, {"acoustic"})
 
+    # Graded
+    # _r("graded", LOG, {"graded"}) is this necessary
+
     # Immersed boundary
     _r("num_ibs", INT, {"ib"})
     _r("num_stl_models", INT, {"ib"})
@@ -901,6 +905,24 @@ def _load():
         _r(f"{px}mu_min", REAL, {"viscosity"}, math=r"\mu_{\min,k}")
         _r(f"{px}mu_max", REAL, {"viscosity"}, math=r"\mu_{\max,k}")
         _r(f"{px}mu_bulk", REAL, {"viscosity"}, math=r"\mu_{\mathrm{bulk},k}")
+        _r(f"{px}G_graded", LOG, {"graded"}) #should this fall under elasticity tag..?
+        _r(f"{px}G_init", REAL, {"graded"})
+        _r(f"{px}G_end", REAL, {"graded"})
+        _r(f"{px}mu_graded", LOG, {"graded"}) # should this fall under viscosity tag
+        _r(f"{px}mu_init", REAL, {"graded"})
+        _r(f"{px}mu_end", REAL, {"graded"})
+        _r(f"{px}graded_profile", INT, {"graded"})
+        _r(f"{px}graded_beg(1)", REAL, {"graded"})
+        _r(f"{px}graded_beg(2)", REAL, {"graded"})
+        _r(f"{px}graded_beg(3)", REAL, {"graded"})
+        _r(f"{px}graded_end(1)", REAL, {"graded"})
+        _r(f"{px}graded_end(2)", REAL, {"graded"})
+        _r(f"{px}graded_end(3)", REAL, {"graded"})
+        _r(f"{px}graded_center(1)", REAL, {"graded"})
+        _r(f"{px}graded_center(2)", REAL, {"graded"})
+        _r(f"{px}graded_center(3)", REAL, {"graded"})
+        _r(f"{px}graded_r_beg", REAL, {"graded"})
+        _r(f"{px}graded_r_end", REAL, {"graded"})
 
     # bub_pp (bubble properties)
     for a, sym in [
