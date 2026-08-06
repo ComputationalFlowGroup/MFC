@@ -374,8 +374,7 @@ PATTERNS = [
     (r"fluid_pp\((\d+)\)%graded_center(3)", "Z-coordinate for center of radially grading for fluid {0}"),
     (r"fluid_pp\((\d+)\)%graded_r_beg", "Beginning radius for radially graded fluid {0}"),
     (r"fluid_pp\((\d+)\)%graded_r_end", "End radius for radially graded fluid {0}"),
-   
-     # patch_ib patterns
+    # patch_ib patterns
     (r"patch_ib\((\d+)\)%geometry", "Geometry type for immersed boundary {0}"),
     (r"patch_ib\((\d+)\)%x_centroid", "X-coordinate of centroid for IB patch {0}"),
     (r"patch_ib\((\d+)\)%y_centroid", "Y-coordinate of centroid for IB patch {0}"),

@@ -905,10 +905,10 @@ def _load():
         _r(f"{px}mu_min", REAL, {"viscosity"}, math=r"\mu_{\min,k}")
         _r(f"{px}mu_max", REAL, {"viscosity"}, math=r"\mu_{\max,k}")
         _r(f"{px}mu_bulk", REAL, {"viscosity"}, math=r"\mu_{\mathrm{bulk},k}")
-        _r(f"{px}G_graded", LOG, {"graded"}) #should this fall under elasticity tag..?
+        _r(f"{px}G_graded", LOG, {"graded"})  # should this fall under elasticity tag..?
         _r(f"{px}G_init", REAL, {"graded"})
         _r(f"{px}G_end", REAL, {"graded"})
-        _r(f"{px}mu_graded", LOG, {"graded"}) # should this fall under viscosity tag
+        _r(f"{px}mu_graded", LOG, {"graded"})  # should this fall under viscosity tag
         _r(f"{px}mu_init", REAL, {"graded"})
         _r(f"{px}mu_end", REAL, {"graded"})
         _r(f"{px}graded_profile", INT, {"graded"})

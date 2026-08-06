@@ -383,33 +383,33 @@ module m_derived_types
     !> Derived type annexing the physical parameters (PP) of the fluids. These include the specific heat ratio function and liquid
     !! stiffness function.
     type physical_parameters
-        real(wp)               :: gamma          !< Sp. heat ratio
-        real(wp)               :: pi_inf         !< Liquid stiffness
-        real(wp), dimension(2) :: Re             !< Reynolds number
-        real(wp)               :: cv             !< heat capacity
-        real(wp)               :: qv             !< reference energy per unit mass for SGEOS, q (see Le Metayer (2004))
-        real(wp)               :: qvp            !< reference entropy per unit mass for SGEOS, q' (see Le Metayer (2004))
+        real(wp)               :: gamma           !< Sp. heat ratio
+        real(wp)               :: pi_inf          !< Liquid stiffness
+        real(wp), dimension(2) :: Re              !< Reynolds number
+        real(wp)               :: cv              !< heat capacity
+        real(wp)               :: qv              !< reference energy per unit mass for SGEOS, q (see Le Metayer (2004))
+        real(wp)               :: qvp             !< reference entropy per unit mass for SGEOS, q' (see Le Metayer (2004))
         real(wp)               :: G
-        logical                :: non_newtonian  !< Enable Herschel-Bulkley non-Newtonian viscosity
-        real(wp)               :: K              !< HB consistency index
-        real(wp)               :: nn             !< HB flow behavior index
-        real(wp)               :: tau0           !< HB yield stress (0 => power-law)
-        real(wp)               :: hb_m           !< Papanastasiou regularization parameter
-        real(wp)               :: mu_min         !< Lower viscosity clamp (inactive sentinel = dflt_real)
-        real(wp)               :: mu_max         !< Upper viscosity clamp (required when non_newtonian)
-        real(wp)               :: mu_bulk        !< Bulk viscosity for NN (inactive sentinel = dflt_real)
-        logical                :: G_graded       !< Enable graded shear modulus
-        real(wp)               :: G_init         !< Initial value for graded shear modulus
-        real(wp)               :: G_end          !< End value for graded shear modulus
-        logical                :: mu_graded      !< Enable graded visocisty
-        real(wp)               :: mu_init        !< Initial value for graded viscosity
-        real(wp)               :: mu_end         !< End value for graded viscosity
-        integer                :: graded_profile !< Type of grading
-        real(wp), dimension(3) :: graded_beg     !< Beginning coordinate of grading
-        real(wp), dimension(3) :: graded_end     !< End coordinate of grading
-        real(wp), dimension(3) :: graded_center  !< Coordinate for center of radial grading
-        real(wp)               :: graded_r_beg   !< Radius for beginning of grading
-        real(wp)               :: graded_r_end   !< Radius for end of grading
+        logical                :: non_newtonian   !< Enable Herschel-Bulkley non-Newtonian viscosity
+        real(wp)               :: K               !< HB consistency index
+        real(wp)               :: nn              !< HB flow behavior index
+        real(wp)               :: tau0            !< HB yield stress (0 => power-law)
+        real(wp)               :: hb_m            !< Papanastasiou regularization parameter
+        real(wp)               :: mu_min          !< Lower viscosity clamp (inactive sentinel = dflt_real)
+        real(wp)               :: mu_max          !< Upper viscosity clamp (required when non_newtonian)
+        real(wp)               :: mu_bulk         !< Bulk viscosity for NN (inactive sentinel = dflt_real)
+        logical                :: G_graded        !< Enable graded shear modulus
+        real(wp)               :: G_init          !< Initial value for graded shear modulus
+        real(wp)               :: G_end           !< End value for graded shear modulus
+        logical                :: mu_graded       !< Enable graded visocisty
+        real(wp)               :: mu_init         !< Initial value for graded viscosity
+        real(wp)               :: mu_end          !< End value for graded viscosity
+        integer                :: graded_profile  !< Type of grading
+        real(wp), dimension(3) :: graded_beg      !< Beginning coordinate of grading
+        real(wp), dimension(3) :: graded_end      !< End coordinate of grading
+        real(wp), dimension(3) :: graded_center   !< Coordinate for center of radial grading
+        real(wp)               :: graded_r_beg    !< Radius for beginning of grading
+        real(wp)               :: graded_r_end    !< Radius for end of grading
     end type physical_parameters
 
     !> Derived type annexing the physical parameters required for sub-grid bubble models
