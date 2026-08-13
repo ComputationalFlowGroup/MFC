@@ -641,7 +641,7 @@ def _load():
     _r("acoustic_source", LOG, {"acoustic"})
 
     # Graded
-    # _r("graded", LOG, {"graded"}) is this necessary
+    _r("graded", LOG, {"graded"})
 
     # Immersed boundary
     _r("num_ibs", INT, {"ib"})
@@ -905,24 +905,36 @@ def _load():
         _r(f"{px}mu_min", REAL, {"viscosity"}, math=r"\mu_{\min,k}")
         _r(f"{px}mu_max", REAL, {"viscosity"}, math=r"\mu_{\max,k}")
         _r(f"{px}mu_bulk", REAL, {"viscosity"}, math=r"\mu_{\mathrm{bulk},k}")
-        _r(f"{px}G_graded", LOG, {"graded"})  # should this fall under elasticity tag..?
-        _r(f"{px}G_init", REAL, {"graded"})
-        _r(f"{px}G_end", REAL, {"graded"})
-        _r(f"{px}mu_graded", LOG, {"graded"})  # should this fall under viscosity tag
-        _r(f"{px}mu_init", REAL, {"graded"})
-        _r(f"{px}mu_end", REAL, {"graded"})
-        _r(f"{px}graded_profile", INT, {"graded"})
-        _r(f"{px}graded_beg(1)", REAL, {"graded"})
-        _r(f"{px}graded_beg(2)", REAL, {"graded"})
-        _r(f"{px}graded_beg(3)", REAL, {"graded"})
-        _r(f"{px}graded_end(1)", REAL, {"graded"})
-        _r(f"{px}graded_end(2)", REAL, {"graded"})
-        _r(f"{px}graded_end(3)", REAL, {"graded"})
-        _r(f"{px}graded_center(1)", REAL, {"graded"})
-        _r(f"{px}graded_center(2)", REAL, {"graded"})
-        _r(f"{px}graded_center(3)", REAL, {"graded"})
-        _r(f"{px}graded_r_beg", REAL, {"graded"})
-        _r(f"{px}graded_r_end", REAL, {"graded"})
+        # Graded properties
+        # graded & elasticity
+        for a, dtype, sym in [
+            ("G", LOG, r"\f$G_{\mathrm{graded},k}\f$"),
+            ("G_init", REAL, r"\f$G_{\mathrm{init},k}\f$"),
+            ("G_end", REAL, r"\f$G_{\mathrm{end},k}\f$"),
+        ]:
+            _r(f"{px}graded_{a}", dtype, {"graded", "elasticity"}, math=sym)
+        # graded & viscosity
+        for a, dtype, sym in [
+            ("Re", LOG, r"\f$\mathrm{Re}_{\mathrm{graded},k}\f$"), 
+            ("Re_init", REAL, r"\f$\mathrm{Re}_{\mathrm{init},k}\f$"),
+            ("Re_end", REAL, r"\f$\mathrm{Re}_{\mathrm{end},k}\f$"),
+        ]:
+            _r(f"{px}graded_{a}", dtype, {"graded", "viscosity"}, math=sym)
+        # graded
+        for a, dtype, sym in [
+            ("profile", INT, r"\f$\text{Graded profile}\f$"),
+            ("type", INT, r"\f$\text{Graded type}\f$"),
+            ("r_beg", REAL, r"\f$r_{\mathrm{beg}}\f$"),
+            ("r_end", REAL, r"\f$r_{\mathrm{end}}\f$"),
+        ]:
+            _r(f"{px}graded_{a}", dtype, {"graded"}, math=sym)
+        for i in range(1, 4):
+            for a, sym in [
+                ("beg", r"\f$\text{Graded beginning}\f$"),
+                ("end", r"\f$\text{Graded end}\f$"),
+                ("center", r"\f$\text{Graded center}\f$"),
+            ]:
+                _r(f"{px}graded_{a}({i})", REAL, {"graded"}, math=sym)
 
     # bub_pp (bubble properties)
     for a, sym in [
