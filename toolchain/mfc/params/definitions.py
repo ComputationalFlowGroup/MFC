@@ -911,10 +911,10 @@ def _load():
             ("Ca", LOG, "elasticity", r"\f$Ca_{\mathrm{graded},k}\f$"),
             ("Ca_init", REAL, "elasticity", r"\f$Ca_{\mathrm{init},k}\f$"),
             ("Ca_end", REAL, "elasticity", r"\f$Ca_{\mathrm{end},k}\f$"),
-            ("Re", LOG, "viscosity",  r"\f$\mathrm{Re}_{\mathrm{graded},k}\f$"),
+            ("Re", LOG, "viscosity", r"\f$\mathrm{Re}_{\mathrm{graded},k}\f$"),
             ("Re_init", REAL, "viscosity", r"\f$\mathrm{Re}_{\mathrm{init},k}\f$"),
             ("Re_end", REAL, "viscosity", r"\f$\mathrm{Re}_{\mathrm{end},k}\f$"),
-         ]:
+        ]:
             _r(f"{px}graded_{a}", dtype, {"graded", tag}, math=sym)
         # graded profile, type, and location
         for a, dtype, sym in [

@@ -113,7 +113,7 @@ contains
         #:else
             real(wp), dimension(num_dims) :: xi_field_L, xi_field_R
         #:endif
-        real(wp) :: G_L, G_R
+        real(wp) :: Ca_L, Ca_R
         real(wp) :: vel_L_rms, vel_R_rms, vel_avg_rms
         real(wp) :: vel_L_tmp, vel_R_tmp
         real(wp) :: rho_Star, E_Star, p_Star, p_K_Star, vel_K_star
@@ -149,10 +149,10 @@ contains
                                         & xi_field_R, pcorr, zcoef, rho_L, rho_R, pres_L, pres_R, E_L, E_R, H_L, H_R, Cp_avg, &
                                         & Cv_avg, T_avg, eps, c_sum_Yi_Phi, T_L, T_R, Y_L, Y_R, MW_L, MW_R, R_gas_L, R_gas_R, &
                                         & Cp_L, Cp_R, Cv_L, Cv_R, Gamm_L, Gamm_R, gamma_L, gamma_R, pi_inf_L, pi_inf_R, qv_L, &
-                                        & qv_R, qv_avg, c_L, c_R, G_L, G_R, rho_avg, H_avg, c_avg, gamma_avg, ptilde_L, ptilde_R, &
-                                        & vel_L_rms, vel_R_rms, vel_avg_rms, vel_L_tmp, vel_R_tmp, Ms_L, Ms_R, pres_SL, pres_SR, &
-                                        & alpha_L_sum, alpha_R_sum, rho_Star, E_Star, p_Star, p_K_Star, vel_K_star, s_L, s_R, &
-                                        & s_M, s_P, s_S, xi_M, xi_P, xi_L, xi_R, xi_L_m1, xi_R_m1, xi_MP, xi_PP]', &
+                                        & qv_R, qv_avg, c_L, c_R, Ca_L, Ca_R, rho_avg, H_avg, c_avg, gamma_avg, ptilde_L, &
+                                        & ptilde_R, vel_L_rms, vel_R_rms, vel_avg_rms, vel_L_tmp, vel_R_tmp, Ms_L, Ms_R, pres_SL, &
+                                        & pres_SR, alpha_L_sum, alpha_R_sum, rho_Star, E_Star, p_Star, p_K_Star, vel_K_star, s_L, &
+                                        & s_R, s_M, s_P, s_S, xi_M, xi_P, xi_L, xi_R, xi_L_m1, xi_R_m1, xi_MP, xi_PP]', &
                                         & firstprivate='[Re_size_loc1, Re_size_loc2]')
                     do l = ${Z_BND}$%beg, ${Z_BND}$%end
                         do k = ${Y_BND}$%beg, ${Y_BND}$%end
@@ -236,23 +236,24 @@ contains
                                 E_R = gamma_R*pres_R + pi_inf_R + 5.e-1_wp*rho_R*vel_R_rms + qv_R
 
                                 ! Hyperelastic stress contribution: strain energy added to total energy
+                                ! this needs to change for gradedness
                                 if (hyperelasticity) then
                                     $:GPU_LOOP(parallelism='[seq]')
                                     do i = 1, num_dims
                                         xi_field_L(i) = qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%beg - 1 + i)
                                         xi_field_R(i) = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%beg - 1 + i)
                                     end do
-                                    G_L = 0._wp; G_R = 0._wp
+                                    Ca_L = 0._wp; Ca_R = 0._wp
                                     $:GPU_LOOP(parallelism='[seq]')
                                     do i = 1, num_fluids
                                         ! Mixture left and right shear modulus
-                                        G_L = G_L + alpha_L(i)*Gs_rs(i)
-                                        G_R = G_R + alpha_R(i)*Gs_rs(i)
+                                        Ca_L = Ca_L + alpha_L(i)*Cas_rs(i)
+                                        Ca_R = Ca_R + alpha_R(i)*Cas_rs(i)
                                     end do
                                     ! Elastic contribution to energy if G large enough
-                                    if (G_L > verysmall .and. G_R > verysmall) then
-                                        E_L = E_L + G_L*qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%end + 1)
-                                        E_R = E_R + G_R*qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%end + 1)
+                                    if (Ca_L > verysmall .and. Ca_R > verysmall) then
+                                        E_L = E_L + Ca_L*qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%end + 1)
+                                        E_R = E_R + Ca_R*qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%end + 1)
                                     end if
                                     $:GPU_LOOP(parallelism='[seq]')
                                     do i = 1, b_size - 1
@@ -293,13 +294,13 @@ contains
                                 if (wave_speeds == wave_speeds_direct) then
                                     if (elasticity) then
                                         ! Elastic wave speed, Rodriguez et al. JCP (2019)
-                                        s_L = min(vel_L(dir_idx(1)) - sqrt(c_L*c_L + (((4._wp*G_L)/3._wp) + tau_e_L(dir_idx_tau(1) &
-                                                  & ))/rho_L), &
-                                                  & vel_R(dir_idx(1)) - sqrt(c_R*c_R + (((4._wp*G_R)/3._wp) &
+                                        s_L = min(vel_L(dir_idx(1)) - sqrt(c_L*c_L + (((4._wp*Ca_L)/3._wp) &
+                                                  & + tau_e_L(dir_idx_tau(1)))/rho_L), &
+                                                  & vel_R(dir_idx(1)) - sqrt(c_R*c_R + (((4._wp*Ca_R)/3._wp) &
                                                   & + tau_e_R(dir_idx_tau(1)))/rho_R))
-                                        s_R = max(vel_R(dir_idx(1)) + sqrt(c_R*c_R + (((4._wp*G_R)/3._wp) + tau_e_R(dir_idx_tau(1) &
-                                                  & ))/rho_R), &
-                                                  & vel_L(dir_idx(1)) + sqrt(c_L*c_L + (((4._wp*G_L)/3._wp) &
+                                        s_R = max(vel_R(dir_idx(1)) + sqrt(c_R*c_R + (((4._wp*Ca_R)/3._wp) &
+                                                  & + tau_e_R(dir_idx_tau(1)))/rho_R), &
+                                                  & vel_L(dir_idx(1)) + sqrt(c_L*c_L + (((4._wp*Ca_L)/3._wp) &
                                                   & + tau_e_L(dir_idx_tau(1)))/rho_L))
                                         s_S = (pres_R - tau_e_R(dir_idx_tau(1)) - pres_L + tau_e_L(dir_idx_tau(1)) &
                                                & + rho_L*vel_L(dir_idx(1))*(s_L - vel_L(dir_idx(1))) - rho_R*vel_R(dir_idx(1)) &
@@ -508,7 +509,7 @@ contains
                                         & nbub_L, nbub_R, rho_L, rho_R, pres_L, pres_R, E_L, E_R, H_L, H_R, Cp_avg, Cv_avg, &
                                         & T_avg, eps, c_sum_Yi_Phi, T_L, T_R, Y_L, Y_R, MW_L, MW_R, R_gas_L, R_gas_R, Cp_L, Cp_R, &
                                         & Gamm_L, Gamm_R, gamma_L, gamma_R, pi_inf_L, pi_inf_R, qv_L, qv_R, qv_avg, c_L, c_R, &
-                                        & G_L, G_R, rho_avg, H_avg, c_avg, gamma_avg, ptilde_L, ptilde_R, vel_L_rms, vel_R_rms, &
+                                        & Ca_L, Ca_R, rho_avg, H_avg, c_avg, gamma_avg, ptilde_L, ptilde_R, vel_L_rms, vel_R_rms, &
                                         & vel_avg_rms, vel_L_tmp, vel_R_tmp, Ms_L, Ms_R, pres_SL, pres_SR, alpha_L_sum, &
                                         & alpha_R_sum, rho_Star, E_Star, p_Star, p_K_Star, vel_K_star, s_L, s_R, s_M, s_P, s_S, &
                                         & xi_M, xi_P, xi_L, xi_R, xi_L_m1, xi_R_m1, xi_MP, xi_PP, Ys_L, Ys_R, Cp_iL, Cp_iR, Xs_L, &
@@ -1101,7 +1102,8 @@ contains
                                         & alpha_L, alpha_R, alpha_rho_L, alpha_rho_R, alpha_lim_L, alpha_lim_R, s_L, s_R, s_S, &
                                         & vel_avg_rms, pcorr, zcoef, vel_L_tmp, vel_R_tmp, Ys_L, Ys_R, Xs_L, Xs_R, Gamma_iL, &
                                         & Gamma_iR, Cp_iL, Cp_iR, tau_e_L, tau_e_R, xi_field_L, xi_field_R, Yi_avg, Phi_avg, &
-                                        & h_iL, h_iR, h_avg_2, G_L, G_R]', copyin='[is1, is2, is3]', firstprivate='[Re_size_loc1, Re_size_loc2]')
+                                        & h_iL, h_iR, h_avg_2, Ca_L, Ca_R]', copyin='[is1, is2, is3]', &
+                                        & firstprivate='[Re_size_loc1, Re_size_loc2]')
                     do l = ${Z_BND}$%beg, ${Z_BND}$%end
                         do k = ${Y_BND}$%beg, ${Y_BND}$%end
                             do j = ${X_BND}$%beg, ${X_BND}$%end
@@ -1229,24 +1231,25 @@ contains
                                 end if
 
                                 ! Hyperelastic stress contribution: strain energy added to total energy
+                                ! this needs to change for graded
                                 if (hyperelasticity) then
                                     $:GPU_LOOP(parallelism='[seq]')
                                     do i = 1, num_dims
                                         xi_field_L(i) = qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%beg - 1 + i)
                                         xi_field_R(i) = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%beg - 1 + i)
                                     end do
-                                    G_L = 0._wp
-                                    G_R = 0._wp
+                                    Ca_L = 0._wp
+                                    Ca_R = 0._wp
                                     $:GPU_LOOP(parallelism='[seq]')
                                     do i = 1, num_fluids
                                         ! Mixture left and right shear modulus
-                                        G_L = G_L + alpha_L(i)*Gs_rs(i)
-                                        G_R = G_R + alpha_R(i)*Gs_rs(i)
+                                        Ca_L = Ca_L + alpha_L(i)*Cas_rs(i)
+                                        Ca_R = Ca_R + alpha_R(i)*Cas_rs(i)
                                     end do
                                     ! Elastic contribution to energy if G large enough
-                                    if (G_L > verysmall .and. G_R > verysmall) then
-                                        E_L = E_L + G_L*qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%end + 1)
-                                        E_R = E_R + G_R*qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%end + 1)
+                                    if (Ca_L > verysmall .and. Ca_R > verysmall) then
+                                        E_L = E_L + Ca_L*qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%end + 1)
+                                        E_R = E_R + Ca_R*qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%end + 1)
                                     end if
                                     $:GPU_LOOP(parallelism='[seq]')
                                     do i = 1, b_size - 1
@@ -1289,13 +1292,13 @@ contains
                                 if (wave_speeds == wave_speeds_direct) then
                                     if (elasticity) then
                                         ! Elastic wave speed, Rodriguez et al. JCP (2019)
-                                        s_L = min(vel_L(dir_idx(1)) - sqrt(c_L*c_L + (((4._wp*G_L)/3._wp) + tau_e_L(dir_idx_tau(1) &
-                                                  & ))/rho_L), &
-                                                  & vel_R(dir_idx(1)) - sqrt(c_R*c_R + (((4._wp*G_R)/3._wp) &
+                                        s_L = min(vel_L(dir_idx(1)) - sqrt(c_L*c_L + (((4._wp*Ca_L)/3._wp) &
+                                                  & + tau_e_L(dir_idx_tau(1)))/rho_L), &
+                                                  & vel_R(dir_idx(1)) - sqrt(c_R*c_R + (((4._wp*Ca_R)/3._wp) &
                                                   & + tau_e_R(dir_idx_tau(1)))/rho_R))
-                                        s_R = max(vel_R(dir_idx(1)) + sqrt(c_R*c_R + (((4._wp*G_R)/3._wp) + tau_e_R(dir_idx_tau(1) &
-                                                  & ))/rho_R), &
-                                                  & vel_L(dir_idx(1)) + sqrt(c_L*c_L + (((4._wp*G_L)/3._wp) &
+                                        s_R = max(vel_R(dir_idx(1)) + sqrt(c_R*c_R + (((4._wp*Ca_R)/3._wp) &
+                                                  & + tau_e_R(dir_idx_tau(1)))/rho_R), &
+                                                  & vel_L(dir_idx(1)) + sqrt(c_L*c_L + (((4._wp*Ca_L)/3._wp) &
                                                   & + tau_e_L(dir_idx_tau(1)))/rho_L))
                                         s_S = (pres_R - tau_e_R(dir_idx_tau(1)) - pres_L + tau_e_L(dir_idx_tau(1)) &
                                                & + rho_L*vel_L(dir_idx(1))*(s_L - vel_L(dir_idx(1))) - rho_R*vel_R(dir_idx(1)) &

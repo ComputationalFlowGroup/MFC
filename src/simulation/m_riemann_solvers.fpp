@@ -57,13 +57,12 @@ contains
         ! well the Riemann problem solution
         integer :: i, j
 
-        @:ALLOCATE(Gs_rs(1:num_fluids))
-
+        @:ALLOCATE(Cas_rs(1:num_fluids))
         do i = 1, num_fluids
-            Gs_rs(i) = fluid_pp(i)%G
+            Cas_rs(i) = fluid_pp(i)%Ca
         end do
-        $:GPU_UPDATE(device='[Gs_rs]')
-
+        $:GPU_UPDATE(device='[Cas_rs]')
+        ! very similar for viscous graded
         if (viscous) then
             @:ALLOCATE(Res_gs(1:2, 1:Re_size_max))
         end if
@@ -107,7 +106,7 @@ contains
         @:DEALLOCATE(flux_rsx_vf)
         @:DEALLOCATE(flux_src_rsx_vf)
         @:DEALLOCATE(flux_gsrc_rsx_vf)
-        @:DEALLOCATE(Gs_rs)
+        @:DEALLOCATE(Cas_rs)
         if (qbmm) then
             @:DEALLOCATE(mom_sp_rsx_vf)
         end if

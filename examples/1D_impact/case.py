@@ -75,7 +75,7 @@ print(
             # Fluids Physical Parameters
             "fluid_pp(1)%gamma": 1.0e00 / (4.4e00 - 1.0e00),
             "fluid_pp(1)%pi_inf": 4.4e00 * 6.0e08 / (4.4e00 - 1.0e00),
-            "fluid_pp(1)%G": 0.5e09,
+            "fluid_pp(1)%Ca": 0.5e09,
         }
     )
 )

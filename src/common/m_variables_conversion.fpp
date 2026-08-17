@@ -17,6 +17,7 @@ module m_variables_conversion
         & model_eqns_4eq, avg_state_roe
     use m_thermochem, only: num_species, get_temperature, get_pressure, gas_constant, get_mixture_molecular_weight, &
         & get_mixture_energy_mass
+    use m_graded
 
     implicit none
 
@@ -45,10 +46,10 @@ module m_variables_conversion
     $:GPU_DECLARE(create='[gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps]')
 #endif
 
-    real(wp), allocatable, dimension(:)   :: Gs_vc
+    real(wp), allocatable, dimension(:)   :: Cas_vc
     integer, allocatable, dimension(:)    :: bubrs_vc
     real(wp), allocatable, dimension(:,:) :: Res_vc
-    $:GPU_DECLARE(create='[bubrs_vc, Gs_vc, Res_vc]')
+    $:GPU_DECLARE(create='[bubrs_vc, Cas_vc, Res_vc]')
 
     integer :: is1b, is2b, is3b, is1e, is2e, is3e
     $:GPU_DECLARE(create='[is1b, is2b, is3b, is1e, is2e, is3e]')
@@ -62,25 +63,25 @@ contains
 
     !> Dispatch to the s_convert_mixture_to_mixture_variables and s_convert_species_to_mixture_variables subroutines. Replaces a
     !! procedure pointer.
-    subroutine s_convert_to_mixture_variables(q_vf, i, j, k, rho, gamma, pi_inf, qv, Re_K, G_K, G)
+    subroutine s_convert_to_mixture_variables(q_vf, i, j, k, rho, gamma, pi_inf, qv, Re_K, Ca_K, Ca)
 
         type(scalar_field), dimension(sys_size), intent(in)   :: q_vf
         integer, intent(in)                                   :: i, j, k
         real(wp), intent(out), target                         :: rho, gamma, pi_inf, qv
         real(wp), optional, dimension(2), intent(out)         :: Re_K
-        real(wp), optional, intent(out)                       :: G_K
-        real(wp), optional, dimension(num_fluids), intent(in) :: G
+        real(wp), optional, intent(out)                       :: Ca_K
+        real(wp), optional, dimension(num_fluids), intent(in) :: Ca
 
         if (model_eqns == model_eqns_gamma_law) then  ! Gamma/pi_inf model
             call s_convert_mixture_to_mixture_variables(q_vf, i, j, k, rho, gamma, pi_inf, qv)
         else  ! Volume fraction model
-            call s_convert_species_to_mixture_variables(q_vf, i, j, k, rho, gamma, pi_inf, qv, Re_K, G_K, G)
+            call s_convert_species_to_mixture_variables(q_vf, i, j, k, rho, gamma, pi_inf, qv, Re_K, Ca_K, Ca)
         end if
 
     end subroutine s_convert_to_mixture_variables
 
     !> Compute the pressure from the appropriate equation of state
-    subroutine s_compute_pressure(energy, alf, dyn_p, pi_inf, gamma, rho, qv, rhoYks, pres, T, stress, mom, G, pres_mag)
+    subroutine s_compute_pressure(energy, alf, dyn_p, pi_inf, gamma, rho, qv, rhoYks, pres, T, stress, mom, Ca, pres_mag)
 
         $:GPU_ROUTINE(function_name='s_compute_pressure',parallelism='[seq]', cray_noinline=True)
 
@@ -90,7 +91,7 @@ contains
         real(wp), intent(out)           :: pres
         real(wp), intent(inout)         :: T
         real(stp), intent(in), optional :: stress, mom
-        real(wp), intent(in), optional  :: G, pres_mag
+        real(wp), intent(in), optional  :: Ca, pres_mag
 
         ! Chemistry
         real(wp), dimension(1:num_species), intent(in) :: rhoYks
@@ -117,15 +118,15 @@ contains
                 pres = (pref + pi_inf)*(energy/(rhoref*(1 - alf)))**(1/gamma + 1) - pi_inf
             end if
 
-            if (hypoelasticity .and. present(G)) then
+            if (hypoelasticity .and. present(Ca)) then
                 ! Subtract elastic strain energy before computing pressure (hypoelastic model)
                 E_e = 0._wp
                 do s = eqn_idx%stress%beg, eqn_idx%stress%end
-                    if (G > 0) then
-                        E_e = E_e + ((stress/rho)**2._wp)/(4._wp*G)
+                    if (Ca > 0) then
+                        E_e = E_e + ((stress/rho)**2._wp)/(4._wp*Ca)
                         ! Double for shear stresses
                         if (any(s == shear_indices)) then
-                            E_e = E_e + ((stress/rho)**2._wp)/(4._wp*G)
+                            E_e = E_e + ((stress/rho)**2._wp)/(4._wp*Ca)
                         end if
                     end if
                 end do
@@ -178,7 +179,7 @@ contains
     !> Convert species volume fractions and partial densities to mixture density, gamma, pi_inf, and qv. Given conservative or
     !! primitive variables, computes the density, the specific heat ratio function and the liquid stiffness function from q_vf and
     !! stores the results into rho, gamma and pi_inf.
-    subroutine s_convert_species_to_mixture_variables(q_vf, k, l, r, rho, gamma, pi_inf, qv, Re_K, G_K, G)
+    subroutine s_convert_species_to_mixture_variables(q_vf, k, l, r, rho, gamma, pi_inf, qv, Re_K, Ca_K, Ca, Ca_graded_val_i)
 
         type(scalar_field), dimension(sys_size), intent(in)   :: q_vf
         integer, intent(in)                                   :: k, l, r
@@ -187,9 +188,11 @@ contains
         real(wp), intent(out), target                         :: pi_inf
         real(wp), intent(out), target                         :: qv
         real(wp), optional, dimension(2), intent(out)         :: Re_K
-        real(wp), optional, intent(out)                       :: G_K
+        real(wp), optional, intent(out)                       :: Ca_K
         real(wp), dimension(num_fluids)                       :: alpha_rho_K, alpha_K
-        real(wp), optional, dimension(num_fluids), intent(in) :: G
+        real(wp), optional, dimension(num_fluids), intent(in) :: Ca
+        real(wp), optional, intent(out)                       :: Ca_graded_val_i
+        real(wp)                                              :: xi_x, xi_y, xi_z
         integer                                               :: i, j  !< Generic loop iterator
         ! Computing the density, the specific heat ratio function and the liquid stiffness function, respectively
 
@@ -227,12 +230,21 @@ contains
         end if
 #endif
 
-        if (present(G_K)) then
-            G_K = 0._wp
+        if (present(Ca_K)) then
+            xi_x = q_vf(eqn_idx%xi%beg)%sf(k, l, r)
+            xi_y = q_vf(eqn_idx%xi%beg + 1)%sf(k, l, r)
+            xi_z = q_vf(eqn_idx%xi%end)%sf(k, l, r)
+
+            Ca_K = 0._wp
             do i = 1, num_fluids
-                G_K = G_K + alpha_K(i)*G(i)
+                if (fluid_pp(i)%graded_Ca) then
+                    call s_graded_Ca(xi_x, xi_y, xi_z, i, Ca_graded_val_i)
+                    Ca_K = Ca_K + alpha_K(i)*Ca_graded_val_i
+                else
+                    Ca_K = Ca_K + alpha_K(i)*Ca(i)
+                end if
             end do
-            G_K = max(0._wp, G_K)
+            Ca_K = max(0._wp, Ca_K)
         end if
 
         ! Post process requires rho_sf/gamma_sf/pi_inf_sf/qv_sf to also be updated
@@ -246,20 +258,20 @@ contains
     end subroutine s_convert_species_to_mixture_variables
 
     !> GPU-accelerated conversion of species volume fractions and partial densities to mixture density, gamma, pi_inf, and qv.
-    subroutine s_convert_species_to_mixture_variables_acc(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, Re_K, G_K, G)
+    subroutine s_convert_species_to_mixture_variables_acc(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, Re_K, Ca_K, Ca)
 
         $:GPU_ROUTINE(function_name='s_convert_species_to_mixture_variables_acc', parallelism='[seq]', cray_noinline=True)
 
         real(wp), intent(out) :: rho_K, gamma_K, pi_inf_K, qv_K
         #:if not MFC_CASE_OPTIMIZATION and USING_AMD
             real(wp), dimension(3), intent(inout)        :: alpha_rho_K, alpha_K
-            real(wp), optional, dimension(3), intent(in) :: G
+            real(wp), optional, dimension(3), intent(in) :: Ca
         #:else
             real(wp), dimension(num_fluids), intent(inout)        :: alpha_rho_K, alpha_K
-            real(wp), optional, dimension(num_fluids), intent(in) :: G
+            real(wp), optional, dimension(num_fluids), intent(in) :: Ca
         #:endif
         real(wp), dimension(2), intent(out) :: Re_K
-        real(wp), optional, intent(out)     :: G_K
+        real(wp), optional, intent(out)     :: Ca_K
         real(wp)                            :: alpha_K_sum
         integer                             :: i, j  !< Generic loop iterators
 
@@ -268,7 +280,7 @@ contains
         pi_inf_K = 0._wp
         qv_K = 0._wp
         Re_K = dflt_real
-        if (present(G_K)) G_K = 0._wp
+        if (present(Ca_K)) Ca_K = 0._wp
 
 #ifdef MFC_SIMULATION
         ! Constrain partial densities and volume fractions within physical bounds
@@ -296,13 +308,13 @@ contains
             end do
         end if
 
-        if (present(G_K)) then
-            G_K = 0._wp
+        if (present(Ca_K)) then
+            Ca_K = 0._wp
             do i = 1, num_fluids
-                ! TODO: change to use Gs_vc directly here? TODO: Make this change as well for GPUs
-                G_K = G_K + alpha_K(i)*G(i)
+                ! TODO: change to use Cas_vc directly here? TODO: Make this change as well for GPUs
+                Ca_K = Ca_K + alpha_K(i)*Ca(i)
             end do
-            G_K = max(0._wp, G_K)
+            Ca_K = max(0._wp, Ca_K)
         end if
 
         if (viscous) then
@@ -336,19 +348,19 @@ contains
         @:ALLOCATE(cvs    (1:num_fluids))
         @:ALLOCATE(qvs    (1:num_fluids))
         @:ALLOCATE(qvps    (1:num_fluids))
-        @:ALLOCATE(Gs_vc     (1:num_fluids))
+        @:ALLOCATE(Cas_vc     (1:num_fluids))
 
         do i = 1, num_fluids
             gammas(i) = fluid_pp(i)%gamma
             gs_min(i) = 1.0_wp/gammas(i) + 1.0_wp
             pi_infs(i) = fluid_pp(i)%pi_inf
-            Gs_vc(i) = fluid_pp(i)%G
+            Cas_vc(i) = fluid_pp(i)%Ca
             ps_inf(i) = pi_infs(i)/(1.0_wp + gammas(i))
             cvs(i) = fluid_pp(i)%cv
             qvs(i) = fluid_pp(i)%qv
             qvps(i) = fluid_pp(i)%qvp
         end do
-        $:GPU_UPDATE(device='[gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps, Gs_vc]')
+        $:GPU_UPDATE(device='[gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps, Cas_vc]')
 
 #ifdef MFC_SIMULATION
         if (viscous) then
@@ -487,7 +499,7 @@ contains
         real(wp), dimension(2) :: Re_K
         real(wp)               :: rho_K, gamma_K, pi_inf_K, qv_K, dyn_pres_K
         real(wp)               :: vftmp, nbub_sc
-        real(wp)               :: G_K
+        real(wp)               :: Ca_K
         real(wp)               :: pres
         integer                :: i, j, k, l               !< Generic loop iterators
         real(wp)               :: T
@@ -503,7 +515,7 @@ contains
         integer                :: iter                     !< Newton-Raphson iteration counter
 
         $:GPU_PARALLEL_LOOP(collapse=3, private='[alpha_K, alpha_rho_K, Re_K, nRtmp, rho_K, gamma_K, pi_inf_K, qv_K, dyn_pres_K, &
-                            & rhoYks, B, pres, vftmp, nbub_sc, G_K, T, pres_mag, Ga, B2, m2, S, W, dW, E, D, f, dGa_dW, dp_dW, &
+                            & rhoYks, B, pres, vftmp, nbub_sc, Ca_K, T, pres_mag, Ga, B2, m2, S, W, dW, E, D, f, dGa_dW, dp_dW, &
                             & df_dW, iter]')
         do l = ibounds(3)%beg, ibounds(3)%end
             do k = ibounds(2)%beg, ibounds(2)%end
@@ -517,7 +529,7 @@ contains
                         ! If in simulation, use acc mixture subroutines
                         if (elasticity) then
                             call s_convert_species_to_mixture_variables_acc(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, &
-                                & Re_K, G_K, Gs_vc)
+                                & Re_K, Ca_K, Cas_vc)
                         else
                             call s_convert_species_to_mixture_variables_acc(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, &
                                 & Re_K)
@@ -525,8 +537,8 @@ contains
 #else
                         ! If pre-processing, use non acc mixture subroutines
                         if (elasticity) then
-                            call s_convert_to_mixture_variables(qK_cons_vf, j, k, l, rho_K, gamma_K, pi_inf_K, qv_K, Re_K, G_K, &
-                                                                & fluid_pp(:)%G)
+                            call s_convert_to_mixture_variables(qK_cons_vf, j, k, l, rho_K, gamma_K, pi_inf_K, qv_K, Re_K, Ca_K, &
+                                                                & fluid_pp(:)%Ca)
                         else
                             call s_convert_to_mixture_variables(qK_cons_vf, j, k, l, rho_K, gamma_K, pi_inf_K, qv_K)
                         end if
@@ -733,17 +745,17 @@ contains
                     end if
 
                     if (hypoelasticity) then
-                        if (cont_damage) G_K = G_K*max((1._wp - qK_cons_vf(eqn_idx%damage)%sf(j, k, l)), 0._wp)
+                        if (cont_damage) Ca_K = Ca_K*max((1._wp - qK_cons_vf(eqn_idx%damage)%sf(j, k, l)), 0._wp)
                         $:GPU_LOOP(parallelism='[seq]')
                         do i = eqn_idx%stress%beg, eqn_idx%stress%end
                             ! subtracting elastic contribution for pressure calculation
-                            if (G_K > verysmall) then
+                            if (Ca_K > verysmall) then
                                 qK_prim_vf(eqn_idx%E)%sf(j, k, l) = qK_prim_vf(eqn_idx%E)%sf(j, k, l) - ((qK_prim_vf(i)%sf(j, k, &
-                                           & l)**2._wp)/(4._wp*G_K))/gamma_K
+                                           & l)**2._wp)/(4._wp*Ca_K))/gamma_K
                                 ! Double for shear stresses
                                 if (any(i == shear_indices)) then
                                     qK_prim_vf(eqn_idx%E)%sf(j, k, l) = qK_prim_vf(eqn_idx%E)%sf(j, k, l) - ((qK_prim_vf(i)%sf(j, &
-                                               & k, l)**2._wp)/(4._wp*G_K))/gamma_K
+                                               & k, l)**2._wp)/(4._wp*Ca_K))/gamma_K
                                 end if
                             end if
                         end do
@@ -795,7 +807,7 @@ contains
         real(wp)                         :: dyn_pres
         real(wp)                         :: nbub, R3tmp
         real(wp), dimension(nb)          :: Rtmp
-        real(wp)                         :: G
+        real(wp)                         :: Ca
         real(wp), dimension(2)           :: Re_K
         integer                          :: i, j, k, l  !< Generic loop iterators
         real(wp), dimension(num_species) :: Ys
@@ -810,7 +822,7 @@ contains
 
         pres_mag = 0._wp
 
-        G = 0._wp
+        Ca = 0._wp
 
 #ifndef MFC_SIMULATION
         ! Converting the primitive variables to the conservative variables
@@ -818,7 +830,7 @@ contains
             do k = 0, n
                 do j = 0, m
                     ! Obtaining the density, specific heat ratio function and the liquid stiffness function, respectively
-                    call s_convert_to_mixture_variables(q_prim_vf, j, k, l, rho, gamma, pi_inf, qv, Re_K, G, fluid_pp(:)%G)
+                    call s_convert_to_mixture_variables(q_prim_vf, j, k, l, rho, gamma, pi_inf, qv, Re_K, Ca, fluid_pp(:)%Ca)
 
                     if (.not. igr .or. num_fluids > 1) then
                         ! Transferring the advection equation(s) variable(s)
@@ -986,16 +998,16 @@ contains
                     end if
 
                     if (hypoelasticity) then
-                        if (cont_damage) G = G*max((1._wp - q_prim_vf(eqn_idx%damage)%sf(j, k, l)), 0._wp)
+                        if (cont_damage) Ca = Ca*max((1._wp - q_prim_vf(eqn_idx%damage)%sf(j, k, l)), 0._wp)
                         do i = eqn_idx%stress%beg, eqn_idx%stress%end
                             ! adding elastic contribution
-                            if (G > verysmall) then
+                            if (Ca > verysmall) then
                                 q_cons_vf(eqn_idx%E)%sf(j, k, l) = q_cons_vf(eqn_idx%E)%sf(j, k, l) + (q_prim_vf(i)%sf(j, k, &
-                                          & l)**2._wp)/(4._wp*G)
+                                          & l)**2._wp)/(4._wp*Ca)
                                 ! Double for shear stresses
                                 if (any(i == shear_indices)) then
                                     q_cons_vf(eqn_idx%E)%sf(j, k, l) = q_cons_vf(eqn_idx%E)%sf(j, k, l) + (q_prim_vf(i)%sf(j, k, &
-                                              & l)**2._wp)/(4._wp*G)
+                                              & l)**2._wp)/(4._wp*Ca)
                                 end if
                             end if
                         end do
@@ -1058,7 +1070,7 @@ contains
         real(wp)               :: pi_inf_K
         real(wp)               :: qv_K
         real(wp), dimension(2) :: Re_K
-        real(wp)               :: G_K
+        real(wp)               :: Ca_K
         real(wp)               :: T_K, mix_mol_weight, R_gas
         integer                :: i, j, k, l  !< Generic loop iterators
 
@@ -1072,7 +1084,7 @@ contains
         ! capillarity
 #ifdef MFC_SIMULATION
         $:GPU_PARALLEL_LOOP(collapse=3, private='[alpha_rho_K, vel_K, alpha_K, Re_K, Y_K, rho_K, vel_K_sum, pres_K, E_K, gamma_K, &
-                            & pi_inf_K, qv_K, G_K, T_K, mix_mol_weight, R_gas]')
+                            & pi_inf_K, qv_K, Ca_K, T_K, mix_mol_weight, R_gas]')
         do l = is3b, is3e
             do k = is2b, is2e
                 do j = is1b, is1e
@@ -1100,7 +1112,7 @@ contains
                     pres_K = qK_prim_vf(j, k, l, eqn_idx%E)
                     if (elasticity) then
                         call s_convert_species_to_mixture_variables_acc(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, &
-                            & Re_K, G_K, Gs_vc)
+                            & Re_K, Ca_K, Cas_vc)
                     else
                         call s_convert_species_to_mixture_variables_acc(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, Re_K)
                     end if
@@ -1233,7 +1245,7 @@ contains
 #endif
 
 #ifdef MFC_SIMULATION
-        @:DEALLOCATE(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps, Gs_vc)
+        @:DEALLOCATE(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps, Cas_vc)
         if (bubbles_euler) then
             @:DEALLOCATE(bubrs_vc)
         end if
@@ -1241,7 +1253,7 @@ contains
             @:DEALLOCATE(Res_vc)
         end if
 #else
-        @:DEALLOCATE(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps, Gs_vc)
+        @:DEALLOCATE(gammas, gs_min, pi_infs, ps_inf, cvs, qvs, qvps, Cas_vc)
         if (bubbles_euler) then
             @:DEALLOCATE(bubrs_vc)
         end if

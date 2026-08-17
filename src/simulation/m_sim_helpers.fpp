@@ -87,17 +87,17 @@ contains
         integer, intent(in)                   :: j, k, l
         real(wp), dimension(2), intent(inout) :: Re
         #:if not MFC_CASE_OPTIMIZATION and USING_AMD
-            real(wp), dimension(3) :: alpha_rho, Gs
+            real(wp), dimension(3) :: alpha_rho, Cas
         #:else
-            real(wp), dimension(num_fluids) :: alpha_rho, Gs
+            real(wp), dimension(num_fluids) :: alpha_rho, Cas
         #:endif
-        real(wp) :: E, G_local
+        real(wp) :: E, Ca_local
         integer  :: i
 
         call s_compute_species_fraction(q_prim_vf, j, k, l, alpha_rho, alpha)
 
         if (elasticity) then
-            call s_convert_species_to_mixture_variables_acc(rho, gamma, pi_inf, qv, alpha, alpha_rho, Re, G_local, Gs)
+            call s_convert_species_to_mixture_variables_acc(rho, gamma, pi_inf, qv, alpha, alpha_rho, Re, Ca_local, Cas)
         else
             call s_convert_species_to_mixture_variables_acc(rho, gamma, pi_inf, qv, alpha, alpha_rho, Re)
         end if
@@ -130,7 +130,7 @@ contains
 
         ! Adjust energy for hyperelasticity
         if (hyperelasticity) then
-            E = E + G_local*q_prim_vf(eqn_idx%xi%end + 1)%sf(j, k, l)
+            E = E + Ca_local*q_prim_vf(eqn_idx%xi%end + 1)%sf(j, k, l)
         end if
 
         H = (E + pres)/rho

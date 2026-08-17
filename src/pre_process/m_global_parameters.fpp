@@ -396,7 +396,7 @@ contains
             fluid_pp(i)%cv = 0._wp
             fluid_pp(i)%qv = 0._wp
             fluid_pp(i)%qvp = 0._wp
-            fluid_pp(i)%G = 0._wp
+            fluid_pp(i)%Ca = 0._wp
             fluid_pp(i)%non_newtonian = .false.
             fluid_pp(i)%K = dflt_real
             fluid_pp(i)%nn = dflt_real

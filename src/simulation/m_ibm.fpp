@@ -149,21 +149,21 @@ contains
         integer :: patch_id, patch_id_temp                                   !< Patch ID of ghost point
         real(wp) :: rho, gamma, pi_inf, dyn_pres                             !< Mixture variables
         real(wp), dimension(2) :: Re_K
-        real(wp) :: G_K
+        real(wp) :: Ca_K
         real(wp) :: qv_K
         real(wp) :: pres_IP
         real(wp), dimension(3) :: vel_IP, vel_norm_IP
         real(wp) :: c_IP
 
         #:if not MFC_CASE_OPTIMIZATION and USING_AMD
-            real(wp), dimension(3)  :: Gs
+            real(wp), dimension(3)  :: Cas
             real(wp), dimension(3)  :: alpha_rho_IP, alpha_IP
             real(wp), dimension(3)  :: r_IP, v_IP, pb_IP, mv_IP
             real(wp), dimension(18) :: nmom_IP
             real(wp), dimension(12) :: presb_IP, massv_IP
             real(wp), dimension(10) :: Ys_IP
         #:else
-            real(wp), dimension(num_fluids)  :: Gs
+            real(wp), dimension(num_fluids)  :: Cas
             real(wp), dimension(num_fluids)  :: alpha_rho_IP, alpha_IP
             real(wp), dimension(nb)          :: r_IP, v_IP, pb_IP, mv_IP
             real(wp), dimension(nb*nmom)     :: nmom_IP
@@ -220,7 +220,7 @@ contains
 
         if (num_gps > 0) then
             $:GPU_PARALLEL_LOOP(private='[i, physical_loc, dyn_pres, alpha_rho_IP, alpha_IP, pres_IP, vel_IP, vel_g, vel_norm_IP, &
-                                & r_IP, v_IP, pb_IP, mv_IP, nmom_IP, presb_IP, massv_IP, rho, gamma, pi_inf, Re_K, G_K, Gs, gp, &
+                                & r_IP, v_IP, pb_IP, mv_IP, nmom_IP, presb_IP, massv_IP, rho, gamma, pi_inf, Re_K, Ca_K, Cas, gp, &
                                 & innerp, norm, buf, radial_vector, rotation_velocity, j, k, l, q, qv_K, c_IP, nbub, patch_id, &
                                 & Ys_IP, T_IP, mw_IP, e_IP, v_blow_eff]')
             do i = 1, num_gps
@@ -297,7 +297,7 @@ contains
                     ! If in simulation, use acc mixture subroutines
                     if (elasticity) then
                         call s_convert_species_to_mixture_variables_acc(rho, gamma, pi_inf, qv_K, alpha_IP, alpha_rho_IP, Re_K, &
-                            & G_K, Gs)
+                            & Ca_K, Cas)
                     else
                         call s_convert_species_to_mixture_variables_acc(rho, gamma, pi_inf, qv_K, alpha_IP, alpha_rho_IP, Re_K)
                     end if

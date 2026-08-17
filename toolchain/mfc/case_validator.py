@@ -211,7 +211,7 @@ PHYSICS_DOCS = {
         "category": "Acoustic Sources",
         "explanation": ("Dimension-specific support types. Pulse type in {1,2,3,4}. Non-planar sources require foc_length and aperture."),
     },
-     # Grading
+    # Grading
     "check_graded": {
         "title": "Graded",
         "category": "Feature compatibility",
@@ -1278,7 +1278,7 @@ class CaseValidator:
                 self.prohibit(element_polygon_ratio is not None and element_polygon_ratio <= 0, f"acoustic({jstr})%element_polygon_ratio must be positive for support = 11")
 
     def check_graded(self):
-        graded = self.get("graded", "F") == "T" # check if graded is turned on
+        graded = self.get("graded", "F") == "T"  # check if graded is turned on
         if not graded:
             return
         num_fluids = self.get("num_fluids")
@@ -1294,8 +1294,7 @@ class CaseValidator:
         else:
             dim = 3
 
-        for i in range(1, int(num_fluids) + 1): # check if Ca or Re is graded
-
+        for i in range(1, int(num_fluids) + 1):  # check if Ca or Re is graded
             Ca_graded = self.get(f"fluid_pp({i})%graded_Ca", "F") == "T"
             Re_graded = self.get(f"fluid_pp({i})%graded_Re", "F") == "T"
 
@@ -1305,75 +1304,53 @@ class CaseValidator:
             graded_type = self.get(f"fluid_pp({i})%graded_type")
             graded_profile = self.get(f"fluid_pp({i})%graded_profile")
 
-            self.prohibit(graded_type is None,
-                f"fluid_pp({i})%graded_type must be set when grading is enabled")
-            self.prohibit(graded_type is not None and graded_type not in [1, 2],
-                f"fluid_pp({i})%graded_type must be 1 (linear) or 2 (radial)")
-            self.prohibit(graded_profile is None,
-                f"fluid_pp({i})%graded_profile must be set when graded is enabled")
-            self.prohibit(graded_profile is not None and graded_profile not in [1, 2, 3],
-                f"fluid_pp({i})%graded_profile must be 1 (linear), 2 (sinusoidal), or 3 (power law)")
+            self.prohibit(graded_type is None, f"fluid_pp({i})%graded_type must be set when grading is enabled")
+            self.prohibit(graded_type is not None and graded_type not in [1, 2], f"fluid_pp({i})%graded_type must be 1 (linear) or 2 (radial)")
+            self.prohibit(graded_profile is None, f"fluid_pp({i})%graded_profile must be set when graded is enabled")
+            self.prohibit(graded_profile is not None and graded_profile not in [1, 2, 3], f"fluid_pp({i})%graded_profile must be 1 (linear), 2 (sinusoidal), or 3 (power law)")
 
             if Ca_graded:
                 hyperelasticity = self.get("hyperelasticity", "F") == "T"
                 hypoelasticity = self.get("hypoelasticity", "F") == "T"
-                self.prohibit(not hyperelasticity and not hypoelasticity,
-                    f"fluid_pp({i})%graded_Ca requires hyperelasticity or hypoelasticity enabled")
+                self.prohibit(not hyperelasticity and not hypoelasticity, f"fluid_pp({i})%graded_Ca requires hyperelasticity or hypoelasticity enabled")
                 Ca_init = self.get(f"fluid_pp({i})%graded_Ca_init")
                 Ca_end = self.get(f"fluid_pp({i})%graded_Ca_end")
-                self.prohibit(Ca_init is None,
-                    f"fluid_pp({i})%graded_Ca_init must be set when graded_Ca = T")
-                self.prohibit(Ca_end is None,
-                    f"fluid_pp({i})%graded_Ca_end must be set when graded_Ca = T")
-                self.prohibit(Ca_init is not None and Ca_init < 0,
-                    f"fluid_pp({i})%graded_Ca_init must be non-negative")
-                self.prohibit(Ca_end is not None and Ca_end < 0,
-                    f"fluid_pp({i})%graded_Ca_end must be non-negative")
+                self.prohibit(Ca_init is None, f"fluid_pp({i})%graded_Ca_init must be set when graded_Ca = T")
+                self.prohibit(Ca_end is None, f"fluid_pp({i})%graded_Ca_end must be set when graded_Ca = T")
+                self.prohibit(Ca_init is not None and Ca_init < 0, f"fluid_pp({i})%graded_Ca_init must be non-negative")
+                self.prohibit(Ca_end is not None and Ca_end < 0, f"fluid_pp({i})%graded_Ca_end must be non-negative")
 
             if Re_graded:
                 viscous = self.get("viscous", "F") == "T"
-                self.prohibit(not viscous,
-                    f"fluid_pp({i})%graded_Re requires viscous = T")
+                self.prohibit(not viscous, f"fluid_pp({i})%graded_Re requires viscous = T")
                 Re_init = self.get(f"fluid_pp({i})%graded_Re_init")
                 Re_end = self.get(f"fluid_pp({i})%graded_Re_end")
-                self.prohibit(Re_init is None,
-                    f"fluid_pp({i})%graded_Re_init must be set when graded_Re = T")
-                self.prohibit(Re_end is None,
-                    f"fluid_pp({i})%graded_Re_end must be set when graded_Re = T")
-                self.prohibit(Re_init is not None and Re_init <= 0,
-                    f"fluid_pp({i})%graded_Re_init must be positive")
-                self.prohibit(Re_end is not None and Re_end <= 0,
-                    f"fluid_pp({i})%graded_Re_end must be positive")
+                self.prohibit(Re_init is None, f"fluid_pp({i})%graded_Re_init must be set when graded_Re = T")
+                self.prohibit(Re_end is None, f"fluid_pp({i})%graded_Re_end must be set when graded_Re = T")
+                self.prohibit(Re_init is not None and Re_init <= 0, f"fluid_pp({i})%graded_Re_init must be positive")
+                self.prohibit(Re_end is not None and Re_end <= 0, f"fluid_pp({i})%graded_Re_end must be positive")
 
-            if graded_type == 1: #linear
+            if graded_type == 1:  # linear
                 beg = [self.get(f"fluid_pp({i})%graded_beg_loc({j})") for j in range(1, dim + 1)]
                 end = [self.get(f"fluid_pp({i})%graded_end_loc({j})") for j in range(1, dim + 1)]
-                self.prohibit(any(b is None for b in beg),
-                    f"fluid_pp({i})%graded_beg_loc(1:{dim}) must all be set for {dim}D grading")
-                self.prohibit(any(e is None for e in end),
-                    f"fluid_pp({i})%graded_end_loc(1:{dim}) must all be set for {dim}D grading")
+                self.prohibit(any(b is None for b in beg), f"fluid_pp({i})%graded_beg_loc(1:{dim}) must all be set for {dim}D grading")
+                self.prohibit(any(e is None for e in end), f"fluid_pp({i})%graded_end_loc(1:{dim}) must all be set for {dim}D grading")
 
                 if all(b is not None for b in beg) and all(e is not None for e in end):
                     same = all(abs(beg[j] - end[j]) < 1e-14 for j in range(len(beg)))
-                    self.prohibit(same,
-                        f"fluid_pp({i})%graded_beg_loc and graded_end_loc must not be the same")
+                    self.prohibit(same, f"fluid_pp({i})%graded_beg_loc and graded_end_loc must not be the same")
 
             elif graded_type == 2:  # radial
                 center = [self.get(f"fluid_pp({i})%graded_center_loc({j})") for j in range(1, dim + 1)]
-                r_beg  = self.get(f"fluid_pp({i})%graded_r_beg")
-                r_end  = self.get(f"fluid_pp({i})%graded_r_end")
+                r_beg = self.get(f"fluid_pp({i})%graded_r_beg")
+                r_end = self.get(f"fluid_pp({i})%graded_r_end")
 
-                self.prohibit(any(c is None for c in center),
-                    f"fluid_pp({i})%graded_center_loc(1:{dim}) must all be set for {dim}D grading")
-                self.prohibit(r_beg is None,
-                    f"fluid_pp({i})%graded_r_beg must be set for radial grading")
-                self.prohibit(r_end is None,
-                    f"fluid_pp({i})%graded_r_end must be set for radial grading")
-                self.prohibit(r_beg is not None and r_beg < 0,
-                    f"fluid_pp({i})%graded_r_beg must be non-negative")
-                self.prohibit(r_end is not None and r_beg is not None and r_end <= r_beg,
-                    f"fluid_pp({i})%graded_r_end must be strictly greater than graded_r_beg")
-             
+                self.prohibit(any(c is None for c in center), f"fluid_pp({i})%graded_center_loc(1:{dim}) must all be set for {dim}D grading")
+                self.prohibit(r_beg is None, f"fluid_pp({i})%graded_r_beg must be set for radial grading")
+                self.prohibit(r_end is None, f"fluid_pp({i})%graded_r_end must be set for radial grading")
+                self.prohibit(r_beg is not None and r_beg < 0, f"fluid_pp({i})%graded_r_beg must be non-negative")
+                self.prohibit(r_end is not None and r_beg is not None and r_end <= r_beg, f"fluid_pp({i})%graded_r_end must be strictly greater than graded_r_beg")
+
     def check_adaptive_time_stepping(self):
         """Checks adaptive time stepping parameters (simulation)"""
         adap_dt = self.get("adap_dt", "F") == "T"

@@ -85,7 +85,7 @@ module m_global_parameters_common
     $:GPU_DECLARE(create='[rhoref, pref]')
     $:GPU_DECLARE(create='[ib, num_ibs]')
     $:GPU_DECLARE(create='[ib_coefficient_of_friction]')
-    $:GPU_DECLARE(create='[Ca, Web, Re_inv]')
+    $:GPU_DECLARE(create='[Ca_inv, Web, Re_inv]')
     $:GPU_DECLARE(create='[bubbles_euler, polytropic, polydisperse]')
     $:GPU_DECLARE(create='[adv_n, adap_dt, adap_dt_tol, adap_dt_max_iters]')
     $:GPU_DECLARE(create='[bubble_model, thermal]')
