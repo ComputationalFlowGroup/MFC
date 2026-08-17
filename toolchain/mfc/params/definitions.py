@@ -894,7 +894,7 @@ def _load():
         px = f"fluid_pp({f})%"
         for a, sym in [("gamma", r"\f$\gamma_k\f$"), ("pi_inf", r"\f$\pi_{\infty,k}\f$"), ("cv", r"\f$c_{v,k}\f$"), ("qv", r"\f$q_{v,k}\f$"), ("qvp", r"\f$q'_{v,k}\f$")]:
             _r(f"{px}{a}", REAL, math=sym)
-        _r(f"{px}G", REAL, {"elasticity"}, math=r"\f$G_k\f$")
+        _r(f"{px}Ca", REAL, {"elasticity"}, math=r"\f$Ca_k\f$")
         _r(f"{px}Re(1)", REAL, {"viscosity"}, math=r"\f$\mathrm{Re}_k\f$ (shear)")
         _r(f"{px}Re(2)", REAL, {"viscosity"}, math=r"\f$\mathrm{Re}_k\f$ (bulk)")
         _r(f"{px}non_newtonian", LOG, {"viscosity"}, math=r"\mathrm{non\text{-}Newtonian}_k")
@@ -906,21 +906,17 @@ def _load():
         _r(f"{px}mu_max", REAL, {"viscosity"}, math=r"\mu_{\max,k}")
         _r(f"{px}mu_bulk", REAL, {"viscosity"}, math=r"\mu_{\mathrm{bulk},k}")
         # Graded properties
-        # graded & elasticity
-        for a, dtype, sym in [
-            ("G", LOG, r"\f$G_{\mathrm{graded},k}\f$"),
-            ("G_init", REAL, r"\f$G_{\mathrm{init},k}\f$"),
-            ("G_end", REAL, r"\f$G_{\mathrm{end},k}\f$"),
-        ]:
-            _r(f"{px}graded_{a}", dtype, {"graded", "elasticity"}, math=sym)
-        # graded & viscosity
-        for a, dtype, sym in [
-            ("Re", LOG, r"\f$\mathrm{Re}_{\mathrm{graded},k}\f$"), 
-            ("Re_init", REAL, r"\f$\mathrm{Re}_{\mathrm{init},k}\f$"),
-            ("Re_end", REAL, r"\f$\mathrm{Re}_{\mathrm{end},k}\f$"),
-        ]:
-            _r(f"{px}graded_{a}", dtype, {"graded", "viscosity"}, math=sym)
-        # graded
+        # graded Ca and graded Re
+        for a, dtype, tag, sym in [
+            ("Ca", LOG, "elasticity", r"\f$Ca_{\mathrm{graded},k}\f$"),
+            ("Ca_init", REAL, "elasticity", r"\f$Ca_{\mathrm{init},k}\f$"),
+            ("Ca_end", REAL, "elasticity", r"\f$Ca_{\mathrm{end},k}\f$"),
+            ("Re", LOG, "viscosity",  r"\f$\mathrm{Re}_{\mathrm{graded},k}\f$"),
+            ("Re_init", REAL, "viscosity", r"\f$\mathrm{Re}_{\mathrm{init},k}\f$"),
+            ("Re_end", REAL, "viscosity", r"\f$\mathrm{Re}_{\mathrm{end},k}\f$"),
+         ]:
+            _r(f"{px}graded_{a}", dtype, {"graded", tag}, math=sym)
+        # graded profile, type, and location
         for a, dtype, sym in [
             ("profile", INT, r"\f$\text{Graded profile}\f$"),
             ("type", INT, r"\f$\text{Graded type}\f$"),
@@ -930,9 +926,9 @@ def _load():
             _r(f"{px}graded_{a}", dtype, {"graded"}, math=sym)
         for i in range(1, 4):
             for a, sym in [
-                ("beg", r"\f$\text{Graded beginning}\f$"),
-                ("end", r"\f$\text{Graded end}\f$"),
-                ("center", r"\f$\text{Graded center}\f$"),
+                ("beg_loc", r"\f$\text{Graded beginning}\f$"),
+                ("end_loc", r"\f$\text{Graded end}\f$"),
+                ("center_loc", r"\f$\text{Graded center}\f$"),
             ]:
                 _r(f"{px}graded_{a}({i})", REAL, {"graded"}, math=sym)
 
