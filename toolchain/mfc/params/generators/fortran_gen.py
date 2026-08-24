@@ -251,7 +251,7 @@ _BCAST_EXCLUDE: frozenset = frozenset()
 # Post-process scalars that are namelist-bound but consumed on rank 0 only (reading/init).
 # Broadcasting them would be harmless but changes the existing call set, which we preserve.
 # Namelist-bound names with no registry definition, verified rank-0-only consumers.
-_NO_REGISTRY_ALLOWLIST = frozenset({"G"})
+_NO_REGISTRY_ALLOWLIST = frozenset({"Ca_inv"})
 
 _POST_BCAST_EXCLUDE = frozenset({"avg_state", "cfl_target", "num_bc_patches", "sigR"})
 

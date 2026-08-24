@@ -577,7 +577,7 @@ def test_generate_bcast_fpp_fluid_pp_registry_walk():
     post = generate_bcast_fpp("post")
 
     # All registered members appear in every target
-    for mem in ("gamma", "pi_inf", "cv", "qv", "qvp", "G"):
+    for mem in ("gamma", "pi_inf", "cv", "qv", "qvp", "Ca_inv"):
         for out, t in [(sim, "sim"), (pre, "pre"), (post, "post")]:
             assert f"fluid_pp(i)%{mem}" in out, f"{t}: fluid_pp(i)%{mem} missing"
 

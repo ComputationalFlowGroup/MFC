@@ -138,7 +138,7 @@ module m_global_parameters
     real(wp), dimension(:), allocatable :: pb0, mass_g0, mass_v0, Pe_T, k_v, k_g
     real(wp), dimension(:), allocatable :: Re_trans_T, Re_trans_c, Im_trans_T, Im_trans_c, omegaN
     real(wp) :: p0ref, rho0ref, T0ref, ss, pv, vd, mu_l, mu_v, mu_g, gam_v, gam_g, M_v, M_g, cp_v, cp_g, R_v, R_g
-    real(wp) :: Ca
+    real(wp) :: Ca_inv
     integer :: nmom
     !> @}
 
@@ -204,14 +204,14 @@ contains
         chem_params%adap_substeps = .false.
         chem_params%reaction_substeps_max = 0
 
-        ! Fluids physical parameters (post-specific; Ca = dflt_real differs from pre/sim)
+        ! Fluids physical parameters (post-specific; Ca_inv = dflt_real differs from pre/sim)
         do i = 1, num_fluids_max
             fluid_pp(i)%gamma = dflt_real
             fluid_pp(i)%pi_inf = dflt_real
             fluid_pp(i)%cv = 0._wp
             fluid_pp(i)%qv = 0._wp
             fluid_pp(i)%qvp = 0._wp
-            fluid_pp(i)%Ca = dflt_real
+            fluid_pp(i)%Ca_inv = dflt_real
             fluid_pp(i)%non_newtonian = .false.
             fluid_pp(i)%K = dflt_real
             fluid_pp(i)%nn = dflt_real

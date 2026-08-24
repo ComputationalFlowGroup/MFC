@@ -1228,7 +1228,7 @@ def list_cases() -> typing.List[TestCaseBuilder]:
                     "patch_icpp(1)%tau_e(1)": 0.0e-00,
                     "patch_icpp(2)%tau_e(1)": 0.0e-00,
                     "patch_icpp(3)%tau_e(1)": 0.0e-00,
-                    "fluid_pp(1)%Ca": 1.0e05,
+                    "fluid_pp(1)%Ca_inv": 1.0e05,
                 },
             )
 
@@ -1250,7 +1250,7 @@ def list_cases() -> typing.List[TestCaseBuilder]:
                         "patch_icpp(3)%alpha(1)": 0.9,
                         "patch_icpp(3)%alpha_rho(2)": 100,
                         "patch_icpp(3)%alpha(2)": 0.1,
-                        "fluid_pp(2)%Ca": 5.0e04,
+                        "fluid_pp(2)%Ca_inv": 5.0e04,
                     },
                 )
 
@@ -2559,7 +2559,7 @@ def list_cases() -> typing.List[TestCaseBuilder]:
                 "fd_order": 4,
                 "fluid_pp(1)%gamma": 0.3,
                 "fluid_pp(1)%pi_inf": 7.8e05,
-                "fluid_pp(1)%Ca": 1.0e05,
+                "fluid_pp(1)%Ca_inv": 1.0e05,
                 "patch_icpp(1)%pres": 1.0e06,
                 "patch_icpp(1)%alpha_rho(1)": 1000.0e00,
                 "patch_icpp(2)%pres": 1.0e05,

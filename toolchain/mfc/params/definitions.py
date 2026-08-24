@@ -610,7 +610,7 @@ def _load():
     _r("R0ref", REAL, {"bubbles"}, math=r"\f$R_0\f$")
     _r("nb", INT, {"bubbles"}, math=r"\f$N_b\f$")
     _r("Web", REAL, {"bubbles"}, math=r"\f$\mathrm{We}\f$")
-    _r("Ca", REAL, {"bubbles"}, math=r"\f$\mathrm{Ca}\f$")
+    _r("Ca", REAL, {"bubbles"}, math=r"\f$\mathrm{Ca_inv}\f$")
     _r("Re_inv", REAL, {"bubbles", "viscosity"}, math=r"\f$\mathrm{Re}^{-1}\f$")
     _r("bubble_model", INT, {"bubbles"})
     for n in ["polytropic", "bubbles_euler", "polydisperse", "qbmm", "bubbles_lagrange"]:
@@ -894,7 +894,7 @@ def _load():
         px = f"fluid_pp({f})%"
         for a, sym in [("gamma", r"\f$\gamma_k\f$"), ("pi_inf", r"\f$\pi_{\infty,k}\f$"), ("cv", r"\f$c_{v,k}\f$"), ("qv", r"\f$q_{v,k}\f$"), ("qvp", r"\f$q'_{v,k}\f$")]:
             _r(f"{px}{a}", REAL, math=sym)
-        _r(f"{px}Ca", REAL, {"elasticity"}, math=r"\f$Ca_k\f$")
+        _r(f"{px}Ca_inv", REAL, {"elasticity"}, math=r"\f$Ca_inv\f$")
         _r(f"{px}Re(1)", REAL, {"viscosity"}, math=r"\f$\mathrm{Re}_k\f$ (shear)")
         _r(f"{px}Re(2)", REAL, {"viscosity"}, math=r"\f$\mathrm{Re}_k\f$ (bulk)")
         _r(f"{px}non_newtonian", LOG, {"viscosity"}, math=r"\mathrm{non\text{-}Newtonian}_k")
@@ -908,9 +908,9 @@ def _load():
         # Graded properties
         # graded Ca and graded Re
         for a, dtype, tag, sym in [
-            ("Ca", LOG, "elasticity", r"\f$Ca_{\mathrm{graded},k}\f$"),
-            ("Ca_init", REAL, "elasticity", r"\f$Ca_{\mathrm{init},k}\f$"),
-            ("Ca_end", REAL, "elasticity", r"\f$Ca_{\mathrm{end},k}\f$"),
+            ("Ca_inv", LOG, "elasticity", r"\f$Ca_{\mathrm{graded, inv},k}\f$"),
+            ("Ca_inv_init", REAL, "elasticity", r"\f$Ca_{\mathrm{init},k}\f$"),
+            ("Ca_inv_end", REAL, "elasticity", r"\f$Ca_{\mathrm{end},k}\f$"),
             ("Re", LOG, "viscosity", r"\f$\mathrm{Re}_{\mathrm{graded},k}\f$"),
             ("Re_init", REAL, "viscosity", r"\f$\mathrm{Re}_{\mathrm{init},k}\f$"),
             ("Re_end", REAL, "viscosity", r"\f$\mathrm{Re}_{\mathrm{end},k}\f$"),
@@ -1462,7 +1462,7 @@ _nv(
     "format",
     "output_partial_domain",
     "sim_data",
-    "G",
+    "Ca_inv",
     "flux_lim",
     "cons_vars_wrt",
     "rho_wrt",

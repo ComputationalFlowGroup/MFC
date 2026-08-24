@@ -50,8 +50,8 @@ module m_riemann_state
 
     $:GPU_DECLARE(create='[is1, is2, is3, isx, isy, isz]')
 
-    real(wp), allocatable, dimension(:) :: Cas_rs
-    $:GPU_DECLARE(create='[Cas_rs]')
+    real(wp), allocatable, dimension(:) :: Ca_invs_rs
+    $:GPU_DECLARE(create='[Ca_invs_rs]')
 
     real(wp), allocatable, dimension(:,:) :: Res_gs
     $:GPU_DECLARE(create='[Res_gs]')
@@ -1074,8 +1074,8 @@ contains
     !! loaded from the state buffers by the caller, which reuses them for the stress fluxes and elastic wave speeds. The G >
     !! verysmall gate is a deliberate maintainer ruling that replaces HLL's former hard-coded G > 1000 stability floor, retiring its
     !! "TODO take out if statement if stable without".
-    subroutine s_compute_hypoelastic_interface_energy(nf, alpha_L, alpha_R, damage_L, damage_R, tau_e_L, tau_e_R, Ca_L, Ca_R, &
-        & E_L, E_R)
+    subroutine s_compute_hypoelastic_interface_energy(nf, alpha_L, alpha_R, damage_L, damage_R, tau_e_L, tau_e_R, Ca_inv_L, &
+        & Ca_inv_R, E_L, E_R)
 
         $:GPU_ROUTINE(function_name='s_compute_hypoelastic_interface_energy', parallelism='[seq]', cray_inline=True)
 
@@ -1083,33 +1083,33 @@ contains
         real(wp), dimension(nf), intent(in) :: alpha_L, alpha_R    !< Left and right volume fractions
         real(wp), intent(in)                :: damage_L, damage_R  !< Continuum damage states (referenced only when cont_damage)
         real(wp), dimension(6), intent(in)  :: tau_e_L, tau_e_R    !< Left and right elastic shear stresses
-        real(wp), intent(out)               :: Ca_L, Ca_R          !< Left and right mixture shear moduli
+        real(wp), intent(out)               :: Ca_inv_L, Ca_inv_R  !< Left and right mixture shear moduli
         real(wp), intent(inout)             :: E_L, E_R            !< Left and right state energies
         integer                             :: i                   !< Loop iterator
 
-        Ca_L = 0._wp; Ca_R = 0._wp
+        Ca_inv_L = 0._wp; Ca_inv_R = 0._wp
 
         $:GPU_LOOP(parallelism='[seq]')
         do i = 1, nf
-            Ca_L = Ca_L + alpha_L(i)*Cas_rs(i)
-            Ca_R = Ca_R + alpha_R(i)*Cas_rs(i)
+            Ca_inv_L = Ca_inv_L + alpha_L(i)*Ca_invs_rs(i)
+            Ca_inv_R = Ca_inv_R + alpha_R(i)*Ca_invs_rs(i)
         end do
 
         if (cont_damage) then
-            Ca_L = Ca_L*max((1._wp - damage_L), 0._wp)
-            Ca_R = Ca_R*max((1._wp - damage_R), 0._wp)
+            Ca_inv_L = Ca_inv_L*max((1._wp - damage_L), 0._wp)
+            Ca_inv_R = Ca_inv_R*max((1._wp - damage_R), 0._wp)
         end if
 
         $:GPU_LOOP(parallelism='[seq]')
         do i = 1, eqn_idx%stress%end - eqn_idx%stress%beg + 1
             ! Elastic contribution to energy if Ca large enough
-            if ((Ca_L > verysmall) .and. (Ca_R > verysmall)) then
-                E_L = E_L + (tau_e_L(i)*tau_e_L(i))/(4._wp*Ca_L)
-                E_R = E_R + (tau_e_R(i)*tau_e_R(i))/(4._wp*Ca_R)
+            if ((Ca_inv_L > verysmall) .and. (Ca_inv_R > verysmall)) then
+                E_L = E_L + (tau_e_L(i)*tau_e_L(i))/(4._wp*Ca_inv_L)
+                E_R = E_R + (tau_e_R(i)*tau_e_R(i))/(4._wp*Ca_inv_R)
                 ! Double for shear stresses
                 if (any(eqn_idx%stress%beg - 1 + i == shear_indices)) then
-                    E_L = E_L + (tau_e_L(i)*tau_e_L(i))/(4._wp*Ca_L)
-                    E_R = E_R + (tau_e_R(i)*tau_e_R(i))/(4._wp*Ca_R)
+                    E_L = E_L + (tau_e_L(i)*tau_e_L(i))/(4._wp*Ca_inv_L)
+                    E_R = E_R + (tau_e_R(i)*tau_e_R(i))/(4._wp*Ca_inv_R)
                 end if
             end if
         end do

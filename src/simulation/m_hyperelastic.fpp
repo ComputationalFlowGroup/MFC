@@ -26,8 +26,8 @@ module m_hyperelastic
     real(wp), allocatable, dimension(:,:) :: fd_coeff_y_hyper
     real(wp), allocatable, dimension(:,:) :: fd_coeff_z_hyper
     $:GPU_DECLARE(create='[fd_coeff_x_hyper, fd_coeff_y_hyper, fd_coeff_z_hyper]')
-    real(wp), allocatable, dimension(:) :: Cas_hyper
-    $:GPU_DECLARE(create='[Cas_hyper]')
+    real(wp), allocatable, dimension(:) :: Ca_invs_hyper
+    $:GPU_DECLARE(create='[Ca_invs_hyper]')
 
 contains
 
@@ -42,12 +42,12 @@ contains
         end do
         @:ACC_SETUP_VFs(btensor)
 
-        @:ALLOCATE(Cas_hyper(1:num_fluids))
+        @:ALLOCATE(Ca_invs_hyper(1:num_fluids))
         $:GPU_LOOP(parallelism='[seq]')
         do i = 1, num_fluids
-            Cas_hyper(i) = fluid_pp(i)%Ca
+            Ca_invs_hyper(i) = fluid_pp(i)%Ca_inv
         end do
-        $:GPU_UPDATE(device='[Cas_hyper]')
+        $:GPU_UPDATE(device='[Ca_invs_hyper]')
 
         @:ALLOCATE(fd_coeff_x_hyper(-fd_number:fd_number, 0:m))
         if (n > 0) then
@@ -90,10 +90,10 @@ contains
         #:endif
         real(wp), dimension(2) :: Re
         real(wp)               :: rho, gamma, pi_inf, qv
-        real(wp)               :: Ca_local
+        real(wp)               :: Ca_inv_local
         integer                :: j, k, l, i, r
 
-        $:GPU_PARALLEL_LOOP(collapse=3, private='[i, j, k, l, alpha_K, alpha_rho_K, rho, gamma, pi_inf, qv, Ca_local, Re, &
+        $:GPU_PARALLEL_LOOP(collapse=3, private='[i, j, k, l, alpha_K, alpha_rho_K, rho, gamma, pi_inf, qv, Ca_inv_local, Re, &
                             & tensora, tensorb]')
         do l = 0, p
             do k = 0, n
@@ -101,12 +101,12 @@ contains
                     call s_compute_species_fraction(q_cons_vf, j, k, l, alpha_rho_k, alpha_k)
 
                     ! If in simulation, use acc mixture subroutines
-                    call s_convert_species_to_mixture_variables_acc(rho, gamma, pi_inf, qv, alpha_k, alpha_rho_k, Re, Ca_local, &
-                        & Cas_hyper)
+                    call s_convert_species_to_mixture_variables_acc(rho, gamma, pi_inf, qv, alpha_k, alpha_rho_k, Re, &
+                        & Ca_inv_local, Ca_invs_hyper)
                     rho = max(rho, sgm_eps)
-                    Ca_local = max(Ca_local, sgm_eps)
+                    Ca_inv_local = max(Ca_inv_local, sgm_eps)
 
-                    if (Ca_local > verysmall) then
+                    if (Ca_inv_local > verysmall) then
                         $:GPU_LOOP(parallelism='[seq]')
                         do i = 1, tensor_size
                             tensora(i) = 0._wp
@@ -168,13 +168,13 @@ contains
                             btensor%vf(b_size)%sf(j, k, l) = tensorb(tensor_size)
                             ! STEP 5a: updating the Cauchy stress primitive scalar field
                             if (hyper_model == 1) then
-                                call s_neoHookean_cauchy_solver(btensor%vf, q_prim_vf, Ca_local, j, k, l)
+                                call s_neoHookean_cauchy_solver(btensor%vf, q_prim_vf, Ca_inv_local, j, k, l)
                             else if (hyper_model == 2) then
-                                call s_Mooney_Rivlin_cauchy_solver(btensor%vf, q_prim_vf, Ca_local, j, k, l)
+                                call s_Mooney_Rivlin_cauchy_solver(btensor%vf, q_prim_vf, Ca_inv_local, j, k, l)
                             end if
                             ! STEP 5b: updating the pressure field
                             q_prim_vf(eqn_idx%E)%sf(j, k, l) = q_prim_vf(eqn_idx%E)%sf(j, k, &
-                                      & l) - Ca_local*q_prim_vf(eqn_idx%xi%end + 1)%sf(j, k, l)/gamma
+                                      & l) - Ca_inv_local*q_prim_vf(eqn_idx%xi%end + 1)%sf(j, k, l)/gamma
                             ! STEP 5c: updating the Cauchy stress conservative scalar field
                             $:GPU_LOOP(parallelism='[seq]')
                             do i = 1, b_size - 1
@@ -191,12 +191,12 @@ contains
     end subroutine s_hyperelastic_rmt_stress_update
 
     !> Compute the neo-Hookean Cauchy stress from the left Cauchy-Green tensor
-    subroutine s_neoHookean_cauchy_solver(btensor_in, q_prim_vf, Ca_param, j, k, l)
+    subroutine s_neoHookean_cauchy_solver(btensor_in, q_prim_vf, Ca_inv_param, j, k, l)
 
         $:GPU_ROUTINE(parallelism='[seq]')
         type(scalar_field), dimension(sys_size), intent(inout) :: q_prim_vf
         type(scalar_field), dimension(b_size), intent(inout)   :: btensor_in
-        real(wp), intent(in)                                   :: Ca_param
+        real(wp), intent(in)                                   :: Ca_inv_param
         integer, intent(in)                                    :: j, k, l
         real(wp)                                               :: trace
         real(wp), parameter                                    :: f13 = 1._wp/3._wp
@@ -211,7 +211,8 @@ contains
         ! dividing by the jacobian for neo-Hookean model setting the tensor to the stresses for riemann solver
         $:GPU_LOOP(parallelism='[seq]')
         do i = 1, b_size - 1
-            q_prim_vf(eqn_idx%stress%beg + i - 1)%sf(j, k, l) = Ca_param*btensor_in(i)%sf(j, k, l)/btensor_in(b_size)%sf(j, k, l)
+            q_prim_vf(eqn_idx%stress%beg + i - 1)%sf(j, k, l) = Ca_inv_param*btensor_in(i)%sf(j, k, l)/btensor_in(b_size)%sf(j, &
+                      & k, l)
         end do
         ! First invariant strain energy: W = G/2 * (I1 - 3), neo-Hookean model
         q_prim_vf(eqn_idx%xi%end + 1)%sf(j, k, l) = 0.5_wp*(trace - 3.0_wp)/btensor_in(b_size)%sf(j, k, l)
@@ -219,12 +220,12 @@ contains
     end subroutine s_neoHookean_cauchy_solver
 
     !> Compute the Mooney-Rivlin Cauchy stress from the left Cauchy-Green tensor
-    subroutine s_Mooney_Rivlin_cauchy_solver(btensor_in, q_prim_vf, Ca_param, j, k, l)
+    subroutine s_Mooney_Rivlin_cauchy_solver(btensor_in, q_prim_vf, Ca_inv_param, j, k, l)
 
         $:GPU_ROUTINE(parallelism='[seq]')
         type(scalar_field), dimension(sys_size), intent(inout) :: q_prim_vf
         type(scalar_field), dimension(b_size), intent(inout)   :: btensor_in
-        real(wp), intent(in)                                   :: Ca_param
+        real(wp), intent(in)                                   :: Ca_inv_param
         integer, intent(in)                                    :: j, k, l
         real(wp)                                               :: trace
         real(wp), parameter                                    :: f13 = 1._wp/3._wp
@@ -240,7 +241,8 @@ contains
         ! dividing by the jacobian for neo-Hookean model setting the tensor to the stresses for riemann solver
         $:GPU_LOOP(parallelism='[seq]')
         do i = 1, b_size - 1
-            q_prim_vf(eqn_idx%stress%beg + i - 1)%sf(j, k, l) = Ca_param*btensor_in(i)%sf(j, k, l)/btensor_in(b_size)%sf(j, k, l)
+            q_prim_vf(eqn_idx%stress%beg + i - 1)%sf(j, k, l) = Ca_inv_param*btensor_in(i)%sf(j, k, l)/btensor_in(b_size)%sf(j, &
+                      & k, l)
         end do
         ! First invariant strain energy: W = G/2 * (I1 - 3), neo-Hookean model
         q_prim_vf(eqn_idx%xi%end + 1)%sf(j, k, l) = 0.5_wp*(trace - 3.0_wp)/btensor_in(b_size)%sf(j, k, l)
@@ -256,7 +258,7 @@ contains
         do i = 1, b_size
             @:DEALLOCATE(btensor%vf(i)%sf)
         end do
-        @:DEALLOCATE(Cas_hyper)
+        @:DEALLOCATE(Ca_invs_hyper)
         @:DEALLOCATE(fd_coeff_x_hyper)
         if (n > 0) then
             @:DEALLOCATE(fd_coeff_y_hyper)

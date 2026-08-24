@@ -1,8 +1,12 @@
 !>
-!! @file
+!! @file m_graded.fpp
 !! @brief Contains module m_graded
 
+#:include 'case.fpp'
 #:include 'macros.fpp'
+
+!> @brief Setup for graded capability
+
 module m_graded
 
     use m_derived_types
@@ -12,16 +16,16 @@ module m_graded
 
     implicit none
 
-    private; public :: s_initialize_graded, s_graded_Ca  ! add s_graded_mu later
+    private; public :: s_initialize_graded, s_graded_Ca_inv  ! add s_graded_mu later
 
     ! flat arrays
-    logical, allocatable, dimension(:)    :: Ca_graded_flag
+    logical, allocatable, dimension(:)    :: Ca_inv_graded_flag
     integer, allocatable, dimension(:)    :: graded_type_arr, graded_profile_arr
-    real(wp), allocatable, dimension(:)   :: Ca_init_arr, Ca_end_arr
+    real(wp), allocatable, dimension(:)   :: Ca_inv_init_arr, Ca_inv_end_arr
     real(wp), allocatable, dimension(:,:) :: graded_beg_arr, graded_end_arr, graded_center_arr
     real(wp), allocatable, dimension(:)   :: graded_r_beg_arr, graded_r_end_arr
-    $:GPU_DECLARE(create='[Ca_graded_flag, graded_type_arr, graded_profile_arr]')
-    $:GPU_DECLARE(create='[Ca_init_arr, Ca_end_arr]')
+    $:GPU_DECLARE(create='[Ca_inv_graded_flag, graded_type_arr, graded_profile_arr]')
+    $:GPU_DECLARE(create='[Ca_inv_init_arr, Ca_inv_end_arr]')
     $:GPU_DECLARE(create='[graded_beg_arr, graded_end_arr, graded_center_arr]')
     $:GPU_DECLARE(create='[graded_r_beg_arr, graded_r_end_arr]')
 
@@ -32,16 +36,16 @@ contains
 
         integer :: i, j
 
-        @:ALLOCATE(Ca_graded_flag(1:num_fluids), graded_type_arr(1:num_fluids), graded_profile_arr(1:num_fluids), &
-                   & Ca_init_arr(1:num_fluids), Ca_end_arr(1:num_fluids), graded_beg_arr(1:3, 1:num_fluids), &
+        @:ALLOCATE(Ca_inv_graded_flag(1:num_fluids), graded_type_arr(1:num_fluids), graded_profile_arr(1:num_fluids), &
+                   & Ca_inv_init_arr(1:num_fluids), Ca_inv_end_arr(1:num_fluids), graded_beg_arr(1:3, 1:num_fluids), &
                    & graded_end_arr(1:3, 1:num_fluids), graded_center_arr(1:3, 1:num_fluids), graded_r_beg_arr(1:num_fluids), graded_r_end_arr(1:num_fluids))
 
         do i = 1, num_fluids
-            Ca_graded_flag(i) = fluid_pp(i)%graded_Ca
+            Ca_inv_graded_flag(i) = fluid_pp(i)%graded_Ca_inv
             graded_type_arr(i) = fluid_pp(i)%graded_type
             graded_profile_arr(i) = fluid_pp(i)%graded_profile
-            Ca_init_arr(i) = fluid_pp(i)%graded_Ca_init
-            Ca_end_arr(i) = fluid_pp(i)%graded_Ca_end
+            Ca_inv_init_arr(i) = fluid_pp(i)%graded_Ca_inv_init
+            Ca_inv_end_arr(i) = fluid_pp(i)%graded_Ca_inv_end
             graded_r_beg_arr(i) = fluid_pp(i)%graded_r_beg
             graded_r_end_arr(i) = fluid_pp(i)%graded_r_end
             do j = 1, 3
@@ -51,22 +55,22 @@ contains
             end do
         end do
 
-        $:GPU_UPDATE(device='[Ca_graded_flag, graded_type_arr, graded_profile_arr, Ca_init_arr, Ca_end_arr, graded_beg_arr, &
-                     & graded_end_arr, graded_center_arr, graded_r_beg_arr, graded_r_end_arr]')
+        $:GPU_UPDATE(device='[Ca_inv_graded_flag, graded_type_arr, graded_profile_arr, Ca_inv_init_arr, Ca_inv_end_arr, &
+                     & graded_beg_arr, graded_end_arr, graded_center_arr, graded_r_beg_arr, graded_r_end_arr]')
 
     end subroutine s_initialize_graded
 
     !> Evaluate graded shear modulus at each cell using reference map
-    subroutine s_graded_Ca(xi_x, xi_y, xi_z, fluid_idx, Ca_out)
+    subroutine s_graded_Ca_inv(xi_x, xi_y, xi_z, fluid_idx, Ca_inv_out)
 
         $:GPU_ROUTINE(parallelism='[seq]')
         real(wp), intent(in)  :: xi_x, xi_y, xi_z
         integer, intent(in)   :: fluid_idx
-        real(wp), intent(out) :: Ca_out
+        real(wp), intent(out) :: Ca_inv_out
         real(wp)              :: dx, dy, dz, rx, ry, rz, denom, proj, ramp
-        real(wp)              :: Ca_init, Ca_end
-        Ca_init = Ca_init_arr(fluid_idx)
-        Ca_end = Ca_end_arr(fluid_idx)
+        real(wp)              :: Ca_inv_init, Ca_inv_end
+        Ca_inv_init = Ca_inv_init_arr(fluid_idx)
+        Ca_inv_end = Ca_inv_end_arr(fluid_idx)
 
         if (graded_type_arr(fluid_idx) == 1) then
             ! cartesian, project onto segment from graded_beg to graded_end
@@ -92,9 +96,9 @@ contains
         end if
 
         if (proj <= 0._wp) then
-            Ca_out = Ca_init
+            Ca_inv_out = Ca_inv_init
         else if (proj >= 1._wp) then
-            Ca_out = Ca_end
+            Ca_inv_out = Ca_inv_end
         else
             if (graded_profile_arr(fluid_idx) == 1) then
                 ! Linear ramp
@@ -108,11 +112,11 @@ contains
             else
                 ramp = proj
             end if
-            Ca_out = Ca_init + (Ca_end - Ca_init)*ramp
+            Ca_inv_out = Ca_inv_init + (Ca_inv_end - Ca_inv_init)*ramp
         end if
 
-        Ca_out = max(Ca_out, 0._wp)
+        Ca_inv_out = max(Ca_inv_out, 0._wp)
 
-    end subroutine s_graded_Ca
+    end subroutine s_graded_Ca_inv
 
 end module m_graded

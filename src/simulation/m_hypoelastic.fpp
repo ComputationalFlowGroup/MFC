@@ -17,16 +17,16 @@ module m_hypoelastic
     private; public :: s_initialize_hypoelastic_module, s_finalize_hypoelastic_module, s_compute_hypoelastic_rhs, &
         & s_compute_damage_state
 
-    real(wp), allocatable, dimension(:) :: Cas_hypo
-    $:GPU_DECLARE(create='[Cas_hypo]')
+    real(wp), allocatable, dimension(:) :: Ca_invs_hypo
+    $:GPU_DECLARE(create='[Ca_invs_hypo]')
 
     real(wp), allocatable, dimension(:,:,:) :: du_dx_hypo, du_dy_hypo, du_dz_hypo
     real(wp), allocatable, dimension(:,:,:) :: dv_dx_hypo, dv_dy_hypo, dv_dz_hypo
     real(wp), allocatable, dimension(:,:,:) :: dw_dx_hypo, dw_dy_hypo, dw_dz_hypo
     $:GPU_DECLARE(create='[du_dx_hypo, du_dy_hypo, du_dz_hypo, dv_dx_hypo, dv_dy_hypo, dv_dz_hypo, dw_dx_hypo, dw_dy_hypo, dw_dz_hypo]')
 
-    real(wp), allocatable, dimension(:,:,:) :: rho_K_field, Ca_K_field
-    $:GPU_DECLARE(create='[rho_K_field, Ca_K_field]')
+    real(wp), allocatable, dimension(:,:,:) :: rho_K_field, Ca_inv_K_field
+    $:GPU_DECLARE(create='[rho_K_field, Ca_inv_K_field]')
 
     real(wp), allocatable, dimension(:,:) :: fd_coeff_x_hypo
     real(wp), allocatable, dimension(:,:) :: fd_coeff_y_hypo
@@ -40,8 +40,8 @@ contains
 
         integer :: i
 
-        @:ALLOCATE(Cas_hypo(1:num_fluids))
-        @:ALLOCATE(rho_K_field(0:m,0:n,0:p), Ca_K_field(0:m,0:n,0:p))
+        @:ALLOCATE(Ca_invs_hypo(1:num_fluids))
+        @:ALLOCATE(rho_K_field(0:m,0:n,0:p), Ca_inv_K_field(0:m,0:n,0:p))
         @:ALLOCATE(du_dx_hypo(0:m,0:n,0:p))
         if (n > 0) then
             @:ALLOCATE(du_dy_hypo(0:m,0:n,0:p), dv_dx_hypo(0:m,0:n,0:p), dv_dy_hypo(0:m,0:n,0:p))
@@ -52,9 +52,9 @@ contains
         end if
 
         do i = 1, num_fluids
-            Cas_hypo(i) = fluid_pp(i)%Ca
+            Ca_invs_hypo(i) = fluid_pp(i)%Ca_inv
         end do
-        $:GPU_UPDATE(device='[Cas_hypo]')
+        $:GPU_UPDATE(device='[Ca_invs_hypo]')
 
         @:ALLOCATE(fd_coeff_x_hypo(-fd_number:fd_number, 0:m))
         if (n > 0) then
@@ -84,14 +84,15 @@ contains
         integer, intent(in)                                    :: idir
         type(scalar_field), dimension(sys_size), intent(in)    :: q_prim_vf
         type(scalar_field), dimension(sys_size), intent(inout) :: rhs_vf
-        real(wp)                                               :: rho_K, Ca_K
+        real(wp)                                               :: rho_K, Ca_inv_K
         integer                                                :: i, k, l, q, r  !< Loop variables
         integer                                                :: ndirs          !< Number of coordinate directions
 
         ndirs = 1; if (n > 0) ndirs = 2; if (p > 0) ndirs = 3
 
         if (idir == 1) then
-            ! calculate velocity gradients + rho_K and Ca_K TODO: re-organize these loops one by one for GPU efficiency if possible?
+            ! calculate velocity gradients + rho_K and Ca_inv_K TODO: re-organize these loops one by one for GPU efficiency if
+            ! possible?
 
             $:GPU_PARALLEL_LOOP(collapse=3)
             do q = 0, p
@@ -183,25 +184,26 @@ contains
                 end if
             end if
 
-            $:GPU_PARALLEL_LOOP(collapse=3,private='[rho_K, Ca_K]')
+            $:GPU_PARALLEL_LOOP(collapse=3,private='[rho_K, Ca_inv_K]')
             do q = 0, p
                 do l = 0, n
                     do k = 0, m
-                        rho_K = 0._wp; Ca_K = 0._wp
+                        rho_K = 0._wp; Ca_inv_K = 0._wp
                         do i = 1, num_fluids
                             rho_K = rho_K + q_prim_vf(i)%sf(k, l, q)  ! alpha_rho_K(1)
-                            Ca_K = Ca_K + q_prim_vf(eqn_idx%adv%beg - 1 + i)%sf(k, l, q)*Cas_hypo(i)  ! alpha_K(1) * Cas_hypo(1)
+                            ! alpha_K(1) * Ca_invs_hypo(1)
+                            Ca_inv_K = Ca_inv_K + q_prim_vf(eqn_idx%adv%beg - 1 + i)%sf(k, l, q)*Ca_invs_hypo(i)
                         end do
 
                         ! Continuum damage: (1-D) scales effective stiffness, D in [0,1]
-                        if (cont_damage) Ca_K = Ca_K*max((1._wp - q_prim_vf(eqn_idx%damage)%sf(k, l, q)), 0._wp)
+                        if (cont_damage) Ca_inv_K = Ca_inv_K*max((1._wp - q_prim_vf(eqn_idx%damage)%sf(k, l, q)), 0._wp)
 
                         rho_K_field(k, l, q) = rho_K
-                        Ca_K_field(k, l, q) = Ca_K
+                        Ca_inv_K_field(k, l, q) = Ca_inv_K
 
                         ! TODO: take this out if not needed
-                        if (Ca_K < verysmall) then
-                            Ca_K_field(k, l, q) = 0
+                        if (Ca_inv_K < verysmall) then
+                            Ca_inv_K_field(k, l, q) = 0
                         end if
                     end do
                 end do
@@ -214,8 +216,8 @@ contains
                 do l = 0, n
                     do k = 0, m
                         rhs_vf(eqn_idx%stress%beg)%sf(k, l, q) = rhs_vf(eqn_idx%stress%beg)%sf(k, l, q) + rho_K_field(k, l, &
-                               & q)*((4._wp*Ca_K_field(k, l, q)/3._wp) + q_prim_vf(eqn_idx%stress%beg)%sf(k, l, q))*du_dx_hypo(k, &
-                               & l, q)
+                               & q)*((4._wp*Ca_inv_K_field(k, l, q)/3._wp) + q_prim_vf(eqn_idx%stress%beg)%sf(k, l, &
+                               & q))*du_dx_hypo(k, l, q)
                     end do
                 end do
             end do
@@ -227,19 +229,19 @@ contains
                     do k = 0, m
                         rhs_vf(eqn_idx%stress%beg)%sf(k, l, q) = rhs_vf(eqn_idx%stress%beg)%sf(k, l, q) + rho_K_field(k, l, &
                                & q)*(2._wp*q_prim_vf(eqn_idx%stress%beg + 1)%sf(k, l, q)*du_dy_hypo(k, l, &
-                               & q) - q_prim_vf(eqn_idx%stress%beg)%sf(k, l, q)*dv_dy_hypo(k, l, q) - (2._wp/3._wp)*Ca_K_field(k, &
-                               & l, q)*dv_dy_hypo(k, l, q))
+                               & q) - q_prim_vf(eqn_idx%stress%beg)%sf(k, l, q)*dv_dy_hypo(k, l, &
+                               & q) - (2._wp/3._wp)*Ca_inv_K_field(k, l, q)*dv_dy_hypo(k, l, q))
 
                         rhs_vf(eqn_idx%stress%beg + 1)%sf(k, l, q) = rhs_vf(eqn_idx%stress%beg + 1)%sf(k, l, q) + rho_K_field(k, &
                                & l, q)*(q_prim_vf(eqn_idx%stress%beg)%sf(k, l, q)*dv_dx_hypo(k, l, &
-                               & q) + q_prim_vf(eqn_idx%stress%beg + 2)%sf(k, l, q)*du_dy_hypo(k, l, q) + Ca_K_field(k, l, &
+                               & q) + q_prim_vf(eqn_idx%stress%beg + 2)%sf(k, l, q)*du_dy_hypo(k, l, q) + Ca_inv_K_field(k, l, &
                                & q)*(du_dy_hypo(k, l, q) + dv_dx_hypo(k, l, q)))
 
                         rhs_vf(eqn_idx%stress%beg + 2)%sf(k, l, q) = rhs_vf(eqn_idx%stress%beg + 2)%sf(k, l, q) + rho_K_field(k, &
                                & l, q)*(2._wp*q_prim_vf(eqn_idx%stress%beg + 1)%sf(k, l, q)*dv_dx_hypo(k, l, &
                                & q) - q_prim_vf(eqn_idx%stress%beg + 2)%sf(k, l, q)*du_dx_hypo(k, l, &
-                               & q) + q_prim_vf(eqn_idx%stress%beg + 2)%sf(k, l, q)*dv_dy_hypo(k, l, q) + 2._wp*Ca_K_field(k, l, &
-                               & q)*(dv_dy_hypo(k, l, q) - (1._wp/3._wp)*(du_dx_hypo(k, l, q) + dv_dy_hypo(k, l, q))))
+                               & q) + q_prim_vf(eqn_idx%stress%beg + 2)%sf(k, l, q)*dv_dy_hypo(k, l, q) + 2._wp*Ca_inv_K_field(k, &
+                               & l, q)*(dv_dy_hypo(k, l, q) - (1._wp/3._wp)*(du_dx_hypo(k, l, q) + dv_dy_hypo(k, l, q))))
                     end do
                 end do
             end do
@@ -251,8 +253,8 @@ contains
                     do k = 0, m
                         rhs_vf(eqn_idx%stress%beg)%sf(k, l, q) = rhs_vf(eqn_idx%stress%beg)%sf(k, l, q) + rho_K_field(k, l, &
                                & q)*(2._wp*q_prim_vf(eqn_idx%stress%beg + 3)%sf(k, l, q)*du_dz_hypo(k, l, &
-                               & q) - q_prim_vf(eqn_idx%stress%beg)%sf(k, l, q)*dw_dz_hypo(k, l, q) - (2._wp/3._wp)*Ca_K_field(k, &
-                               & l, q)*dw_dz_hypo(k, l, q))
+                               & q) - q_prim_vf(eqn_idx%stress%beg)%sf(k, l, q)*dw_dz_hypo(k, l, &
+                               & q) - (2._wp/3._wp)*Ca_inv_K_field(k, l, q)*dw_dz_hypo(k, l, q))
 
                         rhs_vf(eqn_idx%stress%beg + 1)%sf(k, l, q) = rhs_vf(eqn_idx%stress%beg + 1)%sf(k, l, q) + rho_K_field(k, &
                                & l, q)*(q_prim_vf(eqn_idx%stress%beg + 4)%sf(k, l, q)*du_dz_hypo(k, l, &
@@ -262,14 +264,14 @@ contains
                         rhs_vf(eqn_idx%stress%beg + 2)%sf(k, l, q) = rhs_vf(eqn_idx%stress%beg + 2)%sf(k, l, q) + rho_K_field(k, &
                                & l, q)*(2._wp*q_prim_vf(eqn_idx%stress%beg + 4)%sf(k, l, q)*dv_dz_hypo(k, l, &
                                & q) - q_prim_vf(eqn_idx%stress%beg + 2)%sf(k, l, q)*dw_dz_hypo(k, l, &
-                               & q) - (2._wp/3._wp)*Ca_K_field(k, l, q)*dw_dz_hypo(k, l, q))
+                               & q) - (2._wp/3._wp)*Ca_inv_K_field(k, l, q)*dw_dz_hypo(k, l, q))
 
                         rhs_vf(eqn_idx%stress%beg + 3)%sf(k, l, q) = rhs_vf(eqn_idx%stress%beg + 3)%sf(k, l, q) + rho_K_field(k, &
                                & l, q)*(q_prim_vf(eqn_idx%stress%beg)%sf(k, l, q)*dw_dx_hypo(k, l, &
                                & q) + q_prim_vf(eqn_idx%stress%beg + 4)%sf(k, l, q)*du_dy_hypo(k, l, &
                                & q) + q_prim_vf(eqn_idx%stress%beg + 1)%sf(k, l, q)*dw_dy_hypo(k, l, &
                                & q) - q_prim_vf(eqn_idx%stress%beg + 3)%sf(k, l, q)*dv_dy_hypo(k, l, &
-                               & q) + q_prim_vf(eqn_idx%stress%beg + 5)%sf(k, l, q)*du_dz_hypo(k, l, q) + Ca_K_field(k, l, &
+                               & q) + q_prim_vf(eqn_idx%stress%beg + 5)%sf(k, l, q)*du_dz_hypo(k, l, q) + Ca_inv_K_field(k, l, &
                                & q)*(du_dz_hypo(k, l, q) + dw_dx_hypo(k, l, q)))
 
                         rhs_vf(eqn_idx%stress%beg + 4)%sf(k, l, q) = rhs_vf(eqn_idx%stress%beg + 4)%sf(k, l, q) + rho_K_field(k, &
@@ -277,7 +279,7 @@ contains
                                & q) + q_prim_vf(eqn_idx%stress%beg + 1)%sf(k, l, q)*dw_dx_hypo(k, l, &
                                & q) - q_prim_vf(eqn_idx%stress%beg + 4)%sf(k, l, q)*du_dx_hypo(k, l, &
                                & q) + q_prim_vf(eqn_idx%stress%beg + 2)%sf(k, l, q)*dw_dy_hypo(k, l, &
-                               & q) + q_prim_vf(eqn_idx%stress%beg + 5)%sf(k, l, q)*dv_dz_hypo(k, l, q) + Ca_K_field(k, l, &
+                               & q) + q_prim_vf(eqn_idx%stress%beg + 5)%sf(k, l, q)*dv_dz_hypo(k, l, q) + Ca_inv_K_field(k, l, &
                                & q)*(dv_dz_hypo(k, l, q) + dw_dy_hypo(k, l, q)))
 
                         rhs_vf(eqn_idx%stress%end)%sf(k, l, q) = rhs_vf(eqn_idx%stress%end)%sf(k, l, q) + rho_K_field(k, l, &
@@ -285,7 +287,7 @@ contains
                                & q) - q_prim_vf(eqn_idx%stress%end)%sf(k, l, q)*du_dx_hypo(k, l, &
                                & q) + 2._wp*q_prim_vf(eqn_idx%stress%end - 1)%sf(k, l, q)*dw_dy_hypo(k, l, &
                                & q) - q_prim_vf(eqn_idx%stress%end)%sf(k, l, q)*dv_dy_hypo(k, l, &
-                               & q) + q_prim_vf(eqn_idx%stress%end)%sf(k, l, q)*dw_dz_hypo(k, l, q) + 2._wp*Ca_K_field(k, l, &
+                               & q) + q_prim_vf(eqn_idx%stress%end)%sf(k, l, q)*dw_dz_hypo(k, l, q) + 2._wp*Ca_inv_K_field(k, l, &
                                & q)*(dw_dz_hypo(k, l, q) - (1._wp/3._wp)*(du_dx_hypo(k, l, q) + dv_dy_hypo(k, l, &
                                & q) + dw_dz_hypo(k, l, q))))
                     end do
@@ -299,26 +301,27 @@ contains
             do q = 0, p
                 do l = 0, n
                     do k = 0, m
-                        ! S_xx -= rho * v/r * (tau_xx + 2/3*Ca)
+                        ! S_xx -= rho * v/r * (tau_xx + 2/3*Ca_inv)
                         rhs_vf(eqn_idx%stress%beg)%sf(k, l, q) = rhs_vf(eqn_idx%stress%beg)%sf(k, l, q) - rho_K_field(k, l, &
                                & q)*q_prim_vf(eqn_idx%mom%beg + 1)%sf(k, l, q)/y_cc(l)*(q_prim_vf(eqn_idx%stress%beg)%sf(k, l, &
-                               & q) + (2._wp/3._wp)*Ca_K_field(k, l, q))  ! tau_xx + 2/3*G
+                               & q) + (2._wp/3._wp)*Ca_inv_K_field(k, l, q))  ! tau_xx + 2/3*G
 
                         ! S_xr -= rho * v/r * tau_xr
                         rhs_vf(eqn_idx%stress%beg + 1)%sf(k, l, q) = rhs_vf(eqn_idx%stress%beg + 1)%sf(k, l, q) - rho_K_field(k, &
                                & l, q)*q_prim_vf(eqn_idx%mom%beg + 1)%sf(k, l, q)/y_cc(l)*q_prim_vf(eqn_idx%stress%beg + 1)%sf(k, &
                                & l, q)  ! tau_xx
 
-                        ! S_rr -= rho * v/r * (tau_rr + 2/3*Ca)
+                        ! S_rr -= rho * v/r * (tau_rr + 2/3*Ca_inv)
                         rhs_vf(eqn_idx%stress%beg + 2)%sf(k, l, q) = rhs_vf(eqn_idx%stress%beg + 2)%sf(k, l, q) - rho_K_field(k, &
                                & l, q)*q_prim_vf(eqn_idx%mom%beg + 1)%sf(k, l, &
-                               & q)/y_cc(l)*(q_prim_vf(eqn_idx%stress%beg + 2)%sf(k, l, q) + (2._wp/3._wp)*Ca_K_field(k, l, q))  ! tau_rr + 2/3*Ca
+                               & q)/y_cc(l)*(q_prim_vf(eqn_idx%stress%beg + 2)%sf(k, l, q) + (2._wp/3._wp)*Ca_inv_K_field(k, l, q))  ! tau_rr + 2/3*Ca
 
-                        ! S_thetatheta += rho * ( -(tau_thetatheta + 2/3*Ca)*(du/dx + dv/dr + v/r) + ! 2*(tau_thetatheta + Ca)*v/r )
+                        ! S_thetatheta += rho * ( -(tau_thetatheta +
+                        ! 2/3*Ca_inv)*(du/dx + dv/dr + v/r) + 2*(tau_thetatheta + Ca_inv)*v/r )
                         rhs_vf(eqn_idx%stress%beg + 3)%sf(k, l, q) = rhs_vf(eqn_idx%stress%beg + 3)%sf(k, l, q) + rho_K_field(k, &
-                               & l, q)*(-(q_prim_vf(eqn_idx%stress%beg + 3)%sf(k, l, q) + (2._wp/3._wp)*Ca_K_field(k, l, &
+                               & l, q)*(-(q_prim_vf(eqn_idx%stress%beg + 3)%sf(k, l, q) + (2._wp/3._wp)*Ca_inv_K_field(k, l, &
                                & q))*(du_dx_hypo(k, l, q) + dv_dy_hypo(k, l, q) + q_prim_vf(eqn_idx%mom%beg + 1)%sf(k, l, &
-                               & q)/y_cc(l)) + 2._wp*(q_prim_vf(eqn_idx%stress%beg + 3)%sf(k, l, q) + Ca_K_field(k, l, &
+                               & q)/y_cc(l)) + 2._wp*(q_prim_vf(eqn_idx%stress%beg + 3)%sf(k, l, q) + Ca_inv_K_field(k, l, &
                                & q))*q_prim_vf(eqn_idx%mom%beg + 1)%sf(k, l, q)/y_cc(l))
                     end do
                 end do
@@ -331,8 +334,8 @@ contains
     !> Finalize the hypoelastic module
     impure subroutine s_finalize_hypoelastic_module()
 
-        @:DEALLOCATE(Cas_hypo)
-        @:DEALLOCATE(rho_K_field, Ca_K_field)
+        @:DEALLOCATE(Ca_invs_hypo)
+        @:DEALLOCATE(rho_K_field, Ca_inv_K_field)
         @:DEALLOCATE(du_dx_hypo)
         @:DEALLOCATE(fd_coeff_x_hypo)
         if (n > 0) then

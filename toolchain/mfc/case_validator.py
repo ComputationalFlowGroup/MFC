@@ -1295,10 +1295,10 @@ class CaseValidator:
             dim = 3
 
         for i in range(1, int(num_fluids) + 1):  # check if Ca or Re is graded
-            Ca_graded = self.get(f"fluid_pp({i})%graded_Ca", "F") == "T"
+            Ca_inv_graded = self.get(f"fluid_pp({i})%graded_Ca_inv", "F") == "T"
             Re_graded = self.get(f"fluid_pp({i})%graded_Re", "F") == "T"
 
-            if not Ca_graded and not Re_graded:
+            if not Ca_inv_graded and not Re_graded:
                 continue
 
             graded_type = self.get(f"fluid_pp({i})%graded_type")
@@ -1309,16 +1309,16 @@ class CaseValidator:
             self.prohibit(graded_profile is None, f"fluid_pp({i})%graded_profile must be set when graded is enabled")
             self.prohibit(graded_profile is not None and graded_profile not in [1, 2, 3], f"fluid_pp({i})%graded_profile must be 1 (linear), 2 (sinusoidal), or 3 (power law)")
 
-            if Ca_graded:
+            if Ca_inv_graded:
                 hyperelasticity = self.get("hyperelasticity", "F") == "T"
                 hypoelasticity = self.get("hypoelasticity", "F") == "T"
-                self.prohibit(not hyperelasticity and not hypoelasticity, f"fluid_pp({i})%graded_Ca requires hyperelasticity or hypoelasticity enabled")
-                Ca_init = self.get(f"fluid_pp({i})%graded_Ca_init")
-                Ca_end = self.get(f"fluid_pp({i})%graded_Ca_end")
-                self.prohibit(Ca_init is None, f"fluid_pp({i})%graded_Ca_init must be set when graded_Ca = T")
-                self.prohibit(Ca_end is None, f"fluid_pp({i})%graded_Ca_end must be set when graded_Ca = T")
-                self.prohibit(Ca_init is not None and Ca_init < 0, f"fluid_pp({i})%graded_Ca_init must be non-negative")
-                self.prohibit(Ca_end is not None and Ca_end < 0, f"fluid_pp({i})%graded_Ca_end must be non-negative")
+                self.prohibit(not hyperelasticity and not hypoelasticity, f"fluid_pp({i})%graded_Ca_inv requires hyperelasticity or hypoelasticity enabled")
+                Ca_inv_init = self.get(f"fluid_pp({i})%graded_Ca_inv_init")
+                Ca_inv_end = self.get(f"fluid_pp({i})%graded_Ca_inv_end")
+                self.prohibit(Ca_inv_init is None, f"fluid_pp({i})%graded_Ca_inv_init must be set when graded_Ca_inv = T")
+                self.prohibit(Ca_inv_end is None, f"fluid_pp({i})%graded_Ca_inv_end must be set when graded_Ca_inv = T")
+                self.prohibit(Ca_inv_init is not None and Ca_inv_init < 0, f"fluid_pp({i})%graded_Ca_inv_init must be non-negative")
+                self.prohibit(Ca_inv_end is not None and Ca_inv_end < 0, f"fluid_pp({i})%graded_Ca_inv_end must be non-negative")
 
             if Re_graded:
                 viscous = self.get("viscous", "F") == "T"
