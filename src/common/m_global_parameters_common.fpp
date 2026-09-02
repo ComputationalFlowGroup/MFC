@@ -64,6 +64,11 @@ module m_global_parameters_common
     integer, dimension(3, 2) :: shear_BC_flip_indices  !< Shear stress BC reflection indices (1:3, 1:shear_BC_flip_num)
     !> @}
 
+    !> @name Graded
+    !> @{
+    logical :: graded  !< graded modeling
+    !> @}
+
 #ifdef MFC_SIMULATION
     $:GPU_DECLARE(create='[sys_size, eqn_idx, b_size, tensor_size]')
     $:GPU_DECLARE(create='[shear_num, shear_indices, shear_BC_flip_num, shear_BC_flip_indices]')
@@ -78,6 +83,7 @@ module m_global_parameters_common
     $:GPU_DECLARE(create='[mpp_lim, model_eqns, mixture_err, alt_soundspeed]')
     $:GPU_DECLARE(create='[avg_state, mp_weno, weno_eps, teno_CT, hypoelasticity]')
     $:GPU_DECLARE(create='[hyperelasticity, elasticity, low_Mach]')
+    $:GPU_DECLARE(create='[graded]')
     $:GPU_DECLARE(create='[cont_damage, hyper_cleaning]')
     $:GPU_DECLARE(create='[relax, relax_model, palpha_eps, ptgalpha_eps]')
     $:GPU_DECLARE(create='[down_sample]')
@@ -414,6 +420,7 @@ contains
         tensor_size = dflt_int
         cont_damage = .false.
         hyper_cleaning = .false.
+        graded = .false.
 
         ! Condensed-phase reactive burn
         reactive_burn = .false.

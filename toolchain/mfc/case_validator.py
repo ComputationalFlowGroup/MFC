@@ -1297,17 +1297,21 @@ class CaseValidator:
         for i in range(1, int(num_fluids) + 1):  # check if Ca or Re is graded
             Ca_inv_graded = self.get(f"fluid_pp({i})%graded_Ca_inv", "F") == "T"
             Re_graded = self.get(f"fluid_pp({i})%graded_Re", "F") == "T"
+            # add k bulk constraints K_bulk_graded = self.get(f"fluid_pp({i})%graded_K_bulk", "F") == "T"
 
             if not Ca_inv_graded and not Re_graded:
                 continue
 
             graded_type = self.get(f"fluid_pp({i})%graded_type")
             graded_profile = self.get(f"fluid_pp({i})%graded_profile")
+            graded_exp = self.get(f"fluid_pp({i})%graded_exp")
+            graded_scaling = self.get(f"fluid_pp({i})%graded_scaling")
 
             self.prohibit(graded_type is None, f"fluid_pp({i})%graded_type must be set when grading is enabled")
             self.prohibit(graded_type is not None and graded_type not in [1, 2], f"fluid_pp({i})%graded_type must be 1 (linear) or 2 (radial)")
             self.prohibit(graded_profile is None, f"fluid_pp({i})%graded_profile must be set when graded is enabled")
             self.prohibit(graded_profile is not None and graded_profile not in [1, 2, 3], f"fluid_pp({i})%graded_profile must be 1 (linear), 2 (sinusoidal), or 3 (power law)")
+            self.prohibit(graded_type == 3 and graded_exp is not None and graded_scaling is not None, f"fluid_pp({i})%graded_profile = 3 requires graded_exp and graded_scaling")
 
             if Ca_inv_graded:
                 hyperelasticity = self.get("hyperelasticity", "F") == "T"
@@ -1350,6 +1354,8 @@ class CaseValidator:
                 self.prohibit(r_end is None, f"fluid_pp({i})%graded_r_end must be set for radial grading")
                 self.prohibit(r_beg is not None and r_beg < 0, f"fluid_pp({i})%graded_r_beg must be non-negative")
                 self.prohibit(r_end is not None and r_beg is not None and r_end <= r_beg, f"fluid_pp({i})%graded_r_end must be strictly greater than graded_r_beg")
+
+            # add other constraints based on new params for graded profile functions
 
     def check_adaptive_time_stepping(self):
         """Checks adaptive time stepping parameters (simulation)"""

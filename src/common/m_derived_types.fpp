@@ -400,10 +400,13 @@ module m_derived_types
         real(wp)               :: mu_bulk             !< Bulk viscosity for NN (inactive sentinel = dflt_real)
         logical                :: graded_Ca_inv       !< Enable graded elasticity
         real(wp)               :: graded_Ca_inv_init  !< Initial value for graded Cauchy number
-        real(wp)               :: graded_Ca_inv_end  ! < End value for graded Cauchy number
+        real(wp)               :: graded_Ca_inv_end   !< End value for graded Cauchy number
         logical                :: graded_Re           !< Enable graded viscosity
         real(wp)               :: graded_Re_init      !< Initial value for graded viscosity
         real(wp)               :: graded_Re_end       !< End value for graded viscosity
+        logical                :: graded_K_bulk       !< Enable graded bulk modulus
+        real(wp)               :: graded_K_bulk_init  !< Initial value for graded bulk modulus
+        real(wp)               :: graded_K_bulk_end   !< End value for graded bulk modulus
         integer                :: graded_profile      !< Grading profile (linear, sinusoidal, power-law)
         integer                :: graded_type         !< Grading type (cartesian, radial)
         real(wp), dimension(3) :: graded_beg_loc      !< Beginning coordinate of grading
@@ -411,6 +414,9 @@ module m_derived_types
         real(wp), dimension(3) :: graded_center_loc   !< Coordinate for center of radial grading
         real(wp)               :: graded_r_beg        !< Radius for beginning of grading
         real(wp)               :: graded_r_end        !< Radius for end of grading
+        real(wp)               :: graded_pf_coeff     !< Power-law k constant
+        real(wp)               :: graded_exp          !< Exponent for power-law grading
+        real(wp)               :: graded_scaling      !< Scale factor for power-law grading
     end type physical_parameters
 
     !> Derived type annexing the physical parameters required for sub-grid bubble models

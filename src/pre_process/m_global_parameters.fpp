@@ -43,7 +43,7 @@ module m_global_parameters
     type(bounds_info) :: x_domain_glb, y_domain_glb, z_domain_glb
 
     ! Simulation Algorithm Parameters
-    ! sys_size, eqn_idx, b_size, tensor_size, chemistry, elasticity, shear_*: in m_global_parameters_common
+    ! sys_size, eqn_idx, b_size, tensor_size, chemistry, elasticity, graded, shear_*: in m_global_parameters_common
     ! weno_polyn, muscl_polyn, num_dims, num_vels: in m_global_parameters_common
     ! Annotations of the structure, i.e. the organization, of the state vectors
     type(qbmm_idx_info) :: qbmm_idx  !< QBMM moment index mappings.
@@ -115,7 +115,7 @@ contains
     !! parameters once they are read from the input file.
     impure subroutine s_assign_default_values_to_user_inputs
 
-        integer :: i  !< Generic loop operator
+        integer :: i, j  !< Generic loop operator
 
         ! Shared defaults (case_dir, m/n/p, cyl_coord, cfl flags, model_eqns, elasticity, BC blocks,
         ! recon/weno/muscl/num_fluids/igr/mhd/relativity under case-opt guard, Tait EOS, bubble flags,
@@ -405,6 +405,27 @@ contains
             fluid_pp(i)%mu_min = dflt_real
             fluid_pp(i)%mu_max = dflt_real
             fluid_pp(i)%mu_bulk = dflt_real
+            fluid_pp(i)%graded_Ca_inv = .false.
+            fluid_pp(i)%graded_Ca_inv_init = 0._wp
+            fluid_pp(i)%graded_Ca_inv_end = 0._wp
+            fluid_pp(i)%graded_Re = .false.
+            fluid_pp(i)%graded_Re_init = 0._wp
+            fluid_pp(i)%graded_Re_end = 0._wp
+            fluid_pp(i)%graded_K_bulk = .false.
+            fluid_pp(i)%graded_K_bulk_init = 0._wp
+            fluid_pp(i)%graded_K_bulk_end = 0._wp
+            fluid_pp(i)%graded_profile = 0._wp
+            fluid_pp(i)%graded_type = 0._wp
+            fluid_pp(i)%graded_r_beg = 0._wp
+            fluid_pp(i)%graded_r_end = 0._wp
+            fluid_pp(i)%graded_pf_coeff = 0._wp
+            fluid_pp(i)%graded_exp = 0._wp
+            fluid_pp(i)%graded_scaling = 0._wp
+            do j = 1, 3
+                fluid_pp(i)%graded_beg_loc(j) = 0._wp
+                fluid_pp(i)%graded_end_loc(j) = 0._wp
+                fluid_pp(i)%graded_center_loc(j) = 0._wp
+            end do
         end do
 
         ! Subgrid bubble parameters

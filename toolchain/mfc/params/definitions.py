@@ -887,7 +887,7 @@ def _load():
                 _r(f"{px}sph_har_coeff({ll},{mm})", REAL)
 
     # fluid_pp (10 fluids)
-    # Members present in physical_parameters: gamma, pi_inf, Re, cv, qv, qvp, G.
+    # Members present in physical_parameters: gamma, pi_inf, Re, cv, qv, qvp, Ca_inv.
     # mul0/ss/pv/gamma_v/M_v/mu_v/k_v/cp_v/D_v were removed from the Fortran type
     # by upstream #1085/#1093 — they must NOT be registered (namelist read would crash).
     for f in range(1, NF + 1):
@@ -916,12 +916,18 @@ def _load():
             ("Re_end", REAL, "viscosity", r"\f$\mathrm{Re}_{\mathrm{end},k}\f$"),
         ]:
             _r(f"{px}graded_{a}", dtype, {"graded", tag}, math=sym)
-        # graded profile, type, and location
+        # graded profile, type, and location. K_bulk
         for a, dtype, sym in [
+            ("K_bulk", LOG, r"\f$\text{Graded bulk modulus}\f$"),
+            ("K_bulk_init", LOG, r"\f$\text{Initial bulk modulus}\f$"),
+            ("K_bulk_end", LOG, r"\f$\text{End bulk modulus}\f$"),
             ("profile", INT, r"\f$\text{Graded profile}\f$"),
             ("type", INT, r"\f$\text{Graded type}\f$"),
             ("r_beg", REAL, r"\f$r_{\mathrm{beg}}\f$"),
             ("r_end", REAL, r"\f$r_{\mathrm{end}}\f$"),
+            ("pf_coeff", REAL, r"\f$\text{'k' constant in power-law function}\f$"),
+            ("exp", REAL, r"\f$\text{Power-law exponent}\f$"),
+            ("scaling", REAL, r"\f$text{Scaling factor}\f$"),
         ]:
             _r(f"{px}graded_{a}", dtype, {"graded"}, math=sym)
         for i in range(1, 4):

@@ -62,7 +62,6 @@ contains
             Ca_invs_rs(i) = fluid_pp(i)%Ca_inv
         end do
         $:GPU_UPDATE(device='[Ca_invs_rs]')
-        ! very similar for viscous graded
         if (viscous) then
             @:ALLOCATE(Res_gs(1:2, 1:Re_size_max))
         end if

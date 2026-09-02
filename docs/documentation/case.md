@@ -536,6 +536,8 @@ See @ref equations "Equations" for the mathematical models these parameters cont
 | `surface_tension`          | Logical | Activate surface tension |
 | `viscous`                  | Logical | Activate viscosity |
 | `hypoelasticity`           | Logical | Activate hypoelasticity* |
+| `hyperelasticity`          | Logical | Activate hyperelasticity |
+| `graded`         	     | Logical | Activate graded |
 | `pre_stress`               | Logical | Enable pre-stress initialization for hypoelasticity |
 | `igr`                      | Logical | Enable solution via information geometric regularization (IGR) \cite Cao24 |
 | `igr_order`                | Integer | Order of reconstruction for IGR [3,5] |

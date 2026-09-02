@@ -236,7 +236,6 @@ contains
                                 E_R = gamma_R*pres_R + pi_inf_R + 5.e-1_wp*rho_R*vel_R_rms + qv_R
 
                                 ! Hyperelastic stress contribution: strain energy added to total energy
-                                ! this needs to change for gradedness
                                 if (hyperelasticity) then
                                     $:GPU_LOOP(parallelism='[seq]')
                                     do i = 1, num_dims
@@ -1231,7 +1230,6 @@ contains
                                 end if
 
                                 ! Hyperelastic stress contribution: strain energy added to total energy
-                                ! this needs to change for graded
                                 if (hyperelasticity) then
                                     $:GPU_LOOP(parallelism='[seq]')
                                     do i = 1, num_dims

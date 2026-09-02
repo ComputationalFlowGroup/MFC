@@ -36,6 +36,7 @@ module m_start_up
     use ieee_arithmetic
     use m_helper_basic
     use m_helper
+    use m_graded
 
     $:USE_GPU_MODULE()
 
@@ -923,6 +924,7 @@ contains
 
         if (hypoelasticity) call s_initialize_hypoelastic_module()
         if (hyperelasticity) call s_initialize_hyperelastic_module()
+        if (graded) call s_initialize_graded()
 
     end subroutine s_initialize_modules
 
@@ -1081,6 +1083,7 @@ contains
         call s_finalize_time_steppers_module()
         if (hypoelasticity) call s_finalize_hypoelastic_module()
         if (hyperelasticity) call s_finalize_hyperelastic_module()
+        if (graded) call s_finalize_graded()
         call s_finalize_derived_variables_module()
         call s_finalize_data_output_module()
         call s_finalize_rhs_module()
