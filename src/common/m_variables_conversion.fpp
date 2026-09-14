@@ -179,8 +179,7 @@ contains
     !> Convert species volume fractions and partial densities to mixture density, gamma, pi_inf, and qv. Given conservative or
     !! primitive variables, computes the density, the specific heat ratio function and the liquid stiffness function from q_vf and
     !! stores the results into rho, gamma and pi_inf.
-    subroutine s_convert_species_to_mixture_variables(q_vf, k, l, r, rho, gamma, pi_inf, qv, Re_K, Ca_inv_K, Ca_inv, &
-        & Ca_inv_graded_val_i)
+    subroutine s_convert_species_to_mixture_variables(q_vf, k, l, r, rho, gamma, pi_inf, qv, Re_K, Ca_inv_K, Ca_inv)
 
         type(scalar_field), dimension(sys_size), intent(in)   :: q_vf
         integer, intent(in)                                   :: k, l, r
@@ -192,7 +191,8 @@ contains
         real(wp), optional, intent(out)                       :: Ca_inv_K
         real(wp), dimension(num_fluids)                       :: alpha_rho_K, alpha_K
         real(wp), optional, dimension(num_fluids), intent(in) :: Ca_inv
-        real(wp), optional, intent(out)                       :: Ca_inv_graded_val_i
+        real(wp)                                              :: Ca_inv_graded_v
+        real(wp)                                              :: Re_graded_v
         real(wp)                                              :: xi_x, xi_y, xi_z
         integer                                               :: i, j  !< Generic loop iterator
         ! Computing the density, the specific heat ratio function and the liquid stiffness function, respectively
@@ -215,32 +215,40 @@ contains
                 qv = qv + alpha_rho_K(i)*qvs(i)
             end do
         end if
+        !!!!!!!!!!maybe move this!!!!!!!!!!
+        !!this is already done for hyperelasticity and hypo. so this
+        ! does not really make sense to include, and to include here ?
+        if (graded) then
+            xi_x = q_vf(eqn_idx%xi%beg)%sf(k, l, r)/rho
+            xi_y = q_vf(eqn_idx%xi%beg + 1)%sf(k, l, r)/rho
+            xi_z = q_vf(eqn_idx%xi%end)%sf(k, l, r)/rho
+        end if
 
 #ifdef MFC_SIMULATION
         ! Computing the shear and bulk Reynolds numbers from species analogs
         if (viscous) then
             do i = 1, 2
-                Re_K(i) = dflt_real; if (Re_size(i) > 0) Re_K(i) = 0._wp
-
+                Re_K(i) = dflt_real
+                if (Re_size(i) > 0) Re_K(i) = 0._wp
                 do j = 1, Re_size(i)
-                    Re_K(i) = alpha_K(Re_idx(i, j))/fluid_pp(Re_idx(i, j))%Re(i) + Re_K(i)
+                    if (graded .and. fluid_pp(Re_idx(i, j))%graded_Re) then
+                        call s_grade_Re(xi_x, xi_y, xi_z, Re_idx(i, j), i, Re_graded_v)
+                        Re_K(i) = alpha_K(Re_idx(i, j))/Re_graded_v + Re_K(i)
+                    else
+                        Re_K(i) = alpha_K(Re_idx(i, j))/fluid_pp(Re_idx(i, j))%Re(i) + Re_K(i)
+                    end if
                 end do
-
                 Re_K(i) = 1._wp/max(Re_K(i), sgm_eps)
             end do
         end if
 #endif
 
         if (present(Ca_inv_K)) then
-            xi_x = q_vf(eqn_idx%xi%beg)%sf(k, l, r)
-            xi_y = q_vf(eqn_idx%xi%beg + 1)%sf(k, l, r)
-            xi_z = q_vf(eqn_idx%xi%end)%sf(k, l, r)
-
             Ca_inv_K = 0._wp
             do i = 1, num_fluids
-                if (fluid_pp(i)%graded_Ca_inv) then
-                    call s_graded_Ca_inv(xi_x, xi_y, xi_z, i, Ca_inv_graded_val_i)
-                    Ca_inv_K = Ca_inv_K + alpha_K(i)*Ca_inv_graded_val_i
+                if (graded .and. fluid_pp(i)%graded_Ca_inv) then
+                    call s_grade_Ca_inv(xi_x, xi_y, xi_z, i, Ca_inv_graded_v)
+                    Ca_inv_K = Ca_inv_K + alpha_K(i)*Ca_inv_graded_v
                 else
                     Ca_inv_K = Ca_inv_K + alpha_K(i)*Ca_inv(i)
                 end if
@@ -260,7 +268,7 @@ contains
 
     !> GPU-accelerated conversion of species volume fractions and partial densities to mixture density, gamma, pi_inf, and qv.
     subroutine s_convert_species_to_mixture_variables_acc(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, Re_K, Ca_inv_K, &
-        & Ca_inv)
+        & Ca_inv, xi_x, xi_y, xi_z)
 
         $:GPU_ROUTINE(function_name='s_convert_species_to_mixture_variables_acc', parallelism='[seq]', cray_noinline=True)
 
@@ -275,6 +283,10 @@ contains
         real(wp), dimension(2), intent(out) :: Re_K
         real(wp), optional, intent(out)     :: Ca_inv_K
         real(wp)                            :: alpha_K_sum
+        real(wp)                            :: Ca_inv_graded_v
+        real(wp)                            :: Re_graded_v
+        real(wp), optional, intent(in)      :: xi_x, xi_y, xi_z
+        real(wp)                            :: xi_x_l, xi_y_l, xi_z_l
         integer                             :: i, j  !< Generic loop iterators
 
         rho_K = 0._wp
@@ -283,12 +295,20 @@ contains
         qv_K = 0._wp
         Re_K = dflt_real
         if (present(Ca_inv_K)) Ca_inv_K = 0._wp
+        xi_x_l = 0._wp
+        xi_y_l = 0._wp
+        xi_z_l = 0._wp
+        if (graded) then
+            xi_x_l = xi_x
+            xi_y_l = xi_y
+            xi_z_l = xi_z
+        end if
 
 #ifdef MFC_SIMULATION
         ! Constrain partial densities and volume fractions within physical bounds
         if (num_fluids == 1 .and. bubbles_euler) then
             rho_K = alpha_rho_K(1)
-            gamma_K = gammas(1)
+            gamma_K = gammas(2)
             pi_inf_K = pi_infs(1)
             qv_K = qvs(1)
         else
@@ -310,29 +330,35 @@ contains
             end do
         end if
 
-        if (present(Ca_inv_K)) then
-            Ca_inv_K = 0._wp
-            do i = 1, num_fluids
-                ! TODO: change to use Ca_invs_vc directly here? TODO: Make this change as well for GPUs
-                Ca_inv_K = Ca_inv_K + alpha_K(i)*Ca_inv(i)
-            end do
-            Ca_inv_K = max(0._wp, Ca_inv_K)
-        end if
-
         if (viscous) then
             do i = 1, 2
                 Re_K(i) = dflt_real
-
                 if (Re_size(i) > 0) Re_K(i) = 0._wp
-
                 do j = 1, Re_size(i)
-                    Re_K(i) = alpha_K(Re_idx(i, j))/Res_vc(i, j) + Re_K(i)
+                    if (graded .and. fluid_pp(Re_idx(i, j))%graded_Re) then
+                        call s_grade_Re(xi_x, xi_y, xi_z, Re_idx(i, j), i, Re_graded_v)
+                        Re_K(i) = alpha_K(Re_idx(i, j))/Re_graded_v + Re_K(i)
+                    else
+                        Re_K(i) = alpha_K(Re_idx(i, j))/Res_vc(i, j) + Re_K(i)
+                    end if
                 end do
-
                 Re_K(i) = 1._wp/max(Re_K(i), sgm_eps)
             end do
         end if
 #endif
+
+        if (present(Ca_inv_K)) then
+            Ca_inv_K = 0._wp
+            do i = 1, num_fluids
+                if (graded .and. fluid_pp(i)%graded_Ca_inv) then
+                    call s_grade_Ca_inv(xi_x, xi_y, xi_z, i, Ca_inv_graded_v)
+                    Ca_inv_K = Ca_inv_K + alpha_K(i)*Ca_inv_graded_v
+                else
+                    Ca_inv_K = Ca_inv_K + alpha_K(i)*Ca_inv(i)
+                end if
+            end do
+            Ca_inv_K = max(0._wp, Ca_inv_K)
+        end if
 
     end subroutine s_convert_species_to_mixture_variables_acc
 
@@ -590,11 +616,14 @@ contains
                             pres = (W - D*Ga)/((gamma_K + 1)*Ga**2)
                             f = W - pres + (1 - 1/(2*Ga**2))*B2 - S**2/(2*W**2) - E - D
 
-                            ! The first equation below corrects a typo in (Mignone & Bodo, 2006) m2*W**2 -> 2*m2*W**2, which would
+                            ! The first equation below corrects a typo in (Mignone & Bodo, 2006) m2*W**2 -> 2*m2*W**2, which
+                            ! would
                             ! cancel with the 2* in other terms This corrected version is not used as the second equation
-                            ! empirically converges faster. First equation is kept for further investigation. dGa_dW = -Ga**3 * (
+                            ! empirically converges faster. First equation is kept for further investigation. dGa_dW = -Ga**3 *
+                            ! (
                             ! S**2*(3*W**2+3*W*B2+B2**2) + m2*W**2 ) / (W**3 * (W+B2)**3) ! first (corrected)
-                            dGa_dW = -Ga**3*(2*S**2*(3*W**2 + 3*W*B2 + B2**2) + m2*W**2)/(2*W**3*(W + B2)**3)  ! second (in paper)
+                            ! second (in paper)
+                            dGa_dW = -Ga**3*(2*S**2*(3*W**2 + 3*W*B2 + B2**2) + m2*W**2)/(2*W**3*(W + B2)**3)
 
                             dp_dW = (Ga*(1 + D*dGa_dW) - 2*W*dGa_dW)/((gamma_K + 1)*Ga**3)
                             df_dW = 1 - dp_dW + (B2/Ga**3)*dGa_dW + S**2/W**3
@@ -800,7 +829,8 @@ contains
         type(scalar_field), dimension(sys_size), intent(in)    :: q_prim_vf
         type(scalar_field), dimension(sys_size), intent(inout) :: q_cons_vf
 
-        ! Density, specific heat ratio function, liquid stiffness function and dynamic pressure, as defined in the incompressible
+        ! Density, specific heat ratio function, liquid stiffness function and dynamic pressure, as defined in the
+        ! incompressible
         ! flow sense, respectively
         real(wp)                         :: rho
         real(wp)                         :: gamma
@@ -1051,7 +1081,8 @@ contains
         real(wp), dimension(0:,idwbuff(2)%beg:,idwbuff(3)%beg:,eqn_idx%adv%beg:), intent(inout) :: FK_src_vf
         type(int_bounds_info), intent(in)                                                       :: is1, is2, is3
 
-        ! Partial densities, density, velocity, pressure, energy, advection variables, the specific heat ratio and liquid stiffness
+        ! Partial densities, density, velocity, pressure, energy, advection variables, the specific heat ratio and liquid
+        ! stiffness
         ! functions, the shear and volume Reynolds numbers and the Weber numbers
 
         #:if not MFC_CASE_OPTIMIZATION and USING_AMD
@@ -1083,7 +1114,8 @@ contains
 
         $:GPU_UPDATE(device='[is1b, is2b, is3b, is1e, is2e, is3e]')
 
-        ! Computing the flux variables from the primitive variables, without accounting for the contribution of either viscosity or
+        ! Computing the flux variables from the primitive variables, without accounting for the contribution of either viscosity
+        ! or
         ! capillarity
 #ifdef MFC_SIMULATION
         $:GPU_PARALLEL_LOOP(collapse=3, private='[alpha_rho_K, vel_K, alpha_K, Re_K, Y_K, rho_K, vel_K_sum, pres_K, E_K, gamma_K, &

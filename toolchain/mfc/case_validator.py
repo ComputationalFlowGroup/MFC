@@ -1296,7 +1296,8 @@ class CaseValidator:
 
         for i in range(1, int(num_fluids) + 1):  # check if Ca or Re is graded
             Ca_inv_graded = self.get(f"fluid_pp({i})%graded_Ca_inv", "F") == "T"
-            Re_graded = self.get(f"fluid_pp({i})%graded_Re", "F") == "T"
+            Re_graded = self.get(f"fluid_pp({i})%graded_Re(1)", "F") == "T"
+
             # add k bulk constraints K_bulk_graded = self.get(f"fluid_pp({i})%graded_K_bulk", "F") == "T"
 
             if not Ca_inv_graded and not Re_graded:
@@ -1327,12 +1328,13 @@ class CaseValidator:
             if Re_graded:
                 viscous = self.get("viscous", "F") == "T"
                 self.prohibit(not viscous, f"fluid_pp({i})%graded_Re requires viscous = T")
-                Re_init = self.get(f"fluid_pp({i})%graded_Re_init")
-                Re_end = self.get(f"fluid_pp({i})%graded_Re_end")
-                self.prohibit(Re_init is None, f"fluid_pp({i})%graded_Re_init must be set when graded_Re = T")
-                self.prohibit(Re_end is None, f"fluid_pp({i})%graded_Re_end must be set when graded_Re = T")
-                self.prohibit(Re_init is not None and Re_init <= 0, f"fluid_pp({i})%graded_Re_init must be positive")
-                self.prohibit(Re_end is not None and Re_end <= 0, f"fluid_pp({i})%graded_Re_end must be positive")
+                for j in (1, 2):
+                    Re_init = self.get(f"fluid_pp({i})%graded_Re_init({j})")
+                    Re_end = self.get(f"fluid_pp({i})%graded_Re_end({j})")
+                    self.prohibit(Re_init is None, f"fluid_pp({i})%graded_Re_init({j}) must be set when graded_Re = T")
+                    self.prohibit(Re_end is None, f"fluid_pp({i})%graded_Re_end({j}) must be set when graded_Re = T")
+                    self.prohibit(Re_init is not None and Re_init <= 0, f"fluid_pp({i})%graded_Re_init({j}) must be positive")
+                    self.prohibit(Re_end is not None and Re_end <= 0, f"fluid_pp({i})%graded_Re_end({j}) must be positive")
 
             if graded_type == 1:  # linear
                 beg = [self.get(f"fluid_pp({i})%graded_beg_loc({j})") for j in range(1, dim + 1)]

@@ -912,15 +912,17 @@ def _load():
             ("Ca_inv_init", REAL, "elasticity", r"\f$Ca_{\mathrm{init},k}\f$"),
             ("Ca_inv_end", REAL, "elasticity", r"\f$Ca_{\mathrm{end},k}\f$"),
             ("Re", LOG, "viscosity", r"\f$\mathrm{Re}_{\mathrm{graded},k}\f$"),
-            ("Re_init", REAL, "viscosity", r"\f$\mathrm{Re}_{\mathrm{init},k}\f$"),
-            ("Re_end", REAL, "viscosity", r"\f$\mathrm{Re}_{\mathrm{end},k}\f$"),
+            ("Re_init(1)", REAL, "viscosity", r"\f$\mathrm{Re}_{\mathrm{init},k}\f$ (shear)"),
+            ("Re_end(1)", REAL, "viscosity", r"\f$\mathrm{Re}_{\mathrm{end},k}\f$ (shear)"),
+            ("Re_init(2)", REAL, "viscosity", r"\f$\mathrm{Re}_{\mathrm{init},k}\f$ (bulk)"),
+            ("Re_end(2)", REAL, "viscosity", r"\f$\mathrm{Re}_{\mathrm{end},k}\f$ (bulk)"),
         ]:
             _r(f"{px}graded_{a}", dtype, {"graded", tag}, math=sym)
         # graded profile, type, and location. K_bulk
         for a, dtype, sym in [
             ("K_bulk", LOG, r"\f$\text{Graded bulk modulus}\f$"),
-            ("K_bulk_init", LOG, r"\f$\text{Initial bulk modulus}\f$"),
-            ("K_bulk_end", LOG, r"\f$\text{End bulk modulus}\f$"),
+            ("K_bulk_init", REAL, r"\f$\text{Initial bulk modulus}\f$"),
+            ("K_bulk_end", REAL, r"\f$\text{End bulk modulus}\f$"),
             ("profile", INT, r"\f$\text{Graded profile}\f$"),
             ("type", INT, r"\f$\text{Graded type}\f$"),
             ("r_beg", REAL, r"\f$r_{\mathrm{beg}}\f$"),

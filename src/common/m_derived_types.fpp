@@ -401,9 +401,9 @@ module m_derived_types
         logical                :: graded_Ca_inv       !< Enable graded elasticity
         real(wp)               :: graded_Ca_inv_init  !< Initial value for graded Cauchy number
         real(wp)               :: graded_Ca_inv_end   !< End value for graded Cauchy number
-        logical                :: graded_Re           !< Enable graded viscosity
-        real(wp)               :: graded_Re_init      !< Initial value for graded viscosity
-        real(wp)               :: graded_Re_end       !< End value for graded viscosity
+        logical                :: graded_Re           !< Enable graded Reynolds number
+        real(wp), dimension(2) :: graded_Re_init      !< Initial value for graded Reynolds number
+        real(wp), dimension(2) :: graded_Re_end       !< End value for graded Reynolds number
         logical                :: graded_K_bulk       !< Enable graded bulk modulus
         real(wp)               :: graded_K_bulk_init  !< Initial value for graded bulk modulus
         real(wp)               :: graded_K_bulk_end   !< End value for graded bulk modulus
