@@ -231,12 +231,12 @@ contains
                 Re_K(i) = dflt_real
                 if (Re_size(i) > 0) Re_K(i) = 0._wp
                 do j = 1, Re_size(i)
-                    if (graded .and. fluid_pp(Re_idx(i, j))%graded_Re) then
-                        call s_grade_Re(xi_x, xi_y, xi_z, Re_idx(i, j), i, Re_graded_v)
-                        Re_K(i) = alpha_K(Re_idx(i, j))/Re_graded_v + Re_K(i)
-                    else
-                        Re_K(i) = alpha_K(Re_idx(i, j))/fluid_pp(Re_idx(i, j))%Re(i) + Re_K(i)
-                    end if
+                    ! if (graded .and. fluid_pp(Re_idx(i, j))%graded_Re) then
+                    ! call s_grade_Re(xi_x, xi_y, xi_z, Re_idx(i, j), i, Re_graded_v)
+                    ! Re_K(i) = alpha_K(Re_idx(i, j))/Re_graded_v + Re_K(i)
+                    ! else
+                    Re_K(i) = alpha_K(Re_idx(i, j))/Res_vc(i, j) + Re_K(i)
+                    ! end if
                 end do
                 Re_K(i) = 1._wp/max(Re_K(i), sgm_eps)
             end do
@@ -308,7 +308,7 @@ contains
         ! Constrain partial densities and volume fractions within physical bounds
         if (num_fluids == 1 .and. bubbles_euler) then
             rho_K = alpha_rho_K(1)
-            gamma_K = gammas(2)
+            gamma_K = gammas(1)
             pi_inf_K = pi_infs(1)
             qv_K = qvs(1)
         else
@@ -332,15 +332,14 @@ contains
 
         if (viscous) then
             do i = 1, 2
-                Re_K(i) = dflt_real
-                if (Re_size(i) > 0) Re_K(i) = 0._wp
+                Re_K(i) = dflt_real; if (Re_size(i) > 0) Re_K(i) = 0._wp
                 do j = 1, Re_size(i)
-                    if (graded .and. fluid_pp(Re_idx(i, j))%graded_Re) then
-                        call s_grade_Re(xi_x, xi_y, xi_z, Re_idx(i, j), i, Re_graded_v)
-                        Re_K(i) = alpha_K(Re_idx(i, j))/Re_graded_v + Re_K(i)
-                    else
-                        Re_K(i) = alpha_K(Re_idx(i, j))/Res_vc(i, j) + Re_K(i)
-                    end if
+                    ! if (graded .and. fluid_pp(Re_idx(i, j))%graded_Re) then
+                    ! call s_grade_Re(xi_x, xi_y, xi_z, Re_idx(i, j), i, Re_graded_v)
+                    ! Re_K(i) = alpha_K(Re_idx(i, j))/Re_graded_v + Re_K(i)
+                    ! else
+                    Re_K(i) = alpha_K(Re_idx(i, j))/fluid_pp(Re_idx(i, j))%Re(i) + Re_K(i)
+                    ! end if
                 end do
                 Re_K(i) = 1._wp/max(Re_K(i), sgm_eps)
             end do

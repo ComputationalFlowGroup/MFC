@@ -409,8 +409,10 @@ contains
             fluid_pp(i)%graded_Ca_inv_init = 0._wp
             fluid_pp(i)%graded_Ca_inv_end = 0._wp
             fluid_pp(i)%graded_Re = .false.
-            fluid_pp(i)%graded_Re_init = 0._wp
-            fluid_pp(i)%graded_Re_end = 0._wp
+            fluid_pp(i)%graded_Re_init(1) = dflt_real
+            fluid_pp(i)%graded_Re_end(1) = dflt_real
+            fluid_pp(i)%graded_Re_init(2) = dflt_real
+            fluid_pp(i)%graded_Re_end(2) = dflt_real
             fluid_pp(i)%graded_K_bulk = .false.
             fluid_pp(i)%graded_K_bulk_init = 0._wp
             fluid_pp(i)%graded_K_bulk_end = 0._wp

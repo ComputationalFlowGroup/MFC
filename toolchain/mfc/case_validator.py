@@ -215,7 +215,7 @@ PHYSICS_DOCS = {
     "check_graded": {
         "title": "Graded",
         "category": "Feature compatibility",
-        "explanation": ("Required graded=T.."),
+        "explanation": ("Requires graded=T.."),
     },
     # IC Extrusion
     "check_ic_extrusion": {
@@ -1296,7 +1296,7 @@ class CaseValidator:
 
         for i in range(1, int(num_fluids) + 1):  # check if Ca or Re is graded
             Ca_inv_graded = self.get(f"fluid_pp({i})%graded_Ca_inv", "F") == "T"
-            Re_graded = self.get(f"fluid_pp({i})%graded_Re(1)", "F") == "T"
+            Re_graded = self.get(f"fluid_pp({i})%graded_Re", "F") == "T"
 
             # add k bulk constraints K_bulk_graded = self.get(f"fluid_pp({i})%graded_K_bulk", "F") == "T"
 
