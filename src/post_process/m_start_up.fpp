@@ -452,7 +452,7 @@ contains
             end do
         end if
 
-        if (hyperelasticity) then
+        if (hyperelasticity .or. graded) then
             do i = 1, eqn_idx%xi%end - eqn_idx%xi%beg + 1
                 if (prim_vars_wrt) then
                     write (varname, '(A,I0)') 'xi', i

@@ -16,6 +16,7 @@ module m_riemann_solvers
     use m_riemann_solver_lf
     use m_riemann_solver_hll
     use m_riemann_solver_hlld
+    use m_graded
 
     implicit none
 
@@ -54,7 +55,7 @@ contains
     impure subroutine s_initialize_riemann_solvers_module
 
         ! Allocating the variables that will be utilized to formulate the left, right, and average states of the Riemann problem, as
-        ! well the Riemann problem solution
+        ! well as the Riemann problem solution
         integer :: i, j
 
         @:ALLOCATE(Ca_invs_rs(1:num_fluids))
@@ -65,10 +66,11 @@ contains
         if (viscous) then
             @:ALLOCATE(Res_gs(1:2, 1:Re_size_max))
         end if
-
+        !!!!edit for graded later
         if (viscous) then
             do i = 1, 2
                 do j = 1, Re_size(i)
+                    ! if (graded .and. fluid_pp(Re_idx(i, j))%graded_Re) then   Res_gs(i, j) = fluid_pp(Re_idx(i, j)%graded_Re(i)
                     Res_gs(i, j) = fluid_pp(Re_idx(i, j))%Re(i)
                 end do
             end do

@@ -74,6 +74,8 @@ contains
         real(wp) :: c_L, c_R
         real(wp), dimension(6) :: tau_e_L, tau_e_R
         real(wp) :: Ca_inv_L, Ca_inv_R
+        real(wp) :: xi_x_L, xi_y_L, xi_z_L
+        real(wp) :: xi_x_R, xi_y_R, xi_z_R
         real(wp) :: damage_L, damage_R
         real(wp), dimension(2) :: Re_L, Re_R
         real(wp), dimension(3) :: xi_field_L, xi_field_R
@@ -313,8 +315,23 @@ contains
                                     damage_R = qR_prim_rsx_vf(${SF('')}$, eqn_idx%damage)
                                 end if
 
+                                if (graded) then
+                                    xi_x_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%beg)
+                                    xi_y_L = 0._wp
+                                    xi_z_L = 0._wp
+                                    if (num_dims >= 2) xi_y_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%beg + 1)
+                                    if (num_dims == 3) xi_z_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%end)
+                                    xi_x_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%beg)
+                                    xi_y_R = 0._wp
+                                    xi_z_R = 0._wp
+                                    if (num_dims >= 2) xi_y_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%beg + 1)
+                                    if (num_dims == 3) xi_z_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%end)
+                                else
+                                    xi_x_L = 0._wp; xi_y_L = 0._wp; xi_z_L = 0._wp
+                                    xi_x_R = 0._wp; xi_y_R = 0._wp; xi_z_R = 0._wp
+                                end if
                                 call s_compute_hypoelastic_interface_energy(num_fluids, alpha_L, alpha_R, damage_L, damage_R, &
-                                    & tau_e_L, tau_e_R, Ca_inv_L, Ca_inv_R, E_L, E_R)
+                                    & tau_e_L, tau_e_R, Ca_inv_L, Ca_inv_R, E_L, E_R, xi_x_L, xi_y_L, xi_z_L, xi_x_R, xi_y_R, xi_z_R)
                             end if
 
                             @:compute_average_state()

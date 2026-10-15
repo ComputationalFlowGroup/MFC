@@ -815,6 +815,7 @@ contains
         if (bubbles_euler .or. bubbles_lagrange) then
             call s_initialize_bubbles_model()
         end if
+        if (graded) call s_initialize_graded()
         call s_initialize_mpi_common_module()
         call s_initialize_mpi_proxy_module()
         call s_initialize_variables_conversion_module()
@@ -924,8 +925,7 @@ contains
 
         if (hypoelasticity) call s_initialize_hypoelastic_module()
         if (hyperelasticity) call s_initialize_hyperelastic_module()
-        if (graded) call s_initialize_graded()
-
+        
     end subroutine s_initialize_modules
 
     !> Set up the MPI execution environment, bind GPUs, and decompose the computational domain
@@ -1083,7 +1083,6 @@ contains
         call s_finalize_time_steppers_module()
         if (hypoelasticity) call s_finalize_hypoelastic_module()
         if (hyperelasticity) call s_finalize_hyperelastic_module()
-        if (graded) call s_finalize_graded()
         call s_finalize_derived_variables_module()
         call s_finalize_data_output_module()
         call s_finalize_rhs_module()
@@ -1110,6 +1109,7 @@ contains
             call s_finalize_viscous_module()
         end if
         call s_finalize_mpi_proxy_module()
+        if (graded) call s_finalize_graded()
 
         if (surface_tension) call s_finalize_surface_tension_module()
         if (bodyForces .or. synthetic_turbulence) call s_finalize_body_forces_module()

@@ -13,6 +13,7 @@ module m_riemann_state
     use m_global_parameters
     use m_constants, only: riemann_solver_hll, riemann_solver_hlld, verysmall
     use m_hb_function
+    use m_graded
 
     implicit none
 
@@ -1075,7 +1076,7 @@ contains
     !! verysmall gate is a deliberate maintainer ruling that replaces HLL's former hard-coded G > 1000 stability floor, retiring its
     !! "TODO take out if statement if stable without".
     subroutine s_compute_hypoelastic_interface_energy(nf, alpha_L, alpha_R, damage_L, damage_R, tau_e_L, tau_e_R, Ca_inv_L, &
-        & Ca_inv_R, E_L, E_R)
+        & Ca_inv_R, E_L, E_R, xi_x_L, xi_y_L, xi_z_L, xi_x_R, xi_y_R, xi_z_R)
 
         $:GPU_ROUTINE(function_name='s_compute_hypoelastic_interface_energy', parallelism='[seq]', cray_inline=True)
 
@@ -1086,13 +1087,22 @@ contains
         real(wp), intent(out)               :: Ca_inv_L, Ca_inv_R  !< Left and right mixture shear moduli
         real(wp), intent(inout)             :: E_L, E_R            !< Left and right state energies
         integer                             :: i                   !< Loop iterator
-
+        real(wp), intent(in)                :: xi_x_L, xi_y_L, xi_z_L
+        real(wp), intent(in)                :: xi_x_R, xi_y_R, xi_z_R
+        real(wp)                            :: Ca_graded_L, Ca_graded_R
         Ca_inv_L = 0._wp; Ca_inv_R = 0._wp
 
         $:GPU_LOOP(parallelism='[seq]')
         do i = 1, nf
-            Ca_inv_L = Ca_inv_L + alpha_L(i)*Ca_invs_rs(i)
-            Ca_inv_R = Ca_inv_R + alpha_R(i)*Ca_invs_rs(i)
+            if (graded .and. fluid_pp(i)%graded_Ca_inv) then
+                call s_grade_Ca_inv(xi_x_L, xi_y_L, xi_z_L, i, Ca_graded_L)
+                call s_grade_Ca_inv(xi_x_R, xi_y_R, xi_z_R, i, Ca_graded_R)
+                Ca_inv_L = Ca_inv_L + alpha_L(i)*Ca_graded_L
+                Ca_inv_R = Ca_inv_R + alpha_R(i)*Ca_graded_R
+            else
+                Ca_inv_L = Ca_inv_L + alpha_L(i)*Ca_invs_rs(i)
+                Ca_inv_R = Ca_inv_R + alpha_R(i)*Ca_invs_rs(i)
+            end if
         end do
 
         if (cont_damage) then

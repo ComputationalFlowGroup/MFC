@@ -142,7 +142,7 @@ contains
                         end do
                     end if
 
-                    if (hyperelasticity) then
+                    if (hyperelasticity .or. graded) then
                         q_prim_vf(eqn_idx%xi%beg)%sf(-j, k, l) = -q_prim_vf(eqn_idx%xi%beg)%sf(j - 1, k, l)
                     end if
                 end do

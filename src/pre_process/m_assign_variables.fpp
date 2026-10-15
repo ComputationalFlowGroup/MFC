@@ -383,7 +383,7 @@ contains
             end do
         end if
 
-        if (hyperelasticity) then
+        if (hyperelasticity .or. graded) then
             if (pre_stress) then  ! pre stressed initial condition in spatial domain
                 rcoord = sqrt((x_cc(j)**2 + y_cc(k)**2 + z_cc(l)**2))
                 theta = atan2(y_cc(k), x_cc(j))

@@ -1289,6 +1289,7 @@ _nv(
     "adv_n",
     "hypoelasticity",
     "hyperelasticity",
+    "graded",
     "surface_tension",
     "relativity",
     "ib",

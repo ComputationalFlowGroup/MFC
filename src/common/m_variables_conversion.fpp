@@ -92,7 +92,7 @@ contains
         real(wp), intent(inout)         :: T
         real(stp), intent(in), optional :: stress, mom
         real(wp), intent(in), optional  :: Ca_inv, pres_mag
-
+        
         ! Chemistry
         real(wp), dimension(1:num_species), intent(in) :: rhoYks
         real(wp), dimension(1:num_species)             :: Y_rs
@@ -126,13 +126,14 @@ contains
                         E_e = E_e + ((stress/rho)**2._wp)/(4._wp*Ca_inv)
                         ! Double for shear stresses
                         if (any(s == shear_indices)) then
-                            E_e = E_e + ((stress/rho)**2._wp)/(4._wp*Ca_inv)
+                           E_e = E_e + ((stress/rho)**2._wp)/(4._wp*Ca_inv)
                         end if
                     end if
                 end do
 
                 pres = (energy - 0.5_wp*(mom**2._wp)/rho - pi_inf - qv - E_e)/gamma
             end if
+           
         #:else
             ! Reacting mixture pressure from temperature and species
             Y_rs(:) = rhoYks(:)/rho
@@ -215,9 +216,6 @@ contains
                 qv = qv + alpha_rho_K(i)*qvs(i)
             end do
         end if
-        !!!!!!!!!!maybe move this!!!!!!!!!!
-        !!this is already done for hyperelasticity and hypo. so this
-        ! does not really make sense to include, and to include here ?
         if (graded) then
             xi_x = q_vf(eqn_idx%xi%beg)%sf(k, l, r)/rho
             xi_y = q_vf(eqn_idx%xi%beg + 1)%sf(k, l, r)/rho
@@ -231,12 +229,12 @@ contains
                 Re_K(i) = dflt_real
                 if (Re_size(i) > 0) Re_K(i) = 0._wp
                 do j = 1, Re_size(i)
-                    ! if (graded .and. fluid_pp(Re_idx(i, j))%graded_Re) then
-                    ! call s_grade_Re(xi_x, xi_y, xi_z, Re_idx(i, j), i, Re_graded_v)
-                    ! Re_K(i) = alpha_K(Re_idx(i, j))/Re_graded_v + Re_K(i)
-                    ! else
-                    Re_K(i) = alpha_K(Re_idx(i, j))/Res_vc(i, j) + Re_K(i)
-                    ! end if
+                    if (graded .and. fluid_pp(Re_idx(i, j))%graded_Re) then
+                        call s_grade_Re(xi_x, xi_y, xi_z, Re_idx(i, j), i, Re_graded_v)
+                        Re_K(i) = alpha_K(Re_idx(i, j))/Re_graded_v + Re_K(i)
+                    else
+                        Re_K(i) = alpha_K(Re_idx(i, j))/Res_vc(i, j) + Re_K(i)
+                    end if
                 end do
                 Re_K(i) = 1._wp/max(Re_K(i), sgm_eps)
             end do
@@ -246,10 +244,10 @@ contains
         if (present(Ca_inv_K)) then
             Ca_inv_K = 0._wp
             do i = 1, num_fluids
-                if (graded .and. fluid_pp(i)%graded_Ca_inv) then
+                if (graded .and. Ca_inv_graded_flag(i)) then
                     call s_grade_Ca_inv(xi_x, xi_y, xi_z, i, Ca_inv_graded_v)
                     Ca_inv_K = Ca_inv_K + alpha_K(i)*Ca_inv_graded_v
-                else
+                    else
                     Ca_inv_K = Ca_inv_K + alpha_K(i)*Ca_inv(i)
                 end if
             end do
@@ -298,7 +296,7 @@ contains
         xi_x_l = 0._wp
         xi_y_l = 0._wp
         xi_z_l = 0._wp
-        if (graded) then
+        if (graded .and. present(xi_x)) then
             xi_x_l = xi_x
             xi_y_l = xi_y
             xi_z_l = xi_z
@@ -334,12 +332,12 @@ contains
             do i = 1, 2
                 Re_K(i) = dflt_real; if (Re_size(i) > 0) Re_K(i) = 0._wp
                 do j = 1, Re_size(i)
-                    ! if (graded .and. fluid_pp(Re_idx(i, j))%graded_Re) then
-                    ! call s_grade_Re(xi_x, xi_y, xi_z, Re_idx(i, j), i, Re_graded_v)
-                    ! Re_K(i) = alpha_K(Re_idx(i, j))/Re_graded_v + Re_K(i)
-                    ! else
-                    Re_K(i) = alpha_K(Re_idx(i, j))/fluid_pp(Re_idx(i, j))%Re(i) + Re_K(i)
-                    ! end if
+                    if (graded .and. fluid_pp(Re_idx(i, j))%graded_Re) then
+                        call s_grade_Re(xi_x_l, xi_y_l, xi_z_l, Re_idx(i, j), i, Re_graded_v)
+                        Re_K(i) = alpha_K(Re_idx(i, j))/Re_graded_v + Re_K(i)
+                    else
+                        Re_K(i) = alpha_K(Re_idx(i, j))/fluid_pp(Re_idx(i, j))%Re(i) + Re_K(i)
+                    end if
                 end do
                 Re_K(i) = 1._wp/max(Re_K(i), sgm_eps)
             end do
@@ -349,8 +347,8 @@ contains
         if (present(Ca_inv_K)) then
             Ca_inv_K = 0._wp
             do i = 1, num_fluids
-                if (graded .and. fluid_pp(i)%graded_Ca_inv) then
-                    call s_grade_Ca_inv(xi_x, xi_y, xi_z, i, Ca_inv_graded_v)
+                if (graded .and. Ca_inv_graded_flag(i)) then
+                    call s_grade_Ca_inv(xi_x_l, xi_y_l, xi_z_l, i, Ca_inv_graded_v)
                     Ca_inv_K = Ca_inv_K + alpha_K(i)*Ca_inv_graded_v
                 else
                     Ca_inv_K = Ca_inv_K + alpha_K(i)*Ca_inv(i)
@@ -540,10 +538,10 @@ contains
         real(wp)               :: E, D                     !< Prim/Cons variables within Newton-Raphson iteration
         real(wp)               :: f, dGa_dW, dp_dW, df_dW  !< Functions within Newton-Raphson iteration
         integer                :: iter                     !< Newton-Raphson iteration counter
-
+        real(wp)               :: xi_x, xi_y, xi_z, rho_tmp
         $:GPU_PARALLEL_LOOP(collapse=3, private='[alpha_K, alpha_rho_K, Re_K, nRtmp, rho_K, gamma_K, pi_inf_K, qv_K, dyn_pres_K, &
                             & rhoYks, B, pres, vftmp, nbub_sc, Ca_inv_K, T, pres_mag, Ga, B2, m2, S, W, dW, E, D, f, dGa_dW, &
-                            & dp_dW, df_dW, iter]')
+                            & dp_dW, df_dW, iter, xi_x, xi_y, xi_z, rho_tmp]')
         do l = ibounds(3)%beg, ibounds(3)%end
             do k = ibounds(2)%beg, ibounds(2)%end
                 do j = ibounds(1)%beg, ibounds(1)%end
@@ -553,10 +551,27 @@ contains
 
                     if (model_eqns /= model_eqns_4eq) then
 #ifdef MFC_SIMULATION
+                        if (graded) then
+                            rho_tmp = 0._wp
+                            $:GPU_LOOP(parallelism='[seq]')
+                            do i = 1, num_fluids
+                                rho_tmp = rho_tmp + alpha_rho_K(i)
+                            end do
+                            rho_tmp = max(rho_tmp, sgm_eps)
+                            xi_x = qK_cons_vf(eqn_idx%xi%beg)%sf(j, k, l)/rho_tmp
+                            xi_y = qK_cons_vf(eqn_idx%xi%beg + 1)%sf(j, k, l)/rho_tmp
+                            xi_z = qK_cons_vf(eqn_idx%xi%end)%sf(j, k, l)/rho_tmp
+                        end if
+
                         ! If in simulation, use acc mixture subroutines
                         if (elasticity) then
-                            call s_convert_species_to_mixture_variables_acc(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, &
-                                & Re_K, Ca_inv_K, Ca_invs_vc)
+                            if (graded) then
+                                call s_convert_species_to_mixture_variables_acc(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, &
+                                    & alpha_rho_K, Re_K, Ca_inv_K, Ca_invs_vc, xi_x, xi_y, xi_z)
+                            else
+                                call s_convert_species_to_mixture_variables_acc(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, &
+                                    & alpha_rho_K, Re_K, Ca_inv_K, Ca_invs_vc)
+                            end if
                         else
                             call s_convert_species_to_mixture_variables_acc(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, &
                                 & Re_K)
@@ -791,7 +806,7 @@ contains
                         end do
                     end if
 
-                    if (hyperelasticity) then
+                    if (hyperelasticity .or. graded) then
                         $:GPU_LOOP(parallelism='[seq]')
                         do i = eqn_idx%xi%beg, eqn_idx%xi%end
                             qK_prim_vf(i)%sf(j, k, l) = qK_cons_vf(i)%sf(j, k, l)/rho_K
@@ -1046,7 +1061,7 @@ contains
                     end if
 
                     ! using \rho xi as the conservative formulation stated in Kamrin et al. JFM 2022
-                    if (hyperelasticity) then
+                    if (hyperelasticity .or. graded) then
                         ! Multiply \xi to \rho \xi
                         do i = eqn_idx%xi%beg, eqn_idx%xi%end
                             q_cons_vf(i)%sf(j, k, l) = rho*q_prim_vf(i)%sf(j, k, l)
@@ -1106,6 +1121,7 @@ contains
         real(wp)               :: Ca_inv_K
         real(wp)               :: T_K, mix_mol_weight, R_gas
         integer                :: i, j, k, l  !< Generic loop iterators
+        real(wp)               :: xi_x, xi_y, xi_z
 
         is1b = is1%beg; is1e = is1%end
         is2b = is2%beg; is2e = is2%end
@@ -1118,7 +1134,7 @@ contains
         ! capillarity
 #ifdef MFC_SIMULATION
         $:GPU_PARALLEL_LOOP(collapse=3, private='[alpha_rho_K, vel_K, alpha_K, Re_K, Y_K, rho_K, vel_K_sum, pres_K, E_K, gamma_K, &
-                            & pi_inf_K, qv_K, Ca_inv_K, T_K, mix_mol_weight, R_gas]')
+                            & pi_inf_K, qv_K, Ca_inv_K, T_K, mix_mol_weight, R_gas, xi_x, xi_y, xi_z]')
         do l = is3b, is3e
             do k = is2b, is2e
                 do j = is1b, is1e
@@ -1144,9 +1160,21 @@ contains
                     end do
 
                     pres_K = qK_prim_vf(j, k, l, eqn_idx%E)
+
+                    if (graded) then
+                        xi_x = qK_prim_vf(j, k, l, eqn_idx%xi%beg)
+                        xi_y = qK_prim_vf(j, k, l, eqn_idx%xi%beg + 1)
+                        xi_z = qK_prim_vf(j, k, l, eqn_idx%xi%end)
+                    end if
+
                     if (elasticity) then
-                        call s_convert_species_to_mixture_variables_acc(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, &
-                            & Re_K, Ca_inv_K, Ca_invs_vc)
+                        if (graded) then
+                            call s_convert_species_to_mixture_variables_acc(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, &
+                                & Re_K, Ca_inv_K, Ca_invs_vc, xi_x, xi_y, xi_z)
+                        else
+                            call s_convert_species_to_mixture_variables_acc(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, &
+                                & Re_K, Ca_inv_K, Ca_invs_vc)
+                        end if
                     else
                         call s_convert_species_to_mixture_variables_acc(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, Re_K)
                     end if

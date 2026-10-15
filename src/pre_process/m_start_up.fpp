@@ -21,6 +21,7 @@ module m_start_up
     use m_phase_change
     use m_helper_basic
     use m_helper
+    use m_graded
 
 #ifdef MFC_MPI
     use mpi
@@ -485,7 +486,7 @@ contains
         call s_initialize_assign_variables_module()
         call s_initialize_boundary_common_module()
         if (relax) call s_initialize_phasechange_module()
-
+        if (graded) call s_initialize_graded()
         ! Create the D directory if it doesn't exit, to store the serial data files
         call s_create_directory('D')
 

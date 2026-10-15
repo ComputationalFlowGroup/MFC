@@ -14,7 +14,7 @@ module m_graded
 
     implicit none
 
-    private; public :: s_initialize_graded, s_grade_Ca_inv, s_grade_Re, s_finalize_graded
+    private; public :: s_initialize_graded, s_grade_Ca_inv, s_grade_Re, s_finalize_graded, Ca_inv_graded_flag
 
     ! flat arrays
     logical, allocatable, dimension(:)    :: Ca_inv_graded_flag
@@ -72,6 +72,9 @@ contains
                 graded_end_arr(j, i) = fluid_pp(i)%graded_end_loc(j)
                 graded_center_arr(j, i) = fluid_pp(i)%graded_center_loc(j)
             end do
+            if (Ca_inv_graded_flag(i)) then
+               fluid_pp(i)%Ca_inv = Ca_inv_init_arr(i)
+            end if
         end do
 
         $:GPU_UPDATE(device='[Ca_inv_graded_flag, Re_graded_flag, graded_type_arr, graded_profile_arr, Ca_inv_init_arr, &
@@ -91,7 +94,7 @@ contains
         real(wp)             :: denom
 
         $:GPU_ROUTINE(parallelism='[seq]')
-
+        
         if (graded_type_arr(fluid_idx) == 1) then
             ! cartesian, project onto segment from graded_beg to graded_end
             dx = graded_end_arr(1, fluid_idx) - graded_beg_arr(1, fluid_idx)
@@ -172,6 +175,7 @@ contains
         end if
 
         Ca_inv_out = max(Ca_inv_out, 0._wp)
+
 
     end subroutine s_grade_Ca_inv
 

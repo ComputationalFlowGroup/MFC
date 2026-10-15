@@ -994,6 +994,10 @@ contains
         @:PREFER_GPU(z_cc)
         @:PREFER_GPU(dz)
 
+        if (proc_rank == 0) then
+            print *, '>>> sys_size =', sys_size, ' xi%beg =', eqn_idx%xi%beg, ' xi%end =', eqn_idx%xi%end, ' graded=', graded
+        end if
+ 
     end subroutine s_initialize_global_parameters_module
 
     !> Initializes parallel infrastructure

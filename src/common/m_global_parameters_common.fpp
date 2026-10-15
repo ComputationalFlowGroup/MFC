@@ -64,11 +64,6 @@ module m_global_parameters_common
     integer, dimension(3, 2) :: shear_BC_flip_indices  !< Shear stress BC reflection indices (1:3, 1:shear_BC_flip_num)
     !> @}
 
-    !> @name Graded
-    !> @{
-    logical :: graded  !< graded modeling
-    !> @}
-
 #ifdef MFC_SIMULATION
     $:GPU_DECLARE(create='[sys_size, eqn_idx, b_size, tensor_size]')
     $:GPU_DECLARE(create='[shear_num, shear_indices, shear_BC_flip_num, shear_BC_flip_indices]')
@@ -289,7 +284,7 @@ contains
                 end if
             end if
 
-            if (hyperelasticity) then
+            if (hyperelasticity .or. graded) then
                 ! number of entries in the symmetric b tensor plus the jacobian
                 b_size = (num_dims*(num_dims + 1))/2 + 1
                 tensor_size = num_dims**2 + 1
