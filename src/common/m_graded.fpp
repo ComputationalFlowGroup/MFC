@@ -73,7 +73,7 @@ contains
                 graded_center_arr(j, i) = fluid_pp(i)%graded_center_loc(j)
             end do
             if (Ca_inv_graded_flag(i)) then
-               fluid_pp(i)%Ca_inv = Ca_inv_init_arr(i)
+                fluid_pp(i)%Ca_inv = Ca_inv_init_arr(i)
             end if
         end do
 
@@ -94,7 +94,7 @@ contains
         real(wp)             :: denom
 
         $:GPU_ROUTINE(parallelism='[seq]')
-        
+
         if (graded_type_arr(fluid_idx) == 1) then
             ! cartesian, project onto segment from graded_beg to graded_end
             dx = graded_end_arr(1, fluid_idx) - graded_beg_arr(1, fluid_idx)
@@ -175,7 +175,6 @@ contains
         end if
 
         Ca_inv_out = max(Ca_inv_out, 0._wp)
-
 
     end subroutine s_grade_Ca_inv
 

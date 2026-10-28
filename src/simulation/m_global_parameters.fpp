@@ -420,6 +420,8 @@ contains
         chem_params%adap_substeps = .false.
         chem_params%reaction_substeps_max = 0
 
+        graded = .false.
+
         num_bc_patches = 0
         bc_io = .false.
         periodic_bc = .false.
@@ -457,6 +459,29 @@ contains
             fluid_pp(i)%mu_min = dflt_real
             fluid_pp(i)%mu_max = dflt_real
             fluid_pp(i)%mu_bulk = dflt_real
+            fluid_pp(i)%graded_Ca_inv = .false.
+            fluid_pp(i)%graded_Ca_inv_init = dflt_real
+            fluid_pp(i)%graded_Ca_inv_end = dflt_real
+            fluid_pp(i)%graded_Re = .false.
+            fluid_pp(i)%graded_Re_init(1) = dflt_real
+            fluid_pp(i)%graded_Re_end(1) = dflt_real
+            fluid_pp(i)%graded_Re_init(2) = dflt_real
+            fluid_pp(i)%graded_Re_end(2) = dflt_real
+            fluid_pp(i)%graded_K_bulk = .false.
+            fluid_pp(i)%graded_K_bulk_init = 0._wp
+            fluid_pp(i)%graded_K_bulk_end = 0._wp
+            fluid_pp(i)%graded_profile = 0._wp
+            fluid_pp(i)%graded_type = 0._wp
+            fluid_pp(i)%graded_r_beg = 0._wp
+            fluid_pp(i)%graded_r_end = 0._wp
+            fluid_pp(i)%graded_pf_coeff = 0._wp
+            fluid_pp(i)%graded_exp = 0._wp
+            fluid_pp(i)%graded_scaling = 0._wp
+            do j = 1, 3
+                fluid_pp(i)%graded_beg_loc(j) = 0._wp
+                fluid_pp(i)%graded_end_loc(j) = 0._wp
+                fluid_pp(i)%graded_center_loc(j) = 0._wp
+            end do
         end do
 
         ! Subgrid bubble parameters (bub_pp struct + scalar companions; scalar companions are
@@ -997,7 +1022,7 @@ contains
         if (proc_rank == 0) then
             print *, '>>> sys_size =', sys_size, ' xi%beg =', eqn_idx%xi%beg, ' xi%end =', eqn_idx%xi%end, ' graded=', graded
         end if
- 
+
     end subroutine s_initialize_global_parameters_module
 
     !> Initializes parallel infrastructure

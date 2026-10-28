@@ -22,37 +22,42 @@ module m_riemann_solver_hllc
         & get_mixture_energy_mass, get_species_specific_heats_r, get_species_enthalpies_rt, get_mixture_specific_heat_cp_mass, &
         & molecular_weights
     use m_riemann_state
-    use m_graded        
+    use m_graded
+
     implicit none
 
 contains
-   
-    subroutine s_compute_elastic_Ca_inv_LR(xi_x_L, xi_y_L, xi_z_L, xi_x_R, xi_y_R, xi_z_R, alpha_L, alpha_R, Ca_invs, Ca_inv_L, &
-       & Ca_inv_R)
-       $:GPU_ROUTINE(parallelism='[seq]')
-       real(wp), intent(in)                        :: xi_x_L, xi_y_L, xi_z_L
-       real(wp), intent(in)                        :: xi_x_R, xi_y_R, xi_z_R
-       real(wp), dimension(num_fluids), intent(in) :: alpha_L, alpha_R
-       real(wp), dimension(num_fluids), intent(in) :: Ca_invs
-       real(wp), intent(out)                       :: Ca_inv_L, Ca_inv_R
-       real(wp)                                    :: Ca_graded_L, Ca_graded_R
-       integer                                     :: i
-       Ca_inv_L = 0._wp
-       Ca_inv_R = 0._wp
-       do i = 1, num_fluids
-           if (graded .and. fluid_pp(i)%graded_Ca_inv) then
-               call s_grade_Ca_inv(xi_x_L, xi_y_L, xi_z_L, i, Ca_graded_L)
-               call s_grade_Ca_inv(xi_x_R, xi_y_R, xi_z_R, i, Ca_graded_R)
-               Ca_inv_L = Ca_inv_L + alpha_L(i)*Ca_graded_L
-               Ca_inv_R = Ca_inv_R + alpha_R(i)*Ca_graded_R
-           else
-               Ca_inv_L = Ca_inv_L + alpha_L(i)*Ca_invs(i)
-               Ca_inv_R = Ca_inv_R + alpha_R(i)*Ca_invs(i)
-           end if
-       end do
-        
-    end subroutine s_compute_elastic_Ca_inv_LR
 
+    subroutine s_compute_elastic_Ca_inv_LR(xi_x_L, xi_y_L, xi_z_L, xi_x_R, xi_y_R, xi_z_R, alpha_L, alpha_R, Ca_invs, Ca_inv_L, &
+                                           & Ca_inv_R)
+        $:GPU_ROUTINE(parallelism='[seq]')
+        real(wp), intent(in)                        :: xi_x_L, xi_y_L, xi_z_L
+        real(wp), intent(in)                        :: xi_x_R, xi_y_R, xi_z_R
+        real(wp), dimension(num_fluids), intent(in) :: alpha_L, alpha_R
+        real(wp), dimension(num_fluids), intent(in) :: Ca_invs
+        real(wp), intent(out)                       :: Ca_inv_L, Ca_inv_R
+        real(wp)                                    :: Ca_graded_L, Ca_graded_R
+        integer                                     :: i
+        Ca_inv_L = 0._wp
+        Ca_inv_R = 0._wp
+        do i = 1, num_fluids
+            if (graded) then
+                if (fluid_pp(i)%graded_Ca_inv) then
+                    call s_grade_Ca_inv(xi_x_L, xi_y_L, xi_z_L, i, Ca_graded_L)
+                    call s_grade_Ca_inv(xi_x_R, xi_y_R, xi_z_R, i, Ca_graded_R)
+                    Ca_inv_L = Ca_inv_L + alpha_L(i)*Ca_graded_L
+                    Ca_inv_R = Ca_inv_R + alpha_R(i)*Ca_graded_R
+                else
+                    Ca_inv_L = Ca_inv_L + alpha_L(i)*Ca_invs(i)
+                    Ca_inv_R = Ca_inv_R + alpha_R(i)*Ca_invs(i)
+                end if
+            else
+                Ca_inv_L = Ca_inv_L + alpha_L(i)*Ca_invs(i)
+                Ca_inv_R = Ca_inv_R + alpha_R(i)*Ca_invs(i)
+            end if
+        end do
+
+    end subroutine s_compute_elastic_Ca_inv_LR
 
     !> HLLC Riemann solver with contact restoration, Toro et al. Shock Waves (1994)
     subroutine s_hllc_riemann_solver(qL_prim_rsx_vf, dqL_prim_dx_vf, dqL_prim_dy_vf, dqL_prim_dz_vf, qL_prim_vf, qR_prim_rsx_vf, &
@@ -263,7 +268,7 @@ contains
                                 E_R = gamma_R*pres_R + pi_inf_R + 5.e-1_wp*rho_R*vel_R_rms + qv_R
 
                                 ! Hyperelastic stress contribution: strain energy added to total energy
-                                if (hyperelasticity) then
+                                if (elasticity) then
                                     xi_field_L = 0._wp
                                     xi_field_R = 0._wp
                                     $:GPU_LOOP(parallelism='[seq]')
@@ -272,8 +277,7 @@ contains
                                         xi_field_R(i) = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%beg - 1 + i)
                                     end do
                                     Ca_inv_L = 0._wp; Ca_inv_R = 0._wp
-                                    ! try to do exactly what i did in
-                                    ! mixture variables
+                                    ! try to do exactly what i did in mixture variables
                                     if (graded) then
                                         call s_compute_elastic_Ca_inv_LR(xi_field_L(1), xi_field_L(2), xi_field_L(3), &
                                                                          & xi_field_R(1), xi_field_R(2), xi_field_R(3), alpha_L, &
@@ -291,8 +295,9 @@ contains
                                         E_L = E_L + Ca_inv_L*qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%end + 1)
                                         E_R = E_R + Ca_inv_R*qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%end + 1)
                                     end if
+
                                     $:GPU_LOOP(parallelism='[seq]')
-                                    do i = 1, b_size - 1
+                                    do i = 1, eqn_idx%stress%end - eqn_idx%stress%beg + 1
                                         tau_e_L(i) = qL_prim_rsx_vf(${SF('')}$, eqn_idx%stress%beg - 1 + i)
                                         tau_e_R(i) = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%stress%beg - 1 + i)
                                     end do
@@ -1267,34 +1272,34 @@ contains
                                 end if
 
                                 ! Hyperelastic stress contribution: strain energy added to total energy
-                                if (hyperelasticity) then
-                                xi_field_L = 0._wp
-                                xi_field_R = 0._wp
-                                $:GPU_LOOP(parallelism='[seq]')
-                                do i = 1, num_dims
-                                   xi_field_L(i) = qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%beg - 1 + i)
-                                   xi_field_R(i) = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%beg - 1 + i)
-                                end do
-                                Ca_inv_L = 0._wp
-                                Ca_inv_R = 0._wp
-                                if (graded) then
-                                   call s_compute_elastic_Ca_inv_LR(xi_field_L(1), xi_field_L(2), xi_field_L(3), &
-                                                                    & xi_field_R(1), xi_field_R(2), xi_field_R(3), &
-                                                                    & alpha_L, alpha_R, Ca_invs_rs, Ca_inv_L, Ca_inv_R)   
-                                else
-                                   $:GPU_LOOP(parallelism='[seq]')
-                                   do i = 1, num_fluids
-                                      Ca_inv_L = Ca_inv_L + alpha_L(i)*Ca_invs_rs(i)
-                                      Ca_inv_R = Ca_inv_R + alpha_R(i)*Ca_invs_rs(i)
-                                   end do
-                                end if 
-                                ! Elastic contribution to energy if G large enough
+                                if (elasticity) then
+                                    xi_field_L = 0._wp
+                                    xi_field_R = 0._wp
+                                    $:GPU_LOOP(parallelism='[seq]')
+                                    do i = 1, num_dims
+                                        xi_field_L(i) = qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%beg - 1 + i)
+                                        xi_field_R(i) = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%beg - 1 + i)
+                                    end do
+                                    Ca_inv_L = 0._wp
+                                    Ca_inv_R = 0._wp
+                                    if (graded) then
+                                        call s_compute_elastic_Ca_inv_LR(xi_field_L(1), xi_field_L(2), xi_field_L(3), &
+                                                                         & xi_field_R(1), xi_field_R(2), xi_field_R(3), alpha_L, &
+                                                                         & alpha_R, Ca_invs_rs, Ca_inv_L, Ca_inv_R)
+                                    else
+                                        $:GPU_LOOP(parallelism='[seq]')
+                                        do i = 1, num_fluids
+                                            Ca_inv_L = Ca_inv_L + alpha_L(i)*Ca_invs_rs(i)
+                                            Ca_inv_R = Ca_inv_R + alpha_R(i)*Ca_invs_rs(i)
+                                        end do
+                                    end if
+                                    ! Elastic contribution to energy if G large enough
                                     if (Ca_inv_L > verysmall .and. Ca_inv_R > verysmall) then
                                         E_L = E_L + Ca_inv_L*qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%end + 1)
                                         E_R = E_R + Ca_inv_R*qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%end + 1)
                                     end if
                                     $:GPU_LOOP(parallelism='[seq]')
-                                    do i = 1, b_size - 1
+                                    do i = 1, eqn_idx%stress%end - eqn_idx%stress%beg + 1
                                         tau_e_L(i) = qL_prim_rsx_vf(${SF('')}$, eqn_idx%stress%beg - 1 + i)
                                         tau_e_R(i) = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%stress%beg - 1 + i)
                                     end do

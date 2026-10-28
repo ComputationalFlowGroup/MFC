@@ -150,7 +150,7 @@ contains
     !! parameters once they are read from the input file.
     impure subroutine s_assign_default_values_to_user_inputs
 
-        integer :: i  !< Generic loop iterator
+        integer :: i, j  !< Generic loop iterator
 
         ! Shared defaults (case_dir, m/n/p, cyl_coord, cfl flags, model_eqns, elasticity, BC blocks,
         ! recon/weno/muscl/num_fluids/igr/mhd/relativity under case-opt guard, Tait EOS, bubble flags,
@@ -204,6 +204,8 @@ contains
         chem_params%adap_substeps = .false.
         chem_params%reaction_substeps_max = 0
 
+        graded = .false.
+
         ! Fluids physical parameters (post-specific; Ca_inv = dflt_real differs from pre/sim)
         do i = 1, num_fluids_max
             fluid_pp(i)%gamma = dflt_real
@@ -220,6 +222,29 @@ contains
             fluid_pp(i)%mu_min = dflt_real
             fluid_pp(i)%mu_max = dflt_real
             fluid_pp(i)%mu_bulk = dflt_real
+            fluid_pp(i)%graded_Ca_inv = .false.
+            fluid_pp(i)%graded_Ca_inv_init = dflt_real
+            fluid_pp(i)%graded_Ca_inv_end = dflt_real
+            fluid_pp(i)%graded_Re = .false.
+            fluid_pp(i)%graded_Re_init(1) = dflt_real
+            fluid_pp(i)%graded_Re_end(1) = dflt_real
+            fluid_pp(i)%graded_Re_init(2) = dflt_real
+            fluid_pp(i)%graded_Re_end(2) = dflt_real
+            fluid_pp(i)%graded_K_bulk = .false.
+            fluid_pp(i)%graded_K_bulk_init = 0._wp
+            fluid_pp(i)%graded_K_bulk_end = 0._wp
+            fluid_pp(i)%graded_profile = 0._wp
+            fluid_pp(i)%graded_type = 0._wp
+            fluid_pp(i)%graded_r_beg = 0._wp
+            fluid_pp(i)%graded_r_end = 0._wp
+            fluid_pp(i)%graded_pf_coeff = 0._wp
+            fluid_pp(i)%graded_exp = 0._wp
+            fluid_pp(i)%graded_scaling = 0._wp
+            do j = 1, 3
+                fluid_pp(i)%graded_beg_loc(j) = 0._wp
+                fluid_pp(i)%graded_end_loc(j) = 0._wp
+                fluid_pp(i)%graded_center_loc(j) = 0._wp
+            end do
         end do
 
         ! Subgrid bubble parameters (bub_pp struct + scalar companions; bub_pp%R0ref is set in common

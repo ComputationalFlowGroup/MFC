@@ -258,7 +258,7 @@ contains
                 end do
             end if
 
-            if (hyperelasticity) then
+            if (hyperelasticity .or. graded) then
                 do i = eqn_idx%xi%beg, eqn_idx%xi%end + 1
                     @:ALLOCATE(q_prim_vf(i)%sf(idwbuff(1)%beg:idwbuff(1)%end, idwbuff(2)%beg:idwbuff(2)%end, &
                                & idwbuff(3)%beg:idwbuff(3)%end))

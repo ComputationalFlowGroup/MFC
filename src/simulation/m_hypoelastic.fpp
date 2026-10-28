@@ -53,7 +53,7 @@ contains
         end if
 
         do i = 1, num_fluids
-            Ca_invs_hypo(i) = fluid_pp(i)%graded_Ca_inv_end
+            Ca_invs_hypo(i) = fluid_pp(i)%Ca_inv
         end do
         $:GPU_UPDATE(device='[Ca_invs_hypo]')
 
@@ -91,6 +91,7 @@ contains
         integer                                                :: i, k, l, q, r  !< Loop variables
         integer                                                :: ndirs          !< Number of coordinate directions
         integer, save                                          :: n_chk
+
         ndirs = 1; if (n > 0) ndirs = 2; if (p > 0) ndirs = 3
 
         if (idir == 1) then
@@ -202,9 +203,13 @@ contains
                         do i = 1, num_fluids
                             rho_K = rho_K + q_prim_vf(i)%sf(k, l, q)  ! alpha_rho_K(1)
                             ! alpha_K(1) * Ca_invs_hypo(1)
-                            if (graded .and. Ca_inv_graded_flag(i)) then
-                                call s_grade_Ca_inv(xi_x, xi_y, xi_z, i, Ca_inv_graded_v)
-                                Ca_inv_fluid = Ca_inv_graded_v
+                            if (graded) then
+                                if (Ca_inv_graded_flag(i)) then
+                                    call s_grade_Ca_inv(xi_x, xi_y, xi_z, i, Ca_inv_graded_v)
+                                    Ca_inv_fluid = Ca_inv_graded_v
+                                else
+                                    Ca_inv_fluid = Ca_invs_hypo(i)
+                                end if
                             else
                                 Ca_inv_fluid = Ca_invs_hypo(i)
                             end if
@@ -218,10 +223,10 @@ contains
                         rho_K_field(k, l, q) = rho_K
                         Ca_inv_K_field(k, l, q) = Ca_inv_K
                         if (n_chk < 3 .and. l == 0 .and. q == 0) then
-                           if (k == 0 .or. k == m/2 .or. k == m) then
-                              print *, 'check grading k= ', k, 'xi_x =', xi_x, 'Ca_inv_K = ', Ca_inv_K
-                              n_chk = n_chk + 1
-                           end if
+                            if (k == 0 .or. k == m/2 .or. k == m) then
+                                print *, 'check grading k= ', k, 'xi_x =', xi_x, 'Ca_inv_K = ', Ca_inv_K
+                                n_chk = n_chk + 1
+                            end if
                         end if
                         ! TODO: take this out if not needed
                         if (Ca_inv_K < verysmall) then

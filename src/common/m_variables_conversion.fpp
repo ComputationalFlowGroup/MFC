@@ -92,7 +92,7 @@ contains
         real(wp), intent(inout)         :: T
         real(stp), intent(in), optional :: stress, mom
         real(wp), intent(in), optional  :: Ca_inv, pres_mag
-        
+
         ! Chemistry
         real(wp), dimension(1:num_species), intent(in) :: rhoYks
         real(wp), dimension(1:num_species)             :: Y_rs
@@ -126,14 +126,13 @@ contains
                         E_e = E_e + ((stress/rho)**2._wp)/(4._wp*Ca_inv)
                         ! Double for shear stresses
                         if (any(s == shear_indices)) then
-                           E_e = E_e + ((stress/rho)**2._wp)/(4._wp*Ca_inv)
+                            E_e = E_e + ((stress/rho)**2._wp)/(4._wp*Ca_inv)
                         end if
                     end if
                 end do
 
                 pres = (energy - 0.5_wp*(mom**2._wp)/rho - pi_inf - qv - E_e)/gamma
             end if
-           
         #:else
             ! Reacting mixture pressure from temperature and species
             Y_rs(:) = rhoYks(:)/rho
@@ -196,6 +195,7 @@ contains
         real(wp)                                              :: Re_graded_v
         real(wp)                                              :: xi_x, xi_y, xi_z
         integer                                               :: i, j  !< Generic loop iterator
+        ! logical, optional, intent(in)                         :: cons_form
         ! Computing the density, the specific heat ratio function and the liquid stiffness function, respectively
 
         call s_compute_species_fraction(q_vf, k, l, r, alpha_rho_K, alpha_K)
@@ -216,10 +216,13 @@ contains
                 qv = qv + alpha_rho_K(i)*qvs(i)
             end do
         end if
+        ! cons_form = .false. if (present(is_cons)) cons_form = is_cons
         if (graded) then
-            xi_x = q_vf(eqn_idx%xi%beg)%sf(k, l, r)/rho
-            xi_y = q_vf(eqn_idx%xi%beg + 1)%sf(k, l, r)/rho
-            xi_z = q_vf(eqn_idx%xi%end)%sf(k, l, r)/rho
+            if (eqn_idx%xi%beg > 0) then
+                xi_x = q_vf(eqn_idx%xi%beg)%sf(k, l, r)/max(rho, sgm_eps)
+                xi_y = q_vf(eqn_idx%xi%beg + 1)%sf(k, l, r)/max(rho, sgm_eps)
+                xi_z = q_vf(eqn_idx%xi%end)%sf(k, l, r)/max(rho, sgm_eps)
+            end if
         end if
 
 #ifdef MFC_SIMULATION
@@ -229,9 +232,13 @@ contains
                 Re_K(i) = dflt_real
                 if (Re_size(i) > 0) Re_K(i) = 0._wp
                 do j = 1, Re_size(i)
-                    if (graded .and. fluid_pp(Re_idx(i, j))%graded_Re) then
-                        call s_grade_Re(xi_x, xi_y, xi_z, Re_idx(i, j), i, Re_graded_v)
-                        Re_K(i) = alpha_K(Re_idx(i, j))/Re_graded_v + Re_K(i)
+                    if (graded) then
+                        if (fluid_pp(Re_idx(i, j))%graded_Re) then
+                            call s_grade_Re(xi_x, xi_y, xi_z, Re_idx(i, j), i, Re_graded_v)
+                            Re_K(i) = alpha_K(Re_idx(i, j))/Re_graded_v + Re_K(i)
+                        else
+                            Re_K(i) = alpha_K(Re_idx(i, j))/Res_vc(i, j) + Re_K(i)
+                        end if
                     else
                         Re_K(i) = alpha_K(Re_idx(i, j))/Res_vc(i, j) + Re_K(i)
                     end if
@@ -244,10 +251,14 @@ contains
         if (present(Ca_inv_K)) then
             Ca_inv_K = 0._wp
             do i = 1, num_fluids
-                if (graded .and. Ca_inv_graded_flag(i)) then
-                    call s_grade_Ca_inv(xi_x, xi_y, xi_z, i, Ca_inv_graded_v)
-                    Ca_inv_K = Ca_inv_K + alpha_K(i)*Ca_inv_graded_v
-                    else
+                if (graded) then
+                    if (Ca_inv_graded_flag(i)) then
+                        call s_grade_Ca_inv(xi_x, xi_y, xi_z, i, Ca_inv_graded_v)
+                        Ca_inv_K = Ca_inv_K + alpha_K(i)*Ca_inv_graded_v
+                    else if (present(Ca_inv)) then
+                        Ca_inv_K = Ca_inv_K + alpha_K(i)*Ca_inv(i)
+                    end if
+                else if (present(Ca_inv)) then
                     Ca_inv_K = Ca_inv_K + alpha_K(i)*Ca_inv(i)
                 end if
             end do
@@ -296,10 +307,12 @@ contains
         xi_x_l = 0._wp
         xi_y_l = 0._wp
         xi_z_l = 0._wp
-        if (graded .and. present(xi_x)) then
-            xi_x_l = xi_x
-            xi_y_l = xi_y
-            xi_z_l = xi_z
+        if (graded) then
+            if (present(xi_x)) then
+                xi_x_l = xi_x
+                xi_y_l = xi_y
+                xi_z_l = xi_z
+            end if
         end if
 
 #ifdef MFC_SIMULATION
@@ -332,9 +345,13 @@ contains
             do i = 1, 2
                 Re_K(i) = dflt_real; if (Re_size(i) > 0) Re_K(i) = 0._wp
                 do j = 1, Re_size(i)
-                    if (graded .and. fluid_pp(Re_idx(i, j))%graded_Re) then
-                        call s_grade_Re(xi_x_l, xi_y_l, xi_z_l, Re_idx(i, j), i, Re_graded_v)
-                        Re_K(i) = alpha_K(Re_idx(i, j))/Re_graded_v + Re_K(i)
+                    if (graded) then
+                        if (fluid_pp(Re_idx(i, j))%graded_Re) then
+                            call s_grade_Re(xi_x_l, xi_y_l, xi_z_l, Re_idx(i, j), i, Re_graded_v)
+                            Re_K(i) = alpha_K(Re_idx(i, j))/Re_graded_v + Re_K(i)
+                        else
+                            Re_K(i) = alpha_K(Re_idx(i, j))/fluid_pp(Re_idx(i, j))%Re(i) + Re_K(i)
+                        end if
                     else
                         Re_K(i) = alpha_K(Re_idx(i, j))/fluid_pp(Re_idx(i, j))%Re(i) + Re_K(i)
                     end if
@@ -347,10 +364,14 @@ contains
         if (present(Ca_inv_K)) then
             Ca_inv_K = 0._wp
             do i = 1, num_fluids
-                if (graded .and. Ca_inv_graded_flag(i)) then
-                    call s_grade_Ca_inv(xi_x_l, xi_y_l, xi_z_l, i, Ca_inv_graded_v)
-                    Ca_inv_K = Ca_inv_K + alpha_K(i)*Ca_inv_graded_v
-                else
+                if (graded) then
+                    if (Ca_inv_graded_flag(i)) then
+                        call s_grade_Ca_inv(xi_x_l, xi_y_l, xi_z_l, i, Ca_inv_graded_v)
+                        Ca_inv_K = Ca_inv_K + alpha_K(i)*Ca_inv_graded_v
+                    else if (present(Ca_inv)) then
+                        Ca_inv_K = Ca_inv_K + alpha_K(i)*Ca_inv(i)
+                    end if
+                else if (present(Ca_inv)) then
                     Ca_inv_K = Ca_inv_K + alpha_K(i)*Ca_inv(i)
                 end if
             end do
@@ -539,6 +560,7 @@ contains
         real(wp)               :: f, dGa_dW, dp_dW, df_dW  !< Functions within Newton-Raphson iteration
         integer                :: iter                     !< Newton-Raphson iteration counter
         real(wp)               :: xi_x, xi_y, xi_z, rho_tmp
+
         $:GPU_PARALLEL_LOOP(collapse=3, private='[alpha_K, alpha_rho_K, Re_K, nRtmp, rho_K, gamma_K, pi_inf_K, qv_K, dyn_pres_K, &
                             & rhoYks, B, pres, vftmp, nbub_sc, Ca_inv_K, T, pres_mag, Ga, B2, m2, S, W, dW, E, D, f, dGa_dW, &
                             & dp_dW, df_dW, iter, xi_x, xi_y, xi_z, rho_tmp]')

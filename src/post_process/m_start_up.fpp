@@ -28,6 +28,7 @@ module m_start_up
     use m_finite_differences
     use m_constants, only: model_eqns_gamma_law, model_eqns_5eq, model_eqns_6eq, model_eqns_4eq
     use m_chemistry
+    use m_graded
 
 #ifdef MFC_MPI
     use mpi
@@ -776,6 +777,9 @@ contains
         if (bubbles_euler .or. bubbles_lagrange) then
             call s_initialize_bubbles_model()
         end if
+        if (graded) then
+            call s_initialize_graded()
+        end if
         if (num_procs > 1) then
             call s_initialize_mpi_proxy_module()
             call s_initialize_mpi_common_module()
@@ -985,6 +989,10 @@ contains
         call s_finalize_global_parameters_module()
 
         call s_mpi_finalize()
+
+        if (graded) then
+            call s_finalize_graded()
+        end if
 
     end subroutine s_finalize_modules
 

@@ -1094,11 +1094,16 @@ contains
 
         $:GPU_LOOP(parallelism='[seq]')
         do i = 1, nf
-            if (graded .and. fluid_pp(i)%graded_Ca_inv) then
-                call s_grade_Ca_inv(xi_x_L, xi_y_L, xi_z_L, i, Ca_graded_L)
-                call s_grade_Ca_inv(xi_x_R, xi_y_R, xi_z_R, i, Ca_graded_R)
-                Ca_inv_L = Ca_inv_L + alpha_L(i)*Ca_graded_L
-                Ca_inv_R = Ca_inv_R + alpha_R(i)*Ca_graded_R
+            if (graded) then
+                if (fluid_pp(i)%graded_Ca_inv) then
+                    call s_grade_Ca_inv(xi_x_L, xi_y_L, xi_z_L, i, Ca_graded_L)
+                    call s_grade_Ca_inv(xi_x_R, xi_y_R, xi_z_R, i, Ca_graded_R)
+                    Ca_inv_L = Ca_inv_L + alpha_L(i)*Ca_graded_L
+                    Ca_inv_R = Ca_inv_R + alpha_R(i)*Ca_graded_R
+                else
+                    Ca_inv_L = Ca_inv_L + alpha_L(i)*Ca_invs_rs(i)
+                    Ca_inv_R = Ca_inv_R + alpha_R(i)*Ca_invs_rs(i)
+                end if
             else
                 Ca_inv_L = Ca_inv_L + alpha_L(i)*Ca_invs_rs(i)
                 Ca_inv_R = Ca_inv_R + alpha_R(i)*Ca_invs_rs(i)

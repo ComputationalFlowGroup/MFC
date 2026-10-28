@@ -331,7 +331,8 @@ contains
                                     xi_x_R = 0._wp; xi_y_R = 0._wp; xi_z_R = 0._wp
                                 end if
                                 call s_compute_hypoelastic_interface_energy(num_fluids, alpha_L, alpha_R, damage_L, damage_R, &
-                                    & tau_e_L, tau_e_R, Ca_inv_L, Ca_inv_R, E_L, E_R, xi_x_L, xi_y_L, xi_z_L, xi_x_R, xi_y_R, xi_z_R)
+                                    & tau_e_L, tau_e_R, Ca_inv_L, Ca_inv_R, E_L, E_R, xi_x_L, xi_y_L, xi_z_L, xi_x_R, xi_y_R, &
+                                    & xi_z_R)
                             end if
 
                             @:compute_average_state()

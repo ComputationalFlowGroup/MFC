@@ -458,7 +458,7 @@ contains
     impure subroutine s_initialize_global_parameters_module
 
         integer :: i, j, fac
-        
+
         if (recon_type == recon_type_weno) then
             weno_polyn = (weno_order - 1)/2
         else if (recon_type == recon_type_muscl) then
@@ -602,7 +602,6 @@ contains
         if (proc_rank == 0) then
             print *, '>>> sys_size =', sys_size, ' xi%beg =', eqn_idx%xi%beg, ' xi%end =', eqn_idx%xi%end, ' graded=', graded
         end if
-
 
     end subroutine s_initialize_global_parameters_module
 

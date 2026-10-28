@@ -41,7 +41,7 @@ contains
             @:ALLOCATE(btensor%vf(i)%sf(0:m, 0:n, 0:p))
         end do
         @:ACC_SETUP_VFs(btensor)
-! this may be the error
+        ! this may be the error
         @:ALLOCATE(Ca_invs_hyper(1:num_fluids))
         $:GPU_LOOP(parallelism='[seq]')
         do i = 1, num_fluids
@@ -101,26 +101,22 @@ contains
                 do j = 0, m
                     call s_compute_species_fraction(q_cons_vf, j, k, l, alpha_rho_k, alpha_k)
                     if (graded) then
-                       xi_x = q_prim_vf(eqn_idx%xi%beg)%sf(j, k, l)
-                       xi_y = q_prim_vf(eqn_idx%xi%beg + 1)%sf(j, k, l)
-                       xi_z = q_prim_vf(eqn_idx%xi%end)%sf(j, k, l)
+                        xi_x = q_prim_vf(eqn_idx%xi%beg)%sf(j, k, l)
+                        xi_y = q_prim_vf(eqn_idx%xi%beg + 1)%sf(j, k, l)
+                        xi_z = q_prim_vf(eqn_idx%xi%end)%sf(j, k, l)
                     else
-                       xi_x = 0._wp; xi_y = 0._wp; xi_z = 0._wp
+                        xi_x = 0._wp; xi_y = 0._wp; xi_z = 0._wp
                     end if
-                   
-                     
-                   ! If in simulation, use acc mixture subroutines
+
+                    ! If in simulation, use acc mixture subroutines
                     call s_convert_species_to_mixture_variables_acc(rho, gamma, pi_inf, qv, alpha_k, alpha_rho_k, Re, &
                         & Ca_inv_local, Ca_invs_hyper, xi_x, xi_y, xi_z)
                     rho = max(rho, sgm_eps)
                     Ca_inv_local = max(Ca_inv_local, sgm_eps)
 
                     if (k == 0 .and. l == 0 .and. (j == 0 .or. j == m/2 .or. j == m)) then
-                       print *, 'hyper j=', j, 'xi_beg= ', eqn_idx%xi%beg, ' xi_x=', xi_x, ' Ca_inv =', Ca_inv_local
+                        print *, 'hyper j=', j, 'xi_beg= ', eqn_idx%xi%beg, ' xi_x=', xi_x, ' Ca_inv =', Ca_inv_local
                     end if
-
-
-
 
                     if (Ca_inv_local > verysmall) then
                         $:GPU_LOOP(parallelism='[seq]')
