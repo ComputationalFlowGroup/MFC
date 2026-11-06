@@ -343,6 +343,12 @@ CONSTRAINTS = {
         "value_labels": {1: "Gamma-law", 2: "5-Equation", 3: "6-Equation", 4: "4-Equation"},
         "names": {"gamma_law": 1, "5eq": 2, "6eq": 3, "4eq": 4},
     },
+    # Hyperelastic model
+    "hyper_model": {
+        "choices": [1, 2],
+        "value_labels": {1: "Neo-hookean", 2: "Mooney-Rivlin"},
+        "names": {"neo_hookean": 1, "mooney_rivlin": 2},
+    },
     # Bubbles
     "bubble_model": {
         "choices": [0, 1, 2, 3],
@@ -622,6 +628,7 @@ def _load():
     # Elasticity
     for n in ["hypoelasticity", "hyperelasticity"]:
         _r(n, LOG, {"elasticity"})
+    _r("hyper_model", INT, {"elasticity"})
 
     # Surface tension
     _r("sigma", REAL, {"surface_tension"}, math=r"\f$\sigma\f$")
@@ -1289,6 +1296,7 @@ _nv(
     "adv_n",
     "hypoelasticity",
     "hyperelasticity",
+    "hyper_model",
     "graded",
     "surface_tension",
     "relativity",

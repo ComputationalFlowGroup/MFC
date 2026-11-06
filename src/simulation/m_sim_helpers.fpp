@@ -97,6 +97,10 @@ contains
         call s_compute_species_fraction(q_prim_vf, j, k, l, alpha_rho, alpha)
 
         if (elasticity) then
+            $:GPU_LOOP(parallelism='[seq]')
+            do i = 1, num_fluids
+                Ca_invs(i) = fluid_pp(i)%Ca_inv
+            end do
             call s_convert_species_to_mixture_variables_acc(rho, gamma, pi_inf, qv, alpha, alpha_rho, Re, Ca_inv_local, Ca_invs)
         else
             call s_convert_species_to_mixture_variables_acc(rho, gamma, pi_inf, qv, alpha, alpha_rho, Re)

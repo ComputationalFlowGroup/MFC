@@ -103,6 +103,7 @@ DESCRIPTIONS = {
     "graded": "Enable grading",
     "hypoelasticity": "Enable hypoelastic model",
     "hyperelasticity": "Enable hyperelastic model",
+    "hyper_model": "Hyperelasticity model choice",
     "surface_tension": "Enable surface tension effects",
     "chemistry": "Enable chemical reactions",
     "reactive_burn": "Enable condensed-phase reactive burn (programmed pressure burn on the multi-fluid model)",

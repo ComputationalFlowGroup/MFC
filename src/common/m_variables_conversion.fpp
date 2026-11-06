@@ -118,7 +118,7 @@ contains
                 pres = (pref + pi_inf)*(energy/(rhoref*(1 - alf)))**(1/gamma + 1) - pi_inf
             end if
 
-            if (hypoelasticity .and. present(Ca_inv)) then
+            if (hypoelasticity .and. present(Ca_inv)) then  ! todo ? modify?
                 ! Subtract elastic strain energy before computing pressure (hypoelastic model)
                 E_e = 0._wp
                 do s = eqn_idx%stress%beg, eqn_idx%stress%end

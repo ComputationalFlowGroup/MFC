@@ -537,6 +537,7 @@ See @ref equations "Equations" for the mathematical models these parameters cont
 | `viscous`                  | Logical | Activate viscosity |
 | `hypoelasticity`           | Logical | Activate hypoelasticity* |
 | `hyperelasticity`          | Logical | Activate hyperelasticity |
+| 'hyper_model'		     | Integer | Hyper model selection |
 | `graded`         	     | Logical | Activate graded |
 | `pre_stress`               | Logical | Enable pre-stress initialization for hypoelasticity |
 | `igr`                      | Logical | Enable solution via information geometric regularization (IGR) \cite Cao24 |

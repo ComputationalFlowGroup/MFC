@@ -12,6 +12,7 @@ module m_hyperelastic
     use m_global_parameters
     use m_variables_conversion
     use m_finite_differences
+    use m_graded
 
     implicit none
 

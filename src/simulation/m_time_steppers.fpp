@@ -992,7 +992,7 @@ contains
                 end do
             end if
 
-            if (hyperelasticity) then
+            if (hyperelasticity .or. graded) then  ! most recent change
                 do i = eqn_idx%xi%beg, eqn_idx%xi%end + 1
                     @:DEALLOCATE(q_prim_vf(i)%sf)
                 end do

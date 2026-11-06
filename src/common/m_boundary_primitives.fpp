@@ -180,7 +180,7 @@ contains
                         end do
                     end if
 
-                    if (hyperelasticity) then
+                    if (hyperelasticity) then  ! todo - change?
                         q_prim_vf(eqn_idx%xi%beg)%sf(m + j, k, l) = -q_prim_vf(eqn_idx%xi%beg)%sf(m - (j - 1), k, l)
                     end if
                 end do
