@@ -154,24 +154,33 @@ contains
         real(wp), intent(in)  :: xi_x, xi_y, xi_z
         integer, intent(in)   :: fluid_idx
         real(wp), intent(out) :: Ca_inv_out
-        real(wp)              :: proj
-        real(wp)              :: ramp
+        real(wp)              :: proj, ramp
         real(wp)              :: Ca_inv_init, Ca_inv_end
+        real(wp)              :: r, dx, dy, dz
 
         $:GPU_ROUTINE(parallelism='[seq]')
 
         Ca_inv_init = Ca_inv_init_arr(fluid_idx)
         Ca_inv_end = Ca_inv_end_arr(fluid_idx)
 
-        proj = f_calc_projection(xi_x, xi_y, xi_z, fluid_idx)
-
-        if (proj <= 0._wp) then
-            Ca_inv_out = Ca_inv_init
-        else if (proj >= 1._wp) then
-            Ca_inv_out = Ca_inv_end
+        if (graded_profile_arr(fluid_idx) == 3) then
+            ! Power law: Ca_inv = Ca_inv_init * (r/a)^n
+            dx = xi_x - graded_center_arr(1, fluid_idx)
+            dy = xi_y - graded_center_arr(2, fluid_idx)
+            dz = xi_z - graded_center_arr(3, fluid_idx)
+            r = max(sqrt(dx*dx + dy*dy + dz*dz), 1.e-12_wp)
+            Ca_inv_out = Ca_inv_init*(r/graded_a(fluid_idx))**graded_n(fluid_idx)
         else
-            ramp = f_calc_profile(proj, fluid_idx)
-            Ca_inv_out = Ca_inv_init + (Ca_inv_end - Ca_inv_init)*ramp
+            proj = f_calc_projection(xi_x, xi_y, xi_z, fluid_idx)
+
+            if (proj <= 0._wp) then
+                Ca_inv_out = Ca_inv_init
+            else if (proj >= 1._wp) then
+                Ca_inv_out = Ca_inv_end
+            else
+                ramp = f_calc_profile(proj, fluid_idx)
+                Ca_inv_out = Ca_inv_init + (Ca_inv_end - Ca_inv_init)*ramp
+            end if
         end if
 
         Ca_inv_out = max(Ca_inv_out, 0._wp)
@@ -185,8 +194,7 @@ contains
         integer, intent(in)   :: fluid_idx
         integer, intent(in)   :: j
         real(wp), intent(out) :: Re_out
-        real(wp)              :: proj
-        real(wp)              :: ramp
+        real(wp)              :: proj, ramp
         real(wp)              :: Re_init, Re_end
 
         $:GPU_ROUTINE(parallelism='[seq]')
