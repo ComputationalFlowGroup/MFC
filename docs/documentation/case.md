@@ -550,6 +550,8 @@ Details of implementation of viscosity in MFC can be found in \cite Coralic15.
 
 - `fluid_pp(i)%%G` is required for `hypoelasticity`.
 
+- `fluid_pp(i)%%graded_G` activates spatially-varying `G` for fluid `i` when ``graded = 'T'``. `graded_G_init` and `graded_G_end` set the shear modulus at the start and end of the graded region. `graded_type` selects the projection used to locate a point within the region ([1] Cartesian, along the segment from `graded_beg_loc_{x,y,z}` to `graded_end_loc_{x,y,z}`; [2] radial, from `graded_center_loc_{x,y,z}` between `graded_r_beg` and `graded_r_end`). `graded_profile` selects the ramp applied along that projection ([1] linear; [2] sinusoidal; [3] power law, using `graded_pf_coeff`, `graded_exp`, and `graded_scaling`). Grading is evaluated in the reference-map coordinate, not the current physical position.
+
 > **Stored-form parameters:** The values `gamma`, `pi_inf`, and `Re(1)`/`Re(2)` are **not** the raw physical quantities. MFC expects transformed stored forms:
 > - `gamma` = \f$1/(\gamma-1)\f$, not \f$\gamma\f$ itself
 > - `pi_inf` = \f$\gamma\,\pi_\infty / (\gamma - 1)\f$, not \f$\pi_\infty\f$ itself
@@ -620,6 +622,7 @@ See @ref equations "Equations" for the mathematical models these parameters cont
 | `riemann_hypo_ADC`         | Logical | Enable hypo anti-diffusion correction for HLLC/HLLD (default F) |
 | `ADC_kappa`                | Real    | ADC sensor scaling parameter (default 1.0) |
 | `hypo_hll_interface_rhs`   | Logical | HLL uses interface-consistent hypo RHS (default F) |
+| `graded`                   | Logical | Activate spatially-varying (graded) elastic/viscous fluid properties |
 | `igr`                      | Logical | Enable solution via information geometric regularization (IGR) \cite Cao24 |
 | `igr_order`                | Integer | Order of reconstruction for IGR [3,5] |
 | `alf_factor`               | Real    | Alpha factor for IGR entropic pressure (default 10) |

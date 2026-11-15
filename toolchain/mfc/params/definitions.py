@@ -131,6 +131,7 @@ TAG_DISPLAY_NAMES = {
     "viscosity": "Viscosity",
     "heat_conduction": "Heat conduction",
     "hypoelasticity": "Hypoelasticity",
+    "graded": "Graded material properties",
     "surface_tension": "Surface tension",
     "acoustic": "Acoustic",
     "ib": "Immersed boundary",
@@ -680,6 +681,9 @@ def _load():
     _r("hypo_hll_interface_rhs", LOG, {"hypoelasticity"})
     _r("hll_u_interface", LOG, {"riemann"})
 
+    # Graded (spatially-varying) elastic/viscous properties
+    _r("graded", LOG, {"graded"})
+
     # Surface tension
     _r("sigma", REAL, {"surface_tension"}, math=r"\f$\sigma\f$")
     _r("surface_tension", LOG, {"surface_tension"})
@@ -1006,6 +1010,25 @@ def _load():
             for suffix, sym in fam.required + fam.optional:
                 _r(f"{px}{fam.prefix}_{suffix}", REAL, math=sym)
         _r(f"{px}G", REAL, {"hypoelasticity"}, math=r"\f$G_k\f$")
+        _r(f"{px}graded_G", LOG, {"graded"}, math=r"\mathrm{graded}_{G,k}")
+        _r(f"{px}graded_G_init", REAL, {"graded"}, math=r"\f$G_{k,\mathrm{init}}\f$")
+        _r(f"{px}graded_G_end", REAL, {"graded"}, math=r"\f$G_{k,\mathrm{end}}\f$")
+        _r(f"{px}graded_type", INT, {"graded"}, math=r"\mathrm{graded\_type}_k")
+        _r(f"{px}graded_profile", INT, {"graded"}, math=r"\mathrm{graded\_profile}_k")
+        _r(f"{px}graded_beg_loc_x", REAL, {"graded"}, math=r"x_{k,\mathrm{beg}}")
+        _r(f"{px}graded_beg_loc_y", REAL, {"graded"}, math=r"y_{k,\mathrm{beg}}")
+        _r(f"{px}graded_beg_loc_z", REAL, {"graded"}, math=r"z_{k,\mathrm{beg}}")
+        _r(f"{px}graded_end_loc_x", REAL, {"graded"}, math=r"x_{k,\mathrm{end}}")
+        _r(f"{px}graded_end_loc_y", REAL, {"graded"}, math=r"y_{k,\mathrm{end}}")
+        _r(f"{px}graded_end_loc_z", REAL, {"graded"}, math=r"z_{k,\mathrm{end}}")
+        _r(f"{px}graded_center_loc_x", REAL, {"graded"}, math=r"x_{k,\mathrm{center}}")
+        _r(f"{px}graded_center_loc_y", REAL, {"graded"}, math=r"y_{k,\mathrm{center}}")
+        _r(f"{px}graded_center_loc_z", REAL, {"graded"}, math=r"z_{k,\mathrm{center}}")
+        _r(f"{px}graded_r_beg", REAL, {"graded"}, math=r"r_{k,\mathrm{beg}}")
+        _r(f"{px}graded_r_end", REAL, {"graded"}, math=r"r_{k,\mathrm{end}}")
+        _r(f"{px}graded_pf_coeff", REAL, {"graded"}, math=r"k_{k,\mathrm{pf}}")
+        _r(f"{px}graded_exp", REAL, {"graded"}, math=r"n_k")
+        _r(f"{px}graded_scaling", REAL, {"graded"}, math=r"a_k")
         _r(f"{px}Re(1)", REAL, {"viscosity"}, math=r"\f$\mathrm{Re}_k\f$ (shear)")
         _r(f"{px}Re(2)", REAL, {"viscosity"}, math=r"\f$\mathrm{Re}_k\f$ (bulk)")
         _r(f"{px}k_therm", REAL, {"heat_conduction"}, math=r"\f$k_k\f$")
@@ -1438,6 +1461,7 @@ _nv(
     "sigma",
     "adv_n",
     "hypoelasticity",
+    "graded",
     "surface_tension",
     "relativity",
     "ib",
