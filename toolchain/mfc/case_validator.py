@@ -260,6 +260,16 @@ PHYSICS_DOCS = {
         "category": "Feature Compatibility",
         "explanation": "Requires model_eqns = 2, HLL/HLLC/HLLD Riemann solver.",
     },
+    "check_graded": {
+        "title": "Graded Material Properties",
+        "category": "Feature Compatibility",
+        "explanation": (
+            "Requires graded = T. A graded fluid's G needs hyperelasticity or hypoelasticity enabled; its Re needs "
+            "viscous = T. graded_type and graded_profile must be set to a recognized value, and the location "
+            "parameters matching the chosen graded_type must all be set. Currently requires the HLL Riemann solver "
+            "(riemann_solver = 1): the reference map is not yet advected under HLLC or HLLD."
+        ),
+    },
     "check_phase_change": {
         "title": "Phase Change",
         "category": "Feature Compatibility",
@@ -866,6 +876,97 @@ class CaseValidator:
         self.prohibit(
             cfl_const_dt or cfl_adap_dt, "Automatic CFL time stepping uses the acoustic sound speed only and does not bound the elastic characteristic speed; set dt explicitly for hypoelastic runs"
         )
+
+    def check_graded(self):
+        """Checks constraints on graded (spatially-varying) material property parameters"""
+        graded = self.get("graded", "F") == "T"
+
+        if not graded:
+            return
+
+        riemann_solver = self.get("riemann_solver")
+        self.prohibit(
+            riemann_solver is not None and riemann_solver != 1,
+            "graded currently requires the HLL Riemann solver (riemann_solver = 1); the reference map is not yet advected under HLLC or HLLD",
+        )
+
+        num_fluids = self.get("num_fluids")
+        if num_fluids is None:
+            return
+
+        n = self.get("n", 0)
+        p = self.get("p", 0)
+        if n is not None and n == 0:
+            dim = 1
+        elif p is not None and p == 0:
+            dim = 2
+        else:
+            dim = 3
+
+        hyperelasticity = self.get("hyperelasticity", "F") == "T"
+        hypoelasticity = self.get("hypoelasticity", "F") == "T"
+        viscous = self.get("viscous", "F") == "T"
+
+        for i in range(1, int(num_fluids) + 1):
+            G_graded = self.get(f"fluid_pp({i})%graded_G", "F") == "T"
+            Re_graded = self.get(f"fluid_pp({i})%graded_Re", "F") == "T"
+
+            if not G_graded and not Re_graded:
+                continue
+
+            graded_type = self.get(f"fluid_pp({i})%graded_type")
+            graded_profile = self.get(f"fluid_pp({i})%graded_profile")
+            graded_exp = self.get(f"fluid_pp({i})%graded_exp")
+            graded_scaling = self.get(f"fluid_pp({i})%graded_scaling")
+
+            self.prohibit(graded_type is None, f"fluid_pp({i})%graded_type must be set when grading is enabled")
+            self.prohibit(graded_type is not None and graded_type not in [1, 2], f"fluid_pp({i})%graded_type must be 1 (Cartesian) or 2 (radial)")
+            self.prohibit(graded_profile is None, f"fluid_pp({i})%graded_profile must be set when grading is enabled")
+            self.prohibit(graded_profile is not None and graded_profile not in [1, 2, 3], f"fluid_pp({i})%graded_profile must be 1 (linear), 2 (sinusoidal), or 3 (power law)")
+            self.prohibit(
+                graded_profile == 3 and (graded_exp is None or graded_scaling is None),
+                f"fluid_pp({i})%graded_profile = 3 (power law) requires graded_exp and graded_scaling to be set",
+            )
+
+            if G_graded:
+                self.prohibit(not hyperelasticity and not hypoelasticity, f"fluid_pp({i})%graded_G requires hyperelasticity or hypoelasticity enabled")
+                G_init = self.get(f"fluid_pp({i})%graded_G_init")
+                G_end = self.get(f"fluid_pp({i})%graded_G_end")
+                self.prohibit(G_init is None, f"fluid_pp({i})%graded_G_init must be set when graded_G = T")
+                self.prohibit(G_end is None, f"fluid_pp({i})%graded_G_end must be set when graded_G = T")
+                self.prohibit(G_init is not None and G_init < 0, f"fluid_pp({i})%graded_G_init must be non-negative")
+                self.prohibit(G_end is not None and G_end < 0, f"fluid_pp({i})%graded_G_end must be non-negative")
+
+            if Re_graded:
+                self.prohibit(not viscous, f"fluid_pp({i})%graded_Re requires viscous = T")
+                for j in (1, 2):
+                    Re_init = self.get(f"fluid_pp({i})%graded_Re_init({j})")
+                    Re_end = self.get(f"fluid_pp({i})%graded_Re_end({j})")
+                    self.prohibit(Re_init is None, f"fluid_pp({i})%graded_Re_init({j}) must be set when graded_Re = T")
+                    self.prohibit(Re_end is None, f"fluid_pp({i})%graded_Re_end({j}) must be set when graded_Re = T")
+                    self.prohibit(Re_init is not None and Re_init <= 0, f"fluid_pp({i})%graded_Re_init({j}) must be positive")
+                    self.prohibit(Re_end is not None and Re_end <= 0, f"fluid_pp({i})%graded_Re_end({j}) must be positive")
+
+            if graded_type == 1:  # Cartesian
+                beg = [self.get(f"fluid_pp({i})%graded_beg_loc_{axis}") for axis in "xyz"[:dim]]
+                end = [self.get(f"fluid_pp({i})%graded_end_loc_{axis}") for axis in "xyz"[:dim]]
+                self.prohibit(any(b is None for b in beg), f"fluid_pp({i})%graded_beg_loc_{{x,y,z}} must all be set for {dim}D grading")
+                self.prohibit(any(e is None for e in end), f"fluid_pp({i})%graded_end_loc_{{x,y,z}} must all be set for {dim}D grading")
+
+                if all(b is not None for b in beg) and all(e is not None for e in end):
+                    same = all(abs(beg[j] - end[j]) < 1e-14 for j in range(len(beg)))
+                    self.prohibit(same, f"fluid_pp({i})%graded_beg_loc and graded_end_loc must not be the same point")
+
+            elif graded_type == 2:  # radial
+                center = [self.get(f"fluid_pp({i})%graded_center_loc_{axis}") for axis in "xyz"[:dim]]
+                r_beg = self.get(f"fluid_pp({i})%graded_r_beg")
+                r_end = self.get(f"fluid_pp({i})%graded_r_end")
+
+                self.prohibit(any(c is None for c in center), f"fluid_pp({i})%graded_center_loc_{{x,y,z}} must all be set for {dim}D grading")
+                self.prohibit(r_beg is None, f"fluid_pp({i})%graded_r_beg must be set for radial grading")
+                self.prohibit(r_end is None, f"fluid_pp({i})%graded_r_end must be set for radial grading")
+                self.prohibit(r_beg is not None and r_beg < 0, f"fluid_pp({i})%graded_r_beg must be non-negative")
+                self.prohibit(r_end is not None and r_beg is not None and r_end <= r_beg, f"fluid_pp({i})%graded_r_end must be strictly greater than graded_r_beg")
 
     def check_phase_change(self):
         """Checks constraints on phase change parameters"""
@@ -1978,6 +2079,7 @@ class CaseValidator:
         surface_tension = self.get("surface_tension", "F") == "T"
         hypoelasticity = self.get("hypoelasticity", "F") == "T"
         acoustic_source = self.get("acoustic_source", "F") == "T"
+        graded = self.get("graded", "F") == "T"
         relax = self.get("relax", "F") == "T"
         mhd = self.get("mhd", "F") == "T"
         cyl_coord = self.get("cyl_coord", "F") == "T"
@@ -1996,6 +2098,7 @@ class CaseValidator:
         self.prohibit(surface_tension, "IGR does not support surface tension")
         self.prohibit(hypoelasticity, "IGR does not support hypoelasticity")
         self.prohibit(acoustic_source, "IGR does not support acoustic sources")
+        self.prohibit(graded, "IGR does not support graded material properties")
         self.prohibit(relax, "IGR does not support phase change")
         self.prohibit(mhd, "IGR does not support magnetohydrodynamics")
         self.prohibit(cyl_coord, "IGR does not support cylindrical or axisymmetric coordinates")
@@ -3691,6 +3794,7 @@ class CaseValidator:
         self.check_qbmm_and_polydisperse()
         self.check_adv_n()
         self.check_hypoelasticity()
+        self.check_graded()
         self.check_phase_change()
         self.check_ibm()
         self.check_inflow_ramp()
