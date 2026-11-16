@@ -34,6 +34,7 @@
             "m_euler_lagrange",
             "m_qbmm",
             "m_hypoelastic",
+            "m_graded",
             "m_phase_change",
             "m_chemistry",
             "m_conduction",
