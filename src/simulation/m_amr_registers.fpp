@@ -16,12 +16,13 @@ module m_amr_registers
     use m_derived_types
     use m_global_parameters
     use m_riemann_state, only: flux_rsx_vf, flux_src_rsx_vf
+    use m_phase_timing, only: s_mem_note, MEM_REG
 
     implicit none
 
     private; public :: s_initialize_amr_registers, s_amr_capture_boundary_flux, s_amr_apply_reflux, s_finalize_amr_registers, &
         & f_amr_block_near, s_amr_reflux_face_flags, s_amr_reflux_faces, s_amr_reflux_apply_faces, s_amr_parent_foot, &
-        & s_amr_reg_prepare, freg, creg, f_amr_face_is_seam
+        & s_amr_reg_prepare, freg, creg, f_amr_face_is_seam, f_amr_is_child
 
     !> SSP-RK3 effective flux weights: q^{n+1} = q^n + dt*(L(q^n)/6 + L(q^(1))/6 + 2*L(q^(2))/3).
     real(wp), parameter :: rk3_w(3) = [1._wp/6._wp, 1._wp/6._wp, 2._wp/3._wp]
@@ -706,6 +707,8 @@ contains
 
         if (.not. amr) return
         do d = 1, num_dims
+            call s_mem_note(MEM_REG, storage_size(creg(d)%lo, kind=8)/8_8*(size(creg(d)%lo, kind=8) + size(creg(d)%hi, &
+                            & kind=8) + size(freg(d)%lo, kind=8) + size(freg(d)%hi, kind=8)))
             @:DEALLOCATE(creg(d)%lo, creg(d)%hi, freg(d)%lo, freg(d)%hi)
         end do
         @:DEALLOCATE(bcap, aint, areal)
