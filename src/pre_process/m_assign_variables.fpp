@@ -225,6 +225,7 @@ contains
         real(wp)                       :: muR, muV
         real(wp)                       :: R3bar
         real(wp)                       :: Ys(1:num_species)
+        real(wp)                       :: xi_cart(3)    !< Reference map, identity initial condition
         real(stp), dimension(sys_size) :: orig_prim_vf  !< Vector to hold original values of cell for smoothing purposes
         integer                        :: i
         integer                        :: smooth_patch_id
@@ -337,6 +338,16 @@ contains
             do i = 1, (eqn_idx%stress%end - eqn_idx%stress%beg) + 1
                 q_prim_vf(i + eqn_idx%stress%beg - 1)%sf(j, k, &
                           & l) = (eta*patch_icpp(patch_id)%tau_e(i) + (1._wp - eta)*orig_prim_vf(i + eqn_idx%stress%beg - 1))
+            end do
+        end if
+
+        if (graded) then
+            ! Reference map: identity at t=0, the material point's own physical position
+            xi_cart(1) = x_cc(j)
+            xi_cart(2) = y_cc(k)
+            xi_cart(3) = z_cc(l)
+            do i = 1, num_dims
+                q_prim_vf(i + eqn_idx%xi%beg - 1)%sf(j, k, l) = eta*xi_cart(i) + (1._wp - eta)*orig_prim_vf(i + eqn_idx%xi%beg - 1)
             end do
         end if
 

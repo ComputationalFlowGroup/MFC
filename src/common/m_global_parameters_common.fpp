@@ -244,6 +244,14 @@ contains
                 end if
             end if
 
+            if (graded) then
+                ! Reference map (material point's original position), advected with the flow;
+                ! used to evaluate spatially-varying (graded) elastic/viscous properties.
+                eqn_idx%xi%beg = sys_size + 1
+                eqn_idx%xi%end = sys_size + num_dims
+                sys_size = eqn_idx%xi%end
+            end if
+
             if (surface_tension) then
                 eqn_idx%c = sys_size + 1
                 sys_size = eqn_idx%c
