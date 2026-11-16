@@ -239,24 +239,137 @@ def main():
     print("exactly the constant already used in m_riemann_solver_hll.fpp.")
 
 
+def mooney_rivlin():
+    """Same derivation as main(), but for the genuine (two-constant) Mooney-Rivlin law.
+
+    A note before this runs: as actually coded in m_hyperelastic.fpp,
+    s_Mooney_Rivlin_cauchy_solver is byte-for-byte the same formula as
+    s_neoHookean_cauchy_solver -- same dev(B), same strain-energy line, and its own
+    comment still says "neo-Hookean model". hyper_model = 2 is not a different
+    constitutive law in this codebase; it is an unfinished copy of hyper_model = 1. So
+    this function derives the acoustic tensor for what Mooney-Rivlin actually is, as a
+    reference for finishing that implementation, not as a check against existing code
+    (there is nothing distinct in the code yet to check against).
+
+    The standard (Rivlin) isotropic stress for W = C1*(I1 - 3) + C2*(I2 - 3) is
+    sigma = -p*I + 2*C1*B - 2*C2*B^-1 (up to the pressure term, handled separately by the
+    EOS in MFC, exactly as for neo-Hookean). Generalizing the existing code's convention
+    (deviatoric projection, scaled by 1/J) gives:
+
+        tau = (1/J) * [2*C1*dev(B) - 2*C2*dev(B^-1)]
+
+    which reduces exactly to the existing tau = (G/J)*dev(B) when C2 = 0 and G = 2*C1.
+    """
+    C1, C2, J, rho = sp.symbols("C1 C2 J rho", positive=True)
+    B = sp.Matrix(3, 3, lambda i, j: sp.Symbol(f"B{min(i, j) + 1}{max(i, j) + 1}"))
+    L = sp.Matrix(3, 3, lambda i, j: sp.Symbol(f"L{i + 1}{j + 1}"))
+    I3 = sp.eye(3)
+
+    print("\n" + "#" * 78)
+    print("# Mooney-Rivlin extension")
+    print("#" * 78)
+
+    print("\n" + "=" * 78)
+    print("Step 1: the Mooney-Rivlin Cauchy stress, and B^-1's kinematic rate")
+    print("=" * 78)
+
+    trB = sp.trace(B)
+    # Binv must be the ACTUAL inverse of B, not an independent symbol standing in for it:
+    # the rate identity used below, (B^-1)dot = -B^-1*Bdot*B^-1, only holds when B*Binv=I
+    # is a true relation sympy can use to simplify, not an assumption imposed on the rate
+    # alone while leaving B and Binv otherwise unrelated. (An earlier version of this
+    # function used an independent symbol here; the objectivity check below failed,
+    # because of exactly this inconsistency -- left as a cautionary note.)
+    Binv = B.inv()
+    trBinv = sp.trace(Binv)
+
+    def dev(X, trX):
+        return X - trX / 3 * I3
+
+    tau = (1 / J) * (2 * C1 * dev(B, trB) - 2 * C2 * dev(Binv, trBinv))
+    print("tau = (1/J) * [2*C1*dev(B) - 2*C2*dev(B^-1)]")
+
+    # Kinematics: Bdot = L*B + B*L^T (same identity as the neo-Hookean case). B^-1's rate
+    # follows from differentiating B*B^-1 = I: Bdot*B^-1 + B*(B^-1)dot = 0, so
+    # (B^-1)dot = -B^-1*Bdot*B^-1. This is an exact matrix-calculus identity, not an
+    # approximation -- it holds for any invertible B(t), independent of what B physically
+    # represents.
+    Bdot = L * B + B * L.T
+    Binv_dot = -Binv * Bdot * Binv
+    J_rate_over_J = sp.trace(L)
+
+    tau_dot = -J_rate_over_J * tau + (1 / J) * (
+        2 * C1 * dev(Bdot, sp.trace(Bdot)) - 2 * C2 * dev(Binv_dot, sp.trace(Binv_dot))
+    )
+
+    print("\n" + "=" * 78)
+    print("Step 2: Truesdell rate and objectivity check (same procedure as neo-Hookean)")
+    print("=" * 78)
+
+    tau_truesdell = sp.expand(tau_dot - L * tau - tau * L.T + sp.trace(L) * tau)
+
+    d_sym = sp.Matrix(3, 3, lambda i, j: sp.Symbol(f"d{min(i, j) + 1}{max(i, j) + 1}"))
+    w12, w13, w23 = sp.symbols("w12 w13 w23")
+    w_antisym = sp.Matrix([[0, w12, w13], [-w12, 0, w23], [-w13, -w23, 0]])
+    subs_L = {L[i, j]: (d_sym + w_antisym)[i, j] for i in range(3) for j in range(3)}
+
+    check = sp.expand(tau_truesdell.subs(subs_L))
+    no_spin = check.subs({w12: 0, w13: 0, w23: 0})
+    spin_dependence = sp.simplify(check - no_spin)
+    assert spin_dependence == sp.zeros(3, 3), "Mooney-Rivlin Truesdell rate depends on spin -- not objective!"
+    print("Verified: objective (no dependence on the spin part of L), same as neo-Hookean.")
+
+    tau_truesdell_of_d = sp.simplify(no_spin)
+
+    print("\n" + "=" * 78)
+    print("Step 3: reduction check -- C2 = 0 must recover the neo-Hookean result exactly")
+    print("=" * 78)
+
+    G = sp.Symbol("G", positive=True)
+    # Binv is independent of B in this derivation (needed for the objectivity check to be
+    # meaningful for a general law), but the C2 = 0 reduction does not involve Binv at
+    # all, so this substitution is clean regardless.
+    neo_hookean_form = (2 * G / (3 * J)) * (trB * d_sym - sp.trace(B * d_sym) * I3)
+    reduction = sp.simplify(tau_truesdell_of_d.subs({C1: G / 2, C2: 0}) - neo_hookean_form)
+    assert reduction == sp.zeros(3, 3), "C2 = 0 does not recover the neo-Hookean Truesdell rate!"
+    print("Confirmed: setting C2 = 0, C1 = G/2 recovers exactly the neo-Hookean result from above.")
+
+    print("\n" + "=" * 78)
+    print("Step 4: acoustic tensor and the classical small-strain shear modulus check")
+    print("=" * 78)
+
+    u1, u2, u3, n1, n2, n3 = sp.symbols("u1 u2 u3 n1 n2 n3")
+    u_vec = sp.Matrix([u1, u2, u3])
+    n_vec = sp.Matrix([n1, n2, n3])
+    d_plane = sp.Rational(1, 2) * (u_vec * n_vec.T + n_vec * u_vec.T)
+
+    tau_plane = tau_truesdell_of_d.subs({d_sym[i, j]: d_plane[i, j] for i in range(3) for j in range(3)})
+    force_along_n = sp.simplify(tau_plane * n_vec)
+    A_of_n = sp.simplify(force_along_n.jacobian(u_vec))
+
+    # B^-1 is already expressed symbolically in terms of B's own entries (see Binv =
+    # B.inv() above), so substituting B = I is enough -- B^-1 = I follows automatically.
+    subs_undeformed = {B[i, j]: I3[i, j] for i in range(3) for j in range(3)}
+    subs_undeformed[J] = 1
+    A_undeformed = sp.simplify(A_of_n.subs(subs_undeformed))
+
+    subs_n_x = {n1: 1, n2: 0, n3: 0}
+    A_n_x = A_undeformed.subs(subs_n_x)
+    longitudinal = sp.simplify((A_n_x * sp.Matrix([1, 0, 0]))[0])
+    transverse = sp.simplify((A_n_x * sp.Matrix([0, 1, 0]))[1])
+
+    # Classical rubber-elasticity identity: an incompressible Mooney-Rivlin solid's
+    # small-strain shear modulus is mu = 2*(C1 + C2) (e.g. Ogden, Non-Linear Elastic
+    # Deformations, Sec. 4.3 and 6.3). This is independent of the derivation above --
+    # it's the textbook fact the acoustic-tensor result at B = I must reduce to.
+    mu = 2 * (C1 + C2)
+    print(f"Longitudinal eigenvalue (u = n = x-hat): {longitudinal}  (expected: 4*mu/3 = {sp.simplify(4 * mu / 3)})")
+    print(f"Transverse eigenvalue   (u perp n):       {transverse}  (expected: mu = {mu})")
+    assert sp.simplify(longitudinal - sp.Rational(4, 3) * mu) == 0
+    assert sp.simplify(transverse - mu) == 0
+    print("Both match the classical small-strain Mooney-Rivlin shear modulus mu = 2*(C1 + C2).")
+
+
 if __name__ == "__main__":
     main()
-
-
-# --------------------------------------------------------------------------------------
-# Extending this to Mooney-Rivlin (src/common/m_hyperelastic.fpp,
-# s_Mooney_Rivlin_cauchy_solver):
-#
-# Mooney-Rivlin's stress depends on the SECOND invariant of B as well as the first, so
-# tau is a function of B and B**2 (there are several equivalent ways to write this
-# depending on convention -- check against the exact form in
-# s_Mooney_Rivlin_cauchy_solver before changing anything below). The only changes needed
-# are:
-#   1. Replace the `tau = (G/J) * (B - trB/3*I3)` line with the Mooney-Rivlin stress.
-#   2. Bdot is unchanged (B's kinematics do not depend on the constitutive law), but you
-#      will also need d(B**2)/dt = Bdot*B + B*Bdot (product rule), since tau now depends
-#      on B**2.
-# Steps 2-6 (the Truesdell rate, objectivity check, plane-wave substitution, and
-# small-strain check) carry over unchanged -- they are generic to any stress law
-# expressed as a function of B and J.
-# --------------------------------------------------------------------------------------
+    mooney_rivlin()
