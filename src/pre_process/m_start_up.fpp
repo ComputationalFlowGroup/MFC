@@ -12,6 +12,7 @@ module m_start_up
     use m_mpi_proxy
     use m_mpi_common
     use m_eos, only: s_initialize_eos_module, s_finalize_eos_module
+    use m_graded, only: s_initialize_graded, s_finalize_graded
     use m_variables_conversion
     use m_grid
     use m_initial_condition
@@ -508,6 +509,7 @@ contains
                                             & num_beta_vars_in=0)
         call s_initialize_data_output_module()
         call s_initialize_eos_module()
+        if (graded) call s_initialize_graded()
         call s_initialize_variables_conversion_module()
         call s_initialize_grid_module()
         call s_initialize_initial_condition_module()
@@ -687,6 +689,7 @@ contains
 
         call s_finalize_mpi_common_module()
         call s_finalize_grid_module()
+        if (graded) call s_finalize_graded()
         call s_finalize_variables_conversion_module()
         call s_finalize_eos_module()
         call s_finalize_data_output_module()

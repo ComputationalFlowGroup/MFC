@@ -12,6 +12,7 @@ module m_hypoelastic
     use m_finite_differences
     use m_helper
     use m_eos, only: s_phase_bulk_modulus
+    use m_graded, only: s_grade_G, G_graded_flag
 
     implicit none
 
@@ -110,7 +111,8 @@ contains
         integer, intent(in)                                    :: idir
         type(scalar_field), dimension(sys_size), intent(in)    :: q_prim_vf
         type(scalar_field), dimension(sys_size), intent(inout) :: rhs_vf
-        real(wp)                                               :: rho_K, G_K
+        real(wp)                                               :: rho_K, G_K, G_i
+        real(wp)                                               :: xi_x, xi_y, xi_z
         integer                                                :: i, k, l, q, r  !< Loop variables
         integer                                                :: ndirs          !< Number of coordinate directions
 
@@ -209,14 +211,24 @@ contains
                 end if
             end if
 
-            $:GPU_PARALLEL_LOOP(collapse=3,private='[rho_K, G_K]')
+            $:GPU_PARALLEL_LOOP(collapse=3,private='[rho_K, G_K, G_i, xi_x, xi_y, xi_z]')
             do q = 0, p
                 do l = 0, n
                     do k = 0, m
                         rho_K = 0._wp; G_K = 0._wp
+                        xi_x = 0._wp; xi_y = 0._wp; xi_z = 0._wp
+                        if (graded) then
+                            xi_x = q_prim_vf(eqn_idx%xi%beg)%sf(k, l, q)
+                            if (num_dims >= 2) xi_y = q_prim_vf(eqn_idx%xi%beg + 1)%sf(k, l, q)
+                            if (num_dims == 3) xi_z = q_prim_vf(eqn_idx%xi%end)%sf(k, l, q)
+                        end if
                         do i = 1, num_fluids
                             rho_K = rho_K + q_prim_vf(i)%sf(k, l, q)  ! alpha_rho_K(1)
-                            G_K = G_K + q_prim_vf(eqn_idx%adv%beg - 1 + i)%sf(k, l, q)*Gs_hypo(i)  ! alpha_K(1) * Gs_hypo(1)
+                            G_i = Gs_hypo(i)
+                            if (graded) then
+                                if (G_graded_flag(i)) call s_grade_G(xi_x, xi_y, xi_z, i, G_i)
+                            end if
+                            G_K = G_K + q_prim_vf(eqn_idx%adv%beg - 1 + i)%sf(k, l, q)*G_i  ! alpha_K(1) * G_i(1)
                         end do
 
                         ! Continuum damage: (1-D) scales effective stiffness, D in [0,1]
@@ -363,7 +375,8 @@ contains
         type(scalar_field), dimension(sys_size), intent(in)    :: q_prim_vf
         type(scalar_field), dimension(sys_size), intent(inout) :: rhs_vf
         type(vector_field), dimension(:), intent(in)           :: nc_iface_vel_n
-        real(wp)                                               :: rho_K, G_K
+        real(wp)                                               :: rho_K, G_K, G_i
+        real(wp)                                               :: xi_x, xi_y, xi_z
         real(wp)                                               :: trace, shear, shear2, diag, diag_z, offdiag, cross1, cross2
         real(wp)                                               :: txx, txy, tyy, txz, tyz, tzz
         integer                                                :: i, k, l, q
@@ -411,14 +424,24 @@ contains
             $:END_GPU_PARALLEL_LOOP()
         end if
 
-        $:GPU_PARALLEL_LOOP(collapse=3,private='[rho_K, G_K]')
+        $:GPU_PARALLEL_LOOP(collapse=3,private='[rho_K, G_K, G_i, xi_x, xi_y, xi_z]')
         do q = 0, p
             do l = 0, n
                 do k = 0, m
                     rho_K = 0._wp; G_K = 0._wp
+                    xi_x = 0._wp; xi_y = 0._wp; xi_z = 0._wp
+                    if (graded) then
+                        xi_x = q_prim_vf(eqn_idx%xi%beg)%sf(k, l, q)
+                        if (num_dims >= 2) xi_y = q_prim_vf(eqn_idx%xi%beg + 1)%sf(k, l, q)
+                        if (num_dims == 3) xi_z = q_prim_vf(eqn_idx%xi%end)%sf(k, l, q)
+                    end if
                     do i = 1, num_fluids
                         rho_K = rho_K + q_prim_vf(i)%sf(k, l, q)
-                        G_K = G_K + q_prim_vf(eqn_idx%adv%beg - 1 + i)%sf(k, l, q)*Gs_hypo(i)
+                        G_i = Gs_hypo(i)
+                        if (graded) then
+                            if (G_graded_flag(i)) call s_grade_G(xi_x, xi_y, xi_z, i, G_i)
+                        end if
+                        G_K = G_K + q_prim_vf(eqn_idx%adv%beg - 1 + i)%sf(k, l, q)*G_i
                     end do
 
                     if (cont_damage) G_K = G_K*max((1._wp - q_prim_vf(eqn_idx%damage)%sf(k, l, q)), 0._wp)
@@ -556,7 +579,8 @@ contains
         type(scalar_field), dimension(:), intent(in)           :: nc_iface_vel_x_vf
         type(scalar_field), dimension(:), intent(in)           :: nc_iface_vel_y_vf
         integer                                                :: i, k, l, q
-        real(wp)                                               :: rho_K, G_K, v_over_r, divU_axi
+        real(wp)                                               :: rho_K, G_K, G_i, v_over_r, divU_axi
+        real(wp)                                               :: xi_x, xi_y
 
         $:GPU_PARALLEL_LOOP(collapse=3)
         do q = 0, p
@@ -570,15 +594,24 @@ contains
         end do
         $:END_GPU_PARALLEL_LOOP()
 
-        $:GPU_PARALLEL_LOOP(collapse=3,private='[rho_K, G_K, v_over_r, divU_axi]')
+        $:GPU_PARALLEL_LOOP(collapse=3,private='[rho_K, G_K, G_i, xi_x, xi_y, v_over_r, divU_axi]')
         do q = 0, p
             do l = 0, n
                 do k = 0, m
                     rho_K = 0._wp
                     G_K = 0._wp
+                    xi_x = 0._wp; xi_y = 0._wp
+                    if (graded) then
+                        xi_x = q_prim_vf(eqn_idx%xi%beg)%sf(k, l, q)
+                        xi_y = q_prim_vf(eqn_idx%xi%beg + 1)%sf(k, l, q)
+                    end if
                     do i = 1, num_fluids
                         rho_K = rho_K + q_prim_vf(i)%sf(k, l, q)
-                        G_K = G_K + q_prim_vf(eqn_idx%adv%beg - 1 + i)%sf(k, l, q)*Gs_hypo(i)
+                        G_i = Gs_hypo(i)
+                        if (graded) then
+                            if (G_graded_flag(i)) call s_grade_G(xi_x, xi_y, 0._wp, i, G_i)
+                        end if
+                        G_K = G_K + q_prim_vf(eqn_idx%adv%beg - 1 + i)%sf(k, l, q)*G_i
                     end do
 
                     if (cont_damage) G_K = G_K*max(1._wp - q_prim_vf(eqn_idx%damage)%sf(k, l, q), 0._wp)

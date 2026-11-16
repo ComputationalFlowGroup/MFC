@@ -14,6 +14,7 @@ module m_variables_conversion
     use m_mpi_proxy
     use m_helper_basic
     use m_helper
+    use m_graded, only: s_grade_G, G_graded_flag
     use m_constants, only: riemann_solver_hll, riemann_solver_hlld, model_eqns_gamma_law, model_eqns_5eq, model_eqns_6eq, &
         & avg_state_roe
     use m_thermochem, only: num_species, get_temperature, get_pressure, gas_constant, get_mixture_molecular_weight, &
@@ -406,15 +407,18 @@ contains
         #:if USING_AMD and not MFC_CASE_OPTIMIZATION
             real(wp), dimension(3) :: alpha_K, alpha_rho_K
             real(wp), dimension(3) :: nRtmp
+            real(wp), dimension(3) :: G_graded_loc
         #:else
             real(wp), dimension(num_fluids) :: alpha_K, alpha_rho_K
             real(wp), dimension(nb)         :: nRtmp
+            real(wp), dimension(num_fluids) :: G_graded_loc
         #:endif
         real(wp)               :: rhoYks(1:${NUM_SPECIES}$)
         real(wp), dimension(2) :: Re_K
         real(wp)               :: rho_K, gamma_K, pi_inf_K, qv_K, dyn_pres_K
         real(wp)               :: vftmp, nbub_sc
         real(wp)               :: G_K
+        real(wp)               :: xi_x, xi_y, xi_z, rho_graded_tmp
         real(wp)               :: solid_partial_density
         real(wp)               :: pres
         integer                :: i, j, k, l               !< Generic loop iterators
@@ -433,9 +437,10 @@ contains
         integer :: Re_size_loc1, Re_size_loc2
 
         Re_size_loc1 = Re_size(1); Re_size_loc2 = Re_size(2)
-        $:GPU_PARALLEL_LOOP(collapse=3, privateArrays='[alpha_K, alpha_rho_K, Re_K, nRtmp, rhoYks, B]', private='[rho_K, gamma_K, &
-                            & pi_inf_K, qv_K, dyn_pres_K, pres, vftmp, nbub_sc, G_K, solid_partial_density, T, pres_mag, Ga, B2, &
-                            & m2, S, W, dW, E, D, f, dGa_dW, dp_dW, df_dW, iter]', firstprivate='[Re_size_loc1, Re_size_loc2]')
+        $:GPU_PARALLEL_LOOP(collapse=3, privateArrays='[alpha_K, alpha_rho_K, Re_K, nRtmp, rhoYks, B, G_graded_loc]', &
+                            & private='[rho_K, gamma_K, pi_inf_K, qv_K, dyn_pres_K, pres, vftmp, nbub_sc, G_K, xi_x, xi_y, xi_z, &
+                            & rho_graded_tmp, solid_partial_density, T, pres_mag, Ga, B2, m2, S, W, dW, E, D, f, dGa_dW, dp_dW, &
+                            & df_dW, iter]', firstprivate='[Re_size_loc1, Re_size_loc2]')
         do l = ibounds(3)%beg, ibounds(3)%end
             do k = ibounds(2)%beg, ibounds(2)%end
                 do j = ibounds(1)%beg, ibounds(1)%end
@@ -443,9 +448,33 @@ contains
 
                     call s_compute_species_fraction(qK_cons_vf, j, k, l, alpha_rho_K, alpha_K)
 
+                    ! Graded G: the reference map is recovered here from its conservative (rho*xi) form using a
+                    ! cheap local sum of alpha_rho_K, rather than the rho_K the mixture call below returns, since
+                    ! that call needs the graded G array as one of its own inputs.
+                    if (graded .and. hypoelasticity) then
+                        rho_graded_tmp = 0._wp
+                        $:GPU_LOOP(parallelism='[seq]')
+                        do i = 1, num_fluids
+                            rho_graded_tmp = rho_graded_tmp + alpha_rho_K(i)
+                        end do
+                        rho_graded_tmp = max(rho_graded_tmp, sgm_eps)
+                        xi_x = qK_cons_vf(eqn_idx%xi%beg)%sf(j, k, l)/rho_graded_tmp
+                        xi_y = 0._wp; xi_z = 0._wp
+                        if (num_dims >= 2) xi_y = qK_cons_vf(eqn_idx%xi%beg + 1)%sf(j, k, l)/rho_graded_tmp
+                        if (num_dims == 3) xi_z = qK_cons_vf(eqn_idx%xi%end)%sf(j, k, l)/rho_graded_tmp
+                        $:GPU_LOOP(parallelism='[seq]')
+                        do i = 1, num_fluids
+                            G_graded_loc(i) = Gs_vc(i)
+                            if (G_graded_flag(i)) call s_grade_G(xi_x, xi_y, xi_z, i, G_graded_loc(i))
+                        end do
+                    end if
+
 #ifdef MFC_GPU
                     ! Device regions call the device-compiled scalar kernel directly.
-                    if (hypoelasticity) then
+                    if (hypoelasticity .and. graded) then
+                        call s_convert_species_to_mixture_variables_kernel(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, &
+                            & Re_K, G_K, G_graded_loc, Re_size_loc1, Re_size_loc2)
+                    else if (hypoelasticity) then
                         call s_convert_species_to_mixture_variables_kernel(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, &
                             & Re_K, G_K, Gs_vc, Re_size_loc1, Re_size_loc2)
                     else
@@ -454,7 +483,10 @@ contains
                     end if
 #else
                     ! Host execution uses the wrapper, which also stores requested diagnostics.
-                    if (hypoelasticity) then
+                    if (hypoelasticity .and. graded) then
+                        call s_convert_to_mixture_variables(qK_cons_vf, j, k, l, rho_K, gamma_K, pi_inf_K, qv_K, Re_K, G_K, &
+                                                            & G_graded_loc)
+                    else if (hypoelasticity) then
                         call s_convert_to_mixture_variables(qK_cons_vf, j, k, l, rho_K, gamma_K, pi_inf_K, qv_K, Re_K, G_K, &
                                                             & fluid_pp(:)%G)
                     else
@@ -744,6 +776,8 @@ contains
         real(wp)                         :: B2          !< Square of the magnetic field magnitude
         real(wp)                         :: vdotB       !< Dot product of the velocity and magnetic field vectors
         real(wp)                         :: B(3)        !< Magnetic field components
+        real(wp)                         :: xi_x, xi_y, xi_z
+        real(wp), dimension(num_fluids)  :: G_graded_loc
 
         pres_mag = 0._wp
 
@@ -753,8 +787,21 @@ contains
         do l = 0, p
             do k = 0, n
                 do j = 0, m
-                    ! Obtaining the density, specific heat ratio function and the liquid stiffness function, respectively
-                    call s_convert_to_mixture_variables(q_prim_vf, j, k, l, rho, gamma, pi_inf, qv, Re_K, G, fluid_pp(:)%G)
+                    if (graded .and. hypoelasticity) then
+                        xi_x = q_prim_vf(eqn_idx%xi%beg)%sf(j, k, l)
+                        xi_y = 0._wp; xi_z = 0._wp
+                        if (num_dims >= 2) xi_y = q_prim_vf(eqn_idx%xi%beg + 1)%sf(j, k, l)
+                        if (num_dims == 3) xi_z = q_prim_vf(eqn_idx%xi%end)%sf(j, k, l)
+                        do i = 1, num_fluids
+                            G_graded_loc(i) = fluid_pp(i)%G
+                            if (G_graded_flag(i)) call s_grade_G(xi_x, xi_y, xi_z, i, G_graded_loc(i))
+                        end do
+                        ! Obtaining the density, specific heat ratio function and the liquid stiffness function, respectively
+                        call s_convert_to_mixture_variables(q_prim_vf, j, k, l, rho, gamma, pi_inf, qv, Re_K, G, G_graded_loc)
+                    else
+                        ! Obtaining the density, specific heat ratio function and the liquid stiffness function, respectively
+                        call s_convert_to_mixture_variables(q_prim_vf, j, k, l, rho, gamma, pi_inf, qv, Re_K, G, fluid_pp(:)%G)
+                    end if
 
                     if (.not. igr .or. num_fluids > 1) then
                         ! Transferring the advection equation(s) variable(s)

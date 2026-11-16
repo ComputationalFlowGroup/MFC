@@ -17,6 +17,7 @@ module m_start_up
     use m_boundary_common
     use m_boundary_io
     use m_variables_conversion
+    use m_graded, only: s_initialize_graded, s_finalize_graded
     use m_eos
     use m_data_input
     use m_data_output
@@ -822,6 +823,7 @@ contains
         end if
         call s_initialize_boundary_common_module(nvar_io=sys_size_io)  ! the BC files carry no beta slot
         call s_initialize_eos_module()
+        if (graded) call s_initialize_graded()
         call s_initialize_variables_conversion_module(store_mixture_fields=.true., lagrange_beta_index=beta_idx)
         call s_initialize_data_input_module()
         call s_initialize_derived_variables_module()
@@ -1032,6 +1034,7 @@ contains
         call s_finalize_derived_variables_module()
         call s_finalize_data_input_module()
         call s_finalize_variables_conversion_module()
+        if (graded) call s_finalize_graded()
         call s_finalize_eos_module()
         if (num_procs > 1) then
             call s_finalize_mpi_proxy_module()
