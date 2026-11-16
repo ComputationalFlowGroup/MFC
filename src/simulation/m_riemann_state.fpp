@@ -1229,7 +1229,7 @@ contains
 
     !> Compute the shear and volume Reynolds numbers of one Riemann state by inverse-weighting the fluid Reynolds numbers with the
     !! volume fractions.
-    subroutine s_compute_interface_reynolds(alpha_K, Re_K, Re_size_loc1, Re_size_loc2)
+    subroutine s_compute_interface_reynolds(alpha_K, Re_K, Re_size_loc1, Re_size_loc2, Res)
 
         $:GPU_ROUTINE(function_name='s_compute_interface_reynolds', parallelism='[seq]', cray_inline=True)
 
@@ -1241,7 +1241,9 @@ contains
         real(wp), dimension(2), intent(out) :: Re_K
         !> host copies of Re_size; amdflang reads the declare-target original stale cross-TU
         integer, intent(in) :: Re_size_loc1, Re_size_loc2
-        integer             :: i, q  !< Loop iterators
+        ! Graded Re override for this interface, same shape as the module's own Res_gs; absent, Res_gs is used (unchanged behavior).
+        real(wp), optional, dimension(2, Re_size_max), intent(in) :: Res
+        integer                                                   :: i, q  !< Loop iterators
 
         $:GPU_LOOP(parallelism='[seq]')
         do i = 1, 2
@@ -1249,10 +1251,17 @@ contains
 
             if (merge(Re_size_loc1, Re_size_loc2, i == 1) > 0) Re_K(i) = 0._wp
 
-            $:GPU_LOOP(parallelism='[seq]')
-            do q = 1, merge(Re_size_loc1, Re_size_loc2, i == 1)
-                Re_K(i) = alpha_K(Re_idx(i, q))/Res_gs(i, q) + Re_K(i)
-            end do
+            if (present(Res)) then
+                $:GPU_LOOP(parallelism='[seq]')
+                do q = 1, merge(Re_size_loc1, Re_size_loc2, i == 1)
+                    Re_K(i) = alpha_K(Re_idx(i, q))/Res(i, q) + Re_K(i)
+                end do
+            else
+                $:GPU_LOOP(parallelism='[seq]')
+                do q = 1, merge(Re_size_loc1, Re_size_loc2, i == 1)
+                    Re_K(i) = alpha_K(Re_idx(i, q))/Res_gs(i, q) + Re_K(i)
+                end do
+            end if
 
             Re_K(i) = 1._wp/max(Re_K(i), sgm_eps)
         end do

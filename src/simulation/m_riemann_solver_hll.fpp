@@ -11,6 +11,7 @@ module m_riemann_solver_hll
     use m_derived_types
     use m_global_parameters
     use m_variables_conversion
+    use m_graded, only: s_grade_Re, Re_graded_flag
     use m_eos
     use m_constants, only: avg_state_roe, avg_state_arithmetic, wave_speeds_direct, wave_speeds_pressure
     use m_chemistry
@@ -73,6 +74,7 @@ contains
             real(wp)                             :: damage_L, damage_R
             real(wp)                             :: solid_partial_density_L, solid_partial_density_R
             real(wp), dimension(2)               :: Re_L, Re_R
+            real(wp), dimension(2, Re_size_max)  :: Res_graded_L, Res_graded_R
             real(wp)                             :: rho_avg
             real(wp)                             :: H_avg
             real(wp)                             :: qv_avg
@@ -94,6 +96,7 @@ contains
             type(riemann_states_vec3)            :: b4          !< 4-magnetic field components (spatial: b4x, b4y, b4z)
             type(riemann_states_vec3)            :: cm          !< Conservative momentum variables
             integer                              :: i, j, k, l  !< Generic loop iterators
+            integer                              :: j_re        !< Generic loop iterator over a Res channel's fluids
             !> host copies of Re_size; amdflang reads the declare-target original stale cross-TU
             integer :: Re_size_loc1, Re_size_loc2
             ! Populating the buffers of the left and right Riemann problem states variables, based on the choice of boundary
@@ -114,16 +117,17 @@ contains
                 #:set SF = lambda offs: COORDS.format(STENCIL_IDX = SV + offs)
                 if (norm_dir == ${NORM_DIR}$) then
                     $:GPU_PARALLEL_LOOP(collapse=3, privateArrays='[alpha_rho_L, alpha_rho_R, vel_L, vel_R, alpha_L, alpha_R, &
-                                        & tau_e_L, tau_e_R, xi_field_L, xi_field_R, Re_L, Re_R, Ys_L, Ys_R, R_species, h_iL, &
-                                        & h_iR, Cp_iL, Cp_iR, Xs_L, Xs_R, Gamma_iL, Gamma_iR]', private='[i, j, k, l, s_L, s_R, &
-                                        & s_M, s_P, s_S, xi_M, xi_P, c_fast, pres_mag, B, Ga, vdotB, B2, b4, cm, pcorr, rho_L, &
-                                        & rho_R, pres_L, pres_R, E_L, E_R, H_L, H_R, c_sum_Yi_Phi, T_L, T_R, Y_L, Y_R, MW_L, &
-                                        & MW_R, R_gas_L, R_gas_R, Cp_L, Cp_R, Cv_L, Cv_R, Gamm_L, Gamm_R, gamma_L, gamma_R, &
-                                        & pi_inf_L, pi_inf_R, qv_L, qv_R, qv_avg, c_L, c_R, G_L, G_R, damage_L, damage_R, &
-                                        & solid_partial_density_L, solid_partial_density_R, rho_avg, H_avg, c_avg, gamma_avg, &
-                                        & ptilde_L, ptilde_R, vel_L_rms, vel_R_rms, vel_avg_rms, Ms_L, Ms_R, pres_SL, pres_SR, &
-                                        & alpha_L_sum, alpha_R_sum, flux_tau_L, flux_tau_R, vel_interface]', copyin='[norm_dir]', &
-                                        & firstprivate='[Re_size_loc1, Re_size_loc2, need_nc_vel]')
+                                        & tau_e_L, tau_e_R, xi_field_L, xi_field_R, Re_L, Re_R, Res_graded_L, Res_graded_R, Ys_L, &
+                                        & Ys_R, R_species, h_iL, h_iR, Cp_iL, Cp_iR, Xs_L, Xs_R, Gamma_iL, Gamma_iR]', &
+                                        & private='[i, j, k, l, j_re, s_L, s_R, s_M, s_P, s_S, xi_M, xi_P, c_fast, pres_mag, B, &
+                                        & Ga, vdotB, B2, b4, cm, pcorr, rho_L, rho_R, pres_L, pres_R, E_L, E_R, H_L, H_R, &
+                                        & c_sum_Yi_Phi, T_L, T_R, Y_L, Y_R, MW_L, MW_R, R_gas_L, R_gas_R, Cp_L, Cp_R, Cv_L, Cv_R, &
+                                        & Gamm_L, Gamm_R, gamma_L, gamma_R, pi_inf_L, pi_inf_R, qv_L, qv_R, qv_avg, c_L, c_R, &
+                                        & G_L, G_R, damage_L, damage_R, solid_partial_density_L, solid_partial_density_R, &
+                                        & rho_avg, H_avg, c_avg, gamma_avg, ptilde_L, ptilde_R, vel_L_rms, vel_R_rms, &
+                                        & vel_avg_rms, Ms_L, Ms_R, pres_SL, pres_SR, alpha_L_sum, alpha_R_sum, flux_tau_L, &
+                                        & flux_tau_R, vel_interface]', copyin='[norm_dir]', firstprivate='[Re_size_loc1, &
+                                        & Re_size_loc2, need_nc_vel]')
                     do l = ${Z_BND}$%beg, ${Z_BND}$%end
                         do k = ${Y_BND}$%beg, ${Y_BND}$%end
                             do j = ${X_BND}$%beg, ${X_BND}$%end
@@ -204,9 +208,39 @@ contains
                                 call s_compute_mixture_coefficients(alpha_rho_L, alpha_L, rho_L, gamma_L, pi_inf_L, qv_L)
                                 call s_compute_mixture_coefficients(alpha_rho_R, alpha_R, rho_R, gamma_R, pi_inf_R, qv_R)
 
+                                if (graded) then
+                                    $:GPU_LOOP(parallelism='[seq]')
+                                    do i = 1, num_dims
+                                        xi_field_L(i) = qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%beg - 1 + i)
+                                        xi_field_R(i) = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%beg - 1 + i)
+                                    end do
+                                end if
+
                                 if (viscous) then
-                                    call s_compute_interface_reynolds(alpha_L, Re_L, Re_size_loc1, Re_size_loc2)
-                                    call s_compute_interface_reynolds(alpha_R, Re_R, Re_size_loc1, Re_size_loc2)
+                                    if (graded) then
+                                        $:GPU_LOOP(parallelism='[seq]')
+                                        do i = 1, 2
+                                            $:GPU_LOOP(parallelism='[seq]')
+                                            do j_re = 1, Re_size_max
+                                                Res_graded_L(i, j_re) = Res_gs(i, j_re)
+                                                Res_graded_R(i, j_re) = Res_gs(i, j_re)
+                                            end do
+                                            $:GPU_LOOP(parallelism='[seq]')
+                                            do j_re = 1, Re_size(i)
+                                                if (Re_graded_flag(Re_idx(i, j_re))) then
+                                                    call s_grade_Re(xi_field_L(1), xi_field_L(2), xi_field_L(3), Re_idx(i, j_re), &
+                                                                    & i, Res_graded_L(i, j_re))
+                                                    call s_grade_Re(xi_field_R(1), xi_field_R(2), xi_field_R(3), Re_idx(i, j_re), &
+                                                                    & i, Res_graded_R(i, j_re))
+                                                end if
+                                            end do
+                                        end do
+                                        call s_compute_interface_reynolds(alpha_L, Re_L, Re_size_loc1, Re_size_loc2, Res_graded_L)
+                                        call s_compute_interface_reynolds(alpha_R, Re_R, Re_size_loc1, Re_size_loc2, Res_graded_R)
+                                    else
+                                        call s_compute_interface_reynolds(alpha_L, Re_L, Re_size_loc1, Re_size_loc2)
+                                        call s_compute_interface_reynolds(alpha_R, Re_R, Re_size_loc1, Re_size_loc2)
+                                    end if
                                 end if
 
                                 if (chemistry) then
@@ -313,14 +347,6 @@ contains
 
                                     call s_compute_hypoelastic_interface_energy(num_fluids, alpha_L, alpha_R, damage_L, damage_R, &
                                         & tau_e_L, tau_e_R, G_L, G_R, E_L, E_R)
-                                end if
-
-                                if (graded) then
-                                    $:GPU_LOOP(parallelism='[seq]')
-                                    do i = 1, num_dims
-                                        xi_field_L(i) = qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%beg - 1 + i)
-                                        xi_field_R(i) = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%beg - 1 + i)
-                                    end do
                                 end if
 
                                 ! Only the pressure-based wave-speed estimate reads the averaged state, and the Roe

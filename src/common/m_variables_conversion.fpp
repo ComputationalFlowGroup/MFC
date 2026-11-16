@@ -14,7 +14,7 @@ module m_variables_conversion
     use m_mpi_proxy
     use m_helper_basic
     use m_helper
-    use m_graded, only: s_grade_G, G_graded_flag
+    use m_graded, only: s_grade_G, G_graded_flag, s_grade_Re, Re_graded_flag
     use m_constants, only: riemann_solver_hll, riemann_solver_hlld, model_eqns_gamma_law, model_eqns_5eq, model_eqns_6eq, &
         & avg_state_roe
     use m_thermochem, only: num_species, get_temperature, get_pressure, gas_constant, get_mixture_molecular_weight, &
@@ -56,19 +56,20 @@ contains
 
     !> Dispatch to the s_convert_mixture_to_mixture_variables and s_convert_species_to_mixture_variables subroutines. Replaces a
     !! procedure pointer.
-    subroutine s_convert_to_mixture_variables(q_vf, i, j, k, rho, gamma, pi_inf, qv, Re_K, G_K, G)
+    subroutine s_convert_to_mixture_variables(q_vf, i, j, k, rho, gamma, pi_inf, qv, Re_K, G_K, G, Res)
 
-        type(scalar_field), dimension(sys_size), intent(in)   :: q_vf
-        integer, intent(in)                                   :: i, j, k
-        real(wp), intent(out), target                         :: rho, gamma, pi_inf, qv
-        real(wp), optional, dimension(2), intent(out)         :: Re_K
-        real(wp), optional, intent(out)                       :: G_K
-        real(wp), optional, dimension(num_fluids), intent(in) :: G
+        type(scalar_field), dimension(sys_size), intent(in)       :: q_vf
+        integer, intent(in)                                       :: i, j, k
+        real(wp), intent(out), target                             :: rho, gamma, pi_inf, qv
+        real(wp), optional, dimension(2), intent(out)             :: Re_K
+        real(wp), optional, intent(out)                           :: G_K
+        real(wp), optional, dimension(num_fluids), intent(in)     :: G
+        real(wp), optional, dimension(2, Re_size_max), intent(in) :: Res
 
         if (model_eqns == model_eqns_gamma_law) then  ! Gamma/pi_inf model
             call s_convert_mixture_to_mixture_variables(q_vf, i, j, k, rho, gamma, pi_inf, qv)
         else  ! Volume fraction model
-            call s_convert_species_to_mixture_variables(q_vf, i, j, k, rho, gamma, pi_inf, qv, Re_K, G_K, G)
+            call s_convert_species_to_mixture_variables(q_vf, i, j, k, rho, gamma, pi_inf, qv, Re_K, G_K, G, Res)
         end if
 
     end subroutine s_convert_to_mixture_variables
@@ -156,26 +157,27 @@ contains
     !> Convert species volume fractions and partial densities to mixture density, gamma, pi_inf, and qv. Given conservative or
     !! primitive variables, computes the density, the specific heat ratio function and the liquid stiffness function from q_vf and
     !! stores the results into rho, gamma and pi_inf.
-    subroutine s_convert_species_to_mixture_variables(q_vf, k, l, r, rho, gamma, pi_inf, qv, Re_K, G_K, G)
+    subroutine s_convert_species_to_mixture_variables(q_vf, k, l, r, rho, gamma, pi_inf, qv, Re_K, G_K, G, Res)
 
-        type(scalar_field), dimension(sys_size), intent(in)   :: q_vf
-        integer, intent(in)                                   :: k, l, r
-        real(wp), intent(out), target                         :: rho
-        real(wp), intent(out), target                         :: gamma
-        real(wp), intent(out), target                         :: pi_inf
-        real(wp), intent(out), target                         :: qv
-        real(wp), optional, dimension(2), intent(out)         :: Re_K
-        real(wp), optional, intent(out)                       :: G_K
-        real(wp), dimension(num_fluids)                       :: alpha_rho_K, alpha_K
-        real(wp), optional, dimension(num_fluids), intent(in) :: G
-        integer                                               :: i, j  !< Generic loop iterator
+        type(scalar_field), dimension(sys_size), intent(in)       :: q_vf
+        integer, intent(in)                                       :: k, l, r
+        real(wp), intent(out), target                             :: rho
+        real(wp), intent(out), target                             :: gamma
+        real(wp), intent(out), target                             :: pi_inf
+        real(wp), intent(out), target                             :: qv
+        real(wp), optional, dimension(2), intent(out)             :: Re_K
+        real(wp), optional, intent(out)                           :: G_K
+        real(wp), dimension(num_fluids)                           :: alpha_rho_K, alpha_K
+        real(wp), optional, dimension(num_fluids), intent(in)     :: G
+        real(wp), optional, dimension(2, Re_size_max), intent(in) :: Res
+        integer                                                   :: i, j  !< Generic loop iterator
         ! Computing the density, the specific heat ratio function and the liquid stiffness function, respectively
 
         call s_compute_species_fraction(q_vf, k, l, r, alpha_rho_K, alpha_K)
 
         ! Use the same scalar kernel on host and device so mixture semantics do not depend on the executable or accelerator backend.
         ! Absent optional dummies forward as absent, so the optional arguments need no dispatch here.
-        call s_convert_species_to_mixture_variables_kernel(rho, gamma, pi_inf, qv, alpha_K, alpha_rho_K, Re_K, G_K, G)
+        call s_convert_species_to_mixture_variables_kernel(rho, gamma, pi_inf, qv, alpha_K, alpha_rho_K, Re_K, G_K, G, Res)
 
         ! Store derived mixture fields when requested during module initialization.
         if (allocated(rho_sf) .and. .not. skip_mixture_store) then
@@ -189,7 +191,7 @@ contains
     !> Host- and device-callable conversion kernel for species and mixture variables. Device callers pass host copies of Re_size
     !! (amdflang reads the module variable stale cross-TU); absent, the module variable is used.
     subroutine s_convert_species_to_mixture_variables_kernel(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, Re_K, G_K, G, &
-        & Re_size_loc1, Re_size_loc2)
+        & Res, Re_size_loc1, Re_size_loc2)
 
         $:GPU_ROUTINE(function_name='s_convert_species_to_mixture_variables_kernel', parallelism='[seq]', cray_noinline=True)
 
@@ -203,9 +205,11 @@ contains
         #:endif
         real(wp), optional, dimension(2), intent(out) :: Re_K
         real(wp), optional, intent(out)               :: G_K
-        integer, optional, intent(in)                 :: Re_size_loc1, Re_size_loc2
-        real(wp)                                      :: alpha_K_sum
-        integer                                       :: i, j, n_Re  !< Generic loop iterators, Re_size(i)
+        ! Graded Re override for this cell, same shape as the module's own Res_vc; absent, Res_vc is used (unchanged behavior).
+        real(wp), optional, dimension(2, Re_size_max), intent(in) :: Res
+        integer, optional, intent(in)                             :: Re_size_loc1, Re_size_loc2
+        real(wp)                                                  :: alpha_K_sum
+        integer                                                   :: i, j, n_Re  !< Generic loop iterators, Re_size(i)
 
         rho_K = 0._wp
         gamma_K = 0._wp
@@ -247,9 +251,15 @@ contains
 
                 if (n_Re > 0) Re_K(i) = 0._wp
 
-                do j = 1, n_Re
-                    Re_K(i) = alpha_K(Re_idx(i, j))/Res_vc(i, j) + Re_K(i)
-                end do
+                if (present(Res)) then
+                    do j = 1, n_Re
+                        Re_K(i) = alpha_K(Re_idx(i, j))/Res(i, j) + Re_K(i)
+                    end do
+                else
+                    do j = 1, n_Re
+                        Re_K(i) = alpha_K(Re_idx(i, j))/Res_vc(i, j) + Re_K(i)
+                    end do
+                end if
 
                 Re_K(i) = 1._wp/max(Re_K(i), sgm_eps)
             end do
@@ -413,34 +423,35 @@ contains
             real(wp), dimension(nb)         :: nRtmp
             real(wp), dimension(num_fluids) :: G_graded_loc
         #:endif
-        real(wp)               :: rhoYks(1:${NUM_SPECIES}$)
-        real(wp), dimension(2) :: Re_K
-        real(wp)               :: rho_K, gamma_K, pi_inf_K, qv_K, dyn_pres_K
-        real(wp)               :: vftmp, nbub_sc
-        real(wp)               :: G_K
-        real(wp)               :: xi_x, xi_y, xi_z, rho_graded_tmp
-        real(wp)               :: solid_partial_density
-        real(wp)               :: pres
-        integer                :: i, j, k, l               !< Generic loop iterators
-        real(wp)               :: T
-        real(wp)               :: pres_mag
-        real(wp)               :: Ga                       !< Lorentz factor (gamma in relativity)
-        real(wp)               :: B2                       !< Magnetic field magnitude squared
-        real(wp)               :: B(3)                     !< Magnetic field components
-        real(wp)               :: m2                       !< Relativistic momentum magnitude squared
-        real(wp)               :: S                        !< Dot product of the magnetic field and the relativistic momentum
-        real(wp)               :: W, dW                    !< W := rho*v*Ga**2; f = f(W) in Newton-Raphson
-        real(wp)               :: E, D                     !< Prim/Cons variables within Newton-Raphson iteration
-        real(wp)               :: f, dGa_dW, dp_dW, df_dW  !< Functions within Newton-Raphson iteration
-        integer                :: iter                     !< Newton-Raphson iteration counter
+        real(wp)                            :: rhoYks(1:${NUM_SPECIES}$)
+        real(wp), dimension(2)              :: Re_K
+        real(wp), dimension(2, Re_size_max) :: Res_graded_loc
+        real(wp)                            :: rho_K, gamma_K, pi_inf_K, qv_K, dyn_pres_K
+        real(wp)                            :: vftmp, nbub_sc
+        real(wp)                            :: G_K
+        real(wp)                            :: xi_x, xi_y, xi_z, rho_graded_tmp
+        real(wp)                            :: solid_partial_density
+        real(wp)                            :: pres
+        integer                             :: i, j, k, l, j_re  !< Generic loop iterators
+        real(wp)                            :: T
+        real(wp)                            :: pres_mag
+        real(wp)                            :: Ga  !< Lorentz factor (gamma in relativity)
+        real(wp)                            :: B2  !< Magnetic field magnitude squared
+        real(wp)                            :: B(3)  !< Magnetic field components
+        real(wp)                            :: m2  !< Relativistic momentum magnitude squared
+        real(wp)                            :: S  !< Dot product of the magnetic field and the relativistic momentum
+        real(wp)                            :: W, dW  !< W := rho*v*Ga**2; f = f(W) in Newton-Raphson
+        real(wp)                            :: E, D  !< Prim/Cons variables within Newton-Raphson iteration
+        real(wp)                            :: f, dGa_dW, dp_dW, df_dW  !< Functions within Newton-Raphson iteration
+        integer                             :: iter  !< Newton-Raphson iteration counter
         !> Host copies; amdflang reads Re_size stale cross-TU
         integer :: Re_size_loc1, Re_size_loc2
 
         Re_size_loc1 = Re_size(1); Re_size_loc2 = Re_size(2)
-        $:GPU_PARALLEL_LOOP(collapse=3, privateArrays='[alpha_K, alpha_rho_K, Re_K, nRtmp, rhoYks, B, G_graded_loc]', &
-                            & private='[rho_K, gamma_K, pi_inf_K, qv_K, dyn_pres_K, pres, vftmp, nbub_sc, G_K, xi_x, xi_y, xi_z, &
-                            & rho_graded_tmp, solid_partial_density, T, pres_mag, Ga, B2, m2, S, W, dW, E, D, f, dGa_dW, dp_dW, &
-                            & df_dW, iter]', firstprivate='[Re_size_loc1, Re_size_loc2]')
+        $:GPU_PARALLEL_LOOP(collapse=3, privateArrays='[alpha_K, alpha_rho_K, Re_K, nRtmp, rhoYks, B, G_graded_loc, &
+                            & Res_graded_loc]', private='[rho_K, gamma_K, pi_inf_K, qv_K, dyn_pres_K, pres, vftmp, nbub_sc, G_K, &
+                            & xi_x, xi_y, xi_z, rho_graded_tmp, solid_partial_density, T, pres_mag, Ga, B2, m2, S, W, dW, E, D, &
+                            & f, dGa_dW, dp_dW, df_dW, iter, j_re]', firstprivate='[Re_size_loc1, Re_size_loc2]')
         do l = ibounds(3)%beg, ibounds(3)%end
             do k = ibounds(2)%beg, ibounds(2)%end
                 do j = ibounds(1)%beg, ibounds(1)%end
@@ -448,10 +459,10 @@ contains
 
                     call s_compute_species_fraction(qK_cons_vf, j, k, l, alpha_rho_K, alpha_K)
 
-                    ! Graded G: the reference map is recovered here from its conservative (rho*xi) form using a
-                    ! cheap local sum of alpha_rho_K, rather than the rho_K the mixture call below returns, since
-                    ! that call needs the graded G array as one of its own inputs.
-                    if (graded .and. hypoelasticity) then
+                    ! Graded G and/or Re: the reference map is recovered here from its conservative (rho*xi) form
+                    ! using a cheap local sum of alpha_rho_K, rather than the rho_K the mixture call below returns,
+                    ! since that call needs the graded G/Res arrays as its own inputs.
+                    if (graded .and. (hypoelasticity .or. viscous)) then
                         rho_graded_tmp = 0._wp
                         $:GPU_LOOP(parallelism='[seq]')
                         do i = 1, num_fluids
@@ -462,33 +473,64 @@ contains
                         xi_y = 0._wp; xi_z = 0._wp
                         if (num_dims >= 2) xi_y = qK_cons_vf(eqn_idx%xi%beg + 1)%sf(j, k, l)/rho_graded_tmp
                         if (num_dims == 3) xi_z = qK_cons_vf(eqn_idx%xi%end)%sf(j, k, l)/rho_graded_tmp
+                    end if
+                    if (graded .and. hypoelasticity) then
                         $:GPU_LOOP(parallelism='[seq]')
                         do i = 1, num_fluids
                             G_graded_loc(i) = Gs_vc(i)
                             if (G_graded_flag(i)) call s_grade_G(xi_x, xi_y, xi_z, i, G_graded_loc(i))
                         end do
                     end if
+                    if (graded .and. viscous) then
+                        ! Default every entry to the static (non-graded) mixture table, then override
+                        ! only the fluids flagged graded_Re, same two-channel (shear/bulk) indexing s_get_viscous uses.
+                        $:GPU_LOOP(parallelism='[seq]')
+                        do i = 1, 2
+                            $:GPU_LOOP(parallelism='[seq]')
+                            do j_re = 1, Re_size_max
+                                Res_graded_loc(i, j_re) = Res_vc(i, j_re)
+                            end do
+                            $:GPU_LOOP(parallelism='[seq]')
+                            do j_re = 1, Re_size(i)
+                                if (Re_graded_flag(Re_idx(i, j_re))) then
+                                    call s_grade_Re(xi_x, xi_y, xi_z, Re_idx(i, j_re), i, Res_graded_loc(i, j_re))
+                                end if
+                            end do
+                        end do
+                    end if
 
 #ifdef MFC_GPU
                     ! Device regions call the device-compiled scalar kernel directly.
-                    if (hypoelasticity .and. graded) then
+                    if (hypoelasticity .and. graded .and. viscous) then
                         call s_convert_species_to_mixture_variables_kernel(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, &
-                            & Re_K, G_K, G_graded_loc, Re_size_loc1, Re_size_loc2)
+                            & Re_K, G_K, G_graded_loc, Res_graded_loc, Re_size_loc1, Re_size_loc2)
+                    else if (hypoelasticity .and. graded) then
+                        call s_convert_species_to_mixture_variables_kernel(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, &
+                            & Re_K, G_K, G_graded_loc, Re_size_loc1=Re_size_loc1, Re_size_loc2=Re_size_loc2)
                     else if (hypoelasticity) then
                         call s_convert_species_to_mixture_variables_kernel(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, &
-                            & Re_K, G_K, Gs_vc, Re_size_loc1, Re_size_loc2)
+                            & Re_K, G_K, Gs_vc, Re_size_loc1=Re_size_loc1, Re_size_loc2=Re_size_loc2)
+                    else if (graded .and. viscous) then
+                        call s_convert_species_to_mixture_variables_kernel(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, &
+                            & Re_K, Res=Res_graded_loc, Re_size_loc1=Re_size_loc1, Re_size_loc2=Re_size_loc2)
                     else
                         call s_convert_species_to_mixture_variables_kernel(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, &
                             & Re_K, Re_size_loc1=Re_size_loc1, Re_size_loc2=Re_size_loc2)
                     end if
 #else
                     ! Host execution uses the wrapper, which also stores requested diagnostics.
-                    if (hypoelasticity .and. graded) then
+                    if (hypoelasticity .and. graded .and. viscous) then
+                        call s_convert_to_mixture_variables(qK_cons_vf, j, k, l, rho_K, gamma_K, pi_inf_K, qv_K, Re_K, G_K, &
+                                                            & G_graded_loc, Res_graded_loc)
+                    else if (hypoelasticity .and. graded) then
                         call s_convert_to_mixture_variables(qK_cons_vf, j, k, l, rho_K, gamma_K, pi_inf_K, qv_K, Re_K, G_K, &
                                                             & G_graded_loc)
                     else if (hypoelasticity) then
                         call s_convert_to_mixture_variables(qK_cons_vf, j, k, l, rho_K, gamma_K, pi_inf_K, qv_K, Re_K, G_K, &
                                                             & fluid_pp(:)%G)
+                    else if (graded .and. viscous) then
+                        call s_convert_to_mixture_variables(qK_cons_vf, j, k, l, rho_K, gamma_K, pi_inf_K, qv_K, Re_K, &
+                                                            & Res=Res_graded_loc)
                     else
                         call s_convert_to_mixture_variables(qK_cons_vf, j, k, l, rho_K, gamma_K, pi_inf_K, qv_K)
                     end if
@@ -755,29 +797,31 @@ contains
 
         ! Density, specific heat ratio function, liquid stiffness function and dynamic pressure, as defined in the incompressible
         ! flow sense, respectively
-        real(wp)                         :: rho
-        real(wp)                         :: gamma
-        real(wp)                         :: pi_inf
-        real(wp)                         :: pres_i, alpha_i, alpha_rho_i, e_i
-        real(wp)                         :: qv
-        real(wp)                         :: dyn_pres
-        real(wp)                         :: nbub, R3tmp
-        real(wp), dimension(nb)          :: Rtmp
-        real(wp)                         :: G
-        real(wp)                         :: solid_partial_density
-        real(wp), dimension(2)           :: Re_K
-        integer                          :: i, j, k, l  !< Generic loop iterators
-        real(wp), dimension(num_species) :: Ys
-        real(wp)                         :: e_mix, mix_mol_weight, T
-        real(wp)                         :: pres_mag
-        real(wp)                         :: Ga          !< Lorentz factor (gamma in relativity)
-        real(wp)                         :: h           !< relativistic enthalpy
-        real(wp)                         :: v2          !< Square of the velocity magnitude
-        real(wp)                         :: B2          !< Square of the magnetic field magnitude
-        real(wp)                         :: vdotB       !< Dot product of the velocity and magnetic field vectors
-        real(wp)                         :: B(3)        !< Magnetic field components
-        real(wp)                         :: xi_x, xi_y, xi_z
-        real(wp), dimension(num_fluids)  :: G_graded_loc
+        real(wp)                            :: rho
+        real(wp)                            :: gamma
+        real(wp)                            :: pi_inf
+        real(wp)                            :: pres_i, alpha_i, alpha_rho_i, e_i
+        real(wp)                            :: qv
+        real(wp)                            :: dyn_pres
+        real(wp)                            :: nbub, R3tmp
+        real(wp), dimension(nb)             :: Rtmp
+        real(wp)                            :: G
+        real(wp)                            :: solid_partial_density
+        real(wp), dimension(2)              :: Re_K
+        integer                             :: i, j, k, l  !< Generic loop iterators
+        real(wp), dimension(num_species)    :: Ys
+        real(wp)                            :: e_mix, mix_mol_weight, T
+        real(wp)                            :: pres_mag
+        real(wp)                            :: Ga          !< Lorentz factor (gamma in relativity)
+        real(wp)                            :: h           !< relativistic enthalpy
+        real(wp)                            :: v2          !< Square of the velocity magnitude
+        real(wp)                            :: B2          !< Square of the magnetic field magnitude
+        real(wp)                            :: vdotB       !< Dot product of the velocity and magnetic field vectors
+        real(wp)                            :: B(3)        !< Magnetic field components
+        real(wp)                            :: xi_x, xi_y, xi_z
+        real(wp), dimension(num_fluids)     :: G_graded_loc
+        real(wp), dimension(2, Re_size_max) :: Res_graded_loc
+        integer                             :: j_re
 
         pres_mag = 0._wp
 
@@ -787,19 +831,43 @@ contains
         do l = 0, p
             do k = 0, n
                 do j = 0, m
-                    if (graded .and. hypoelasticity) then
+                    if (graded .and. (hypoelasticity .or. viscous)) then
                         xi_x = q_prim_vf(eqn_idx%xi%beg)%sf(j, k, l)
                         xi_y = 0._wp; xi_z = 0._wp
                         if (num_dims >= 2) xi_y = q_prim_vf(eqn_idx%xi%beg + 1)%sf(j, k, l)
                         if (num_dims == 3) xi_z = q_prim_vf(eqn_idx%xi%end)%sf(j, k, l)
+                    end if
+
+                    if (graded .and. hypoelasticity) then
                         do i = 1, num_fluids
                             G_graded_loc(i) = fluid_pp(i)%G
                             if (G_graded_flag(i)) call s_grade_G(xi_x, xi_y, xi_z, i, G_graded_loc(i))
                         end do
-                        ! Obtaining the density, specific heat ratio function and the liquid stiffness function, respectively
+                    end if
+
+                    if (graded .and. viscous) then
+                        do i = 1, 2
+                            do j_re = 1, Re_size_max
+                                Res_graded_loc(i, j_re) = Res_vc(i, j_re)
+                            end do
+                            do j_re = 1, Re_size(i)
+                                if (Re_graded_flag(Re_idx(i, j_re))) then
+                                    call s_grade_Re(xi_x, xi_y, xi_z, Re_idx(i, j_re), i, Res_graded_loc(i, j_re))
+                                end if
+                            end do
+                        end do
+                    end if
+
+                    ! Obtaining the density, specific heat ratio function and the liquid stiffness function, respectively
+                    if (graded .and. hypoelasticity .and. viscous) then
+                        call s_convert_to_mixture_variables(q_prim_vf, j, k, l, rho, gamma, pi_inf, qv, Re_K, G, G_graded_loc, &
+                                                            & Res_graded_loc)
+                    else if (graded .and. hypoelasticity) then
                         call s_convert_to_mixture_variables(q_prim_vf, j, k, l, rho, gamma, pi_inf, qv, Re_K, G, G_graded_loc)
+                    else if (graded .and. viscous) then
+                        call s_convert_to_mixture_variables(q_prim_vf, j, k, l, rho, gamma, pi_inf, qv, Re_K, G, fluid_pp(:)%G, &
+                                                            & Res_graded_loc)
                     else
-                        ! Obtaining the density, specific heat ratio function and the liquid stiffness function, respectively
                         call s_convert_to_mixture_variables(q_prim_vf, j, k, l, rho, gamma, pi_inf, qv, Re_K, G, fluid_pp(:)%G)
                     end if
 
