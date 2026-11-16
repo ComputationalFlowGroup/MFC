@@ -552,6 +552,8 @@ Details of implementation of viscosity in MFC can be found in \cite Coralic15.
 
 - `fluid_pp(i)%%graded_G` activates spatially-varying `G` for fluid `i` when ``graded = 'T'``. `graded_G_init` and `graded_G_end` set the shear modulus at the start and end of the graded region. `graded_type` selects the projection used to locate a point within the region ([1] Cartesian, along the segment from `graded_beg_loc_{x,y,z}` to `graded_end_loc_{x,y,z}`; [2] radial, from `graded_center_loc_{x,y,z}` between `graded_r_beg` and `graded_r_end`). `graded_profile` selects the ramp applied along that projection ([1] linear; [2] sinusoidal; [3] power law, using `graded_pf_coeff`, `graded_exp`, and `graded_scaling`). Grading is evaluated in the reference-map coordinate, not the current physical position.
 
+- `fluid_pp(i)%%graded_Re` activates the same spatially-varying treatment for fluid `i`'s shear and bulk Reynolds numbers (`Re(1)`, `Re(2)`), ramping between `graded_Re_init(1)`/`graded_Re_init(2)` and `graded_Re_end(1)`/`graded_Re_end(2)` using the same `graded_type`/`graded_profile` selection as `graded_G`.
+
 > **Stored-form parameters:** The values `gamma`, `pi_inf`, and `Re(1)`/`Re(2)` are **not** the raw physical quantities. MFC expects transformed stored forms:
 > - `gamma` = \f$1/(\gamma-1)\f$, not \f$\gamma\f$ itself
 > - `pi_inf` = \f$\gamma\,\pi_\infty / (\gamma - 1)\f$, not \f$\pi_\infty\f$ itself
