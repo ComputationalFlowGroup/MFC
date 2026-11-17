@@ -168,7 +168,7 @@ contains
                         end do
                     end if
 
-                    if (graded) then
+                    if (rmt) then
                         ! Reference map's x-component flips across an x-normal boundary, like velocity's normal component
                         q_prim_vf(eqn_idx%xi%beg)%sf(-j, k, l) = -q_prim_vf(eqn_idx%xi%beg)%sf(j - 1, k, l)
                     end if
@@ -207,7 +207,7 @@ contains
                         end do
                     end if
 
-                    if (graded) then
+                    if (rmt) then
                         q_prim_vf(eqn_idx%xi%beg)%sf(m + j, k, l) = -q_prim_vf(eqn_idx%xi%beg)%sf(m - (j - 1), k, l)
                     end if
                 end do
@@ -246,7 +246,7 @@ contains
                         end do
                     end if
 
-                    if (graded) then
+                    if (rmt) then
                         q_prim_vf(eqn_idx%xi%beg + 1)%sf(k, -j, l) = -q_prim_vf(eqn_idx%xi%beg + 1)%sf(k, j - 1, l)
                     end if
                 end do
@@ -284,7 +284,7 @@ contains
                         end do
                     end if
 
-                    if (graded) then
+                    if (rmt) then
                         q_prim_vf(eqn_idx%xi%beg + 1)%sf(k, n + j, l) = -q_prim_vf(eqn_idx%xi%beg + 1)%sf(k, n - (j - 1), l)
                     end if
                 end do
@@ -324,7 +324,7 @@ contains
                         end do
                     end if
 
-                    if (graded) then
+                    if (rmt) then
                         q_prim_vf(eqn_idx%xi%end)%sf(k, l, -j) = -q_prim_vf(eqn_idx%xi%end)%sf(k, l, j - 1)
                     end if
                 end do
@@ -362,7 +362,7 @@ contains
                         end do
                     end if
 
-                    if (graded) then
+                    if (rmt) then
                         q_prim_vf(eqn_idx%xi%end)%sf(k, l, p + j) = -q_prim_vf(eqn_idx%xi%end)%sf(k, l, p - (j - 1))
                     end if
                 end do

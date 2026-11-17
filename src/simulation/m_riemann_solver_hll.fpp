@@ -208,7 +208,7 @@ contains
                                 call s_compute_mixture_coefficients(alpha_rho_L, alpha_L, rho_L, gamma_L, pi_inf_L, qv_L)
                                 call s_compute_mixture_coefficients(alpha_rho_R, alpha_R, rho_R, gamma_R, pi_inf_R, qv_R)
 
-                                if (graded) then
+                                if (rmt) then
                                     $:GPU_LOOP(parallelism='[seq]')
                                     do i = 1, num_dims
                                         xi_field_L(i) = qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%beg - 1 + i)
@@ -577,8 +577,8 @@ contains
                                     end do
                                 end if
 
-                                ! Reference map (graded material properties): \rho \xi advected with the flow
-                                if (graded) then
+                                ! Reference map: \rho \xi advected with the flow
+                                if (rmt) then
                                     $:GPU_LOOP(parallelism='[seq]')
                                     do i = 1, num_dims
                                         flux_rsx_vf(${SF('')}$, &

@@ -341,7 +341,7 @@ contains
             end do
         end if
 
-        if (graded) then
+        if (rmt) then
             ! Reference map: identity at t=0, the material point's own physical position
             xi_cart(1) = x_cc(j)
             xi_cart(2) = y_cc(k)

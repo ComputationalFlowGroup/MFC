@@ -744,7 +744,7 @@ contains
                                    & l)/max(solid_partial_density, verysmall), 0._wp), 1._wp)
                     end if
 
-                    if (graded) then
+                    if (rmt) then
                         ! Reference map, conservative form \rho \xi (Kamrin et al. JFM 2022)
                         $:GPU_LOOP(parallelism='[seq]')
                         do i = eqn_idx%xi%beg, eqn_idx%xi%end
@@ -1055,7 +1055,7 @@ contains
                         end do
                     end if
 
-                    if (graded) then
+                    if (rmt) then
                         ! Reference map, conservative form \rho \xi (Kamrin et al. JFM 2022)
                         do i = eqn_idx%xi%beg, eqn_idx%xi%end
                             q_cons_vf(i)%sf(j, k, l) = rho*q_prim_vf(i)%sf(j, k, l)
