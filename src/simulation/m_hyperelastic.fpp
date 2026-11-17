@@ -235,6 +235,9 @@ contains
         end do
         ! First invariant strain energy: W = Ca_inv/2 * (I1 - 3), neo-Hookean model
         q_prim_vf(eqn_idx%xi%end + 1)%sf(j, k, l) = 0.5_wp*(trace - 3.0_wp)/btensor_in(b_size)%sf(j, k, l)
+        ! tr(B) and J = det(F), stashed for the Riemann solver's direct wave speed (see m_riemann_solver_hll.fpp)
+        q_prim_vf(eqn_idx%xi%end + 2)%sf(j, k, l) = trace
+        q_prim_vf(eqn_idx%xi%end + 3)%sf(j, k, l) = btensor_in(b_size)%sf(j, k, l)
 
     end subroutine s_neoHookean_cauchy_solver
 
@@ -268,6 +271,9 @@ contains
                       & k, l)
         end do
         q_prim_vf(eqn_idx%xi%end + 1)%sf(j, k, l) = 0.5_wp*(trace - 3.0_wp)/btensor_in(b_size)%sf(j, k, l)
+        ! tr(B) and J = det(F), stashed for the Riemann solver's direct wave speed (see m_riemann_solver_hll.fpp)
+        q_prim_vf(eqn_idx%xi%end + 2)%sf(j, k, l) = trace
+        q_prim_vf(eqn_idx%xi%end + 3)%sf(j, k, l) = btensor_in(b_size)%sf(j, k, l)
 
     end subroutine s_Mooney_Rivlin_cauchy_solver
 

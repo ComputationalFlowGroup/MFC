@@ -86,6 +86,22 @@ contains
 
     end function f_elastic_signal_speed
 
+    !> Hyperelastic signal speed: the acoustic speed stiffened by the finite-strain (neo-Hookean/Mooney-Rivlin) tangent stiffness,
+    !! derived from the acoustic tensor (Truesdell rate of the Cauchy stress, see misc/hyperelastic_acoustic_tensor.py). correction
+    !! = rho*c_elastic**2 = (2*Ca_inv/3)*(tr(B) - B_nn), with B_nn = tr(B)/3 + J*tau_nn/Ca_inv recovered from the already-available
+    !! normal stress rather than carrying B_nn itself; this reduces to rho*c_elastic**2 = 4*Ca_inv/3 (the small-strain/hypoelastic
+    !! constant) at B = I, J = 1, tau_nn = 0. Callers subtract it for the left-going wave and add it for the right-going one.
+    function f_hyperelastic_signal_speed(c, Ca_inv, trB, J, tau_nn, rho) result(a)
+
+        $:GPU_ROUTINE(function_name='f_hyperelastic_signal_speed', parallelism='[seq]', cray_inline=True)
+
+        real(wp), intent(in) :: c, Ca_inv, trB, J, tau_nn, rho
+        real(wp)             :: a
+
+        a = sqrt(max(verysmall, c*c + (4._wp*Ca_inv*trB)/(9._wp*J*rho) - (2._wp*tau_nn)/(3._wp*rho)))
+
+    end function f_hyperelastic_signal_speed
+
     !> Low-Mach parameter of Thornber et al. JCP (2008): the larger of the two face Mach numbers, capped at one so the correction
     !! switches itself off once the flow is no longer low speed.
     function f_low_Mach_zcoef(vel_L_rms, vel_R_rms, c_L, c_R) result(zcoef)
@@ -318,7 +334,7 @@ contains
 
         $:GPU_UPDATE(device='[is1, is2, is3]')
 
-        if (hypoelasticity) then
+        if (hypoelasticity .or. hyperelasticity) then
             ! dir_idx_tau(1:3) = (nn, nt, nt2): face-normal stress row for wave speeds and momentum flux. stress_perm(1:n_stress) =
             ! full tensor permutation mapping F_HLL local basis index -> physical storage index. Local order: (nn, nt, tt, nt2,
             ! t1t2, t2t2). In 2D only entries 1-3 are used.
@@ -1276,7 +1292,7 @@ contains
     !! per-side gate is a deliberate maintainer ruling that replaces HLL's former hard-coded Ca_inv > 1000 stability floor, retiring
     !! its "TODO take out if statement if stable without".
     subroutine s_compute_hypoelastic_interface_energy(nf, alpha_L, alpha_R, damage_L, damage_R, tau_e_L, tau_e_R, Ca_inv_L, &
-        & Ca_inv_R, E_L, E_R)
+        & Ca_inv_R, E_L, E_R, Ca_inv_rs_L, Ca_inv_rs_R)
 
         $:GPU_ROUTINE(function_name='s_compute_hypoelastic_interface_energy', parallelism='[seq]', cray_inline=True)
 
@@ -1286,15 +1302,26 @@ contains
         real(wp), dimension(6), intent(in)  :: tau_e_L, tau_e_R    !< Left and right elastic shear stresses
         real(wp), intent(out)               :: Ca_inv_L, Ca_inv_R  !< Left and right mixture shear moduli
         real(wp), intent(inout)             :: E_L, E_R            !< Left and right state energies
-        integer                             :: i                   !< Loop iterator
+        ! Graded Ca_inv override, per side, same shape as the module's own Ca_invs_rs; absent, Ca_invs_rs is used
+        ! (unchanged behavior).
+        real(wp), dimension(nf), intent(in), optional :: Ca_inv_rs_L, Ca_inv_rs_R
+        integer                                       :: i  !< Loop iterator
 
         Ca_inv_L = 0._wp; Ca_inv_R = 0._wp
 
-        $:GPU_LOOP(parallelism='[seq]')
-        do i = 1, nf
-            Ca_inv_L = Ca_inv_L + alpha_L(i)*Ca_invs_rs(i)
-            Ca_inv_R = Ca_inv_R + alpha_R(i)*Ca_invs_rs(i)
-        end do
+        if (present(Ca_inv_rs_L)) then
+            $:GPU_LOOP(parallelism='[seq]')
+            do i = 1, nf
+                Ca_inv_L = Ca_inv_L + alpha_L(i)*Ca_inv_rs_L(i)
+                Ca_inv_R = Ca_inv_R + alpha_R(i)*Ca_inv_rs_R(i)
+            end do
+        else
+            $:GPU_LOOP(parallelism='[seq]')
+            do i = 1, nf
+                Ca_inv_L = Ca_inv_L + alpha_L(i)*Ca_invs_rs(i)
+                Ca_inv_R = Ca_inv_R + alpha_R(i)*Ca_invs_rs(i)
+            end do
+        end if
 
         ! Elastic energy uses the undamaged modulus, so this loop precedes the damage scaling
         $:GPU_LOOP(parallelism='[seq]')
