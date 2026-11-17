@@ -260,14 +260,27 @@ PHYSICS_DOCS = {
         "category": "Feature Compatibility",
         "explanation": "Requires model_eqns = 2, HLL/HLLC/HLLD Riemann solver.",
     },
+    "check_rmt": {
+        "title": "Reference Map Technique",
+        "category": "Feature Compatibility",
+        "explanation": (
+            "Both hyperelasticity and graded require rmt = T: the reference map (xi) that both are built on is only "
+            "advected when rmt is enabled. Currently requires the HLL Riemann solver (riemann_solver = 1): xi is not "
+            "yet advected under HLLC or HLLD."
+        ),
+    },
+    "check_hyperelasticity": {
+        "title": "Hyperelasticity",
+        "category": "Feature Compatibility",
+        "explanation": ("Requires rmt = T, model_eqns = 2, hyper_model set to 1 (Neo-Hookean) or 2 (Mooney-Rivlin), and fd_order " "set. Cannot be combined with hypoelasticity."),
+    },
     "check_graded": {
         "title": "Graded Material Properties",
         "category": "Feature Compatibility",
         "explanation": (
-            "Requires graded = T. A graded fluid's Ca_inv needs hyperelasticity or hypoelasticity enabled; its Re needs "
-            "viscous = T. graded_type and graded_profile must be set to a recognized value, and the location "
-            "parameters matching the chosen graded_type must all be set. Currently requires the HLL Riemann solver "
-            "(riemann_solver = 1): the reference map is not yet advected under HLLC or HLLD."
+            "Requires graded = T and rmt = T. A graded fluid's Ca_inv needs hyperelasticity or hypoelasticity enabled; "
+            "its Re needs viscous = T. graded_type and graded_profile must be set to a recognized value, and the "
+            "location parameters matching the chosen graded_type must all be set."
         ),
     },
     "check_phase_change": {
@@ -885,18 +898,48 @@ class CaseValidator:
             cfl_const_dt or cfl_adap_dt, "Automatic CFL time stepping uses the acoustic sound speed only and does not bound the elastic characteristic speed; set dt explicitly for hypoelastic runs"
         )
 
+    def check_rmt(self):
+        """Checks constraints on the Reference Map Technique and its dependents (hyperelasticity, graded)"""
+        rmt = self.get("rmt", "F") == "T"
+        hyperelasticity = self.get("hyperelasticity", "F") == "T"
+        graded = self.get("graded", "F") == "T"
+
+        self.prohibit(hyperelasticity and not rmt, "hyperelasticity requires rmt = T (it needs the reference map to recover the deformation gradient)")
+        self.prohibit(graded and not rmt, "graded requires rmt = T (graded material properties are evaluated at the reference map)")
+
+        if not rmt:
+            return
+
+        riemann_solver = self.get("riemann_solver")
+        self.prohibit(
+            riemann_solver is not None and riemann_solver != 1,
+            "rmt currently requires the HLL Riemann solver (riemann_solver = 1); the reference map is not yet advected under HLLC or HLLD",
+        )
+
+    def check_hyperelasticity(self):
+        """Checks constraints on hyperelasticity parameters"""
+        hyperelasticity = self.get("hyperelasticity", "F") == "T"
+
+        if not hyperelasticity:
+            return
+
+        model_eqns = self.get("model_eqns")
+        hyper_model = self.get("hyper_model")
+        fd_order = self.get("fd_order")
+        hypoelasticity = self.get("hypoelasticity", "F") == "T"
+
+        self.prohibit(model_eqns is not None and model_eqns != 2, "hyperelasticity requires model_eqns = 2")
+        self.prohibit(hyper_model is None, "hyperelasticity requires hyper_model to be set")
+        self.prohibit(hyper_model is not None and hyper_model not in [1, 2], "hyper_model must be 1 (Neo-Hookean) or 2 (Mooney-Rivlin)")
+        self.prohibit(fd_order is None, "hyperelasticity requires fd_order to be set (1, 2, or 4); the reference-map gradient is computed with a finite-difference stencil")
+        self.prohibit(hypoelasticity, "hyperelasticity and hypoelasticity cannot both be enabled (each fluid's stress model is ambiguous otherwise)")
+
     def check_graded(self):
         """Checks constraints on graded (spatially-varying) material property parameters"""
         graded = self.get("graded", "F") == "T"
 
         if not graded:
             return
-
-        riemann_solver = self.get("riemann_solver")
-        self.prohibit(
-            riemann_solver is not None and riemann_solver != 1,
-            "graded currently requires the HLL Riemann solver (riemann_solver = 1); the reference map is not yet advected under HLLC or HLLD",
-        )
 
         num_fluids = self.get("num_fluids")
         if num_fluids is None:
@@ -2094,6 +2137,7 @@ class CaseValidator:
         alt_soundspeed = self.get("alt_soundspeed", "F") == "T"
         surface_tension = self.get("surface_tension", "F") == "T"
         hypoelasticity = self.get("hypoelasticity", "F") == "T"
+        hyperelasticity = self.get("hyperelasticity", "F") == "T"
         acoustic_source = self.get("acoustic_source", "F") == "T"
         graded = self.get("graded", "F") == "T"
         relax = self.get("relax", "F") == "T"
@@ -2113,6 +2157,7 @@ class CaseValidator:
         self.prohibit(alt_soundspeed, "IGR does not support alt_soundspeed = T")
         self.prohibit(surface_tension, "IGR does not support surface tension")
         self.prohibit(hypoelasticity, "IGR does not support hypoelasticity")
+        self.prohibit(hyperelasticity, "IGR does not support hyperelasticity")
         self.prohibit(acoustic_source, "IGR does not support acoustic sources")
         self.prohibit(graded, "IGR does not support graded material properties")
         self.prohibit(relax, "IGR does not support phase change")
@@ -3804,6 +3849,8 @@ class CaseValidator:
         self.check_qbmm_and_polydisperse()
         self.check_adv_n()
         self.check_hypoelasticity()
+        self.check_hyperelasticity()
+        self.check_rmt()
         self.check_graded()
         self.check_phase_change()
         self.check_ibm()

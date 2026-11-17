@@ -131,6 +131,8 @@ TAG_DISPLAY_NAMES = {
     "viscosity": "Viscosity",
     "heat_conduction": "Heat conduction",
     "hypoelasticity": "Hypoelasticity",
+    "hyperelasticity": "Hyperelasticity",
+    "rmt": "Reference Map Technique",
     "graded": "Graded material properties",
     "surface_tension": "Surface tension",
     "acoustic": "Acoustic",
@@ -353,6 +355,12 @@ CONSTRAINTS = {
         "choices": [1, 2, 3],
         "value_labels": {1: "Gamma-law", 2: "5-Equation", 3: "6-Equation"},
         "names": {"gamma_law": 1, "5eq": 2, "6eq": 3},
+    },
+    # Hyperelastic model
+    "hyper_model": {
+        "choices": [1, 2],
+        "value_labels": {1: "Neo-Hookean", 2: "Mooney-Rivlin"},
+        "names": {"neo_hookean": 1, "mooney_rivlin": 2},
     },
     # Bubbles
     "bubble_model": {
@@ -681,6 +689,13 @@ def _load():
     _r("ADC_kappa", REAL, {"hypoelasticity"})
     _r("hypo_hll_interface_rhs", LOG, {"hypoelasticity"})
     _r("hll_u_interface", LOG, {"riemann"})
+
+    # Hyperelasticity
+    _r("hyperelasticity", LOG, {"hyperelasticity"})
+    _r("hyper_model", INT, {"hyperelasticity"})
+
+    # Reference Map Technique: the xi field both hyperelasticity and graded material properties are built on
+    _r("rmt", LOG, {"rmt"})
 
     # Graded (spatially-varying) elastic/viscous properties
     _r("graded", LOG, {"graded"})
@@ -1468,6 +1483,9 @@ _nv(
     "sigma",
     "adv_n",
     "hypoelasticity",
+    "hyperelasticity",
+    "hyper_model",
+    "rmt",
     "graded",
     "surface_tension",
     "relativity",

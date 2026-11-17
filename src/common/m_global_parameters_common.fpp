@@ -53,6 +53,12 @@ module m_global_parameters_common
     integer, dimension(3, 2) :: shear_BC_flip_indices  !< Shear stress BC reflection indices (1:3, 1:shear_BC_flip_num)
     !> @}
 
+    !> @name Hyperelastic left Cauchy-Green tensor sizes (identical across all three executables)
+    !> @{
+    integer :: b_size       !< Number of entries in the symmetric left Cauchy-Green tensor, plus the Jacobian
+    integer :: tensor_size  !< Number of entries in the (non-symmetric) deformation gradient tensor, plus the Jacobian
+    !> @}
+
     !> @name Material properties derived from fluid_pp
     !> @{ One declaration is shared by all executables and initialized by m_eos after the case parameters have been read.
     !> gammas is the stored form 1/(gamma - 1), not the ratio of specific heats; isentrope_n and isentrope_B are the same EOS
@@ -215,7 +221,7 @@ contains
         end if
 
         if (model_eqns == model_eqns_5eq .or. model_eqns == model_eqns_6eq) then
-            if (hypoelasticity) then
+            if (hypoelasticity .or. hyperelasticity) then
                 eqn_idx%stress%beg = sys_size + 1
                 eqn_idx%stress%end = sys_size + (num_dims*(num_dims + 1))/2
                 if (cyl_coord) eqn_idx%stress%end = eqn_idx%stress%end + 1
@@ -244,12 +250,21 @@ contains
                 end if
             end if
 
-            if (graded) then
+            if (rmt) then
                 ! Reference map (material point's original position), advected with the flow;
-                ! used to evaluate spatially-varying (graded) elastic/viscous properties.
+                ! used by hyperelasticity to recover the deformation gradient, and to evaluate
+                ! spatially-varying (graded) elastic/viscous properties.
                 eqn_idx%xi%beg = sys_size + 1
                 eqn_idx%xi%end = sys_size + num_dims
                 sys_size = eqn_idx%xi%end
+
+                if (hyperelasticity) then
+                    ! number of entries in the symmetric left Cauchy-Green tensor plus the Jacobian
+                    b_size = (num_dims*(num_dims + 1))/2 + 1
+                    tensor_size = num_dims**2 + 1
+                    ! one more equation to carry the elastic strain energy
+                    sys_size = sys_size + 1
+                end if
             end if
 
             if (surface_tension) then

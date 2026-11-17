@@ -626,6 +626,9 @@ See @ref equations "Equations" for the mathematical models these parameters cont
 | `riemann_hypo_ADC`         | Logical | Enable hypo anti-diffusion correction for HLLC/HLLD (default F) |
 | `ADC_kappa`                | Real    | ADC sensor scaling parameter (default 1.0) |
 | `hypo_hll_interface_rhs`   | Logical | HLL uses interface-consistent hypo RHS (default F) |
+| `hyperelasticity`          | Logical | Activate hyperelasticity (finite-strain elasticity) |
+| `hyper_model`              | Integer | Hyperelastic constitutive model: [1] Neo-Hookean; [2] Mooney-Rivlin |
+| `rmt`                      | Logical | Activate the Reference Map Technique (the reference-map field hyperelasticity and `graded` are both built on) |
 | `graded`                   | Logical | Activate spatially-varying (graded) elastic/viscous fluid properties |
 | `igr`                      | Logical | Enable solution via information geometric regularization (IGR) \cite Cao24 |
 | `igr_order`                | Integer | Order of reconstruction for IGR [3,5] |
@@ -737,6 +740,10 @@ This option requires `weno_Re_flux` to be true because cell boundary values are 
   - With hypoelastic HLLD, use characteristic boundary conditions (`bc_{x,y,z}%%beg/end` between -5 and -12) only where the domain boundary remains in a fluid region throughout the simulation. Keep material interfaces and solids out of the nearby cells used by the boundary calculation. A material present only at the numerical volume-fraction floor is allowed, even if it has nonzero `Ca_inv`. These boundaries treat acoustic waves only. `alt_soundspeed` is supported.
 
 - `riemann_hypo_ADC`: Enables anti-diffusion correction (ADC) for hypoelastic HLLC or HLLD. Blends the HLLC/HLLD flux locally toward the more diffusive HLL flux where a jump sensor (total normal stress, tangential velocity, and tangential stress) detects a strong contact or material interface, improving robustness and reducing interfacial overshoots. This trades contact and shear resolution for robustness where the sensor activates. `ADC_kappa` (default 1.0) scales the reference jump the sensor is normalized by; smaller values blend more toward HLL (more diffusive and robust). Off by default and recommended off: in MFC's tested hypoelastic cases, including strong shock-interface interactions, HLLD is stable and accurate without ADC. The option is a robustness fallback intended for regimes with intense shocks and intense shear at material interfaces.
+
+- `rmt` activates the Reference Map Technique: a field, the material point's position in its undeformed reference configuration, is advected with the flow. Both `hyperelasticity` and `graded` are built on this reference map and require ``rmt = 'T'``. Currently requires the HLL Riemann solver (`riemann_solver = 1`); the reference map is not yet advected under HLLC or HLLD.
+
+- `hyperelasticity` activates finite-strain elastic stress calculations, as an alternative to `hypoelasticity`'s rate-law treatment (the two cannot be combined). Requires ``rmt = 'T'``, `model_eqns = 2`, `hyper_model` set, and `fd_order` set (1, 2, or 4): the deformation gradient is recovered from the reference map with a finite-difference stencil, and the resulting left Cauchy-Green tensor gives the Cauchy stress. `hyper_model` selects the strain-energy function: [1] Neo-Hookean, \f$\tau = (Ca^{-1}/J) \mathrm{dev}(B)\f$; [2] Mooney-Rivlin. Currently requires the HLL Riemann solver (`riemann_solver = 1`).
 
 #### Boundary Condition Patches {#boundary-condition-patches}
 
