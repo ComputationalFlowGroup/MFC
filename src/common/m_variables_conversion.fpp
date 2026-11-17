@@ -14,7 +14,7 @@ module m_variables_conversion
     use m_mpi_proxy
     use m_helper_basic
     use m_helper
-    use m_graded, only: s_grade_G, G_graded_flag, s_grade_Re, Re_graded_flag
+    use m_graded, only: s_grade_Ca_inv, Ca_inv_graded_flag, s_grade_Re, Re_graded_flag
     use m_constants, only: riemann_solver_hll, riemann_solver_hlld, model_eqns_gamma_law, model_eqns_5eq, model_eqns_6eq, &
         & avg_state_roe
     use m_thermochem, only: num_species, get_temperature, get_pressure, gas_constant, get_mixture_molecular_weight, &
@@ -32,10 +32,10 @@ module m_variables_conversion
         & f_hypoelastic_energy, s_finalize_variables_conversion_module, gammas, isentrope_n, pi_infs, isentrope_B, cvs, qvs, &
         & qvps, enforce_density_floor_vc
 
-    real(wp), allocatable, dimension(:)   :: Gs_vc
+    real(wp), allocatable, dimension(:)   :: Ca_invs_vc
     integer, allocatable, dimension(:)    :: bubrs_vc
     real(wp), allocatable, dimension(:,:) :: Res_vc
-    $:GPU_DECLARE(create='[bubrs_vc, Gs_vc, Res_vc]')
+    $:GPU_DECLARE(create='[bubrs_vc, Ca_invs_vc, Res_vc]')
 
     integer :: is1b, is2b, is3b, is1e, is2e, is3e
     $:GPU_DECLARE(create='[is1b, is2b, is3b, is1e, is2e, is3e]')
@@ -56,20 +56,20 @@ contains
 
     !> Dispatch to the s_convert_mixture_to_mixture_variables and s_convert_species_to_mixture_variables subroutines. Replaces a
     !! procedure pointer.
-    subroutine s_convert_to_mixture_variables(q_vf, i, j, k, rho, gamma, pi_inf, qv, Re_K, G_K, G, Res)
+    subroutine s_convert_to_mixture_variables(q_vf, i, j, k, rho, gamma, pi_inf, qv, Re_K, Ca_inv_K, Ca_inv, Res)
 
         type(scalar_field), dimension(sys_size), intent(in)       :: q_vf
         integer, intent(in)                                       :: i, j, k
         real(wp), intent(out), target                             :: rho, gamma, pi_inf, qv
         real(wp), optional, dimension(2), intent(out)             :: Re_K
-        real(wp), optional, intent(out)                           :: G_K
-        real(wp), optional, dimension(num_fluids), intent(in)     :: G
+        real(wp), optional, intent(out)                           :: Ca_inv_K
+        real(wp), optional, dimension(num_fluids), intent(in)     :: Ca_inv
         real(wp), optional, dimension(2, Re_size_max), intent(in) :: Res
 
         if (model_eqns == model_eqns_gamma_law) then  ! Gamma/pi_inf model
             call s_convert_mixture_to_mixture_variables(q_vf, i, j, k, rho, gamma, pi_inf, qv)
         else  ! Volume fraction model
-            call s_convert_species_to_mixture_variables(q_vf, i, j, k, rho, gamma, pi_inf, qv, Re_K, G_K, G, Res)
+            call s_convert_species_to_mixture_variables(q_vf, i, j, k, rho, gamma, pi_inf, qv, Re_K, Ca_inv_K, Ca_inv, Res)
         end if
 
     end subroutine s_convert_to_mixture_variables
@@ -157,7 +157,7 @@ contains
     !> Convert species volume fractions and partial densities to mixture density, gamma, pi_inf, and qv. Given conservative or
     !! primitive variables, computes the density, the specific heat ratio function and the liquid stiffness function from q_vf and
     !! stores the results into rho, gamma and pi_inf.
-    subroutine s_convert_species_to_mixture_variables(q_vf, k, l, r, rho, gamma, pi_inf, qv, Re_K, G_K, G, Res)
+    subroutine s_convert_species_to_mixture_variables(q_vf, k, l, r, rho, gamma, pi_inf, qv, Re_K, Ca_inv_K, Ca_inv, Res)
 
         type(scalar_field), dimension(sys_size), intent(in)       :: q_vf
         integer, intent(in)                                       :: k, l, r
@@ -166,9 +166,9 @@ contains
         real(wp), intent(out), target                             :: pi_inf
         real(wp), intent(out), target                             :: qv
         real(wp), optional, dimension(2), intent(out)             :: Re_K
-        real(wp), optional, intent(out)                           :: G_K
+        real(wp), optional, intent(out)                           :: Ca_inv_K
         real(wp), dimension(num_fluids)                           :: alpha_rho_K, alpha_K
-        real(wp), optional, dimension(num_fluids), intent(in)     :: G
+        real(wp), optional, dimension(num_fluids), intent(in)     :: Ca_inv
         real(wp), optional, dimension(2, Re_size_max), intent(in) :: Res
         integer                                                   :: i, j  !< Generic loop iterator
         ! Computing the density, the specific heat ratio function and the liquid stiffness function, respectively
@@ -177,7 +177,8 @@ contains
 
         ! Use the same scalar kernel on host and device so mixture semantics do not depend on the executable or accelerator backend.
         ! Absent optional dummies forward as absent, so the optional arguments need no dispatch here.
-        call s_convert_species_to_mixture_variables_kernel(rho, gamma, pi_inf, qv, alpha_K, alpha_rho_K, Re_K, G_K, G, Res)
+        call s_convert_species_to_mixture_variables_kernel(rho, gamma, pi_inf, qv, alpha_K, alpha_rho_K, Re_K, Ca_inv_K, Ca_inv, &
+            & Res)
 
         ! Store derived mixture fields when requested during module initialization.
         if (allocated(rho_sf) .and. .not. skip_mixture_store) then
@@ -190,21 +191,21 @@ contains
 
     !> Host- and device-callable conversion kernel for species and mixture variables. Device callers pass host copies of Re_size
     !! (amdflang reads the module variable stale cross-TU); absent, the module variable is used.
-    subroutine s_convert_species_to_mixture_variables_kernel(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, Re_K, G_K, G, &
-        & Res, Re_size_loc1, Re_size_loc2)
+    subroutine s_convert_species_to_mixture_variables_kernel(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, Re_K, &
+        & Ca_inv_K, Ca_inv, Res, Re_size_loc1, Re_size_loc2)
 
         $:GPU_ROUTINE(function_name='s_convert_species_to_mixture_variables_kernel', parallelism='[seq]', cray_noinline=True)
 
         real(wp), intent(out) :: rho_K, gamma_K, pi_inf_K, qv_K
         #:if not MFC_CASE_OPTIMIZATION and USING_AMD
             real(wp), dimension(3), intent(inout)        :: alpha_rho_K, alpha_K
-            real(wp), optional, dimension(3), intent(in) :: G
+            real(wp), optional, dimension(3), intent(in) :: Ca_inv
         #:else
             real(wp), dimension(num_fluids), intent(inout)        :: alpha_rho_K, alpha_K
-            real(wp), optional, dimension(num_fluids), intent(in) :: G
+            real(wp), optional, dimension(num_fluids), intent(in) :: Ca_inv
         #:endif
         real(wp), optional, dimension(2), intent(out) :: Re_K
-        real(wp), optional, intent(out)               :: G_K
+        real(wp), optional, intent(out)               :: Ca_inv_K
         ! Graded Re override for this cell, same shape as the module's own Res_vc; absent, Res_vc is used (unchanged behavior).
         real(wp), optional, dimension(2, Re_size_max), intent(in) :: Res
         integer, optional, intent(in)                             :: Re_size_loc1, Re_size_loc2
@@ -216,7 +217,7 @@ contains
         pi_inf_K = 0._wp
         qv_K = 0._wp
         if (present(Re_K)) Re_K = dflt_real
-        if (present(G_K)) G_K = 0._wp
+        if (present(Ca_inv_K)) Ca_inv_K = 0._wp
 
         ! Constrain partial densities and volume fractions within physical bounds
         if (mpp_lim) then
@@ -230,13 +231,13 @@ contains
         end if
         call s_compute_mixture_coefficients(alpha_rho_K, alpha_K, rho_K, gamma_K, pi_inf_K, qv_K)
 
-        if (present(G_K)) then
-            G_K = 0._wp
+        if (present(Ca_inv_K)) then
+            Ca_inv_K = 0._wp
             do i = 1, num_fluids
-                ! TODO: change to use Gs_vc directly here? TODO: Make this change as well for GPUs
-                G_K = G_K + alpha_K(i)*G(i)
+                ! TODO: change to use Ca_invs_vc directly here? TODO: Make this change as well for GPUs
+                Ca_inv_K = Ca_inv_K + alpha_K(i)*Ca_inv(i)
             end do
-            G_K = max(0._wp, G_K)
+            Ca_inv_K = max(0._wp, Ca_inv_K)
         end if
 
         if (viscous .and. present(Re_K)) then
@@ -289,14 +290,14 @@ contains
         $:GPU_ENTER_DATA(copyin='[is1b, is1e, is2b, is2e, is3b, is3e]')
         $:GPU_UPDATE(device='[enforce_density_floor_vc, preserve_qbmm_number_vc, lagrange_beta_index_vc]')
 
-        @:ALLOCATE(Gs_vc     (1:num_fluids))
+        @:ALLOCATE(Ca_invs_vc     (1:num_fluids))
         @:ALLOCATE(fluid_k_therm(1:num_fluids))
 
         do i = 1, num_fluids
-            Gs_vc(i) = fluid_pp(i)%G
+            Ca_invs_vc(i) = fluid_pp(i)%Ca_inv
             fluid_k_therm(i) = fluid_pp(i)%k_therm
         end do
-        $:GPU_UPDATE(device='[Gs_vc, fluid_k_therm, heat_conduction, euler_lagrange]')
+        $:GPU_UPDATE(device='[Ca_invs_vc, fluid_k_therm, heat_conduction, euler_lagrange]')
 
         @:ALLOCATE(Res_vc(1:2, 1:max(1, Re_size_max)))
         Res_vc = dflt_real
@@ -417,18 +418,18 @@ contains
         #:if USING_AMD and not MFC_CASE_OPTIMIZATION
             real(wp), dimension(3) :: alpha_K, alpha_rho_K
             real(wp), dimension(3) :: nRtmp
-            real(wp), dimension(3) :: G_graded_loc
+            real(wp), dimension(3) :: Ca_inv_graded_loc
         #:else
             real(wp), dimension(num_fluids) :: alpha_K, alpha_rho_K
             real(wp), dimension(nb)         :: nRtmp
-            real(wp), dimension(num_fluids) :: G_graded_loc
+            real(wp), dimension(num_fluids) :: Ca_inv_graded_loc
         #:endif
         real(wp)                            :: rhoYks(1:${NUM_SPECIES}$)
         real(wp), dimension(2)              :: Re_K
         real(wp), dimension(2, Re_size_max) :: Res_graded_loc
         real(wp)                            :: rho_K, gamma_K, pi_inf_K, qv_K, dyn_pres_K
         real(wp)                            :: vftmp, nbub_sc
-        real(wp)                            :: G_K
+        real(wp)                            :: Ca_inv_K
         real(wp)                            :: xi_x, xi_y, xi_z, rho_graded_tmp
         real(wp)                            :: solid_partial_density
         real(wp)                            :: pres
@@ -448,10 +449,10 @@ contains
         integer :: Re_size_loc1, Re_size_loc2
 
         Re_size_loc1 = Re_size(1); Re_size_loc2 = Re_size(2)
-        $:GPU_PARALLEL_LOOP(collapse=3, privateArrays='[alpha_K, alpha_rho_K, Re_K, nRtmp, rhoYks, B, G_graded_loc, &
-                            & Res_graded_loc]', private='[rho_K, gamma_K, pi_inf_K, qv_K, dyn_pres_K, pres, vftmp, nbub_sc, G_K, &
-                            & xi_x, xi_y, xi_z, rho_graded_tmp, solid_partial_density, T, pres_mag, Ga, B2, m2, S, W, dW, E, D, &
-                            & f, dGa_dW, dp_dW, df_dW, iter, j_re]', firstprivate='[Re_size_loc1, Re_size_loc2]')
+        $:GPU_PARALLEL_LOOP(collapse=3, privateArrays='[alpha_K, alpha_rho_K, Re_K, nRtmp, rhoYks, B, Ca_inv_graded_loc, &
+                            & Res_graded_loc]', private='[rho_K, gamma_K, pi_inf_K, qv_K, dyn_pres_K, pres, vftmp, nbub_sc, &
+                            & Ca_inv_K, xi_x, xi_y, xi_z, rho_graded_tmp, solid_partial_density, T, pres_mag, Ga, B2, m2, S, W, &
+                            & dW, E, D, f, dGa_dW, dp_dW, df_dW, iter, j_re]', firstprivate='[Re_size_loc1, Re_size_loc2]')
         do l = ibounds(3)%beg, ibounds(3)%end
             do k = ibounds(2)%beg, ibounds(2)%end
                 do j = ibounds(1)%beg, ibounds(1)%end
@@ -459,9 +460,9 @@ contains
 
                     call s_compute_species_fraction(qK_cons_vf, j, k, l, alpha_rho_K, alpha_K)
 
-                    ! Graded G and/or Re: the reference map is recovered here from its conservative (rho*xi) form
+                    ! Graded Ca_inv and/or Re: the reference map is recovered here from its conservative (rho*xi) form
                     ! using a cheap local sum of alpha_rho_K, rather than the rho_K the mixture call below returns,
-                    ! since that call needs the graded G/Res arrays as its own inputs.
+                    ! since that call needs the graded Ca_inv/Res arrays as its own inputs.
                     if (graded .and. (hypoelasticity .or. viscous)) then
                         rho_graded_tmp = 0._wp
                         $:GPU_LOOP(parallelism='[seq]')
@@ -477,8 +478,8 @@ contains
                     if (graded .and. hypoelasticity) then
                         $:GPU_LOOP(parallelism='[seq]')
                         do i = 1, num_fluids
-                            G_graded_loc(i) = Gs_vc(i)
-                            if (G_graded_flag(i)) call s_grade_G(xi_x, xi_y, xi_z, i, G_graded_loc(i))
+                            Ca_inv_graded_loc(i) = Ca_invs_vc(i)
+                            if (Ca_inv_graded_flag(i)) call s_grade_Ca_inv(xi_x, xi_y, xi_z, i, Ca_inv_graded_loc(i))
                         end do
                     end if
                     if (graded .and. viscous) then
@@ -503,13 +504,13 @@ contains
                     ! Device regions call the device-compiled scalar kernel directly.
                     if (hypoelasticity .and. graded .and. viscous) then
                         call s_convert_species_to_mixture_variables_kernel(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, &
-                            & Re_K, G_K, G_graded_loc, Res_graded_loc, Re_size_loc1, Re_size_loc2)
+                            & Re_K, Ca_inv_K, Ca_inv_graded_loc, Res_graded_loc, Re_size_loc1, Re_size_loc2)
                     else if (hypoelasticity .and. graded) then
                         call s_convert_species_to_mixture_variables_kernel(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, &
-                            & Re_K, G_K, G_graded_loc, Re_size_loc1=Re_size_loc1, Re_size_loc2=Re_size_loc2)
+                            & Re_K, Ca_inv_K, Ca_inv_graded_loc, Re_size_loc1=Re_size_loc1, Re_size_loc2=Re_size_loc2)
                     else if (hypoelasticity) then
                         call s_convert_species_to_mixture_variables_kernel(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, &
-                            & Re_K, G_K, Gs_vc, Re_size_loc1=Re_size_loc1, Re_size_loc2=Re_size_loc2)
+                            & Re_K, Ca_inv_K, Ca_invs_vc, Re_size_loc1=Re_size_loc1, Re_size_loc2=Re_size_loc2)
                     else if (graded .and. viscous) then
                         call s_convert_species_to_mixture_variables_kernel(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, &
                             & Re_K, Res=Res_graded_loc, Re_size_loc1=Re_size_loc1, Re_size_loc2=Re_size_loc2)
@@ -520,14 +521,14 @@ contains
 #else
                     ! Host execution uses the wrapper, which also stores requested diagnostics.
                     if (hypoelasticity .and. graded .and. viscous) then
-                        call s_convert_to_mixture_variables(qK_cons_vf, j, k, l, rho_K, gamma_K, pi_inf_K, qv_K, Re_K, G_K, &
-                                                            & G_graded_loc, Res_graded_loc)
+                        call s_convert_to_mixture_variables(qK_cons_vf, j, k, l, rho_K, gamma_K, pi_inf_K, qv_K, Re_K, Ca_inv_K, &
+                                                            & Ca_inv_graded_loc, Res_graded_loc)
                     else if (hypoelasticity .and. graded) then
-                        call s_convert_to_mixture_variables(qK_cons_vf, j, k, l, rho_K, gamma_K, pi_inf_K, qv_K, Re_K, G_K, &
-                                                            & G_graded_loc)
+                        call s_convert_to_mixture_variables(qK_cons_vf, j, k, l, rho_K, gamma_K, pi_inf_K, qv_K, Re_K, Ca_inv_K, &
+                                                            & Ca_inv_graded_loc)
                     else if (hypoelasticity) then
-                        call s_convert_to_mixture_variables(qK_cons_vf, j, k, l, rho_K, gamma_K, pi_inf_K, qv_K, Re_K, G_K, &
-                                                            & fluid_pp(:)%G)
+                        call s_convert_to_mixture_variables(qK_cons_vf, j, k, l, rho_K, gamma_K, pi_inf_K, qv_K, Re_K, Ca_inv_K, &
+                                                            & fluid_pp(:)%Ca_inv)
                     else if (graded .and. viscous) then
                         call s_convert_to_mixture_variables(qK_cons_vf, j, k, l, rho_K, gamma_K, pi_inf_K, qv_K, Re_K, &
                                                             & Res=Res_graded_loc)
@@ -735,7 +736,7 @@ contains
                         solid_partial_density = 0._wp
                         $:GPU_LOOP(parallelism='[seq]')
                         do i = 1, num_fluids
-                            if (Gs_vc(i) > verysmall) then
+                            if (Ca_invs_vc(i) > verysmall) then
                                 solid_partial_density = solid_partial_density + qK_cons_vf(eqn_idx%cont%beg + i - 1)%sf(j, k, l)
                             end if
                         end do
@@ -756,7 +757,8 @@ contains
                         $:GPU_LOOP(parallelism='[seq]')
                         do i = eqn_idx%stress%beg, eqn_idx%stress%end
                             qK_prim_vf(eqn_idx%E)%sf(j, k, l) = qK_prim_vf(eqn_idx%E)%sf(j, k, &
-                                       & l) - f_elastic_energy(real(qK_prim_vf(i)%sf(j, k, l), wp), G_K, ${IS_SHEAR('i')}$)/gamma_K
+                                       & l) - f_elastic_energy(real(qK_prim_vf(i)%sf(j, k, l), wp), Ca_inv_K, &
+                                       & ${IS_SHEAR('i')}$)/gamma_K
                         end do
                     end if
 
@@ -805,7 +807,7 @@ contains
         real(wp)                            :: dyn_pres
         real(wp)                            :: nbub, R3tmp
         real(wp), dimension(nb)             :: Rtmp
-        real(wp)                            :: G
+        real(wp)                            :: Ca_inv
         real(wp)                            :: solid_partial_density
         real(wp), dimension(2)              :: Re_K
         integer                             :: i, j, k, l  !< Generic loop iterators
@@ -819,13 +821,13 @@ contains
         real(wp)                            :: vdotB       !< Dot product of the velocity and magnetic field vectors
         real(wp)                            :: B(3)        !< Magnetic field components
         real(wp)                            :: xi_x, xi_y, xi_z
-        real(wp), dimension(num_fluids)     :: G_graded_loc
+        real(wp), dimension(num_fluids)     :: Ca_inv_graded_loc
         real(wp), dimension(2, Re_size_max) :: Res_graded_loc
         integer                             :: j_re
 
         pres_mag = 0._wp
 
-        G = 0._wp
+        Ca_inv = 0._wp
 
         ! Converting the primitive variables to the conservative variables
         do l = 0, p
@@ -840,8 +842,8 @@ contains
 
                     if (graded .and. hypoelasticity) then
                         do i = 1, num_fluids
-                            G_graded_loc(i) = fluid_pp(i)%G
-                            if (G_graded_flag(i)) call s_grade_G(xi_x, xi_y, xi_z, i, G_graded_loc(i))
+                            Ca_inv_graded_loc(i) = fluid_pp(i)%Ca_inv
+                            if (Ca_inv_graded_flag(i)) call s_grade_Ca_inv(xi_x, xi_y, xi_z, i, Ca_inv_graded_loc(i))
                         end do
                     end if
 
@@ -860,15 +862,17 @@ contains
 
                     ! Obtaining the density, specific heat ratio function and the liquid stiffness function, respectively
                     if (graded .and. hypoelasticity .and. viscous) then
-                        call s_convert_to_mixture_variables(q_prim_vf, j, k, l, rho, gamma, pi_inf, qv, Re_K, G, G_graded_loc, &
-                                                            & Res_graded_loc)
+                        call s_convert_to_mixture_variables(q_prim_vf, j, k, l, rho, gamma, pi_inf, qv, Re_K, Ca_inv, &
+                                                            & Ca_inv_graded_loc, Res_graded_loc)
                     else if (graded .and. hypoelasticity) then
-                        call s_convert_to_mixture_variables(q_prim_vf, j, k, l, rho, gamma, pi_inf, qv, Re_K, G, G_graded_loc)
+                        call s_convert_to_mixture_variables(q_prim_vf, j, k, l, rho, gamma, pi_inf, qv, Re_K, Ca_inv, &
+                                                            & Ca_inv_graded_loc)
                     else if (graded .and. viscous) then
-                        call s_convert_to_mixture_variables(q_prim_vf, j, k, l, rho, gamma, pi_inf, qv, Re_K, G, fluid_pp(:)%G, &
-                                                            & Res_graded_loc)
+                        call s_convert_to_mixture_variables(q_prim_vf, j, k, l, rho, gamma, pi_inf, qv, Re_K, Ca_inv, &
+                                                            & fluid_pp(:)%Ca_inv, Res_graded_loc)
                     else
-                        call s_convert_to_mixture_variables(q_prim_vf, j, k, l, rho, gamma, pi_inf, qv, Re_K, G, fluid_pp(:)%G)
+                        call s_convert_to_mixture_variables(q_prim_vf, j, k, l, rho, gamma, pi_inf, qv, Re_K, Ca_inv, &
+                                                            & fluid_pp(:)%Ca_inv)
                     end if
 
                     if (.not. igr .or. num_fluids > 1) then
@@ -1038,14 +1042,14 @@ contains
                     if (hypoelasticity) then
                         ! Elastic energy uses the undamaged modulus
                         do i = eqn_idx%stress%beg, eqn_idx%stress%end
-                            ! Elastic energy addition (guard skips when G near zero from alpha undershoot)
-                            if (G > verysmall) then
+                            ! Elastic energy addition (guard skips when Ca_inv near zero from alpha undershoot)
+                            if (Ca_inv > verysmall) then
                                 q_cons_vf(eqn_idx%E)%sf(j, k, l) = q_cons_vf(eqn_idx%E)%sf(j, k, l) + (q_prim_vf(i)%sf(j, k, &
-                                          & l)**2._wp)/max(4._wp*G, verysmall)
+                                          & l)**2._wp)/max(4._wp*Ca_inv, verysmall)
                                 ! Double for shear stresses
                                 if (${IS_SHEAR('i')}$) then
                                     q_cons_vf(eqn_idx%E)%sf(j, k, l) = q_cons_vf(eqn_idx%E)%sf(j, k, l) + (q_prim_vf(i)%sf(j, k, &
-                                              & l)**2._wp)/max(4._wp*G, verysmall)
+                                              & l)**2._wp)/max(4._wp*Ca_inv, verysmall)
                                 end if
                             end if
                         end do
@@ -1066,7 +1070,7 @@ contains
                         ! U_D = m_s*D (damageable-solid partial mass)
                         solid_partial_density = 0._wp
                         do i = 1, num_fluids
-                            if (fluid_pp(i)%G > verysmall) then
+                            if (fluid_pp(i)%Ca_inv > verysmall) then
                                 solid_partial_density = solid_partial_density + q_prim_vf(eqn_idx%cont%beg + i - 1)%sf(j, k, l)
                             end if
                         end do
@@ -1116,7 +1120,7 @@ contains
         real(wp)                             :: pi_inf_K
         real(wp)                             :: qv_K
         real(wp), dimension(2)               :: Re_K
-        real(wp)                             :: G_K
+        real(wp)                             :: Ca_inv_K
         real(wp)                             :: blkmod1_K, blkmod2_K, K_K
         real(wp)                             :: T_K, mix_mol_weight, R_gas
         integer                              :: i, j, k, l  !< Generic loop iterators
@@ -1133,8 +1137,8 @@ contains
         ! Computing the flux variables from the primitive variables, without accounting for the contribution of either viscosity or
         ! capillarity
         $:GPU_PARALLEL_LOOP(collapse=3, privateArrays='[alpha_rho_K, vel_K, alpha_K, Re_K, Y_K]', private='[rho_K, vel_K_sum, &
-                            & pres_K, E_K, gamma_K, pi_inf_K, qv_K, G_K, blkmod1_K, blkmod2_K, K_K, T_K, mix_mol_weight, R_gas]', &
-                            & copyin='[dir_idx_in, dir_flg_in, hll_u_interface_in]', firstprivate='[Re_size_loc1, Re_size_loc2]')
+                            & pres_K, E_K, gamma_K, pi_inf_K, qv_K, Ca_inv_K, blkmod1_K, blkmod2_K, K_K, T_K, mix_mol_weight, &
+                            & R_gas]', copyin='[dir_idx_in, dir_flg_in, hll_u_interface_in]', firstprivate='[Re_size_loc1, Re_size_loc2]')
         do l = is3b, is3e
             do k = is2b, is2e
                 do j = is1b, is1e
@@ -1162,7 +1166,7 @@ contains
                     pres_K = qK_prim_vf(j, k, l, eqn_idx%E)
                     if (hypoelasticity) then
                         call s_convert_species_to_mixture_variables_kernel(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, &
-                            & Re_K, G_K, Gs_vc, Re_size_loc1, Re_size_loc2)
+                            & Re_K, Ca_inv_K, Ca_invs_vc, Re_size_loc1, Re_size_loc2)
                     else
                         call s_convert_species_to_mixture_variables_kernel(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, &
                             & Re_K, Re_size_loc1=Re_size_loc1, Re_size_loc2=Re_size_loc2)
@@ -1225,8 +1229,8 @@ contains
                             ! checker prohibits hypoelastic HLLD there, so the block is dead code.
                             #:if not MFC_CASE_OPTIMIZATION or num_fluids > 1
                                 if (alt_soundspeed) then
-                                    blkmod1_K = f_bulk_modulus(pres_K, gammas(1), pi_infs(1)) + (4._wp/3._wp)*Gs_vc(1)
-                                    blkmod2_K = f_bulk_modulus(pres_K, gammas(2), pi_infs(2)) + (4._wp/3._wp)*Gs_vc(2)
+                                    blkmod1_K = f_bulk_modulus(pres_K, gammas(1), pi_infs(1)) + (4._wp/3._wp)*Ca_invs_vc(1)
+                                    blkmod2_K = f_bulk_modulus(pres_K, gammas(2), pi_infs(2)) + (4._wp/3._wp)*Ca_invs_vc(2)
                                     K_K = alpha_K(1)*alpha_K(2)*(blkmod2_K - blkmod1_K)/(alpha_K(1)*blkmod2_K + alpha_K(2) &
                                                   & *blkmod1_K + verysmall)
                                 end if
@@ -1326,7 +1330,7 @@ contains
 
         if (allocated(rho_sf)) deallocate (rho_sf, gamma_sf, pi_inf_sf)
 
-        @:DEALLOCATE(Gs_vc, fluid_k_therm)
+        @:DEALLOCATE(Ca_invs_vc, fluid_k_therm)
         if (allocated(bubrs_vc)) then
             @:DEALLOCATE(bubrs_vc)
         end if
@@ -1363,34 +1367,34 @@ contains
 
     !> Elastic strain energy of one stress component, doubled for a shear component: the tensor stores it once, the energy counts
     !! both off-diagonal entries. Zero without a shear modulus.
-    function f_elastic_energy(tau, G, is_shear) result(dE)
+    function f_elastic_energy(tau, Ca_inv, is_shear) result(dE)
 
         $:GPU_ROUTINE(function_name='f_elastic_energy', parallelism='[seq]', cray_inline=True)
 
-        real(wp), intent(in) :: tau, G
+        real(wp), intent(in) :: tau, Ca_inv
         logical, intent(in)  :: is_shear
         real(wp)             :: dE
 
         dE = 0._wp
-        if (G > verysmall) then
-            dE = (tau*tau)/max(4._wp*G, verysmall)
-            if (is_shear) dE = dE + (tau*tau)/max(4._wp*G, verysmall)
+        if (Ca_inv > verysmall) then
+            dE = (tau*tau)/max(4._wp*Ca_inv, verysmall)
+            if (is_shear) dE = dE + (tau*tau)/max(4._wp*Ca_inv, verysmall)
         end if
 
     end function f_elastic_energy
 
     !> Hypoelastic strain energy at one cell, summed over the stress components.
-    function f_hypoelastic_energy(q_cons_vf, j, k, l, rho, G) result(E_e)
+    function f_hypoelastic_energy(q_cons_vf, j, k, l, rho, Ca_inv) result(E_e)
 
         type(scalar_field), dimension(sys_size), intent(in) :: q_cons_vf
         integer, intent(in)                                 :: j, k, l
-        real(wp), intent(in)                                :: rho, G
+        real(wp), intent(in)                                :: rho, Ca_inv
         real(wp)                                            :: E_e
         integer                                             :: s
 
         E_e = 0._wp
         do s = eqn_idx%stress%beg, eqn_idx%stress%end
-            E_e = E_e + f_elastic_energy(real(q_cons_vf(s)%sf(j, k, l), wp)/rho, G, ${IS_SHEAR('s')}$)
+            E_e = E_e + f_elastic_energy(real(q_cons_vf(s)%sf(j, k, l), wp)/rho, Ca_inv, ${IS_SHEAR('s')}$)
         end do
 
     end function f_hypoelastic_energy

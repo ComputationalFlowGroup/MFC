@@ -1525,7 +1525,7 @@ contains
         real(wp)                        :: max_pres
         real(wp), dimension(2)          :: Re
         real(wp), dimension(6)          :: tau_e
-        real(wp)                        :: G_undamaged, G_damaged
+        real(wp)                        :: Ca_inv_undamaged, Ca_inv_damaged
         real(wp)                        :: dyn_p, T
         real(wp)                        :: damage_state
         real(wp)                        :: solid_partial_density  !< damageable-solid partial density at the probe cell
@@ -1571,7 +1571,7 @@ contains
                 tau_e(s) = 0._wp
             end do
             damage_state = 0._wp
-            G_damaged = 0._wp
+            Ca_inv_damaged = 0._wp
 
             if (n == 0) then
                 if (f_probe_owned(probe(i)%x, x_cb(-1), x_cb(m), 1)) then
@@ -1592,8 +1592,8 @@ contains
 
                     ! Computing/Sharing necessary state variables
                     if (hypoelasticity) then
-                        call s_convert_to_mixture_variables(q_cons_vf, j - 2, k, l, rho, gamma, pi_inf, qv, Re, G_undamaged, &
-                                                            & fluid_pp(:)%G)
+                        call s_convert_to_mixture_variables(q_cons_vf, j - 2, k, l, rho, gamma, pi_inf, qv, Re, Ca_inv_undamaged, &
+                                                            & fluid_pp(:)%Ca_inv)
                     else
                         call s_convert_to_mixture_variables(q_cons_vf, j - 2, k, l, rho, gamma, pi_inf, qv)
                     end if
@@ -1612,7 +1612,7 @@ contains
                             ! Recover D = U_D/m_s, clamped to [0, 1]
                             solid_partial_density = 0._wp
                             do s = 1, num_fluids
-                                if (fluid_pp(s)%G > verysmall) then
+                                if (fluid_pp(s)%Ca_inv > verysmall) then
                                     solid_partial_density = solid_partial_density + q_cons_vf(eqn_idx%cont%beg + s - 1)%sf(j - 2, &
                                         & k, l)
                                 end if
@@ -1620,11 +1620,11 @@ contains
                             damage_state = min(max(q_cons_vf(eqn_idx%damage)%sf(j - 2, k, l)/max(solid_partial_density, &
                                                & verysmall), 0._wp), 1._wp)
                         end if
-                        G_damaged = G_undamaged*max(1._wp - damage_state, 0._wp)
+                        Ca_inv_damaged = Ca_inv_undamaged*max(1._wp - damage_state, 0._wp)
 
                         call s_compute_pressure(q_cons_vf(eqn_idx%E)%sf(j - 2, k, l), q_cons_vf(eqn_idx%alf)%sf(j - 2, k, l), &
                                                 & dyn_p, pi_inf, gamma, rho, qv, rhoYks(:), pres, T, &
-                                                & f_hypoelastic_energy(q_cons_vf, j - 2, k, l, rho, G_undamaged))
+                                                & f_hypoelastic_energy(q_cons_vf, j - 2, k, l, rho, Ca_inv_undamaged))
                     else
                         call s_compute_pressure(q_cons_vf(eqn_idx%E)%sf(j - 2, k, l), q_cons_vf(eqn_idx%alf)%sf(j - 2, k, l), &
                                                 & dyn_p, pi_inf, gamma, rho, qv, rhoYks, pres, T)
@@ -1681,7 +1681,7 @@ contains
 
                     ! Compute mixture sound Speed
                     call s_compute_speed_of_sound(pres, rho, gamma, pi_inf, alpha, c, alpha_rho)
-                    if (hypoelasticity) c = sqrt(c*c + (4._wp/3._wp)*G_damaged/rho)
+                    if (hypoelasticity) c = sqrt(c*c + (4._wp/3._wp)*Ca_inv_damaged/rho)
 
                     accel = accel_mag(j - 2, k, l)
                 end if
@@ -1703,8 +1703,8 @@ contains
                         l = 0
 
                         ! Computing/Sharing necessary state variables
-                        call s_convert_to_mixture_variables(q_cons_vf, j - 2, k - 2, l, rho, gamma, pi_inf, qv, Re, G_undamaged, &
-                                                            & fluid_pp(:)%G)
+                        call s_convert_to_mixture_variables(q_cons_vf, j - 2, k - 2, l, rho, gamma, pi_inf, qv, Re, &
+                                                            & Ca_inv_undamaged, fluid_pp(:)%Ca_inv)
                         do s = 1, num_vels
                             vel(s) = q_cons_vf(eqn_idx%cont%end + s)%sf(j - 2, k - 2, l)/rho
                         end do
@@ -1726,7 +1726,7 @@ contains
                                 ! Recover D = U_D/m_s, clamped to [0, 1]
                                 solid_partial_density = 0._wp
                                 do s = 1, num_fluids
-                                    if (fluid_pp(s)%G > verysmall) then
+                                    if (fluid_pp(s)%Ca_inv > verysmall) then
                                         solid_partial_density = solid_partial_density + q_cons_vf(eqn_idx%cont%beg + s - 1)%sf(j &
                                             & - 2, k - 2, l)
                                     end if
@@ -1734,11 +1734,11 @@ contains
                                 damage_state = min(max(q_cons_vf(eqn_idx%damage)%sf(j - 2, k - 2, l)/max(solid_partial_density, &
                                                    & verysmall), 0._wp), 1._wp)
                             end if
-                            G_damaged = G_undamaged*max(1._wp - damage_state, 0._wp)
+                            Ca_inv_damaged = Ca_inv_undamaged*max(1._wp - damage_state, 0._wp)
 
                             call s_compute_pressure(q_cons_vf(eqn_idx%E)%sf(j - 2, k - 2, l), q_cons_vf(eqn_idx%alf)%sf(j - 2, &
                                                     & k - 2, l), dyn_p, pi_inf, gamma, rho, qv, rhoYks, pres, T, &
-                                                    & f_hypoelastic_energy(q_cons_vf, j - 2, k - 2, l, rho, G_undamaged))
+                                                    & f_hypoelastic_energy(q_cons_vf, j - 2, k - 2, l, rho, Ca_inv_undamaged))
                         else
                             call s_compute_pressure(q_cons_vf(eqn_idx%E)%sf(j - 2, k - 2, l), q_cons_vf(eqn_idx%alf)%sf(j - 2, &
                                                     & k - 2, l), dyn_p, pi_inf, gamma, rho, qv, rhoYks, pres, T)
@@ -1773,7 +1773,7 @@ contains
                         end if
                         ! Compute mixture sound speed
                         call s_compute_speed_of_sound(pres, rho, gamma, pi_inf, alpha, c, alpha_rho)
-                        if (hypoelasticity) c = sqrt(c*c + (4._wp/3._wp)*G_damaged/rho)
+                        if (hypoelasticity) c = sqrt(c*c + (4._wp/3._wp)*Ca_inv_damaged/rho)
                     end if
                 end if
             else
@@ -1801,7 +1801,7 @@ contains
 
                             ! Computing/Sharing necessary state variables
                             call s_convert_to_mixture_variables(q_cons_vf, j - 2, k - 2, l - 2, rho, gamma, pi_inf, qv, Re, &
-                                                                & G_undamaged, fluid_pp(:)%G)
+                                                                & Ca_inv_undamaged, fluid_pp(:)%Ca_inv)
                             do s = 1, num_vels
                                 vel(s) = q_cons_vf(eqn_idx%cont%end + s)%sf(j - 2, k - 2, l - 2)/rho
                             end do
@@ -1823,7 +1823,7 @@ contains
                                     ! Recover D = U_D/m_s, clamped to [0, 1]
                                     solid_partial_density = 0._wp
                                     do s = 1, num_fluids
-                                        if (fluid_pp(s)%G > verysmall) then
+                                        if (fluid_pp(s)%Ca_inv > verysmall) then
                                             solid_partial_density = solid_partial_density + q_cons_vf(eqn_idx%cont%beg + s &
                                                 & - 1)%sf(j - 2, k - 2, l - 2)
                                         end if
@@ -1831,12 +1831,12 @@ contains
                                     damage_state = min(max(q_cons_vf(eqn_idx%damage)%sf(j - 2, k - 2, &
                                                        & l - 2)/max(solid_partial_density, verysmall), 0._wp), 1._wp)
                                 end if
-                                G_damaged = G_undamaged*max(1._wp - damage_state, 0._wp)
+                                Ca_inv_damaged = Ca_inv_undamaged*max(1._wp - damage_state, 0._wp)
 
                                 call s_compute_pressure(q_cons_vf(eqn_idx%E)%sf(j - 2, k - 2, l - 2), &
                                                         & q_cons_vf(eqn_idx%alf)%sf(j - 2, k - 2, l - 2), dyn_p, pi_inf, gamma, &
                                                         & rho, qv, rhoYks, pres, T, f_hypoelastic_energy(q_cons_vf, j - 2, k - 2, &
-                                                        & l - 2, rho, G_undamaged))
+                                                        & l - 2, rho, Ca_inv_undamaged))
                             else
                                 call s_compute_pressure(q_cons_vf(eqn_idx%E)%sf(j - 2, k - 2, l - 2), &
                                                         & q_cons_vf(eqn_idx%alf)%sf(j - 2, k - 2, l - 2), dyn_p, pi_inf, gamma, &
@@ -1851,7 +1851,7 @@ contains
 
                             ! Compute mixture sound speed
                             call s_compute_speed_of_sound(pres, rho, gamma, pi_inf, alpha, c, alpha_rho)
-                            if (hypoelasticity) c = sqrt(c*c + (4._wp/3._wp)*G_damaged/rho)
+                            if (hypoelasticity) c = sqrt(c*c + (4._wp/3._wp)*Ca_inv_damaged/rho)
 
                             accel = accel_mag(j - 2, k - 2, l - 2)
                         end if

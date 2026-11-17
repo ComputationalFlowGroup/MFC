@@ -561,7 +561,7 @@ contains
             spatial_bf%phase(i) = 0._wp
         end do
 
-        ! Fluids physical parameters (sim-specific; Re(:) and G=0._wp differ from post)
+        ! Fluids physical parameters (sim-specific; Re(:) and Ca_inv=0._wp differ from post)
         do i = 1, num_fluids_max
             fluid_pp(i)%eos = eos_stiffened_gas
             fluid_pp(i)%mg_rho0 = dflt_real
@@ -592,7 +592,7 @@ contains
             fluid_pp(i)%qvp = 0._wp
             fluid_pp(i)%Re(:) = dflt_real
             fluid_pp(i)%k_therm = 0._wp
-            fluid_pp(i)%G = 0._wp
+            fluid_pp(i)%Ca_inv = 0._wp
             fluid_pp(i)%non_newtonian = .false.
             fluid_pp(i)%K = dflt_real
             fluid_pp(i)%nn = dflt_real

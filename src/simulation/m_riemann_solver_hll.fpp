@@ -70,7 +70,7 @@ contains
             real(wp)                             :: c_L, c_R
             real(wp), dimension(6)               :: tau_e_L, tau_e_R
             real(wp), dimension(3)               :: xi_field_L, xi_field_R
-            real(wp)                             :: G_L, G_R
+            real(wp)                             :: Ca_inv_L, Ca_inv_R
             real(wp)                             :: damage_L, damage_R
             real(wp)                             :: solid_partial_density_L, solid_partial_density_R
             real(wp), dimension(2)               :: Re_L, Re_R
@@ -123,11 +123,11 @@ contains
                                         & Ga, vdotB, B2, b4, cm, pcorr, rho_L, rho_R, pres_L, pres_R, E_L, E_R, H_L, H_R, &
                                         & c_sum_Yi_Phi, T_L, T_R, Y_L, Y_R, MW_L, MW_R, R_gas_L, R_gas_R, Cp_L, Cp_R, Cv_L, Cv_R, &
                                         & Gamm_L, Gamm_R, gamma_L, gamma_R, pi_inf_L, pi_inf_R, qv_L, qv_R, qv_avg, c_L, c_R, &
-                                        & G_L, G_R, damage_L, damage_R, solid_partial_density_L, solid_partial_density_R, &
-                                        & rho_avg, H_avg, c_avg, gamma_avg, ptilde_L, ptilde_R, vel_L_rms, vel_R_rms, &
-                                        & vel_avg_rms, Ms_L, Ms_R, pres_SL, pres_SR, alpha_L_sum, alpha_R_sum, flux_tau_L, &
-                                        & flux_tau_R, vel_interface]', copyin='[norm_dir]', firstprivate='[Re_size_loc1, &
-                                        & Re_size_loc2, need_nc_vel]')
+                                        & Ca_inv_L, Ca_inv_R, damage_L, damage_R, solid_partial_density_L, &
+                                        & solid_partial_density_R, rho_avg, H_avg, c_avg, gamma_avg, ptilde_L, ptilde_R, &
+                                        & vel_L_rms, vel_R_rms, vel_avg_rms, Ms_L, Ms_R, pres_SL, pres_SR, alpha_L_sum, &
+                                        & alpha_R_sum, flux_tau_L, flux_tau_R, vel_interface]', copyin='[norm_dir]', &
+                                        & firstprivate='[Re_size_loc1, Re_size_loc2, need_nc_vel]')
                     do l = ${Z_BND}$%beg, ${Z_BND}$%end
                         do k = ${Y_BND}$%beg, ${Y_BND}$%end
                             do j = ${X_BND}$%beg, ${X_BND}$%end
@@ -346,7 +346,7 @@ contains
                                     end if
 
                                     call s_compute_hypoelastic_interface_energy(num_fluids, alpha_L, alpha_R, damage_L, damage_R, &
-                                        & tau_e_L, tau_e_R, G_L, G_R, E_L, E_R)
+                                        & tau_e_L, tau_e_R, Ca_inv_L, Ca_inv_R, E_L, E_R)
                                 end if
 
                                 ! Only the pressure-based wave-speed estimate reads the averaged state, and the Roe
@@ -398,11 +398,13 @@ contains
                                         s_R = max(vel_R(dir_idx(1)) + c_fast%R, vel_L(dir_idx(1)) + c_fast%L)
                                     else if (hypoelasticity) then
                                         ! Elastic wave speed, Rodriguez et al. JCP (2019)
-                                        s_L = min(vel_L(dir_idx(1)) - f_elastic_signal_speed(c_L, G_L, tau_e_L(dir_idx_tau(1)), &
-                                                  & rho_L), vel_R(dir_idx(1)) - f_elastic_signal_speed(c_R, G_R, &
+                                        s_L = min(vel_L(dir_idx(1)) - f_elastic_signal_speed(c_L, Ca_inv_L, &
+                                                  & tau_e_L(dir_idx_tau(1)), rho_L), &
+                                                  & vel_R(dir_idx(1)) - f_elastic_signal_speed(c_R, Ca_inv_R, &
                                                   & tau_e_R(dir_idx_tau(1)), rho_R))
-                                        s_R = max(vel_R(dir_idx(1)) + f_elastic_signal_speed(c_R, G_R, tau_e_R(dir_idx_tau(1)), &
-                                                  & rho_R), vel_L(dir_idx(1)) + f_elastic_signal_speed(c_L, G_L, &
+                                        s_R = max(vel_R(dir_idx(1)) + f_elastic_signal_speed(c_R, Ca_inv_R, &
+                                                  & tau_e_R(dir_idx_tau(1)), rho_R), &
+                                                  & vel_L(dir_idx(1)) + f_elastic_signal_speed(c_L, Ca_inv_L, &
                                                   & tau_e_L(dir_idx_tau(1)), rho_L))
                                     else
                                         s_L = min(vel_L(dir_idx(1)) - c_L, vel_R(dir_idx(1)) - c_R)
@@ -591,7 +593,7 @@ contains
                                     solid_partial_density_L = 0._wp; solid_partial_density_R = 0._wp
                                     $:GPU_LOOP(parallelism='[seq]')
                                     do i = 1, num_fluids
-                                        if (Gs_rs(i) > verysmall) then
+                                        if (Ca_invs_rs(i) > verysmall) then
                                             solid_partial_density_L = solid_partial_density_L + alpha_rho_L(i)
                                             solid_partial_density_R = solid_partial_density_R + alpha_rho_R(i)
                                         end if

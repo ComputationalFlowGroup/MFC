@@ -89,7 +89,7 @@ print(
             "fluid_pp(1)%gamma": 1.0e00 / (4.4e00 - 1.0e00),
             "fluid_pp(1)%eos": "stiffened_gas",
             "fluid_pp(1)%pi_inf": 4.4e00 * 6.0e08 / (4.4e00 - 1.0e00),
-            "fluid_pp(1)%G": 10.0e9,
+            "fluid_pp(1)%Ca_inv": 10.0e9,
         }
     )
 )

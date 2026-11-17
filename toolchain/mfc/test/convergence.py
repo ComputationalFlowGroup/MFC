@@ -324,7 +324,7 @@ def _hypo_pressure_2d(run_dir: str, step: int, cell_count: int, cfg: dict) -> np
     """
     f = {i: _read_field(run_dir, step, i, 1, cell_count) for i in (1, 2, 3, 4, 5, 8, 9, 10)}
     gamma_coef = float(cfg["fluid_pp(1)%gamma"])  # 1/(gamma - 1); identical fluids
-    G = float(cfg["fluid_pp(1)%G"])
+    G = float(cfg["fluid_pp(1)%Ca_inv"])
     rho = f[1] + f[2]
     dyn_p = 0.5 * (f[3] ** 2 + f[4] ** 2) / rho
     E_e = ((f[8] / rho) ** 2 + 2.0 * (f[9] / rho) ** 2 + (f[10] / rho) ** 2) / (4.0 * G)

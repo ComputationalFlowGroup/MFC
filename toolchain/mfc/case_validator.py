@@ -264,7 +264,7 @@ PHYSICS_DOCS = {
         "title": "Graded Material Properties",
         "category": "Feature Compatibility",
         "explanation": (
-            "Requires graded = T. A graded fluid's G needs hyperelasticity or hypoelasticity enabled; its Re needs "
+            "Requires graded = T. A graded fluid's Ca_inv needs hyperelasticity or hypoelasticity enabled; its Re needs "
             "viscous = T. graded_type and graded_profile must be set to a recognized value, and the location "
             "parameters matching the chosen graded_type must all be set. Currently requires the HLL Riemann solver "
             "(riemann_solver = 1): the reference map is not yet advected under HLLC or HLLD."
@@ -916,10 +916,10 @@ class CaseValidator:
         viscous = self.get("viscous", "F") == "T"
 
         for i in range(1, int(num_fluids) + 1):
-            G_graded = self.get(f"fluid_pp({i})%graded_G", "F") == "T"
+            Ca_inv_graded = self.get(f"fluid_pp({i})%graded_Ca_inv", "F") == "T"
             Re_graded = self.get(f"fluid_pp({i})%graded_Re", "F") == "T"
 
-            if not G_graded and not Re_graded:
+            if not Ca_inv_graded and not Re_graded:
                 continue
 
             graded_type = self.get(f"fluid_pp({i})%graded_type")
@@ -936,14 +936,14 @@ class CaseValidator:
                 f"fluid_pp({i})%graded_profile = 3 (power law) requires graded_exp and graded_scaling to be set",
             )
 
-            if G_graded:
-                self.prohibit(not hyperelasticity and not hypoelasticity, f"fluid_pp({i})%graded_G requires hyperelasticity or hypoelasticity enabled")
-                G_init = self.get(f"fluid_pp({i})%graded_G_init")
-                G_end = self.get(f"fluid_pp({i})%graded_G_end")
-                self.prohibit(G_init is None, f"fluid_pp({i})%graded_G_init must be set when graded_G = T")
-                self.prohibit(G_end is None, f"fluid_pp({i})%graded_G_end must be set when graded_G = T")
-                self.prohibit(G_init is not None and G_init < 0, f"fluid_pp({i})%graded_G_init must be non-negative")
-                self.prohibit(G_end is not None and G_end < 0, f"fluid_pp({i})%graded_G_end must be non-negative")
+            if Ca_inv_graded:
+                self.prohibit(not hyperelasticity and not hypoelasticity, f"fluid_pp({i})%graded_Ca_inv requires hyperelasticity or hypoelasticity enabled")
+                Ca_inv_init = self.get(f"fluid_pp({i})%graded_Ca_inv_init")
+                Ca_inv_end = self.get(f"fluid_pp({i})%graded_Ca_inv_end")
+                self.prohibit(Ca_inv_init is None, f"fluid_pp({i})%graded_Ca_inv_init must be set when graded_Ca_inv = T")
+                self.prohibit(Ca_inv_end is None, f"fluid_pp({i})%graded_Ca_inv_end must be set when graded_Ca_inv = T")
+                self.prohibit(Ca_inv_init is not None and Ca_inv_init < 0, f"fluid_pp({i})%graded_Ca_inv_init must be non-negative")
+                self.prohibit(Ca_inv_end is not None and Ca_inv_end < 0, f"fluid_pp({i})%graded_Ca_inv_end must be non-negative")
 
             if Re_graded:
                 self.prohibit(not viscous, f"fluid_pp({i})%graded_Re requires viscous = T")

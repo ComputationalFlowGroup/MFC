@@ -387,7 +387,7 @@ PATTERNS = [
     (r"fluid_pp\((\d+)\)%eos", "Equation of state selector for fluid {0}"),
     (r"fluid_pp\((\d+)\)%gamma", "Specific heat ratio for fluid {0}"),
     (r"fluid_pp\((\d+)\)%pi_inf", "Stiffness pressure for fluid {0}"),
-    (r"fluid_pp\((\d+)\)%G", "Shear modulus for fluid {0}"),
+    (r"fluid_pp\((\d+)\)%Ca_inv", "Shear modulus for fluid {0}"),
     (r"fluid_pp\((\d+)\)%cv", "Specific heat at constant volume for fluid {0}"),
     (r"fluid_pp\((\d+)\)%k_therm", "Thermal conductivity for fluid {0}"),
     (r"fluid_pp\((\d+)\)%qv", "Heat of formation for fluid {0}"),

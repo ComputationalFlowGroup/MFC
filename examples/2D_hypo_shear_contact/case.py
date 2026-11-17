@@ -83,10 +83,10 @@ print(
             "fd_order": 4,
             "fluid_pp(1)%gamma": 1.0 / (gamma - 1.0),
             "fluid_pp(1)%eos": "ideal_gas",
-            "fluid_pp(1)%G": G,
+            "fluid_pp(1)%Ca_inv": G,
             "fluid_pp(2)%gamma": 1.0 / (gamma - 1.0),
             "fluid_pp(2)%eos": "ideal_gas",
-            "fluid_pp(2)%G": G,
+            "fluid_pp(2)%Ca_inv": G,
             # Left/background state.
             "patch_icpp(1)%geometry": 3,
             "patch_icpp(1)%x_centroid": 0.5,

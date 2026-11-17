@@ -542,7 +542,7 @@ contains
         real(wp) :: rho, gamma, pi_inf, dyn_pres  !< Mixture variables
         real(wp) :: vel_sum_g, E_ghost  !< Ghost-point velocity magnitude and energy
         real(wp), dimension(2) :: Re_K
-        real(wp) :: G_K
+        real(wp) :: Ca_inv_K
         real(wp) :: qv_K
         real(wp) :: pres_IP, pres_GP
         real(wp), dimension(3) :: vel_IP
@@ -551,13 +551,13 @@ contains
         integer :: nf1, nf2, nf3  !< Per-call fill-tier tallies
 
         #:if not MFC_CASE_OPTIMIZATION and USING_AMD
-            real(wp), dimension(3)  :: Gs
+            real(wp), dimension(3)  :: Ca_invs
             real(wp), dimension(3)  :: alpha_rho_IP, alpha_IP, alpha_rho_GP
             real(wp), dimension(3)  :: r_IP, v_IP, pb_IP, mv_IP
             real(wp), dimension(18) :: nmom_IP
             real(wp), dimension(12) :: presb_IP, massv_IP
         #:else
-            real(wp), dimension(num_fluids) :: Gs
+            real(wp), dimension(num_fluids) :: Ca_invs
             real(wp), dimension(num_fluids) :: alpha_rho_IP, alpha_IP, alpha_rho_GP
             real(wp), dimension(nb)         :: r_IP, v_IP, pb_IP, mv_IP
             real(wp), dimension(nb*nmom)    :: nmom_IP
@@ -633,7 +633,7 @@ contains
             $:END_GPU_PARALLEL_LOOP()
             $:GPU_PARALLEL_LOOP(private='[i, physical_loc, dyn_pres, alpha_rho_IP, alpha_IP, alpha_rho_GP, pres_IP, pres_GP, &
                                 & vel_IP, vel_g, r_IP, v_IP, pb_IP, mv_IP, nmom_IP, presb_IP, massv_IP, rho, gamma, pi_inf, Re_K, &
-                                & G_K, Gs, gp, norm, buf, radial_vector, j, k, l, q, qv_K, c_IP, nbub, patch_id, Ys_IP, &
+                                & Ca_inv_K, Ca_invs, gp, norm, buf, radial_vector, j, k, l, q, qv_K, c_IP, nbub, patch_id, Ys_IP, &
                                 & W_species, T_IP, mw_IP, e_IP, Ys_g, Ys_s, T_s, T_g, mw_s, mw_g, rho_s, rho_g, mdot_s, v_stefan, &
                                 & d, surface_converged, vel_sum_g, E_ghost, alpha_q, alpha_rho_q, e_q, mdot_k, h_w, e_s, nrm_l, &
                                 & wf]', reduction='[[n_not_converged, n_ill_posed, nf1, nf2, nf3]]', reductionOp='[+]', &
@@ -782,7 +782,7 @@ contains
                 ! If in simulation, use acc mixture subroutines
                 if (hypoelasticity) then
                     call s_convert_species_to_mixture_variables_kernel(rho, gamma, pi_inf, qv_K, alpha_IP, alpha_rho_IP, Re_K, &
-                        & G_K, Gs, Re_size_loc1, Re_size_loc2)
+                        & Ca_inv_K, Ca_invs, Re_size_loc1, Re_size_loc2)
                 else
                     call s_convert_species_to_mixture_variables_kernel(rho, gamma, pi_inf, qv_K, alpha_IP, alpha_rho_IP, Re_K, &
                         & Re_size_loc1=Re_size_loc1, Re_size_loc2=Re_size_loc2)

@@ -1011,10 +1011,10 @@ def _load():
                 continue
             for suffix, sym in fam.required + fam.optional:
                 _r(f"{px}{fam.prefix}_{suffix}", REAL, math=sym)
-        _r(f"{px}G", REAL, {"hypoelasticity"}, math=r"\f$G_k\f$")
-        _r(f"{px}graded_G", LOG, {"graded"}, math=r"\mathrm{graded}_{G,k}")
-        _r(f"{px}graded_G_init", REAL, {"graded"}, math=r"\f$G_{k,\mathrm{init}}\f$")
-        _r(f"{px}graded_G_end", REAL, {"graded"}, math=r"\f$G_{k,\mathrm{end}}\f$")
+        _r(f"{px}Ca_inv", REAL, {"hypoelasticity"}, math=r"\f$Ca^{-1}_k\f$")
+        _r(f"{px}graded_Ca_inv", LOG, {"graded"}, math=r"\mathrm{graded}_{Ca^{-1},k}")
+        _r(f"{px}graded_Ca_inv_init", REAL, {"graded"}, math=r"\f$Ca^{-1}_{k,\mathrm{init}}\f$")
+        _r(f"{px}graded_Ca_inv_end", REAL, {"graded"}, math=r"\f$Ca^{-1}_{k,\mathrm{end}}\f$")
         _r(f"{px}graded_type", INT, {"graded"}, math=r"\mathrm{graded\_type}_k")
         _r(f"{px}graded_profile", INT, {"graded"}, math=r"\mathrm{graded\_profile}_k")
         _r(f"{px}graded_beg_loc_x", REAL, {"graded"}, math=r"x_{k,\mathrm{beg}}")
@@ -1698,7 +1698,7 @@ _nv(
     "format",
     "output_partial_domain",
     "sim_data",
-    "G",
+    "Ca_inv",
     "flux_lim",
     "cons_vars_wrt",
     "rho_wrt",

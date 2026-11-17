@@ -459,12 +459,12 @@ module m_derived_types
         real(wp)               :: cv                 !< heat capacity
         real(wp)               :: qv                 !< reference energy per unit mass for SGEOS, q (see Le Metayer (2004))
         real(wp)               :: qvp                !< reference entropy per unit mass for SGEOS, q' (see Le Metayer (2004))
-        real(wp)               :: G
+        real(wp)               :: Ca_inv
         integer                :: eos                !< Equation of state selector (eos_* in m_constants)
         real(wp)               :: mg_rho0            !< Mie-Gruneisen reference density
         real(wp)               :: mg_c0              !< Mie-Gruneisen bulk sound speed at mg_rho0
         real(wp)               :: mg_s               !< Mie-Gruneisen linear Hugoniot slope, u_s = c0 + s u_p
-        real(wp)               :: mg_gruneisen       !< Gruneisen coefficient Gamma_G (not the shear modulus G)
+        real(wp)               :: mg_gruneisen       !< Gruneisen coefficient Gamma_G (not the inverse Cauchy number Ca_inv)
         real(wp)               :: mg_gruneisen_a     !< d(Gamma_G)/d(mu): Gamma_G = Gamma_0 + a mu, zero keeps it constant
         real(wp)               :: mg_t0              !< temperature at the reference density (for T output)
         real(wp)               :: mg_s2, mg_s3       !< u_s = c0 + s u_p + s2 u_p^2 + s3 u_p^3; zero keeps the fit linear

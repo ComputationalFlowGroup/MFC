@@ -105,7 +105,7 @@ contains
             real(wp)               :: R3Lbar, R3Rbar
             real(wp)               :: R3V2Lbar, R3V2Rbar
             real(wp), dimension(6) :: tau_e_L, tau_e_R
-            real(wp)               :: G_L, G_R
+            real(wp)               :: Ca_inv_L, Ca_inv_R
             real(wp)               :: damage_L, damage_R
             real(wp)               :: solid_partial_density_L, solid_partial_density_R
             real(wp)               :: vel_L_rms, vel_R_rms, vel_avg_rms
@@ -884,7 +884,7 @@ contains
                                 & 'alpha_lim_L', 'alpha_lim_R']
                             #:set _hllc_a2 = ['Ys_L', 'Ys_R', 'Xs_L', 'Xs_R', 'Gamma_iL', 'Gamma_iR', 'Cp_iL', 'Cp_iR', 'R_species', &
                                 & 'h_iL', 'h_iR']
-                            #:set _hllc_e1 = ['ptilde_L', 'ptilde_R', 'G_L', 'G_R', 'damage_L', 'damage_R', 'solid_partial_density_L', &
+                            #:set _hllc_e1 = ['ptilde_L', 'ptilde_R', 'Ca_inv_L', 'Ca_inv_R', 'damage_L', 'damage_R', 'solid_partial_density_L', &
                                 & 'solid_partial_density_R']
                             #:set _hllc_ea = ['tau_e_L', 'tau_e_R', 'U_L', 'U_R', 'F_L', 'F_R', 'F_star_L', 'F_star_R', 'F_HLLC', &
                                 & 'F_HLL']
@@ -1079,7 +1079,7 @@ contains
                                             end if
 
                                             call s_compute_hypoelastic_interface_energy(num_fluids, alpha_L, alpha_R, damage_L, &
-                                                & damage_R, tau_e_L, tau_e_R, G_L, G_R, E_L, E_R)
+                                                & damage_R, tau_e_L, tau_e_R, Ca_inv_L, Ca_inv_R, E_L, E_R)
                                             ! The acoustic EOS sound speed is based on thermal/kinetic enthalpy. The
                                             ! hypoelastic stress energy remains in E_L/E_R for the conservative state,
                                             ! but must not inflate the base acoustic sound speed used below, so H_L/H_R
@@ -1138,13 +1138,13 @@ contains
                                         if (wave_speeds == wave_speeds_direct) then
                                             #:if HYPO
                                                 ! Elastic wave speed, Rodriguez et al. JCP (2019)
-                                                s_L = min(vel_L(dir_idx(1)) - f_elastic_signal_speed(c_L, G_L, &
+                                                s_L = min(vel_L(dir_idx(1)) - f_elastic_signal_speed(c_L, Ca_inv_L, &
                                                           & tau_e_L(dir_idx_tau(1)), rho_L), &
-                                                          & vel_R(dir_idx(1)) - f_elastic_signal_speed(c_R, G_R, &
+                                                          & vel_R(dir_idx(1)) - f_elastic_signal_speed(c_R, Ca_inv_R, &
                                                           & tau_e_R(dir_idx_tau(1)), rho_R))
-                                                s_R = max(vel_R(dir_idx(1)) + f_elastic_signal_speed(c_R, G_R, &
+                                                s_R = max(vel_R(dir_idx(1)) + f_elastic_signal_speed(c_R, Ca_inv_R, &
                                                           & tau_e_R(dir_idx_tau(1)), rho_R), &
-                                                          & vel_L(dir_idx(1)) + f_elastic_signal_speed(c_L, G_L, &
+                                                          & vel_L(dir_idx(1)) + f_elastic_signal_speed(c_L, Ca_inv_L, &
                                                           & tau_e_L(dir_idx_tau(1)), rho_L))
                                                 s_S = (pres_R - tau_e_R(dir_idx_tau(1)) - pres_L + tau_e_L(dir_idx_tau(1)) &
                                                        & + rho_L*vel_L(dir_idx(1))*(s_L - vel_L(dir_idx(1))) &
@@ -1336,7 +1336,7 @@ contains
                                                 solid_partial_density_L = 0._wp; solid_partial_density_R = 0._wp
                                                 $:GPU_LOOP(parallelism='[seq]')
                                                 do i = 1, num_fluids
-                                                    if (Gs_rs(i) > verysmall) then
+                                                    if (Ca_invs_rs(i) > verysmall) then
                                                         solid_partial_density_L = solid_partial_density_L + alpha_rho_L(i)
                                                         solid_partial_density_R = solid_partial_density_R + alpha_rho_R(i)
                                                     end if
@@ -1557,8 +1557,8 @@ contains
                                                 dSigma = Sigma_R - Sigma_L
                                                 Sigma_ref = max(max(abs(Sigma_L), abs(Sigma_R)), verysmall)
 
-                                                a_L_ref = sqrt(max(verysmall, c_L*c_L + ((4._wp/3._wp)*G_L + tau_nn_L)/rho_L))
-                                                a_R_ref = sqrt(max(verysmall, c_R*c_R + ((4._wp/3._wp)*G_R + tau_nn_R)/rho_R))
+                                                a_L_ref = sqrt(max(verysmall, c_L*c_L + ((4._wp/3._wp)*Ca_inv_L + tau_nn_L)/rho_L))
+                                                a_R_ref = sqrt(max(verysmall, c_R*c_R + ((4._wp/3._wp)*Ca_inv_R + tau_nn_R)/rho_R))
                                                 a_ref = max(max(a_L_ref, a_R_ref), verysmall)
 
                                                 du_t = u_t_R - u_t_L

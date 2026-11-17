@@ -16,9 +16,9 @@ module m_riemann_solver_hypo_hlld
 
     implicit none
 
-    !> Four-epsilon roundoff band for G_eff: two mixture products, their sum, and the final signed sum. Relative to the operand
+    !> Four-epsilon roundoff band for Ca_inv_eff: two mixture products, their sum, and the final signed sum. Relative to the operand
     !! scale; not a physical stiffness cutoff.
-    real(wp), parameter :: G_eff_roundoff_factor = 4._wp
+    real(wp), parameter :: Ca_inv_eff_roundoff_factor = 4._wp
 
 contains
 
@@ -109,14 +109,14 @@ contains
 
         ! HLLD Hypo variables
 
-        real(wp) :: G_eff, G_eff_tol, C_NC, sqrtC_NC
+        real(wp) :: Ca_inv_eff, Ca_inv_eff_tol, C_NC, sqrtC_NC
         real(wp) :: A_L, A_R, denomA, fac_L, fac_R
         real(wp) :: u_n_L, u_t_L, u_n_R, u_t_R
         real(wp) :: u_t2_L, u_t2_R
         real(wp) :: tau_nn_L, tau_nt_L, tau_tt_L, tau_nn_R, tau_nt_R, tau_tt_R
         real(wp) :: tau_nt2_L, tau_nt2_R, tau_t2t2_L, tau_t2t2_R, tau_t1t2_L, tau_t1t2_R
         real(wp) :: tau_qq_L, tau_qq_R
-        real(wp) :: G_L, G_R
+        real(wp) :: Ca_inv_L, Ca_inv_R
         #:if not MFC_CASE_OPTIMIZATION and USING_AMD
             real(wp), dimension(6) :: tau_e_L, tau_e_R
         #:else
@@ -138,7 +138,7 @@ contains
         real(wp) :: E_L_starstar, E_R_starstar
         real(wp) :: p_face, tau_qq_face
         real(wp) :: u_n_face, u_t_face
-        real(wp) :: G_hat
+        real(wp) :: Ca_inv_hat
         real(wp) :: rho_hat
         real(wp) :: tau_nn_hat, tau_nt_hat, tau_tt_hat, tau_qq_hat
         real(wp) :: tau_nt2_hat, tau_t2t2_hat, tau_t1t2_hat
@@ -186,9 +186,9 @@ contains
                 ! (_hlld_p1..p4) are ONLY for source readability; fypp concatenates them into one
                 ! clause below. That wrapping is FOLD_DIRECTIVE's job -- its within-clause comma split
                 ! exists for exactly this case -- not the fragments'.
-                #:set _hlld_p1 = '[i,j,k,l,ipass,degenerate,shear_degenerate,fan_fallback,shear_cond,vel,rho,pres,E,gamma,pi_inf,qv,vel_rms,c,S_L,S_R,s_M,S_Lstar,S_Rstar,pTot_L,pTot_R,rhoL_star,rhoR_star,us_c,uss_c,zone,F_HLL_c,U_HLL_c,rho_HLL,u_n_HLL_cons,tau_nn_HLL,u_n_HLL_trace,u_t_HLL_trace,p_face_HLL,tau_qq_face_HLL,ncomp,G_eff,G_eff_tol,C_NC,sqrtC_NC,A_L,A_R,denomA,fac_L,fac_R,'
-                #:set _hlld_p2 = 'u_n_L,u_t_L,u_n_R,u_t_R,u_t2_L,u_t2_R,tau_nn_L,tau_nt_L,tau_tt_L,tau_nn_R,tau_nt_R,tau_tt_R,tau_nt2_L,tau_nt2_R,tau_t2t2_L,tau_t2t2_R,tau_t1t2_L,tau_t1t2_R,tau_qq_L,tau_qq_R,G_L,G_R,alpha1_L_star,alpha1_R_star,alpha2_L_star,alpha2_R_star,u_t_star,tau_nt_star,u_t2_star,tau_nt2_star,tau_nn_L_star,tau_nn_R_star,tau_tt_L_star,tau_tt_R_star,tau_tt_L_starstar,tau_tt_R_starstar,'
-                #:set _hlld_p3 = 'tau_t2t2_L_star,tau_t2t2_R_star,tau_t2t2_L_starstar,tau_t2t2_R_starstar,tau_t1t2_L_star,tau_t1t2_R_star,tau_t1t2_L_starstar,tau_t1t2_R_starstar,tau_qq_L_star,tau_qq_R_star,pTot_star,E_L_star,E_R_star,E_L_starstar,E_R_starstar,p_face,tau_qq_face,u_n_face,u_t_face,G_hat,rho_hat,tau_nn_hat,tau_nt_hat,tau_tt_hat,tau_qq_hat,tau_nt2_hat,tau_t2t2_hat,tau_t1t2_hat,'
+                #:set _hlld_p1 = '[i,j,k,l,ipass,degenerate,shear_degenerate,fan_fallback,shear_cond,vel,rho,pres,E,gamma,pi_inf,qv,vel_rms,c,S_L,S_R,s_M,S_Lstar,S_Rstar,pTot_L,pTot_R,rhoL_star,rhoR_star,us_c,uss_c,zone,F_HLL_c,U_HLL_c,rho_HLL,u_n_HLL_cons,tau_nn_HLL,u_n_HLL_trace,u_t_HLL_trace,p_face_HLL,tau_qq_face_HLL,ncomp,Ca_inv_eff,Ca_inv_eff_tol,C_NC,sqrtC_NC,A_L,A_R,denomA,fac_L,fac_R,'
+                #:set _hlld_p2 = 'u_n_L,u_t_L,u_n_R,u_t_R,u_t2_L,u_t2_R,tau_nn_L,tau_nt_L,tau_tt_L,tau_nn_R,tau_nt_R,tau_tt_R,tau_nt2_L,tau_nt2_R,tau_t2t2_L,tau_t2t2_R,tau_t1t2_L,tau_t1t2_R,tau_qq_L,tau_qq_R,Ca_inv_L,Ca_inv_R,alpha1_L_star,alpha1_R_star,alpha2_L_star,alpha2_R_star,u_t_star,tau_nt_star,u_t2_star,tau_nt2_star,tau_nn_L_star,tau_nn_R_star,tau_tt_L_star,tau_tt_R_star,tau_tt_L_starstar,tau_tt_R_starstar,'
+                #:set _hlld_p3 = 'tau_t2t2_L_star,tau_t2t2_R_star,tau_t2t2_L_starstar,tau_t2t2_R_starstar,tau_t1t2_L_star,tau_t1t2_R_star,tau_t1t2_L_starstar,tau_t1t2_R_starstar,tau_qq_L_star,tau_qq_R_star,pTot_star,E_L_star,E_R_star,E_L_starstar,E_R_starstar,p_face,tau_qq_face,u_n_face,u_t_face,Ca_inv_hat,rho_hat,tau_nn_hat,tau_nt_hat,tau_tt_hat,tau_qq_hat,tau_nt2_hat,tau_t2t2_hat,tau_t1t2_hat,'
                 #:set _hlld_p4 = 'pres_hat,blkmod1_hat,blkmod2_hat,K_hat,alpha_hat_q,alpha_rho_hat_q,C_hat_1,C_hat_2,Sigma_L,Sigma_R,dSigma,Sigma_ref,a_L_ref,a_R_ref,a_ref,du_t,dtau_nt,du_t2,dtau_nt2,sensor_ptot,sensor_vt,sensor_tnt,sensor_combined,phi,alpha_L_sum,alpha_R_sum]'
                 ! Wave-fan side table for the per-component F_hlld fold below: side name, the side's two zones,
                 ! its starstar zone, and the outer/inner wave speeds. The L and R sides are mirror images.
@@ -318,8 +318,8 @@ contains
 
                             ! Symmetrize total pressure when it differs only by floating-point roundoff. WENO reconstruction of a
                             ! uniform field can produce slightly different L/R values at material interfaces due to different
-                            ! smoothness indicators. With stiff materials (G~1e9), even 1e-12 relative pTot asymmetry creates O(1)
-                            ! spurious stress through the HLLD star-state.
+                            ! smoothness indicators. With stiff materials (Ca_inv~1e9), even 1e-12 relative pTot asymmetry creates
+                            ! O(1) spurious stress through the HLLD star-state.
                             if (abs(pTot_R - pTot_L) < 1e-12_wp*max(abs(pTot_L), abs(pTot_R), 1._wp)) then
                                 pTot_L = 5e-1_wp*(pTot_L + pTot_R)
                                 pTot_R = pTot_L
@@ -328,11 +328,11 @@ contains
                             call s_compute_mixture_coefficients(alpha_rho_L, alpha_L, rho%L, gamma%L, pi_inf%L, qv%L)
                             call s_compute_mixture_coefficients(alpha_rho_R, alpha_R, rho%R, gamma%R, pi_inf%R, qv%R)
 
-                            G_L = 0._wp; G_R = 0._wp
+                            Ca_inv_L = 0._wp; Ca_inv_R = 0._wp
                             $:GPU_LOOP(parallelism='[seq]')
                             do i = 1, num_fluids
-                                G_L = G_L + alpha_L(i)*Gs_rs(i)
-                                G_R = G_R + alpha_R(i)*Gs_rs(i)
+                                Ca_inv_L = Ca_inv_L + alpha_L(i)*Ca_invs_rs(i)
+                                Ca_inv_R = Ca_inv_R + alpha_R(i)*Ca_invs_rs(i)
                             end do
 
                             call s_compute_energy(pres%L, alpha_rho_L, alpha_L, vel_rms%L, E%L)
@@ -344,8 +344,8 @@ contains
                             $:GPU_LOOP(parallelism='[seq]')
                             do i = 1, eqn_idx%stress%end - eqn_idx%stress%beg + 1
                                 shear_cond = (n > 0 .and. p == 0 .and. i == 2) .or. (p > 0 .and. (i == 2 .or. i == 4 .or. i == 5))
-                                E%L = E%L + f_elastic_energy(tau_e_L(i), G_L, shear_cond)
-                                E%R = E%R + f_elastic_energy(tau_e_R(i), G_R, shear_cond)
+                                E%L = E%L + f_elastic_energy(tau_e_L(i), Ca_inv_L, shear_cond)
+                                E%R = E%R + f_elastic_energy(tau_e_R(i), Ca_inv_R, shear_cond)
                             end do
 
                             ! Compute Riemann states
@@ -353,10 +353,10 @@ contains
                             call s_compute_speed_of_sound(pres%L, rho%L, gamma%L, pi_inf%L, alpha_L, c%L, alpha_rho_L)
                             call s_compute_speed_of_sound(pres%R, rho%R, gamma%R, pi_inf%R, alpha_R, c%R, alpha_rho_R)
 
-                            S_L = min(u_n_L - sqrt(max(verysmall, c%L*c%L + ((4._wp/3._wp)*G_L + tau_nn_L)/rho%L)), &
-                                      & u_n_R - sqrt(max(verysmall, c%R*c%R + ((4._wp/3._wp)*G_R + tau_nn_R)/rho%R)))
-                            S_R = max(u_n_R + sqrt(max(verysmall, c%R*c%R + ((4._wp/3._wp)*G_R + tau_nn_R)/rho%R)), &
-                                      & u_n_L + sqrt(max(verysmall, c%L*c%L + ((4._wp/3._wp)*G_L + tau_nn_L)/rho%L)))
+                            S_L = min(u_n_L - sqrt(max(verysmall, c%L*c%L + ((4._wp/3._wp)*Ca_inv_L + tau_nn_L)/rho%L)), &
+                                      & u_n_R - sqrt(max(verysmall, c%R*c%R + ((4._wp/3._wp)*Ca_inv_R + tau_nn_R)/rho%R)))
+                            S_R = max(u_n_R + sqrt(max(verysmall, c%R*c%R + ((4._wp/3._wp)*Ca_inv_R + tau_nn_R)/rho%R)), &
+                                      & u_n_L + sqrt(max(verysmall, c%L*c%L + ((4._wp/3._wp)*Ca_inv_L + tau_nn_L)/rho%L)))
 
                             if (p > 0 .and. .not. cyl_coord) then
                                 ! 3D Cartesian: 14-state compact basis
@@ -461,8 +461,8 @@ contains
                                     dSigma = Sigma_R - Sigma_L
                                     Sigma_ref = max(max(abs(Sigma_L), abs(Sigma_R)), verysmall)
 
-                                    a_L_ref = sqrt(max(verysmall, c%L*c%L + ((4._wp/3._wp)*G_L + tau_nn_L)/rho%L))
-                                    a_R_ref = sqrt(max(verysmall, c%R*c%R + ((4._wp/3._wp)*G_R + tau_nn_R)/rho%R))
+                                    a_L_ref = sqrt(max(verysmall, c%L*c%L + ((4._wp/3._wp)*Ca_inv_L + tau_nn_L)/rho%L))
+                                    a_R_ref = sqrt(max(verysmall, c%R*c%R + ((4._wp/3._wp)*Ca_inv_R + tau_nn_R)/rho%R))
                                     a_ref = max(max(a_L_ref, a_R_ref), verysmall)
 
                                     du_t = u_t_R - u_t_L
@@ -520,10 +520,10 @@ contains
                                     rho_hat = rho_hat + alpha_rho_hat(i)
                                 end do
 
-                                G_hat = 0._wp
+                                Ca_inv_hat = 0._wp
                                 $:GPU_LOOP(parallelism='[seq]')
                                 do i = 1, num_fluids
-                                    G_hat = G_hat + alpha_hat(i)*Gs_rs(i)
+                                    Ca_inv_hat = Ca_inv_hat + alpha_hat(i)*Ca_invs_rs(i)
                                 end do
 
                                 ! Two-component 2D only (enforced by checker restrictions)
@@ -536,8 +536,8 @@ contains
                                     alpha_hat_q = alpha_hat(2)
                                     alpha_rho_hat_q = alpha_rho_hat(2)
                                     call s_phase_bulk_modulus(pres_hat, alpha_hat_q, alpha_rho_hat_q, 2, blkmod2_hat)
-                                    blkmod1_hat = blkmod1_hat + (4._wp/3._wp)*Gs_rs(1)
-                                    blkmod2_hat = blkmod2_hat + (4._wp/3._wp)*Gs_rs(2)
+                                    blkmod1_hat = blkmod1_hat + (4._wp/3._wp)*Ca_invs_rs(1)
+                                    blkmod2_hat = blkmod2_hat + (4._wp/3._wp)*Ca_invs_rs(2)
                                     K_hat = alpha_hat(1)*alpha_hat(2)*(blkmod2_hat - blkmod1_hat)/(alpha_hat(1)*blkmod2_hat &
                                                       & + alpha_hat(2)*blkmod1_hat + verysmall)
                                 end if
@@ -550,19 +550,19 @@ contains
                                     F_R(7) = U_R(7)*u_n_R - C_hat_1*u_n_R
                                     F_L(8) = U_L(8)*u_n_L - C_hat_2*u_n_L
                                     F_R(8) = U_R(8)*u_n_R - C_hat_2*u_n_R
-                                    F_L(9) = U_L(9)*u_n_L - rho_hat*(4._wp/3._wp*G_hat + tau_nn_hat)*u_n_L
-                                    F_R(9) = U_R(9)*u_n_R - rho_hat*(4._wp/3._wp*G_hat + tau_nn_hat)*u_n_R
-                                    F_L(10) = U_L(10)*u_n_L - rho_hat*(G_hat + tau_nn_hat)*u_t_L
-                                    F_R(10) = U_R(10)*u_n_R - rho_hat*(G_hat + tau_nn_hat)*u_t_R
-                                    F_L(11) = U_L(11)*u_n_L - rho_hat*(G_hat + tau_nn_hat)*u_t2_L
-                                    F_R(11) = U_R(11)*u_n_R - rho_hat*(G_hat + tau_nn_hat)*u_t2_R
-                                    F_L(12) = U_L(12)*u_n_L + rho_hat*(2._wp/3._wp*G_hat + tau_tt_hat)*u_n_L &
+                                    F_L(9) = U_L(9)*u_n_L - rho_hat*(4._wp/3._wp*Ca_inv_hat + tau_nn_hat)*u_n_L
+                                    F_R(9) = U_R(9)*u_n_R - rho_hat*(4._wp/3._wp*Ca_inv_hat + tau_nn_hat)*u_n_R
+                                    F_L(10) = U_L(10)*u_n_L - rho_hat*(Ca_inv_hat + tau_nn_hat)*u_t_L
+                                    F_R(10) = U_R(10)*u_n_R - rho_hat*(Ca_inv_hat + tau_nn_hat)*u_t_R
+                                    F_L(11) = U_L(11)*u_n_L - rho_hat*(Ca_inv_hat + tau_nn_hat)*u_t2_L
+                                    F_R(11) = U_R(11)*u_n_R - rho_hat*(Ca_inv_hat + tau_nn_hat)*u_t2_R
+                                    F_L(12) = U_L(12)*u_n_L + rho_hat*(2._wp/3._wp*Ca_inv_hat + tau_tt_hat)*u_n_L &
                                         & - 2._wp*rho_hat*tau_nt_hat*u_t_L
-                                    F_R(12) = U_R(12)*u_n_R + rho_hat*(2._wp/3._wp*G_hat + tau_tt_hat)*u_n_R &
+                                    F_R(12) = U_R(12)*u_n_R + rho_hat*(2._wp/3._wp*Ca_inv_hat + tau_tt_hat)*u_n_R &
                                         & - 2._wp*rho_hat*tau_nt_hat*u_t_R
-                                    F_L(13) = U_L(13)*u_n_L + rho_hat*(2._wp/3._wp*G_hat + tau_t2t2_hat)*u_n_L &
+                                    F_L(13) = U_L(13)*u_n_L + rho_hat*(2._wp/3._wp*Ca_inv_hat + tau_t2t2_hat)*u_n_L &
                                         & - 2._wp*rho_hat*tau_nt2_hat*u_t2_L
-                                    F_R(13) = U_R(13)*u_n_R + rho_hat*(2._wp/3._wp*G_hat + tau_t2t2_hat)*u_n_R &
+                                    F_R(13) = U_R(13)*u_n_R + rho_hat*(2._wp/3._wp*Ca_inv_hat + tau_t2t2_hat)*u_n_R &
                                         & - 2._wp*rho_hat*tau_nt2_hat*u_t2_R
                                     F_L(14) = U_L(14)*u_n_L + rho_hat*tau_t1t2_hat*u_n_L - rho_hat*tau_nt2_hat*u_t_L &
                                         & - rho_hat*tau_nt_hat*u_t2_L
@@ -574,16 +574,16 @@ contains
                                     F_R(6) = U_R(6)*u_n_R - C_hat_1*u_n_R
                                     F_L(7) = U_L(7)*u_n_L - C_hat_2*u_n_L
                                     F_R(7) = U_R(7)*u_n_R - C_hat_2*u_n_R
-                                    F_L(8) = U_L(8)*u_n_L - rho_hat*(4._wp/3._wp*G_hat + tau_nn_hat)*u_n_L
-                                    F_R(8) = U_R(8)*u_n_R - rho_hat*(4._wp/3._wp*G_hat + tau_nn_hat)*u_n_R
-                                    F_L(9) = U_L(9)*u_n_L - rho_hat*(G_hat + tau_nn_hat)*u_t_L
-                                    F_R(9) = U_R(9)*u_n_R - rho_hat*(G_hat + tau_nn_hat)*u_t_R
-                                    F_L(10) = U_L(10)*u_n_L + rho_hat*(2._wp/3._wp*G_hat + tau_tt_hat)*u_n_L &
+                                    F_L(8) = U_L(8)*u_n_L - rho_hat*(4._wp/3._wp*Ca_inv_hat + tau_nn_hat)*u_n_L
+                                    F_R(8) = U_R(8)*u_n_R - rho_hat*(4._wp/3._wp*Ca_inv_hat + tau_nn_hat)*u_n_R
+                                    F_L(9) = U_L(9)*u_n_L - rho_hat*(Ca_inv_hat + tau_nn_hat)*u_t_L
+                                    F_R(9) = U_R(9)*u_n_R - rho_hat*(Ca_inv_hat + tau_nn_hat)*u_t_R
+                                    F_L(10) = U_L(10)*u_n_L + rho_hat*(2._wp/3._wp*Ca_inv_hat + tau_tt_hat)*u_n_L &
                                         & - 2._wp*rho_hat*tau_nt_hat*u_t_L
-                                    F_R(10) = U_R(10)*u_n_R + rho_hat*(2._wp/3._wp*G_hat + tau_tt_hat)*u_n_R &
+                                    F_R(10) = U_R(10)*u_n_R + rho_hat*(2._wp/3._wp*Ca_inv_hat + tau_tt_hat)*u_n_R &
                                         & - 2._wp*rho_hat*tau_nt_hat*u_t_R
-                                    F_L(11) = U_L(11)*u_n_L + rho_hat*(2._wp/3._wp*G_hat + tau_qq_hat)*u_n_L
-                                    F_R(11) = U_R(11)*u_n_R + rho_hat*(2._wp/3._wp*G_hat + tau_qq_hat)*u_n_R
+                                    F_L(11) = U_L(11)*u_n_L + rho_hat*(2._wp/3._wp*Ca_inv_hat + tau_qq_hat)*u_n_L
+                                    F_R(11) = U_R(11)*u_n_R + rho_hat*(2._wp/3._wp*Ca_inv_hat + tau_qq_hat)*u_n_R
                                 end if
 
                                 ! The effective shear stiffness is anchor-dependent. Resolve its three numerical states before
@@ -593,20 +593,20 @@ contains
                                 fan_fallback = degenerate
                                 shear_degenerate = .false.
                                 if (.not. fan_fallback) then
-                                    G_eff = G_hat + tau_nn_hat
-                                    G_eff_tol = G_eff_roundoff_factor*epsilon(1._wp)*(abs(G_hat) + abs(tau_nn_hat))
+                                    Ca_inv_eff = Ca_inv_hat + tau_nn_hat
+                                    Ca_inv_eff_tol = Ca_inv_eff_roundoff_factor*epsilon(1._wp)*(abs(Ca_inv_hat) + abs(tau_nn_hat))
 
-                                    if (.not. (G_eff >= -G_eff_tol)) then
+                                    if (.not. (Ca_inv_eff >= -Ca_inv_eff_tol)) then
                                         ! Materially negative, or unordered (NaN): no real five-wave shear fan.
                                         fan_fallback = .true.
-                                    else if (G_eff <= G_eff_tol) then
+                                    else if (Ca_inv_eff <= Ca_inv_eff_tol) then
                                         shear_degenerate = .true.
                                         S_Lstar = S_M
                                         S_Rstar = S_M
                                     else
-                                        C_NC = rho_hat*G_eff
+                                        C_NC = rho_hat*Ca_inv_eff
                                         if (.not. (C_NC > 0._wp)) then
-                                            ! Positive G_eff below the representable C_NC range is numerically degenerate;
+                                            ! Positive Ca_inv_eff below the representable C_NC range is numerically degenerate;
                                             ! nonpositive/unordered rho_hat is invalid for the same construction.
                                             shear_degenerate = (rho_hat > 0._wp)
                                             fan_fallback = .not. shear_degenerate
@@ -664,12 +664,12 @@ contains
 
                                     ! Outer-wave stress star states: one formula family over the components. ELC is
                                     ! the anchor-side elastic coefficient (deviatoric 4/3 vs 2/3 structure; t1t2
-                                    ! carries no G term) and SGN = -1/+1 the jump sign of the component.
-                                    #:for TAU, SGN, ELC in [('tau_nn', -1, '(G_hat*4._wp/3._wp + tau_nn_hat)'), &
-                                        & ('tau_tt', 1, '(G_hat*2._wp/3._wp + tau_tt_hat)'), &
-                                        & ('tau_t2t2', 1, '(G_hat*2._wp/3._wp + tau_t2t2_hat)'), &
+                                    ! carries no Ca_inv term) and SGN = -1/+1 the jump sign of the component.
+                                    #:for TAU, SGN, ELC in [('tau_nn', -1, '(Ca_inv_hat*4._wp/3._wp + tau_nn_hat)'), &
+                                        & ('tau_tt', 1, '(Ca_inv_hat*2._wp/3._wp + tau_tt_hat)'), &
+                                        & ('tau_t2t2', 1, '(Ca_inv_hat*2._wp/3._wp + tau_t2t2_hat)'), &
                                         & ('tau_t1t2', 1, 'tau_t1t2_hat'), &
-                                        & ('tau_qq', 1, '(G_hat*2._wp/3._wp + tau_qq_hat)')]
+                                        & ('tau_qq', 1, '(Ca_inv_hat*2._wp/3._wp + tau_qq_hat)')]
                                         #:for S, SOUT in [('L', 'S_L'), ('R', 'S_R')]
                                             ${TAU}$_${S}$_star = ${TAU}$_${S}$ ${'-' if SGN < 0 else '+'}$ (rho_hat*${ELC}$*(u_n_${S}$ - S_M))/(rho%${S}$*(u_n_${S}$ - ${SOUT}$))
                                         #:endfor

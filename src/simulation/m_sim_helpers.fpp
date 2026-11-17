@@ -66,18 +66,18 @@ contains
         integer, intent(in)                   :: Re_size_loc1, Re_size_loc2
         real(wp), dimension(2), intent(inout) :: Re
         #:if not MFC_CASE_OPTIMIZATION and USING_AMD
-            real(wp), dimension(3) :: Gs
+            real(wp), dimension(3) :: Ca_invs
         #:else
-            real(wp), dimension(num_fluids) :: Gs
+            real(wp), dimension(num_fluids) :: Ca_invs
         #:endif
-        real(wp) :: G_local
+        real(wp) :: Ca_inv_local
         integer  :: i
 
         call s_compute_species_fraction(q_prim_vf, j, k, l, alpha_rho, alpha)
 
         if (hypoelasticity) then
-            call s_convert_species_to_mixture_variables_kernel(rho, gamma, pi_inf, qv, alpha, alpha_rho, Re, G_local, Gs, &
-                & Re_size_loc1, Re_size_loc2)
+            call s_convert_species_to_mixture_variables_kernel(rho, gamma, pi_inf, qv, alpha, alpha_rho, Re, Ca_inv_local, &
+                & Ca_invs, Re_size_loc1, Re_size_loc2)
         else
             call s_convert_species_to_mixture_variables_kernel(rho, gamma, pi_inf, qv, alpha, alpha_rho, Re, &
                 & Re_size_loc1=Re_size_loc1, Re_size_loc2=Re_size_loc2)

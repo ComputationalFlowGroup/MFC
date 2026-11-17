@@ -1182,7 +1182,7 @@ contains
         integer :: i_fluid_loop
         real(wp) :: inv_ds, flux_face1, flux_face2
         real(wp) :: advected_qty_val, pressure_val
-        real(wp) :: G1_eff, G2_eff, pres_K, alpha_K, alpha_rho_K, blkmod_K
+        real(wp) :: Ca_inv1_eff, Ca_inv2_eff, pres_K, alpha_K, alpha_rho_K, blkmod_K
         real(wp) :: rhs_val
         logical :: adv_fused               !< The vel_iface alpha*div(u) term rides in the flux-difference kernel
         integer :: fadv_lo, fadv_hi        !< Its equation range there (empty when not fused)
@@ -1192,11 +1192,11 @@ contains
         fadv_lo = eqn_idx%adv%beg
         fadv_hi = merge(eqn_idx%adv%end, fadv_lo - 1, adv_fused)
 
-        G1_eff = 0._wp
-        G2_eff = 0._wp
+        Ca_inv1_eff = 0._wp
+        Ca_inv2_eff = 0._wp
         if (hypoelasticity) then
-            G1_eff = fluid_pp(1)%G
-            G2_eff = fluid_pp(2)%G
+            Ca_inv1_eff = fluid_pp(1)%Ca_inv
+            Ca_inv2_eff = fluid_pp(2)%Ca_inv
         end if
 
         if (alt_soundspeed) then
@@ -1210,11 +1210,11 @@ contains
                         alpha_K = q_prim_vf%vf(eqn_idx%adv%beg)%sf(k_loop, l_loop, q_loop)
                         alpha_rho_K = q_prim_vf%vf(eqn_idx%cont%beg)%sf(k_loop, l_loop, q_loop)
                         call s_phase_bulk_modulus(pres_K, alpha_K, alpha_rho_K, 1, blkmod_K)
-                        blkmod1(k_loop, l_loop, q_loop) = blkmod_K + (4._wp/3._wp)*G1_eff
+                        blkmod1(k_loop, l_loop, q_loop) = blkmod_K + (4._wp/3._wp)*Ca_inv1_eff
                         alpha_K = q_prim_vf%vf(eqn_idx%adv%end)%sf(k_loop, l_loop, q_loop)
                         alpha_rho_K = q_prim_vf%vf(eqn_idx%cont%end)%sf(k_loop, l_loop, q_loop)
                         call s_phase_bulk_modulus(pres_K, alpha_K, alpha_rho_K, 2, blkmod_K)
-                        blkmod2(k_loop, l_loop, q_loop) = blkmod_K + (4._wp/3._wp)*G2_eff
+                        blkmod2(k_loop, l_loop, q_loop) = blkmod_K + (4._wp/3._wp)*Ca_inv2_eff
                         alpha1(k_loop, l_loop, q_loop) = q_cons_vf%vf(eqn_idx%adv%beg)%sf(k_loop, l_loop, q_loop)
 
                         if (bubbles_euler) then

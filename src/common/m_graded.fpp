@@ -14,12 +14,12 @@ module m_graded
 
     implicit none
 
-    private; public :: s_initialize_graded, s_grade_G, s_grade_Re, s_finalize_graded, G_graded_flag
+    private; public :: s_initialize_graded, s_grade_Ca_inv, s_grade_Re, s_finalize_graded, Ca_inv_graded_flag
 
     ! flat arrays
-    logical, allocatable, dimension(:)    :: G_graded_flag
+    logical, allocatable, dimension(:)    :: Ca_inv_graded_flag
     logical, allocatable, dimension(:)    :: Re_graded_flag
-    real(wp), allocatable, dimension(:)   :: G_init_arr, G_end_arr
+    real(wp), allocatable, dimension(:)   :: Ca_inv_init_arr, Ca_inv_end_arr
     real(wp), allocatable, dimension(:,:) :: Re_init_arr
     real(wp), allocatable, dimension(:,:) :: Re_end_arr
     integer, allocatable, dimension(:)    :: graded_type_arr, graded_profile_arr
@@ -27,9 +27,9 @@ module m_graded
     real(wp), allocatable, dimension(:,:) :: graded_beg_arr, graded_end_arr, graded_center_arr
     real(wp), allocatable, dimension(:)   :: graded_r_beg_arr, graded_r_end_arr
 
-    $:GPU_DECLARE(create='[G_graded_flag]')
+    $:GPU_DECLARE(create='[Ca_inv_graded_flag]')
     $:GPU_DECLARE(create='[Re_graded_flag]')
-    $:GPU_DECLARE(create='[G_init_arr, G_end_arr]')
+    $:GPU_DECLARE(create='[Ca_inv_init_arr, Ca_inv_end_arr]')
     $:GPU_DECLARE(create='[Re_init_arr, Re_end_arr]')
     $:GPU_DECLARE(create='[graded_type_arr, graded_profile_arr]')
     $:GPU_DECLARE(create='[graded_k, graded_n, graded_a]')
@@ -43,19 +43,19 @@ contains
 
         integer :: i
 
-        @:ALLOCATE(G_graded_flag(1:num_fluids), Re_graded_flag(1:num_fluids), graded_type_arr(1:num_fluids), &
-                   & graded_profile_arr(1:num_fluids), G_init_arr(1:num_fluids), G_end_arr(1:num_fluids), &
+        @:ALLOCATE(Ca_inv_graded_flag(1:num_fluids), Re_graded_flag(1:num_fluids), graded_type_arr(1:num_fluids), &
+                   & graded_profile_arr(1:num_fluids), Ca_inv_init_arr(1:num_fluids), Ca_inv_end_arr(1:num_fluids), &
                    & Re_init_arr(1:2,1:num_fluids), Re_end_arr(1:2,1:num_fluids), graded_k(1:num_fluids), graded_n(1:num_fluids), &
                    & graded_a(1:num_fluids), graded_beg_arr(1:3, 1:num_fluids), graded_end_arr(1:3, 1:num_fluids), &
                    & graded_center_arr(1:3, 1:num_fluids), graded_r_beg_arr(1:num_fluids), graded_r_end_arr(1:num_fluids))
 
         do i = 1, num_fluids
-            G_graded_flag(i) = fluid_pp(i)%graded_G
+            Ca_inv_graded_flag(i) = fluid_pp(i)%graded_Ca_inv
             Re_graded_flag(i) = fluid_pp(i)%graded_Re
             graded_type_arr(i) = fluid_pp(i)%graded_type
             graded_profile_arr(i) = fluid_pp(i)%graded_profile
-            G_init_arr(i) = fluid_pp(i)%graded_G_init
-            G_end_arr(i) = fluid_pp(i)%graded_G_end
+            Ca_inv_init_arr(i) = fluid_pp(i)%graded_Ca_inv_init
+            Ca_inv_end_arr(i) = fluid_pp(i)%graded_Ca_inv_end
             Re_init_arr(1, i) = fluid_pp(i)%graded_Re_init(1)
             Re_init_arr(2, i) = fluid_pp(i)%graded_Re_init(2)
             Re_end_arr(1, i) = fluid_pp(i)%graded_Re_end(1)
@@ -74,14 +74,14 @@ contains
             graded_center_arr(1, i) = fluid_pp(i)%graded_center_loc_x
             graded_center_arr(2, i) = fluid_pp(i)%graded_center_loc_y
             graded_center_arr(3, i) = fluid_pp(i)%graded_center_loc_z
-            if (G_graded_flag(i)) then
-                fluid_pp(i)%G = G_init_arr(i)
+            if (Ca_inv_graded_flag(i)) then
+                fluid_pp(i)%Ca_inv = Ca_inv_init_arr(i)
             end if
         end do
 
-        $:GPU_UPDATE(device='[G_graded_flag, Re_graded_flag, graded_type_arr, graded_profile_arr, G_init_arr, G_end_arr, &
-                     & Re_init_arr, Re_end_arr, graded_beg_arr, graded_end_arr, graded_center_arr, graded_r_beg_arr, &
-                     & graded_r_end_arr, graded_n, graded_k, graded_a]')
+        $:GPU_UPDATE(device='[Ca_inv_graded_flag, Re_graded_flag, graded_type_arr, graded_profile_arr, Ca_inv_init_arr, &
+                     & Ca_inv_end_arr, Re_init_arr, Re_end_arr, graded_beg_arr, graded_end_arr, graded_center_arr, &
+                     & graded_r_beg_arr, graded_r_end_arr, graded_n, graded_k, graded_a]')
 
     end subroutine s_initialize_graded
 
@@ -151,43 +151,43 @@ contains
     end function f_calc_profile
 
     !> Evaluate graded shear modulus at a point, using the reference map as the spatial coordinate
-    impure subroutine s_grade_G(xi_x, xi_y, xi_z, fluid_idx, G_out)
+    impure subroutine s_grade_Ca_inv(xi_x, xi_y, xi_z, fluid_idx, Ca_inv_out)
 
         real(wp), intent(in)  :: xi_x, xi_y, xi_z
         integer, intent(in)   :: fluid_idx
-        real(wp), intent(out) :: G_out
+        real(wp), intent(out) :: Ca_inv_out
         real(wp)              :: proj, ramp
-        real(wp)              :: G_init, G_end
+        real(wp)              :: Ca_inv_init, Ca_inv_end
         real(wp)              :: r, dx, dy, dz
 
         $:GPU_ROUTINE(parallelism='[seq]')
 
-        G_init = G_init_arr(fluid_idx)
-        G_end = G_end_arr(fluid_idx)
+        Ca_inv_init = Ca_inv_init_arr(fluid_idx)
+        Ca_inv_end = Ca_inv_end_arr(fluid_idx)
 
         if (graded_profile_arr(fluid_idx) == 3) then
-            ! Power law: G = G_init * (r/graded_scaling)^graded_exp
+            ! Power law: Ca_inv = Ca_inv_init * (r/graded_scaling)^graded_exp
             dx = xi_x - graded_center_arr(1, fluid_idx)
             dy = xi_y - graded_center_arr(2, fluid_idx)
             dz = xi_z - graded_center_arr(3, fluid_idx)
             r = max(sqrt(dx*dx + dy*dy + dz*dz), 1.e-12_wp)
-            G_out = G_init*(r/graded_a(fluid_idx))**graded_n(fluid_idx)
+            Ca_inv_out = Ca_inv_init*(r/graded_a(fluid_idx))**graded_n(fluid_idx)
         else
             proj = f_calc_projection(xi_x, xi_y, xi_z, fluid_idx)
 
             if (proj <= 0._wp) then
-                G_out = G_init
+                Ca_inv_out = Ca_inv_init
             else if (proj >= 1._wp) then
-                G_out = G_end
+                Ca_inv_out = Ca_inv_end
             else
                 ramp = f_calc_profile(proj, fluid_idx)
-                G_out = G_init + (G_end - G_init)*ramp
+                Ca_inv_out = Ca_inv_init + (Ca_inv_end - Ca_inv_init)*ramp
             end if
         end if
 
-        G_out = max(G_out, 0._wp)
+        Ca_inv_out = max(Ca_inv_out, 0._wp)
 
-    end subroutine s_grade_G
+    end subroutine s_grade_Ca_inv
 
     !> Evaluate graded viscosity (shear or bulk, selected by j) at a point, using the reference map as the spatial coordinate
     subroutine s_grade_Re(xi_x, xi_y, xi_z, fluid_idx, j, Re_out)
@@ -222,9 +222,9 @@ contains
     !> Deallocate graded buffer arrays allocated during module initialization
     subroutine s_finalize_graded
 
-        @:DEALLOCATE(G_graded_flag, Re_graded_flag, graded_type_arr, graded_profile_arr, G_init_arr, G_end_arr, Re_init_arr, &
-                     & Re_end_arr, graded_beg_arr, graded_end_arr, graded_center_arr, graded_r_beg_arr, graded_r_end_arr, &
-                     & graded_n, graded_k, graded_a)
+        @:DEALLOCATE(Ca_inv_graded_flag, Re_graded_flag, graded_type_arr, graded_profile_arr, Ca_inv_init_arr, Ca_inv_end_arr, &
+                     & Re_init_arr, Re_end_arr, graded_beg_arr, graded_end_arr, graded_center_arr, graded_r_beg_arr, &
+                     & graded_r_end_arr, graded_n, graded_k, graded_a)
 
     end subroutine s_finalize_graded
 

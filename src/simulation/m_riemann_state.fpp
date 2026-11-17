@@ -65,8 +65,8 @@ module m_riemann_state
 
     $:GPU_DECLARE(create='[is1, is2, is3, isx, isy, isz]')
 
-    real(wp), allocatable, dimension(:) :: Gs_rs
-    $:GPU_DECLARE(create='[Gs_rs]')
+    real(wp), allocatable, dimension(:) :: Ca_invs_rs
+    $:GPU_DECLARE(create='[Ca_invs_rs]')
 
     real(wp), allocatable, dimension(:,:) :: Res_gs
     $:GPU_DECLARE(create='[Res_gs]')
@@ -75,14 +75,14 @@ contains
 
     !> Elastic signal speed of Rodriguez et al. JCP (2019): the acoustic speed stiffened by the shear modulus and the normal elastic
     !! stress. Callers subtract it for the left-going wave and add it for the right-going one.
-    function f_elastic_signal_speed(c, G, tau, rho) result(a)
+    function f_elastic_signal_speed(c, Ca_inv, tau, rho) result(a)
 
         $:GPU_ROUTINE(function_name='f_elastic_signal_speed', parallelism='[seq]', cray_inline=True)
 
-        real(wp), intent(in) :: c, G, tau, rho
+        real(wp), intent(in) :: c, Ca_inv, tau, rho
         real(wp)             :: a
 
-        a = sqrt(max(verysmall, c*c + (((4._wp*G)/3._wp) + tau)/rho))
+        a = sqrt(max(verysmall, c*c + (((4._wp*Ca_inv)/3._wp) + tau)/rho))
 
     end function f_elastic_signal_speed
 
@@ -1272,11 +1272,11 @@ contains
     !! over the fluids, add the elastic energy of each stress component (doubled for the shear components) on each side whose
     !! mixture modulus is non-negligible, then scale the returned moduli by the continuum damage state when damage is modeled
     !! (energy uses the undamaged modulus; the damaged moduli feed the callers' wave speeds). The elastic shear stresses are loaded
-    !! from the state buffers by the caller, which reuses them for the stress fluxes and elastic wave speeds. The G > verysmall
-    !! per-side gate is a deliberate maintainer ruling that replaces HLL's former hard-coded G > 1000 stability floor, retiring its
-    !! "TODO take out if statement if stable without".
-    subroutine s_compute_hypoelastic_interface_energy(nf, alpha_L, alpha_R, damage_L, damage_R, tau_e_L, tau_e_R, G_L, G_R, E_L, &
-        & E_R)
+    !! from the state buffers by the caller, which reuses them for the stress fluxes and elastic wave speeds. The Ca_inv > verysmall
+    !! per-side gate is a deliberate maintainer ruling that replaces HLL's former hard-coded Ca_inv > 1000 stability floor, retiring
+    !! its "TODO take out if statement if stable without".
+    subroutine s_compute_hypoelastic_interface_energy(nf, alpha_L, alpha_R, damage_L, damage_R, tau_e_L, tau_e_R, Ca_inv_L, &
+        & Ca_inv_R, E_L, E_R)
 
         $:GPU_ROUTINE(function_name='s_compute_hypoelastic_interface_energy', parallelism='[seq]', cray_inline=True)
 
@@ -1284,42 +1284,42 @@ contains
         real(wp), dimension(nf), intent(in) :: alpha_L, alpha_R    !< Left and right volume fractions
         real(wp), intent(in)                :: damage_L, damage_R  !< Continuum damage states (referenced only when cont_damage)
         real(wp), dimension(6), intent(in)  :: tau_e_L, tau_e_R    !< Left and right elastic shear stresses
-        real(wp), intent(out)               :: G_L, G_R            !< Left and right mixture shear moduli
+        real(wp), intent(out)               :: Ca_inv_L, Ca_inv_R  !< Left and right mixture shear moduli
         real(wp), intent(inout)             :: E_L, E_R            !< Left and right state energies
         integer                             :: i                   !< Loop iterator
 
-        G_L = 0._wp; G_R = 0._wp
+        Ca_inv_L = 0._wp; Ca_inv_R = 0._wp
 
         $:GPU_LOOP(parallelism='[seq]')
         do i = 1, nf
-            G_L = G_L + alpha_L(i)*Gs_rs(i)
-            G_R = G_R + alpha_R(i)*Gs_rs(i)
+            Ca_inv_L = Ca_inv_L + alpha_L(i)*Ca_invs_rs(i)
+            Ca_inv_R = Ca_inv_R + alpha_R(i)*Ca_invs_rs(i)
         end do
 
         ! Elastic energy uses the undamaged modulus, so this loop precedes the damage scaling
         $:GPU_LOOP(parallelism='[seq]')
         do i = 1, eqn_idx%stress%end - eqn_idx%stress%beg + 1
-            ! Elastic contribution to energy if G large enough
-            if (G_L > verysmall) then
-                E_L = E_L + (tau_e_L(i)*tau_e_L(i))/(4._wp*G_L)
+            ! Elastic contribution to energy if Ca_inv large enough
+            if (Ca_inv_L > verysmall) then
+                E_L = E_L + (tau_e_L(i)*tau_e_L(i))/(4._wp*Ca_inv_L)
                 ! Double for shear stresses
                 if (${IS_SHEAR('eqn_idx%stress%beg - 1 + i')}$) then
-                    E_L = E_L + (tau_e_L(i)*tau_e_L(i))/(4._wp*G_L)
+                    E_L = E_L + (tau_e_L(i)*tau_e_L(i))/(4._wp*Ca_inv_L)
                 end if
             end if
-            if (G_R > verysmall) then
-                E_R = E_R + (tau_e_R(i)*tau_e_R(i))/(4._wp*G_R)
+            if (Ca_inv_R > verysmall) then
+                E_R = E_R + (tau_e_R(i)*tau_e_R(i))/(4._wp*Ca_inv_R)
                 ! Double for shear stresses
                 if (${IS_SHEAR('eqn_idx%stress%beg - 1 + i')}$) then
-                    E_R = E_R + (tau_e_R(i)*tau_e_R(i))/(4._wp*G_R)
+                    E_R = E_R + (tau_e_R(i)*tau_e_R(i))/(4._wp*Ca_inv_R)
                 end if
             end if
         end do
 
         ! Damage scaling applies only to the returned moduli (used for wave speeds)
         if (cont_damage) then
-            G_L = G_L*max((1._wp - damage_L), 0._wp)
-            G_R = G_R*max((1._wp - damage_R), 0._wp)
+            Ca_inv_L = Ca_inv_L*max((1._wp - damage_L), 0._wp)
+            Ca_inv_R = Ca_inv_R*max((1._wp - damage_R), 0._wp)
         end if
 
     end subroutine s_compute_hypoelastic_interface_energy

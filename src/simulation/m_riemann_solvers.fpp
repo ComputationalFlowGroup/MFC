@@ -74,12 +74,12 @@ contains
                        & "this case-optimized binary was built for riemann_solver = ${riemann_solver}$; rebuild for the value in the case file, or build without --case-optimization")
         #:endif
 
-        @:ALLOCATE(Gs_rs(1:num_fluids))
+        @:ALLOCATE(Ca_invs_rs(1:num_fluids))
 
         do i = 1, num_fluids
-            Gs_rs(i) = fluid_pp(i)%G
+            Ca_invs_rs(i) = fluid_pp(i)%Ca_inv
         end do
-        $:GPU_UPDATE(device='[Gs_rs]')
+        $:GPU_UPDATE(device='[Ca_invs_rs]')
 
         ! Always allocated: HLLC kernels name it under `if (viscous)`; amdflang's present:allocatable aborts on unallocated
         @:ALLOCATE(Res_gs(1:2, 1:max(1, Re_size_max)))
@@ -188,7 +188,7 @@ contains
         @:DEALLOCATE(flux_rsx_vf)
         @:DEALLOCATE(flux_src_rsx_vf)
         @:DEALLOCATE(flux_gsrc_rsx_vf)
-        @:DEALLOCATE(Gs_rs)
+        @:DEALLOCATE(Ca_invs_rs)
         if (use_nc_iface_vel) then
             @:DEALLOCATE(nc_iface_vel_rsx_vf)
         end if

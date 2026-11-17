@@ -2146,7 +2146,7 @@ def list_cases() -> typing.List[TestCaseBuilder]:
                     "patch_icpp(1)%tau_e(1)": 0.0e-00,
                     "patch_icpp(2)%tau_e(1)": 0.0e-00,
                     "patch_icpp(3)%tau_e(1)": 0.0e-00,
-                    "fluid_pp(1)%G": 1.0e05,
+                    "fluid_pp(1)%Ca_inv": 1.0e05,
                 },
             )
 
@@ -2169,7 +2169,7 @@ def list_cases() -> typing.List[TestCaseBuilder]:
                         "patch_icpp(3)%alpha(1)": 0.9,
                         "patch_icpp(3)%alpha_rho(2)": 100,
                         "patch_icpp(3)%alpha(2)": 0.1,
-                        "fluid_pp(2)%G": 5.0e04,
+                        "fluid_pp(2)%Ca_inv": 5.0e04,
                     },
                 )
 
@@ -2296,7 +2296,7 @@ def list_cases() -> typing.List[TestCaseBuilder]:
                             "tau_star": 1.0e5,
                             "cont_damage_s": 2.0,
                             "alpha_bar": 3e-5,
-                            "fluid_pp(2)%G": 0.0,
+                            "fluid_pp(2)%Ca_inv": 0.0,
                             "patch_icpp(2)%tau_e(4)": 5.0e5,
                         },
                     )
@@ -3051,11 +3051,11 @@ def list_cases() -> typing.List[TestCaseBuilder]:
             "fluid_pp(1)%gamma": _fl_g,
             "fluid_pp(1)%eos": "stiffened_gas",
             "fluid_pp(1)%pi_inf": _fl_p,
-            "fluid_pp(1)%G": 0.0,
+            "fluid_pp(1)%Ca_inv": 0.0,
             "fluid_pp(2)%gamma": _fl_g,
             "fluid_pp(2)%eos": "stiffened_gas",
             "fluid_pp(2)%pi_inf": _fl_p,
-            "fluid_pp(2)%G": 1e7,
+            "fluid_pp(2)%Ca_inv": 1e7,
         }
         _common = {
             "run_time_info": "T",
@@ -3265,7 +3265,7 @@ def list_cases() -> typing.List[TestCaseBuilder]:
             "fluid_pp(3)%gamma": _fl_g,
             "fluid_pp(3)%eos": "stiffened_gas",
             "fluid_pp(3)%pi_inf": _fl_p,
-            "fluid_pp(3)%G": 5e6,
+            "fluid_pp(3)%Ca_inv": 5e6,
             "patch_icpp(1)%alpha_rho(1)": 600.0,
             "patch_icpp(1)%alpha(1)": 0.6,
             "patch_icpp(1)%alpha_rho(2)": 300.0,
@@ -3345,10 +3345,10 @@ def list_cases() -> typing.List[TestCaseBuilder]:
             "dt": 0.2 * dx / c_outer,
             "fluid_pp(1)%gamma": 1.0 / (gamma - 1.0),
             "fluid_pp(1)%eos": "ideal_gas",
-            "fluid_pp(1)%G": G_solid,
+            "fluid_pp(1)%Ca_inv": G_solid,
             "fluid_pp(2)%gamma": 1.0 / (gamma - 1.0),
             "fluid_pp(2)%eos": "ideal_gas",
-            "fluid_pp(2)%G": 0.0,
+            "fluid_pp(2)%Ca_inv": 0.0,
             "patch_icpp(1)%geometry": 3,
             "patch_icpp(1)%x_centroid": 0.5,
             "patch_icpp(1)%y_centroid": 0.5,
@@ -3389,7 +3389,7 @@ def list_cases() -> typing.List[TestCaseBuilder]:
             )
         )
 
-        # Exercise the two changed G_eff = G_hat + tau_nn_hat outcomes: resolved
+        # Exercise the two changed Ca_inv_eff = Ca_inv_hat + tau_nn_hat outcomes: resolved
         # positive HLLD and negative-state HLL fallback. The exact-zero HLLC
         # limit is unchanged by this patch.
 
@@ -3416,10 +3416,10 @@ def list_cases() -> typing.List[TestCaseBuilder]:
                 "dt": 0.2 * dx / c_outer,
                 "fluid_pp(1)%gamma": 1.0 / (gamma - 1.0),
                 "fluid_pp(1)%eos": "ideal_gas",
-                "fluid_pp(1)%G": G,
+                "fluid_pp(1)%Ca_inv": G,
                 "fluid_pp(2)%gamma": 1.0 / (gamma - 1.0),
                 "fluid_pp(2)%eos": "ideal_gas",
-                "fluid_pp(2)%G": G,
+                "fluid_pp(2)%Ca_inv": G,
                 "patch_icpp(1)%geometry": 3,
                 "patch_icpp(1)%x_centroid": 0.5,
                 "patch_icpp(1)%y_centroid": 0.5,
@@ -3470,7 +3470,7 @@ def list_cases() -> typing.List[TestCaseBuilder]:
             )
 
         # Axisymmetric fallback-face trace consistency: tau_rr = -1.1*G makes the
-        # radial-sweep fan invalid everywhere (G_eff < 0), so the radial geometric
+        # radial-sweep fan invalid everywhere (Ca_inv_eff < 0), so the radial geometric
         # source and NC velocity traces must come from the HLL/one-sided face state
         # that matches the fallback flux -- not from the rejected fan's contact
         # speed and star states. The stress IC is deviatoric with tau_rr = tau_qq
@@ -3490,10 +3490,10 @@ def list_cases() -> typing.List[TestCaseBuilder]:
                 "dt": 2.0e-3,
                 "fluid_pp(1)%gamma": 2.5,
                 "fluid_pp(1)%eos": "ideal_gas",
-                "fluid_pp(1)%G": G,
+                "fluid_pp(1)%Ca_inv": G,
                 "fluid_pp(2)%gamma": 2.5,
                 "fluid_pp(2)%eos": "ideal_gas",
-                "fluid_pp(2)%G": G,
+                "fluid_pp(2)%Ca_inv": G,
                 "patch_icpp(1)%geometry": 3,
                 "patch_icpp(1)%x_centroid": 0.5,
                 "patch_icpp(1)%y_centroid": 0.5,
@@ -3568,10 +3568,10 @@ def list_cases() -> typing.List[TestCaseBuilder]:
                 "fluid_pp(1)%gamma": 1.0 / (4.4 - 1.0),
                 "fluid_pp(1)%eos": "stiffened_gas",
                 "fluid_pp(1)%pi_inf": 4.4 * 6.0e8 / (4.4 - 1.0),
-                "fluid_pp(1)%G": 0.0,
+                "fluid_pp(1)%Ca_inv": 0.0,
                 "fluid_pp(2)%gamma": 1.0 / (1.4 - 1.0),
                 "fluid_pp(2)%eos": "ideal_gas",
-                "fluid_pp(2)%G": 0.0,
+                "fluid_pp(2)%Ca_inv": 0.0,
                 "patch_icpp(1)%geometry": 3,
                 "patch_icpp(1)%x_centroid": 0.5,
                 "patch_icpp(1)%y_centroid": 0.5,
@@ -3621,8 +3621,8 @@ def list_cases() -> typing.List[TestCaseBuilder]:
             "patch_icpp(2)%alpha(1)": 0.9,
             "patch_icpp(2)%alpha_rho(2)": 0.1 * 1.2,
             "patch_icpp(2)%alpha(2)": 0.1,
-            "fluid_pp(1)%G": 1.0e6,
-            "fluid_pp(2)%G": 0.0,
+            "fluid_pp(1)%Ca_inv": 1.0e6,
+            "fluid_pp(2)%Ca_inv": 0.0,
         }
         cases.append(
             define_case_f(
@@ -3698,10 +3698,10 @@ def list_cases() -> typing.List[TestCaseBuilder]:
             "fluid_pp(1)%gamma": 1.0 / (4.4 - 1.0),
             "fluid_pp(1)%eos": "stiffened_gas",
             "fluid_pp(1)%pi_inf": 4.4 * 6.0e8 / (4.4 - 1.0),
-            "fluid_pp(1)%G": 1.0e6,
+            "fluid_pp(1)%Ca_inv": 1.0e6,
             "fluid_pp(2)%gamma": 1.0 / (1.4 - 1.0),
             "fluid_pp(2)%eos": "ideal_gas",
-            "fluid_pp(2)%G": 1.0e6,
+            "fluid_pp(2)%Ca_inv": 1.0e6,
             "patch_icpp(1)%geometry": 3,
             "patch_icpp(1)%x_centroid": 0.5,
             "patch_icpp(1)%y_centroid": 0.5,
@@ -4773,7 +4773,7 @@ def list_cases() -> typing.List[TestCaseBuilder]:
                 "fluid_pp(1)%gamma": 0.3,
                 "fluid_pp(1)%eos": "stiffened_gas",
                 "fluid_pp(1)%pi_inf": 7.8e05,
-                "fluid_pp(1)%G": 1.0e05,
+                "fluid_pp(1)%Ca_inv": 1.0e05,
                 "patch_icpp(1)%pres": 1.0e06,
                 "patch_icpp(1)%alpha_rho(1)": 1000.0e00,
                 "patch_icpp(2)%pres": 1.0e05,
@@ -5353,7 +5353,7 @@ def list_cases() -> typing.List[TestCaseBuilder]:
                 "fluid_pp(1)%gamma": 0.3,
                 "fluid_pp(1)%eos": "stiffened_gas",
                 "fluid_pp(1)%pi_inf": 7.8e05,
-                "fluid_pp(1)%G": 1.0e05,
+                "fluid_pp(1)%Ca_inv": 1.0e05,
                 "patch_icpp(1)%pres": 1.0e06,
                 "patch_icpp(1)%alpha_rho(1)": 1000.0e00,
                 "patch_icpp(2)%pres": 1.0e05,

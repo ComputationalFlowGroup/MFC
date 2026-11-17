@@ -528,7 +528,7 @@ A particle cloud is a compact specification of a bed of identical circular (2D) 
 | `qv`   ** | Real   | Stiffened-gas parameter $q$ of fluid.          |
 | `qvp`  ** | Real   | Stiffened-gas parameter $q'$ of fluid.         |
 | `sigma`   | Real   | Surface tension coefficient                    |
-| `G`       | Real   | Shear modulus of solid.                        |
+| `Ca_inv`  | Real   | Shear modulus of solid (inverse Cauchy number). |
 
 Fluid material's parameters. All parameters except for sigma should be prepended with `fluid_pp(i)` where $i$ is the fluid index.
 
@@ -550,11 +550,11 @@ Details of implementation of viscosity in MFC can be found in \cite Coralic15.
 
 - `fluid_pp(i)%%cv`, `fluid_pp(i)%%qv`, and `fluid_pp(i)%%qvp` define $c_v$, $q$, and $q'$ as parameters of $i$-th fluid that are used in stiffened gas equation of state.
 
-- `fluid_pp(i)%%G` is required for `hypoelasticity`.
+- `fluid_pp(i)%%Ca_inv` is required for `hypoelasticity`.
 
-- `fluid_pp(i)%%graded_G` activates spatially-varying `G` for fluid `i` when ``graded = 'T'``. `graded_G_init` and `graded_G_end` set the shear modulus at the start and end of the graded region. `graded_type` selects the projection used to locate a point within the region ([1] Cartesian, along the segment from `graded_beg_loc_{x,y,z}` to `graded_end_loc_{x,y,z}`; [2] radial, from `graded_center_loc_{x,y,z}` between `graded_r_beg` and `graded_r_end`). `graded_profile` selects the ramp applied along that projection ([1] linear; [2] sinusoidal; [3] power law, using `graded_pf_coeff`, `graded_exp`, and `graded_scaling`). Grading is evaluated in the reference-map coordinate, not the current physical position.
+- `fluid_pp(i)%%graded_Ca_inv` activates spatially-varying `Ca_inv` (the shear modulus) for fluid `i` when ``graded = 'T'``. `graded_Ca_inv_init` and `graded_Ca_inv_end` set the shear modulus at the start and end of the graded region. `graded_type` selects the projection used to locate a point within the region ([1] Cartesian, along the segment from `graded_beg_loc_{x,y,z}` to `graded_end_loc_{x,y,z}`; [2] radial, from `graded_center_loc_{x,y,z}` between `graded_r_beg` and `graded_r_end`). `graded_profile` selects the ramp applied along that projection ([1] linear; [2] sinusoidal; [3] power law, using `graded_pf_coeff`, `graded_exp`, and `graded_scaling`). Grading is evaluated in the reference-map coordinate, not the current physical position.
 
-- `fluid_pp(i)%%graded_Re` activates the same spatially-varying treatment for fluid `i`'s shear and bulk Reynolds numbers (`Re(1)`, `Re(2)`), ramping between `graded_Re_init(1)`/`graded_Re_init(2)` and `graded_Re_end(1)`/`graded_Re_end(2)` using the same `graded_type`/`graded_profile` selection as `graded_G`.
+- `fluid_pp(i)%%graded_Re` activates the same spatially-varying treatment for fluid `i`'s shear and bulk Reynolds numbers (`Re(1)`, `Re(2)`), ramping between `graded_Re_init(1)`/`graded_Re_init(2)` and `graded_Re_end(1)`/`graded_Re_end(2)` using the same `graded_type`/`graded_profile` selection as `graded_Ca_inv`.
 
 > **Stored-form parameters:** The values `gamma`, `pi_inf`, and `Re(1)`/`Re(2)` are **not** the raw physical quantities. MFC expects transformed stored forms:
 > - `gamma` = \f$1/(\gamma-1)\f$, not \f$\gamma\f$ itself
@@ -730,11 +730,11 @@ This option requires `weno_Re_flux` to be true because cell boundary values are 
 
 - `viscous` activates viscosity when set to ``'T'``. Requires `Re(1)` and `Re(2)` to be set.
 
-- `hypoelasticity` activates elastic stress calculations for fluid-solid interactions. Requires `G` to be set in `fluid_pp`, and `fd_order` to be set (1, 2, or 4). Compatible with HLL (`riemann_solver = 1`), HLLC (`riemann_solver = 2`), and HLLD (`riemann_solver = 4`). The Riemann solver choice determines how the elastic stress source term \f$\mathbf{S}^e\f$ is discretized:
+- `hypoelasticity` activates elastic stress calculations for fluid-solid interactions. Requires `Ca_inv` (the inverse Cauchy number, i.e. the shear modulus) to be set in `fluid_pp`, and `fd_order` to be set (1, 2, or 4). Compatible with HLL (`riemann_solver = 1`), HLLC (`riemann_solver = 2`), and HLLD (`riemann_solver = 4`). The Riemann solver choice determines how the elastic stress source term \f$\mathbf{S}^e\f$ is discretized:
   - **HLL**: finite-difference velocity gradient (default), or interface-consistent velocity gradient when ``hypo_hll_interface_rhs = 'T'`` (matches HLLC).
   - **HLLC**: interface-consistent velocity gradient from the Riemann solution.
   - **HLLD**: dual-pass approach resolving the elastic wave structure. Requires 2D+ and exactly 2 fluid components.
-  - With hypoelastic HLLD, use characteristic boundary conditions (`bc_{x,y,z}%%beg/end` between -5 and -12) only where the domain boundary remains in a fluid region throughout the simulation. Keep material interfaces and solids out of the nearby cells used by the boundary calculation. A material present only at the numerical volume-fraction floor is allowed, even if it has nonzero `G`. These boundaries treat acoustic waves only. `alt_soundspeed` is supported.
+  - With hypoelastic HLLD, use characteristic boundary conditions (`bc_{x,y,z}%%beg/end` between -5 and -12) only where the domain boundary remains in a fluid region throughout the simulation. Keep material interfaces and solids out of the nearby cells used by the boundary calculation. A material present only at the numerical volume-fraction floor is allowed, even if it has nonzero `Ca_inv`. These boundaries treat acoustic waves only. `alt_soundspeed` is supported.
 
 - `riemann_hypo_ADC`: Enables anti-diffusion correction (ADC) for hypoelastic HLLC or HLLD. Blends the HLLC/HLLD flux locally toward the more diffusive HLL flux where a jump sensor (total normal stress, tangential velocity, and tangential stress) detects a strong contact or material interface, improving robustness and reducing interfacial overshoots. This trades contact and shear resolution for robustness where the sensor activates. `ADC_kappa` (default 1.0) scales the reference jump the sensor is normalized by; smaller values blend more toward HLL (more diffusive and robust). Off by default and recommended off: in MFC's tested hypoelastic cases, including strong shock-interface interactions, HLLD is stable and accurate without ADC. The option is a robustness fallback intended for regimes with intense shocks and intense shear at material interfaces.
 

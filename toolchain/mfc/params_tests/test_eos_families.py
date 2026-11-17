@@ -26,16 +26,16 @@ _EXPECTED_CHOICES = [1, 2, 3, 4, 5]
 # Captured from `sorted(n for n in REGISTRY.all_params if n.startswith("fluid_pp(1)%"))`
 # on the unmodified tree (HEAD 949a131c), before eos_families.py existed.
 _EXPECTED_FLUID_PP1_PARAMS = [
-    "fluid_pp(1)%G",
+    "fluid_pp(1)%Ca_inv",
     "fluid_pp(1)%K",
     "fluid_pp(1)%Re(1)",
     "fluid_pp(1)%Re(2)",
     "fluid_pp(1)%cv",
     "fluid_pp(1)%eos",
     "fluid_pp(1)%gamma",
-    "fluid_pp(1)%graded_G",
-    "fluid_pp(1)%graded_G_end",
-    "fluid_pp(1)%graded_G_init",
+    "fluid_pp(1)%graded_Ca_inv",
+    "fluid_pp(1)%graded_Ca_inv_end",
+    "fluid_pp(1)%graded_Ca_inv_init",
     "fluid_pp(1)%graded_Re",
     "fluid_pp(1)%graded_Re_end(1)",
     "fluid_pp(1)%graded_Re_end(2)",
