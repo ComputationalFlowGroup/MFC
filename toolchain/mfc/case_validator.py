@@ -931,12 +931,18 @@ class CaseValidator:
         hyper_model = self.get("hyper_model")
         fd_order = self.get("fd_order")
         hypoelasticity = self.get("hypoelasticity", "F") == "T"
+        cyl_coord = self.get("cyl_coord", "F") == "T"
 
         self.prohibit(model_eqns is not None and model_eqns != 2, "hyperelasticity requires model_eqns = 2")
         self.prohibit(hyper_model is None, "hyperelasticity requires hyper_model to be set")
         self.prohibit(hyper_model is not None and hyper_model not in [1, 2], "hyper_model must be 1 (Neo-Hookean) or 2 (Mooney-Rivlin)")
         self.prohibit(fd_order is None, "hyperelasticity requires fd_order to be set (1, 2, or 4); the reference-map gradient is computed with a finite-difference stencil")
         self.prohibit(hypoelasticity, "hyperelasticity and hypoelasticity cannot both be enabled (each fluid's stress model is ambiguous otherwise)")
+        self.prohibit(
+            cyl_coord,
+            "hyperelasticity is not compatible with cyl_coord = T (m_hyperelastic.fpp's deformation-gradient stencil is "
+            "Cartesian only and does not fill the extra cylindrical hoop-stress slot hypoelasticity carries)",
+        )
 
     def check_graded(self):
         """Checks constraints on graded (spatially-varying) material property parameters"""
