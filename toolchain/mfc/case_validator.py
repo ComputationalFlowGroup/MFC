@@ -322,7 +322,7 @@ PHYSICS_DOCS = {
         "explanation": (
             "Block-structured AMR (Experimental) adds up to amr_max_blocks refined blocks at amr_ref_ratio:1 refinement "
             "(amr_ref_ratio = 2 or 4); amr_max_level > 1 nests blocks recursively and needs amr_ref_ratio = 2 and "
-            "amr_max_blocks >= 2. Requires WENO or MUSCL reconstruction (recon_type = 1 or 2) or IGR, SSP-RK3 (time_stepper = 3) and "
+            "amr_max_blocks >= 2. Requires WENO or MUSCL reconstruction (recon_type = 1 or 2) or IGR, SSP-RK (time_stepper = 1, 2 or 3; 2 or 3 with amr_subcycle) and "
             "model_eqns = 2 or 3; num_fluids > 1 additionally requires mpp_lim. Incompatible with Euler-Euler bubbles, QBMM, "
             "surface tension, cylindrical coordinates, stretched grids, 2D/3D MHD, Riemann-extrapolation "
             "and CBC boundaries, and operator-split reaction or burn substeps. Immersed boundaries must be non-STL on a static "
@@ -434,6 +434,7 @@ AMR_VETTED_FLAGS = (
     "bc_[xyz]%isothermal_*",
     "bf_[xyz]",
     "bf_spatial_support",
+    "synthetic_turbulence",
     "bubbles_lagrange",
     "lag_params%*",
     "cfl_adap_dt",
@@ -2354,7 +2355,6 @@ class CaseValidator:
             self.prohibit(self.get(k, "F") == "T", f"amr is incompatible with {k} = T")
         # Post-RK sources with no fine-block form (state built on the coarse grid, or whole-domain operator splits run
         # after the fold) would leave the refined region evolving without them.
-        self.prohibit(self.get("synthetic_turbulence", "F") == "T", "amr is incompatible with synthetic_turbulence = T")
         self.prohibit(
             (self.get("chem_params%reaction_substeps") or 0) > 0,
             "amr is incompatible with chem_params%reaction_substeps > 0: the operator-split reaction integrates the coarse "
@@ -2412,6 +2412,7 @@ class CaseValidator:
         if self.get("amr_subcycle", "F") == "T":
             self.prohibit(amr_ref_ratio not in (None, 2), "amr_subcycle requires amr_ref_ratio = 2")
             self.prohibit(amr_max_level is not None and amr_max_level > 2, "amr_subcycle supports up to two refined levels (amr_max_level <= 2)")
+            self.prohibit(time_stepper == 1, "amr_subcycle requires time_stepper = 2 or 3 (RK1 keeps no step-start state)")
             self.prohibit(igr, "amr_subcycle does not support IGR")
             self.prohibit(self.get("chemistry", "F") == "T", "amr_subcycle does not support chemistry")
             self.prohibit(self.get("bubbles_lagrange", "F") == "T", "amr_subcycle does not support Lagrangian bubbles")
@@ -2431,8 +2432,8 @@ class CaseValidator:
             "amr_blocking_factor must be >= 1 (1 = no minimum box size; the default is 4)",
         )
         self.prohibit(recon_type is not None and recon_type not in (1, 2) and not igr, "amr requires WENO or MUSCL reconstruction (recon_type = 1 or 2) or the IGR solver")
-        # unset is a failure too: the Fortran default is the dflt_int sentinel, which is not 3
-        self.prohibit(time_stepper != 3, "amr requires time_stepper = 3 (SSP-RK3)")
+        # unset is a failure too: the Fortran default is the dflt_int sentinel
+        self.prohibit(time_stepper not in (1, 2, 3), "amr requires time_stepper = 1, 2 or 3 (SSP-RK)")
         self.prohibit(model_eqns not in (2, 3), "amr requires model_eqns = 2 (5-equation) or 3 (6-equation)")
         mpp_lim = self.get("mpp_lim", "F") == "T"
         self.prohibit(
