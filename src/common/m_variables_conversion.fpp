@@ -833,14 +833,14 @@ contains
         do l = 0, p
             do k = 0, n
                 do j = 0, m
-                    if (graded .and. (hypoelasticity .or. viscous)) then
+                    if (graded .and. (hypoelasticity .or. hyperelasticity .or. viscous)) then
                         xi_x = q_prim_vf(eqn_idx%xi%beg)%sf(j, k, l)
                         xi_y = 0._wp; xi_z = 0._wp
                         if (num_dims >= 2) xi_y = q_prim_vf(eqn_idx%xi%beg + 1)%sf(j, k, l)
                         if (num_dims == 3) xi_z = q_prim_vf(eqn_idx%xi%end)%sf(j, k, l)
                     end if
 
-                    if (graded .and. hypoelasticity) then
+                    if (graded .and. (hypoelasticity .or. hyperelasticity)) then
                         do i = 1, num_fluids
                             Ca_inv_graded_loc(i) = fluid_pp(i)%Ca_inv
                             if (Ca_inv_graded_flag(i)) call s_grade_Ca_inv(xi_x, xi_y, xi_z, i, Ca_inv_graded_loc(i))
@@ -861,10 +861,10 @@ contains
                     end if
 
                     ! Obtaining the density, specific heat ratio function and the liquid stiffness function, respectively
-                    if (graded .and. hypoelasticity .and. viscous) then
+                    if (graded .and. (hypoelasticity .or. hyperelasticity) .and. viscous) then
                         call s_convert_to_mixture_variables(q_prim_vf, j, k, l, rho, gamma, pi_inf, qv, Re_K, Ca_inv, &
                                                             & Ca_inv_graded_loc, Res_graded_loc)
-                    else if (graded .and. hypoelasticity) then
+                    else if (graded .and. (hypoelasticity .or. hyperelasticity)) then
                         call s_convert_to_mixture_variables(q_prim_vf, j, k, l, rho, gamma, pi_inf, qv, Re_K, Ca_inv, &
                                                             & Ca_inv_graded_loc)
                     else if (graded .and. viscous) then
@@ -1053,6 +1053,20 @@ contains
                                 end if
                             end if
                         end do
+                    end if
+
+                    if (hyperelasticity) then
+                        ! Mirrors the hypoelastic block above: q_prim_vf(stress) stores tau/rho, so the conservative
+                        ! stress is rho*tau; q_prim_vf(xi%end+1) stores the strain energy W = 0.5*(tr(B)-3)/J (set by
+                        ! m_hyperelastic.fpp), so the conserved elastic energy added back is Ca_inv*W -- the inverse of
+                        ! the pressure correction s_hyperelastic_rmt_stress_update subtracts (which divides by gamma to
+                        ! put it in pressure units; here the full energy is added, undivided, same as hypoelasticity's
+                        ! own add-back).
+                        do i = eqn_idx%stress%beg, eqn_idx%stress%end
+                            q_cons_vf(i)%sf(j, k, l) = rho*q_prim_vf(i)%sf(j, k, l)
+                        end do
+                        q_cons_vf(eqn_idx%E)%sf(j, k, l) = q_cons_vf(eqn_idx%E)%sf(j, k, &
+                                  & l) + Ca_inv*q_prim_vf(eqn_idx%xi%end + 1)%sf(j, k, l)
                     end if
 
                     if (rmt) then
