@@ -28,6 +28,7 @@ module m_rhs
     use m_particles_EL
     use m_qbmm
     use m_hypoelastic
+    use m_hyperelastic
     use m_acoustic_src
     use m_viscous
     use m_ibm
@@ -699,6 +700,16 @@ contains
             call s_populate_variables_buffers(bc_type, q_prim_qp%vf, pb_in, mv_in, q_T_sf, skip_mpi=amr_cons_ghosts_valid)
             call nvtxEndRange
             if (ib_flux_wall) call s_ib_flux_wall_prepare(q_prim_qp%vf)
+
+            if (hyperelasticity) then
+                call nvtxStartRange("RHS-HYPERELASTICITY")
+                if (cons_copy_all) then
+                    call s_hyperelastic_rmt_stress_update(q_cons_qp%vf, q_prim_qp%vf)
+                else
+                    call s_hyperelastic_rmt_stress_update(q_cons_vf, q_prim_qp%vf)
+                end if
+                call nvtxEndRange
+            end if
         end if
 
         if (cfl_dt) then

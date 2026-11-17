@@ -31,6 +31,7 @@ module m_start_up
     use m_qbmm
     use m_derived_variables
     use m_hypoelastic
+    use m_hyperelastic
     use m_graded
     use m_phase_change
     use m_viscous
@@ -1050,6 +1051,7 @@ contains
 
         if (graded) call s_initialize_graded()
         if (hypoelasticity) call s_initialize_hypoelastic_module()
+        if (hyperelasticity) call s_initialize_hyperelastic_module()
 
     end subroutine s_initialize_modules
 
@@ -1415,6 +1417,7 @@ contains
         call s_phase_report()
         call s_finalize_time_steppers_module()
         if (hypoelasticity) call s_finalize_hypoelastic_module()
+        if (hyperelasticity) call s_finalize_hyperelastic_module()
         if (graded) call s_finalize_graded()
         call s_finalize_derived_variables_module()
         call s_finalize_data_output_module()
