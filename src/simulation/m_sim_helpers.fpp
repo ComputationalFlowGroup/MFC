@@ -77,7 +77,7 @@ contains
 
         if (hypoelasticity) then
             call s_convert_species_to_mixture_variables_kernel(rho, gamma, pi_inf, qv, alpha, alpha_rho, Re, Ca_inv_local, &
-                & Ca_invs, Re_size_loc1, Re_size_loc2)
+                & Ca_invs, Re_size_loc1=Re_size_loc1, Re_size_loc2=Re_size_loc2)
         else
             call s_convert_species_to_mixture_variables_kernel(rho, gamma, pi_inf, qv, alpha, alpha_rho, Re, &
                 & Re_size_loc1=Re_size_loc1, Re_size_loc2=Re_size_loc2)
