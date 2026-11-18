@@ -803,7 +803,7 @@ contains
                 ! If in simulation, use acc mixture subroutines
                 if (hypoelasticity) then
                     call s_convert_species_to_mixture_variables_kernel(rho, gamma, pi_inf, qv_K, alpha_IP, alpha_rho_IP, Re_K, &
-                        & Ca_inv_K, Ca_invs, Re_size_loc1, Re_size_loc2)
+                        & Ca_inv_K, Ca_invs, Re_size_loc1=Re_size_loc1, Re_size_loc2=Re_size_loc2)
                 else
                     call s_convert_species_to_mixture_variables_kernel(rho, gamma, pi_inf, qv_K, alpha_IP, alpha_rho_IP, Re_K, &
                         & Re_size_loc1=Re_size_loc1, Re_size_loc2=Re_size_loc2)

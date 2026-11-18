@@ -14,7 +14,7 @@ module m_graded
 
     implicit none
 
-    private; public :: s_initialize_graded, s_grade_Ca_inv, s_grade_Re, s_finalize_graded, Ca_inv_graded_flag
+    private; public :: s_initialize_graded, s_grade_Ca_inv, s_grade_Re, s_finalize_graded, Ca_inv_graded_flag, Re_graded_flag
 
     ! flat arrays
     logical, allocatable, dimension(:)    :: Ca_inv_graded_flag

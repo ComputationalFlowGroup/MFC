@@ -1180,7 +1180,7 @@ contains
                     pres_K = qK_prim_vf(j, k, l, eqn_idx%E)
                     if (hypoelasticity) then
                         call s_convert_species_to_mixture_variables_kernel(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, &
-                            & Re_K, Ca_inv_K, Ca_invs_vc, Re_size_loc1, Re_size_loc2)
+                            & Re_K, Ca_inv_K, Ca_invs_vc, Re_size_loc1=Re_size_loc1, Re_size_loc2=Re_size_loc2)
                     else
                         call s_convert_species_to_mixture_variables_kernel(rho_K, gamma_K, pi_inf_K, qv_K, alpha_K, alpha_rho_K, &
                             & Re_K, Re_size_loc1=Re_size_loc1, Re_size_loc2=Re_size_loc2)
