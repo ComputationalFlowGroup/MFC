@@ -646,9 +646,11 @@ num_dims do not exist. In 2D, \f$\mathbf{F}\f$ is the 2x2 in-plane gradient with
 reduce to the same formulas above with the frozen directions contributing exactly 1 to
 \f$\text{tr}(\mathbf{b})\f$ per direction -- verified by embedding the reduced 1D/2D algebra into
 the full 3x3 machinery and checking both give the same answer, in
-`misc/hyperelastic_acoustic_tensor.py`'s plane_strain_reduction(). Implemented via Fypp
-compile-time specialization on num_dims (a build constant, not a runtime branch): a 1D or 2D
-build contains only that dimension's tensor algebra.
+`misc/hyperelastic_acoustic_tensor.py`'s plane_strain_reduction(). Branched on num_dims at
+runtime (a module variable, the same way `hypoelasticity` branches its own dimension-dependent
+code) rather than at Fypp preprocessing time: num_dims is only available as an Fypp constant
+under case_optimization builds, so a runtime branch is required for this to compile in the
+default build.
 
 ### 7.3 Continuum Damage (`cont_damage = .true.`) (\cite Cao19; \cite Spratt24 Sec. 4.1.2)
 

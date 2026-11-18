@@ -149,10 +149,10 @@ contains
                         do i = 1, tensor_size
                             tensora(i) = 0._wp
                         end do
-                        ! STEP 1-2b: grad_xi (tensora) and its determinant (tensorb(tensor_size)), specialized per num_dims at
-                        ! compile time (an fypp constant baked into every case.fpp, not a runtime value) rather than branching
-                        ! at runtime: a 1D/2D build never contains the other dimensions' tensor algebra at all.
-                        #:if num_dims == 1
+                        ! STEP 1-2b: grad_xi (tensora) and its determinant (tensorb(tensor_size)), branched on num_dims at
+                        ! runtime (num_dims is a module variable here, not an fypp constant -- it is only available at Fypp
+                        ! preprocessing time under case_optimization builds, see toolchain/mfc/case.py's __get_sim_fpp).
+                        if (num_dims == 1) then
                             ! grad_xi is the scalar d(xi_x)/dx
                             $:GPU_LOOP(parallelism='[seq]')
                             do r = -fd_number, fd_number
@@ -160,7 +160,7 @@ contains
                             end do
                             ! the "determinant" of a 1x1 matrix is itself
                             tensorb(tensor_size) = tensora(1)
-                        #:elif num_dims == 2
+                        else if (num_dims == 2) then
                             ! grad_xi is 2x2: tensora organization 1-2: dxix_dx, dxiy_dx; 3-4: dxix_dy, dxiy_dy
                             $:GPU_LOOP(parallelism='[seq]')
                             do r = -fd_number, fd_number
@@ -175,7 +175,7 @@ contains
                             tensorb(3) = -tensora(3)
                             tensorb(4) = tensora(1)
                             tensorb(tensor_size) = tensora(1)*tensora(4) - tensora(3)*tensora(2)
-                        #:else
+                        else
                             ! grad_xi is 3x3: tensora organization 1-3: dxix_dx, dxiy_dx, dxiz_dx; 4-6: dxix_dy, dxiy_dy,
                             ! dxiz_dy; 7-9: dxix_dz, dxiy_dz, dxiz_dz
                             $:GPU_LOOP(parallelism='[seq]')
@@ -206,17 +206,17 @@ contains
                             tensorb(tensor_size) = tensora(1)*(tensora(5)*tensora(9) - tensora(6)*tensora(8)) - tensora(2) &
                                     & *(tensora(4)*tensora(9) - tensora(6)*tensora(7)) + tensora(3)*(tensora(4)*tensora(8) &
                                     & - tensora(5)*tensora(7))
-                        #:endif
+                        end if
 
                         if (tensorb(tensor_size) > verysmall) then
                             ! STEP 2c-3: F = (grad_xi)^-1 (tensora becomes F), J = det(F), B = F F^T -- same per-dimension
-                            ! specialization as STEP 1-2b above
-                            #:if num_dims == 1
+                            ! branch as STEP 1-2b above
+                            if (num_dims == 1) then
                                 ! F = 1/grad_xi; J = det(F) = F (1x1 again); B_xx = F**2
                                 tensora(1) = 1._wp/tensorb(tensor_size)
                                 tensorb(tensor_size) = tensora(1)
                                 tensorb(1) = tensora(1)**2
-                            #:elif num_dims == 2
+                            else if (num_dims == 2) then
                                 $:GPU_LOOP(parallelism='[seq]')
                                 do i = 1, tensor_size - 1
                                     tensora(i) = tensorb(i)/tensorb(tensor_size)
@@ -226,7 +226,7 @@ contains
                                 tensorb(1) = tensora(1)**2 + tensora(3)**2
                                 tensorb(3) = tensora(2)**2 + tensora(4)**2
                                 tensorb(2) = tensora(1)*tensora(2) + tensora(3)*tensora(4)
-                            #:else
+                            else
                                 $:GPU_LOOP(parallelism='[seq]')
                                 do i = 1, tensor_size - 1
                                     tensora(i) = tensorb(i)/tensorb(tensor_size)
@@ -239,20 +239,24 @@ contains
                                 tensorb(2) = tensora(1)*tensora(4) + tensora(2)*tensora(5) + tensora(3)*tensora(6)
                                 tensorb(3) = tensora(1)*tensora(7) + tensora(2)*tensora(8) + tensora(3)*tensora(9)
                                 tensorb(6) = tensora(4)*tensora(7) + tensora(5)*tensora(8) + tensora(6)*tensora(9)
-                            #:endif
+                            end if
 
                             ! STEP 4: update the btensor, in the same symmetric order (xx, xy, yy, xz, yz, zz) eqn_idx%stress
                             ! uses, truncated to b_size - 1 entries for num_dims < 3
-                            #:if num_dims == 1
-                                #:set BTENSOR_MAP = [(1,1)]
-                            #:elif num_dims == 2
-                                #:set BTENSOR_MAP = [(1,1),(2,2),(3,3)]
-                            #:else
-                                #:set BTENSOR_MAP = [(1,1),(2,2),(3,5),(4,3),(5,6),(6,9)]
-                            #:endif
-                            #:for BIJ, TXY in BTENSOR_MAP
-                                btensor%vf(${BIJ}$)%sf(j, k, l) = tensorb(${TXY}$)
-                            #:endfor
+                            if (num_dims == 1) then
+                                btensor%vf(1)%sf(j, k, l) = tensorb(1)
+                            else if (num_dims == 2) then
+                                btensor%vf(1)%sf(j, k, l) = tensorb(1)
+                                btensor%vf(2)%sf(j, k, l) = tensorb(2)
+                                btensor%vf(3)%sf(j, k, l) = tensorb(3)
+                            else
+                                btensor%vf(1)%sf(j, k, l) = tensorb(1)
+                                btensor%vf(2)%sf(j, k, l) = tensorb(2)
+                                btensor%vf(3)%sf(j, k, l) = tensorb(5)
+                                btensor%vf(4)%sf(j, k, l) = tensorb(3)
+                                btensor%vf(5)%sf(j, k, l) = tensorb(6)
+                                btensor%vf(6)%sf(j, k, l) = tensorb(9)
+                            end if
                             ! store the determinant at the last entry of the btensor
                             btensor%vf(b_size)%sf(j, k, l) = tensorb(tensor_size)
                             ! STEP 5a: updating the Cauchy stress primitive scalar field
@@ -281,8 +285,10 @@ contains
 
     !> Trace of B (the full 3D invariant I1, with (3 - num_dims) added for the directions frozen at identity stretch -- see
     !! misc/hyperelastic_acoustic_tensor.py's plane_strain_reduction() for the derivation) and the in-place deviatoric projection
-    !! dev(B) = B - tr(B)/3 * I. Shared by both Cauchy-stress solvers below; the diagonal positions in the symmetric (xx, xy, yy,
-    !! xz, yz, zz) storage order are the triangular numbers k(k+1)/2 for k = 1..num_dims.
+    !! dev(B) = B - tr(B)/3 * I. Shared by both Cauchy-stress solvers below. The diagonal positions in the symmetric (xx, xy, yy,
+    !! xz, yz, zz) storage order are the triangular numbers k(k+1)/2 for k = 1..num_dims, so a single runtime loop over num_dims (a
+    !! module variable, not an Fypp constant -- see the note in s_hyperelastic_rmt_stress_update) covers every dimensionality with
+    !! no branching at all.
     subroutine s_hyperelastic_trace_and_deviator(btensor_in, j, k, l, trace)
 
         $:GPU_ROUTINE(parallelism='[seq]')
@@ -290,23 +296,19 @@ contains
         integer, intent(in)                                  :: j, k, l
         real(wp), intent(out)                                :: trace
         real(wp), parameter                                  :: f13 = 1._wp/3._wp
-
-        #:if num_dims == 1
-            #:set DIAG = [1]
-        #:elif num_dims == 2
-            #:set DIAG = [1, 3]
-        #:else
-            #:set DIAG = [1, 3, 6]
-        #:endif
+        integer                                              :: dk, diag_idx
 
         trace = real(3 - num_dims, wp)
-        #:for IJ in DIAG
-            trace = trace + btensor_in(${IJ}$)%sf(j, k, l)
-        #:endfor
+        $:GPU_LOOP(parallelism='[seq]')
+        do dk = 1, num_dims
+            trace = trace + btensor_in(dk*(dk + 1)/2)%sf(j, k, l)
+        end do
 
-        #:for IJ in DIAG
-            btensor_in(${IJ}$)%sf(j, k, l) = btensor_in(${IJ}$)%sf(j, k, l) - f13*trace
-        #:endfor
+        $:GPU_LOOP(parallelism='[seq]')
+        do dk = 1, num_dims
+            diag_idx = dk*(dk + 1)/2
+            btensor_in(diag_idx)%sf(j, k, l) = btensor_in(diag_idx)%sf(j, k, l) - f13*trace
+        end do
 
     end subroutine s_hyperelastic_trace_and_deviator
 
