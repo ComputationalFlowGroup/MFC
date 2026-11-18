@@ -592,7 +592,53 @@ where \f$\mathbf{l} = \nabla \mathbf{u}\f$ is the velocity gradient and \f$\math
 
 This adds 6 additional transport equations in 3D (symmetric stress tensor: \f$\tau_{xx}^e, \tau_{xy}^e, \tau_{yy}^e, \tau_{xz}^e, \tau_{yz}^e, \tau_{zz}^e\f$).
 
-### 7.2 Continuum Damage (`cont_damage = .true.`) (\cite Cao19; \cite Spratt24 Sec. 4.1.2)
+### 7.2 Hyperelastic Model (`hyperelasticity = .true.`) (\cite Kamrin12; \cite Wilfong26 Sec. 4.1.6)
+
+**Source:** `src/simulation/m_hyperelastic.fpp`
+
+Built on the Reference Map Technique (`rmt = .true.`): rather than transporting the stress
+itself, a field \f$\boldsymbol{\xi}\f$, the material point's position in its undeformed reference
+configuration, is advected with the flow, and the stress is recovered algebraically from it every
+time step.
+
+**Reference map evolution:**
+
+\f[\frac{\partial (\rho\,\boldsymbol{\xi})}{\partial t} + \nabla \cdot (\rho\,\boldsymbol{\xi} \otimes \mathbf{u}) = 0\f]
+
+**Deformation gradient from reference map:**
+
+\f[\mathbf{F} = (\nabla \boldsymbol{\xi})^{-1}\f]
+
+**Left Cauchy-Green tensor:**
+
+\f[\mathbf{b} = \mathbf{F}\,\mathbf{F}^T\f]
+
+**Neo-Hookean Cauchy stress (`hyper_model = 1`):**
+
+\f[\boldsymbol{\tau}^e = \frac{G}{J}\left(\mathbf{b} - \frac{\text{tr}(\mathbf{b})}{3}\,\mathbf{I}\right)\f]
+
+where \f$J = \det(\mathbf{F})\f$. `hyper_model = 2` (Mooney-Rivlin) is accepted by the case
+validator but currently computes the same stress as the Neo-Hookean model above -- not yet a
+distinct constitutive law.
+
+**Hyperelastic energy:**
+
+\f[e^e = \frac{G}{2}\bigl(I_{\mathbf{b}} - 3\bigr), \qquad I_{\mathbf{b}} = \text{tr}(\mathbf{b})\f]
+
+The pressure and total energy are corrected by \f$G\,e^e\f$ (divided by \f$\gamma\f$ for the
+pressure, undivided for the energy) after this update, the same way the hypoelastic model above
+corrects for its own elastic energy.
+
+**Direct wave speed (`wave_speeds = 2`, HLL only):** the flat hypoelastic correction
+\f$4G/(3\rho)\f$ is replaced by the finite-strain acoustic-tensor correction
+
+\f[c^2 \to c^2 + \frac{4\,G\,\text{tr}(\mathbf{b})}{9\,J\,\rho} - \frac{2\,\tau_{nn}^e}{3\,\rho},\f]
+
+which reduces to the hypoelastic constant at \f$\mathbf{b} = \mathbf{I}\f$, \f$J = 1\f$. Derived
+and verified symbolically in `misc/hyperelastic_acoustic_tensor.py`. Currently requires the HLL
+Riemann solver (`riemann_solver = 1`) and is not compatible with `cyl_coord`.
+
+### 7.3 Continuum Damage (`cont_damage = .true.`) (\cite Cao19; \cite Spratt24 Sec. 4.1.2)
 
 **Source:** `src/simulation/m_hypoelastic.fpp`
 
