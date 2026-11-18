@@ -14,6 +14,7 @@ module m_amr_frame
     use m_global_parameters
     use m_mpi_proxy, only: s_mpi_abort  ! @:ASSERT expands to it
     use m_hypoelastic, only: s_hypoelastic_update_fd_coeffs
+    use m_hyperelastic, only: s_hyperelastic_update_fd_coeffs
     use m_igr, only: jac, jac_old
     use m_amr_state
     use m_amr_distribution
@@ -107,6 +108,8 @@ contains
         call s_amr_sync_grid_state_to_device()
         ! hypoelastic FD coefficients depend on grid spacing: recompute them for the fine grid
         if (hypoelasticity) call s_hypoelastic_update_fd_coeffs()
+        ! same reasoning for hyperelasticity's own deformation-gradient stencil
+        if (hyperelasticity) call s_hyperelastic_update_fd_coeffs()
         ! IGR: save the coarse sigma and seed the fine solve with its parent values (best initial guess, and the frozen Dirichlet
         ! ghost data for the block-local Jacobi solve)
         if (igr) call s_amr_igr_swap_sigma()
@@ -172,6 +175,7 @@ contains
         sync = .true.; if (present(sync_device)) sync = sync_device
         if (sync) call s_amr_sync_grid_state_to_device()
         if (hypoelasticity) call s_hypoelastic_update_fd_coeffs()
+        if (hyperelasticity) call s_hyperelastic_update_fd_coeffs()
         if (igr) call s_amr_igr_restore_sigma()
 
     end subroutine s_amr_restore_coarse

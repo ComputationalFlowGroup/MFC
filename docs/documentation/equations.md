@@ -636,7 +636,8 @@ corrects for its own elastic energy.
 
 which reduces to the hypoelastic constant at \f$\mathbf{b} = \mathbf{I}\f$, \f$J = 1\f$. Derived
 and verified symbolically in `misc/hyperelastic_acoustic_tensor.py`. Currently requires the HLL
-Riemann solver (`riemann_solver = 1`) and is not compatible with `cyl_coord`.
+Riemann solver (`riemann_solver = 1`), is not compatible with `cyl_coord`, and currently requires a full 3D grid
+(\f$n > 0\f$ and \f$p > 0\f$): see @ref case for the 1D/2D limitation.
 
 ### 7.3 Continuum Damage (`cont_damage = .true.`) (\cite Cao19; \cite Spratt24 Sec. 4.1.2)
 

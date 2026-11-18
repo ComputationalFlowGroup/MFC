@@ -932,6 +932,8 @@ class CaseValidator:
         fd_order = self.get("fd_order")
         hypoelasticity = self.get("hypoelasticity", "F") == "T"
         cyl_coord = self.get("cyl_coord", "F") == "T"
+        n = self.get("n", 0) or 0
+        p = self.get("p", 0) or 0
 
         self.prohibit(model_eqns is not None and model_eqns != 2, "hyperelasticity requires model_eqns = 2")
         self.prohibit(hyper_model is None, "hyperelasticity requires hyper_model to be set")
@@ -942,6 +944,12 @@ class CaseValidator:
             cyl_coord,
             "hyperelasticity is not compatible with cyl_coord = T (m_hyperelastic.fpp's deformation-gradient stencil is "
             "Cartesian only and does not fill the extra cylindrical hoop-stress slot hypoelasticity carries)",
+        )
+        self.prohibit(
+            n == 0 or p == 0,
+            "hyperelasticity currently requires a full 3D grid (n > 0 and p > 0): m_hyperelastic.fpp's deformation-gradient "
+            "tensor, its finite-difference stencil, and the Cauchy-stress solvers all hardcode 3 components and are not yet "
+            "dimensionally gated for 1D or 2D",
         )
 
     def check_graded(self):

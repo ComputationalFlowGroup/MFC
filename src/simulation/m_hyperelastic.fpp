@@ -17,7 +17,8 @@ module m_hyperelastic
 
     implicit none
 
-    private; public :: s_hyperelastic_rmt_stress_update, s_initialize_hyperelastic_module, s_finalize_hyperelastic_module
+    private; public :: s_hyperelastic_rmt_stress_update, s_initialize_hyperelastic_module, s_finalize_hyperelastic_module, &
+        & s_hyperelastic_update_fd_coeffs
 
     ! The left Cauchy-Green tensor at cell centers. Computed once per RHS call and reused for both the Cauchy stress and
     ! the elastic strain energy, so it is kept at module scope rather than recomputed.
@@ -38,9 +39,12 @@ contains
 
         integer :: i  !< generic iterator
 
+        ! Sized to m_alloc/n_alloc/p_alloc (the largest AMR fine-block batch extent, not the coarse grid's own m/n/p): the
+        ! AMR fine advance swaps m/n/p to a block's (or batch's) own values and reuses this same module-level workspace.
+
         @:ALLOCATE(btensor%vf(1:b_size))
         do i = 1, b_size
-            @:ALLOCATE(btensor%vf(i)%sf(0:m, 0:n, 0:p))
+            @:ALLOCATE(btensor%vf(i)%sf(0:m_alloc, 0:n_alloc, 0:p_alloc))
         end do
         @:ACC_SETUP_VFs(btensor)
 
@@ -51,15 +55,31 @@ contains
         end do
         $:GPU_UPDATE(device='[Ca_invs_hyper]')
 
-        @:ALLOCATE(fd_coeff_x_hyper(-fd_number:fd_number, 0:m))
+        ! s_compute_finite_difference_coefficients always extends fd_number beyond the interior on each side
+        @:ALLOCATE(fd_coeff_x_hyper(-fd_number:fd_number, -fd_number:m_alloc + fd_number))
         if (n > 0) then
-            @:ALLOCATE(fd_coeff_y_hyper(-fd_number:fd_number, 0:n))
+            @:ALLOCATE(fd_coeff_y_hyper(-fd_number:fd_number, -fd_number:n_alloc + fd_number))
         end if
         if (p > 0) then
-            @:ALLOCATE(fd_coeff_z_hyper(-fd_number:fd_number, 0:p))
+            @:ALLOCATE(fd_coeff_z_hyper(-fd_number:fd_number, -fd_number:p_alloc + fd_number))
         end if
 
         ! Computing centered finite difference coefficients
+        call s_hyperelastic_update_fd_coeffs()
+
+    end subroutine s_initialize_hyperelastic_module
+
+    !> (Re)compute the centered finite-difference coefficients from the current grid globals (m/n/p, x/y/z_cc) and push them to the
+    !! device. Called at init and by the AMR fine-block swap/restore (m_amr_frame.fpp), where the grid globals flip between the
+    !! coarse grid and a fine block: the coefficients are spacing-dependent, so reusing coarse ones on the fine grid would silently
+    !! corrupt every deformation-gradient component the stress and wave-speed correction are built from.
+    impure subroutine s_hyperelastic_update_fd_coeffs()
+
+        ! the AMR fine-IB setup swaps grids before this module initializes (s_initialize_modules order); no RHS runs until
+        ! after init, so skipping is correct -- init then computes the coarse coefficients and every subsequent swap/restore
+        ! recomputes for the active grid
+        if (.not. allocated(fd_coeff_x_hyper)) return
+
         call s_compute_finite_difference_coefficients(m, x_cc, fd_coeff_x_hyper, buff_size, fd_number, fd_order)
         $:GPU_UPDATE(device='[fd_coeff_x_hyper]')
         if (n > 0) then
@@ -71,7 +91,7 @@ contains
             $:GPU_UPDATE(device='[fd_coeff_z_hyper]')
         end if
 
-    end subroutine s_initialize_hyperelastic_module
+    end subroutine s_hyperelastic_update_fd_coeffs
 
     !> Compute the left Cauchy-Green deformation tensor and update the hyperelastic stress
     subroutine s_hyperelastic_rmt_stress_update(q_cons_vf, q_prim_vf)
