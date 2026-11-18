@@ -370,6 +370,102 @@ def mooney_rivlin():
     print("Both match the classical small-strain Mooney-Rivlin shear modulus mu = 2*(C1 + C2).")
 
 
+def plane_strain_reduction():
+    """Verifies the 1D and 2D closed forms proposed for m_hyperelastic.fpp against the full
+    3D machinery already derived and checked above, by FREEZING the transverse direction(s)
+    rather than assuming a reduced formula is correct on its own.
+
+    Convention (matching hypoelasticity's own 1D/2D support, and MFC's dimensional-reduction
+    convention elsewhere): directions beyond num_dims are frozen -- no stretch -- so the full
+    3D deformation gradient is F_3D = block_diag(F_reduced, I_(3-num_dims)). This function
+    builds F_3D explicitly from a general reduced grad_xi (2x2 for 2D, scalar for 1D),
+    computes B_3D = F_3D F_3D^T and J_3D = det(F_3D) the SAME way the already-verified 3D code
+    does, and checks that doing the algebra directly in the reduced (2x2 or scalar) space --
+    the closed forms actually proposed for m_hyperelastic.fpp -- gives identical results.
+    """
+    print("\n" + "#" * 78)
+    print("# 1D/2D reduction check")
+    print("#" * 78)
+
+    G, rho = sp.symbols("G rho", positive=True)
+    I3 = sp.eye(3)
+
+    print("\n" + "=" * 78)
+    print("2D: grad_xi is 2x2, F_3D = block_diag(F_2D, 1)")
+    print("=" * 78)
+
+    m11, m12, m21, m22 = sp.symbols("m11 m12 m21 m22")
+    M2 = sp.Matrix([[m11, m12], [m21, m22]])
+    detM2 = M2.det()
+    F2 = sp.simplify(M2.inv())
+    J2_reduced = sp.simplify(1 / detM2)
+    B2_reduced = sp.simplify(F2 * F2.T)
+    trB2_reduced = sp.simplify(sp.trace(B2_reduced) + 1)  # +1 for the frozen B33 = 1
+
+    # Full 3D embedding, built independently from the 2x2 pieces above.
+    F3_embedded = sp.Matrix([[F2[0, 0], F2[0, 1], 0], [F2[1, 0], F2[1, 1], 0], [0, 0, 1]])
+    J3_embedded = sp.simplify(F3_embedded.det())
+    B3_embedded = sp.simplify(F3_embedded * F3_embedded.T)
+    trB3_embedded = sp.simplify(sp.trace(B3_embedded))
+
+    assert sp.simplify(J2_reduced - J3_embedded) == 0, "2D J does not match the 3D-embedded determinant"
+    assert sp.simplify(trB2_reduced - trB3_embedded) == 0, "2D tr(B)+1 does not match the 3D-embedded trace"
+    assert sp.simplify(B2_reduced[0, 0] - B3_embedded[0, 0]) == 0
+    assert sp.simplify(B2_reduced[0, 1] - B3_embedded[0, 1]) == 0
+    assert sp.simplify(B2_reduced[1, 1] - B3_embedded[1, 1]) == 0
+    print("Confirmed: the 2x2 closed form for F, J, and B exactly matches embedding into the")
+    print("full 3x3 machinery with the third row/column frozen to identity.")
+
+    # Neo-Hookean stress: the in-plane components of tau = (G/J)*dev(B), computed the
+    # reduced way, must match the (1,1)/(1,2)/(2,2) entries of the full 3D stress.
+    def dev3(B, trB):
+        return B - trB / 3 * I3
+
+    tau3 = sp.simplify((G / J3_embedded) * dev3(B3_embedded, trB3_embedded))
+    tau2_reduced = sp.simplify((G / J2_reduced) * (B2_reduced - trB2_reduced / 3 * sp.eye(2)))
+    assert sp.simplify(tau2_reduced[0, 0] - tau3[0, 0]) == 0
+    assert sp.simplify(tau2_reduced[0, 1] - tau3[0, 1]) == 0
+    assert sp.simplify(tau2_reduced[1, 1] - tau3[1, 1]) == 0
+    print("Confirmed: the 2D neo-Hookean in-plane stress (using trace = tr(B_2D) + 1, dividing")
+    print("by the SAME 3 in dev(B) = B - tr(B)/3*I) matches the full 3D stress's in-plane block.")
+
+    print("\n" + "=" * 78)
+    print("1D: grad_xi is a scalar, F_3D = diag(F, 1, 1)")
+    print("=" * 78)
+
+    m = sp.Symbol("m", positive=True)
+    F1 = 1 / m
+    J1_reduced = F1  # det of a 1x1 is itself
+    B1_reduced = F1**2
+    trB1_reduced = B1_reduced + 2  # +2 for the two frozen directions
+
+    F3_embedded_1d = sp.diag(F1, 1, 1)
+    J3_embedded_1d = sp.simplify(F3_embedded_1d.det())
+    B3_embedded_1d = sp.simplify(F3_embedded_1d * F3_embedded_1d.T)
+    trB3_embedded_1d = sp.simplify(sp.trace(B3_embedded_1d))
+
+    assert sp.simplify(J1_reduced - J3_embedded_1d) == 0
+    assert sp.simplify(trB1_reduced - trB3_embedded_1d) == 0
+    assert sp.simplify(B1_reduced - B3_embedded_1d[0, 0]) == 0
+    print("Confirmed: the 1D scalar closed form for F, J, and B matches the 3x3 embedding.")
+
+    tau3_1d = sp.simplify((G / J3_embedded_1d) * dev3(B3_embedded_1d, trB3_embedded_1d))
+    tau1_reduced = sp.simplify((G / J1_reduced) * (B1_reduced - trB1_reduced / 3))
+    assert sp.simplify(tau1_reduced - tau3_1d[0, 0]) == 0
+    print("Confirmed: the 1D stress tau_xx = (G/J)*(B_xx - trace/3) matches the full 3D stress's")
+    print("(1,1) entry, with trace = B_xx + 2 for the two frozen directions.")
+
+    print("\n" + "=" * 78)
+    print("General trace formula check: trace = sum(diagonal entries) + (3 - num_dims)")
+    print("=" * 78)
+    print("1D (num_dims=1, 1 diagonal entry at triangular position 1):  trace = B_xx + 2       -- confirmed above.")
+    print("2D (num_dims=2, 2 diagonal entries at triangular positions 1,3): trace = B_xx+B_yy+1 -- confirmed above.")
+    print("3D (num_dims=3, 3 diagonal entries at triangular positions 1,3,6): trace = B_xx+B_yy+B_zz+0, i.e. the")
+    print("existing code's trace = btensor_in(1)+btensor_in(3)+btensor_in(6) -- the num_dims=3 special case of the")
+    print("same formula, not a separate derivation.")
+
+
 if __name__ == "__main__":
     main()
     mooney_rivlin()
+    plane_strain_reduction()

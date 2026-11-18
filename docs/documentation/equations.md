@@ -636,8 +636,19 @@ corrects for its own elastic energy.
 
 which reduces to the hypoelastic constant at \f$\mathbf{b} = \mathbf{I}\f$, \f$J = 1\f$. Derived
 and verified symbolically in `misc/hyperelastic_acoustic_tensor.py`. Currently requires the HLL
-Riemann solver (`riemann_solver = 1`), is not compatible with `cyl_coord`, and currently requires a full 3D grid
-(\f$n > 0\f$ and \f$p > 0\f$): see @ref case for the 1D/2D limitation.
+Riemann solver (`riemann_solver = 1`) and is not compatible with `cyl_coord`.
+
+**1D and 2D:** directions beyond num_dims are frozen at an identity stretch (no
+deformation) -- the same convention `hypoelasticity` uses when its own velocity components beyond
+num_dims do not exist. In 2D, \f$\mathbf{F}\f$ is the 2x2 in-plane gradient with
+\f$F_{33} = 1\f$; in 1D, \f$\mathbf{F}\f$ is the scalar \f$\partial \xi_x/\partial x\f$ with
+\f$F_{22} = F_{33} = 1\f$. \f$J\f$, \f$\text{tr}(\mathbf{b})\f$, and the deviatoric stress all
+reduce to the same formulas above with the frozen directions contributing exactly 1 to
+\f$\text{tr}(\mathbf{b})\f$ per direction -- verified by embedding the reduced 1D/2D algebra into
+the full 3x3 machinery and checking both give the same answer, in
+`misc/hyperelastic_acoustic_tensor.py`'s plane_strain_reduction(). Implemented via Fypp
+compile-time specialization on num_dims (a build constant, not a runtime branch): a 1D or 2D
+build contains only that dimension's tensor algebra.
 
 ### 7.3 Continuum Damage (`cont_damage = .true.`) (\cite Cao19; \cite Spratt24 Sec. 4.1.2)
 

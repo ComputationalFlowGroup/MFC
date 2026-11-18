@@ -149,58 +149,108 @@ contains
                         do i = 1, tensor_size
                             tensora(i) = 0._wp
                         end do
-                        ! STEP 1: computing the grad_xi tensor using finite differences grad_xi definition / organization number
-                        ! for the tensor 1-3: dxix_dx, dxiy_dx, dxiz_dx 4-6 : dxix_dy, dxiy_dy, dxiz_dy 7-9 : dxix_dz, dxiy_dz,
-                        ! dxiz_dz
-                        $:GPU_LOOP(parallelism='[seq]')
-                        do r = -fd_number, fd_number
-                            ! derivatives in the x-direction
-                            tensora(1) = tensora(1) + q_prim_vf(eqn_idx%xi%beg)%sf(j + r, k, l)*fd_coeff_x_hyper(r, j)
-                            tensora(2) = tensora(2) + q_prim_vf(eqn_idx%xi%beg + 1)%sf(j + r, k, l)*fd_coeff_x_hyper(r, j)
-                            tensora(3) = tensora(3) + q_prim_vf(eqn_idx%xi%end)%sf(j + r, k, l)*fd_coeff_x_hyper(r, j)
-                            ! derivatives in the y-direction
-                            tensora(4) = tensora(4) + q_prim_vf(eqn_idx%xi%beg)%sf(j, k + r, l)*fd_coeff_y_hyper(r, k)
-                            tensora(5) = tensora(5) + q_prim_vf(eqn_idx%xi%beg + 1)%sf(j, k + r, l)*fd_coeff_y_hyper(r, k)
-                            tensora(6) = tensora(6) + q_prim_vf(eqn_idx%xi%end)%sf(j, k + r, l)*fd_coeff_y_hyper(r, k)
-                            ! derivatives in the z-direction
-                            tensora(7) = tensora(7) + q_prim_vf(eqn_idx%xi%beg)%sf(j, k, l + r)*fd_coeff_z_hyper(r, l)
-                            tensora(8) = tensora(8) + q_prim_vf(eqn_idx%xi%beg + 1)%sf(j, k, l + r)*fd_coeff_z_hyper(r, l)
-                            tensora(9) = tensora(9) + q_prim_vf(eqn_idx%xi%end)%sf(j, k, l + r)*fd_coeff_z_hyper(r, l)
-                        end do
-                        ! STEP 2a: computing the adjoint of the grad_xi tensor for the inverse
-                        tensorb(1) = tensora(5)*tensora(9) - tensora(6)*tensora(8)
-                        tensorb(2) = -(tensora(2)*tensora(9) - tensora(3)*tensora(8))
-                        tensorb(3) = tensora(2)*tensora(6) - tensora(3)*tensora(5)
-                        tensorb(4) = -(tensora(4)*tensora(9) - tensora(6)*tensora(7))
-                        tensorb(5) = tensora(1)*tensora(9) - tensora(3)*tensora(7)
-                        tensorb(6) = -(tensora(1)*tensora(6) - tensora(4)*tensora(3))
-                        tensorb(7) = tensora(4)*tensora(8) - tensora(5)*tensora(7)
-                        tensorb(8) = -(tensora(1)*tensora(8) - tensora(2)*tensora(7))
-                        tensorb(9) = tensora(1)*tensora(5) - tensora(2)*tensora(4)
-
-                        ! STEP 2b: computing the determinant of the grad_xi tensor
-                        tensorb(tensor_size) = tensora(1)*(tensora(5)*tensora(9) - tensora(6)*tensora(8)) - tensora(2)*(tensora(4) &
-                                & *tensora(9) - tensora(6)*tensora(7)) + tensora(3)*(tensora(4)*tensora(8) - tensora(5)*tensora(7))
+                        ! STEP 1-2b: grad_xi (tensora) and its determinant (tensorb(tensor_size)), specialized per num_dims at
+                        ! compile time (an fypp constant baked into every case.fpp, not a runtime value) rather than branching
+                        ! at runtime: a 1D/2D build never contains the other dimensions' tensor algebra at all.
+                        #:if num_dims == 1
+                            ! grad_xi is the scalar d(xi_x)/dx
+                            $:GPU_LOOP(parallelism='[seq]')
+                            do r = -fd_number, fd_number
+                                tensora(1) = tensora(1) + q_prim_vf(eqn_idx%xi%beg)%sf(j + r, k, l)*fd_coeff_x_hyper(r, j)
+                            end do
+                            ! the "determinant" of a 1x1 matrix is itself
+                            tensorb(tensor_size) = tensora(1)
+                        #:elif num_dims == 2
+                            ! grad_xi is 2x2: tensora organization 1-2: dxix_dx, dxiy_dx; 3-4: dxix_dy, dxiy_dy
+                            $:GPU_LOOP(parallelism='[seq]')
+                            do r = -fd_number, fd_number
+                                tensora(1) = tensora(1) + q_prim_vf(eqn_idx%xi%beg)%sf(j + r, k, l)*fd_coeff_x_hyper(r, j)
+                                tensora(2) = tensora(2) + q_prim_vf(eqn_idx%xi%beg + 1)%sf(j + r, k, l)*fd_coeff_x_hyper(r, j)
+                                tensora(3) = tensora(3) + q_prim_vf(eqn_idx%xi%beg)%sf(j, k + r, l)*fd_coeff_y_hyper(r, k)
+                                tensora(4) = tensora(4) + q_prim_vf(eqn_idx%xi%beg + 1)%sf(j, k + r, l)*fd_coeff_y_hyper(r, k)
+                            end do
+                            ! adjoint of a 2x2 [[a,b],[c,d]] is [[d,-b],[-c,a]]
+                            tensorb(1) = tensora(4)
+                            tensorb(2) = -tensora(2)
+                            tensorb(3) = -tensora(3)
+                            tensorb(4) = tensora(1)
+                            tensorb(tensor_size) = tensora(1)*tensora(4) - tensora(3)*tensora(2)
+                        #:else
+                            ! grad_xi is 3x3: tensora organization 1-3: dxix_dx, dxiy_dx, dxiz_dx; 4-6: dxix_dy, dxiy_dy,
+                            ! dxiz_dy; 7-9: dxix_dz, dxiy_dz, dxiz_dz
+                            $:GPU_LOOP(parallelism='[seq]')
+                            do r = -fd_number, fd_number
+                                ! derivatives in the x-direction
+                                tensora(1) = tensora(1) + q_prim_vf(eqn_idx%xi%beg)%sf(j + r, k, l)*fd_coeff_x_hyper(r, j)
+                                tensora(2) = tensora(2) + q_prim_vf(eqn_idx%xi%beg + 1)%sf(j + r, k, l)*fd_coeff_x_hyper(r, j)
+                                tensora(3) = tensora(3) + q_prim_vf(eqn_idx%xi%end)%sf(j + r, k, l)*fd_coeff_x_hyper(r, j)
+                                ! derivatives in the y-direction
+                                tensora(4) = tensora(4) + q_prim_vf(eqn_idx%xi%beg)%sf(j, k + r, l)*fd_coeff_y_hyper(r, k)
+                                tensora(5) = tensora(5) + q_prim_vf(eqn_idx%xi%beg + 1)%sf(j, k + r, l)*fd_coeff_y_hyper(r, k)
+                                tensora(6) = tensora(6) + q_prim_vf(eqn_idx%xi%end)%sf(j, k + r, l)*fd_coeff_y_hyper(r, k)
+                                ! derivatives in the z-direction
+                                tensora(7) = tensora(7) + q_prim_vf(eqn_idx%xi%beg)%sf(j, k, l + r)*fd_coeff_z_hyper(r, l)
+                                tensora(8) = tensora(8) + q_prim_vf(eqn_idx%xi%beg + 1)%sf(j, k, l + r)*fd_coeff_z_hyper(r, l)
+                                tensora(9) = tensora(9) + q_prim_vf(eqn_idx%xi%end)%sf(j, k, l + r)*fd_coeff_z_hyper(r, l)
+                            end do
+                            ! adjoint of the 3x3 grad_xi tensor, for the inverse
+                            tensorb(1) = tensora(5)*tensora(9) - tensora(6)*tensora(8)
+                            tensorb(2) = -(tensora(2)*tensora(9) - tensora(3)*tensora(8))
+                            tensorb(3) = tensora(2)*tensora(6) - tensora(3)*tensora(5)
+                            tensorb(4) = -(tensora(4)*tensora(9) - tensora(6)*tensora(7))
+                            tensorb(5) = tensora(1)*tensora(9) - tensora(3)*tensora(7)
+                            tensorb(6) = -(tensora(1)*tensora(6) - tensora(4)*tensora(3))
+                            tensorb(7) = tensora(4)*tensora(8) - tensora(5)*tensora(7)
+                            tensorb(8) = -(tensora(1)*tensora(8) - tensora(2)*tensora(7))
+                            tensorb(9) = tensora(1)*tensora(5) - tensora(2)*tensora(4)
+                            tensorb(tensor_size) = tensora(1)*(tensora(5)*tensora(9) - tensora(6)*tensora(8)) - tensora(2) &
+                                    & *(tensora(4)*tensora(9) - tensora(6)*tensora(7)) + tensora(3)*(tensora(4)*tensora(8) &
+                                    & - tensora(5)*tensora(7))
+                        #:endif
 
                         if (tensorb(tensor_size) > verysmall) then
-                            ! STEP 2c: computing the inverse of grad_xi tensor = F; tensorb is the adjoint, tensora becomes F
-                            $:GPU_LOOP(parallelism='[seq]')
-                            do i = 1, tensor_size - 1
-                                tensora(i) = tensorb(i)/tensorb(tensor_size)
-                            end do
+                            ! STEP 2c-3: F = (grad_xi)^-1 (tensora becomes F), J = det(F), B = F F^T -- same per-dimension
+                            ! specialization as STEP 1-2b above
+                            #:if num_dims == 1
+                                ! F = 1/grad_xi; J = det(F) = F (1x1 again); B_xx = F**2
+                                tensora(1) = 1._wp/tensorb(tensor_size)
+                                tensorb(tensor_size) = tensora(1)
+                                tensorb(1) = tensora(1)**2
+                            #:elif num_dims == 2
+                                $:GPU_LOOP(parallelism='[seq]')
+                                do i = 1, tensor_size - 1
+                                    tensora(i) = tensorb(i)/tensorb(tensor_size)
+                                end do
+                                tensorb(tensor_size) = 1._wp/tensorb(tensor_size)
+                                ! B = F F^T: B_xx, B_yy, B_xy (tensora organization 1-2: F_xx, F_yx; 3-4: F_xy, F_yy)
+                                tensorb(1) = tensora(1)**2 + tensora(3)**2
+                                tensorb(3) = tensora(2)**2 + tensora(4)**2
+                                tensorb(2) = tensora(1)*tensora(2) + tensora(3)*tensora(4)
+                            #:else
+                                $:GPU_LOOP(parallelism='[seq]')
+                                do i = 1, tensor_size - 1
+                                    tensora(i) = tensorb(i)/tensorb(tensor_size)
+                                end do
+                                tensorb(tensor_size) = 1._wp/tensorb(tensor_size)
+                                ! B = F F^T, the left Cauchy-Green tensor
+                                tensorb(1) = tensora(1)**2 + tensora(2)**2 + tensora(3)**2
+                                tensorb(5) = tensora(4)**2 + tensora(5)**2 + tensora(6)**2
+                                tensorb(9) = tensora(7)**2 + tensora(8)**2 + tensora(9)**2
+                                tensorb(2) = tensora(1)*tensora(4) + tensora(2)*tensora(5) + tensora(3)*tensora(6)
+                                tensorb(3) = tensora(1)*tensora(7) + tensora(2)*tensora(8) + tensora(3)*tensora(9)
+                                tensorb(6) = tensora(4)*tensora(7) + tensora(5)*tensora(8) + tensora(6)*tensora(9)
+                            #:endif
 
-                            ! STEP 2d: J = det(F) = 1/det(grad_xi)
-                            tensorb(tensor_size) = 1._wp/tensorb(tensor_size)
-
-                            ! STEP 3: computing B = F F^T, the left Cauchy-Green tensor
-                            tensorb(1) = tensora(1)**2 + tensora(2)**2 + tensora(3)**2
-                            tensorb(5) = tensora(4)**2 + tensora(5)**2 + tensora(6)**2
-                            tensorb(9) = tensora(7)**2 + tensora(8)**2 + tensora(9)**2
-                            tensorb(2) = tensora(1)*tensora(4) + tensora(2)*tensora(5) + tensora(3)*tensora(6)
-                            tensorb(3) = tensora(1)*tensora(7) + tensora(2)*tensora(8) + tensora(3)*tensora(9)
-                            tensorb(6) = tensora(4)*tensora(7) + tensora(5)*tensora(8) + tensora(6)*tensora(9)
-                            ! STEP 4: update the btensor, this is consistent with Riemann solvers
-                            #:for BIJ, TXY in [(1,1),(2,2),(3,5),(4,3),(5,6),(6,9)]
+                            ! STEP 4: update the btensor, in the same symmetric order (xx, xy, yy, xz, yz, zz) eqn_idx%stress
+                            ! uses, truncated to b_size - 1 entries for num_dims < 3
+                            #:if num_dims == 1
+                                #:set BTENSOR_MAP = [(1,1)]
+                            #:elif num_dims == 2
+                                #:set BTENSOR_MAP = [(1,1),(2,2),(3,3)]
+                            #:else
+                                #:set BTENSOR_MAP = [(1,1),(2,2),(3,5),(4,3),(5,6),(6,9)]
+                            #:endif
+                            #:for BIJ, TXY in BTENSOR_MAP
                                 btensor%vf(${BIJ}$)%sf(j, k, l) = tensorb(${TXY}$)
                             #:endfor
                             ! store the determinant at the last entry of the btensor
@@ -229,6 +279,37 @@ contains
 
     end subroutine s_hyperelastic_rmt_stress_update
 
+    !> Trace of B (the full 3D invariant I1, with (3 - num_dims) added for the directions frozen at identity stretch -- see
+    !! misc/hyperelastic_acoustic_tensor.py's plane_strain_reduction() for the derivation) and the in-place deviatoric projection
+    !! dev(B) = B - tr(B)/3 * I. Shared by both Cauchy-stress solvers below; the diagonal positions in the symmetric (xx, xy, yy,
+    !! xz, yz, zz) storage order are the triangular numbers k(k+1)/2 for k = 1..num_dims.
+    subroutine s_hyperelastic_trace_and_deviator(btensor_in, j, k, l, trace)
+
+        $:GPU_ROUTINE(parallelism='[seq]')
+        type(scalar_field), dimension(b_size), intent(inout) :: btensor_in
+        integer, intent(in)                                  :: j, k, l
+        real(wp), intent(out)                                :: trace
+        real(wp), parameter                                  :: f13 = 1._wp/3._wp
+
+        #:if num_dims == 1
+            #:set DIAG = [1]
+        #:elif num_dims == 2
+            #:set DIAG = [1, 3]
+        #:else
+            #:set DIAG = [1, 3, 6]
+        #:endif
+
+        trace = real(3 - num_dims, wp)
+        #:for IJ in DIAG
+            trace = trace + btensor_in(${IJ}$)%sf(j, k, l)
+        #:endfor
+
+        #:for IJ in DIAG
+            btensor_in(${IJ}$)%sf(j, k, l) = btensor_in(${IJ}$)%sf(j, k, l) - f13*trace
+        #:endfor
+
+    end subroutine s_hyperelastic_trace_and_deviator
+
     !> Compute the neo-Hookean Cauchy stress from the left Cauchy-Green tensor
     subroutine s_neoHookean_cauchy_solver(btensor_in, q_prim_vf, Ca_inv_param, j, k, l)
 
@@ -238,15 +319,10 @@ contains
         real(wp), intent(in)                                   :: Ca_inv_param
         integer, intent(in)                                    :: j, k, l
         real(wp)                                               :: trace
-        real(wp), parameter                                    :: f13 = 1._wp/3._wp
         integer                                                :: i  !< Generic loop iterators
-        ! tensor is the symmetric tensor & calculate the trace of the tensor
-        trace = btensor_in(1)%sf(j, k, l) + btensor_in(3)%sf(j, k, l) + btensor_in(6)%sf(j, k, l)
 
-        ! Deviatoric left Cauchy-Green tensor: dev(b) = b - (tr(b)/3)*I
-        #:for IJ in [1,3,6]
-            btensor_in(${IJ}$)%sf(j, k, l) = btensor_in(${IJ}$)%sf(j, k, l) - f13*trace
-        #:endfor
+        call s_hyperelastic_trace_and_deviator(btensor_in, j, k, l, trace)
+
         ! dividing by the jacobian for neo-Hookean model setting the tensor to the stresses for riemann solver
         $:GPU_LOOP(parallelism='[seq]')
         do i = 1, b_size - 1
@@ -275,15 +351,9 @@ contains
         real(wp), intent(in)                                   :: Ca_inv_param
         integer, intent(in)                                    :: j, k, l
         real(wp)                                               :: trace
-        real(wp), parameter                                    :: f13 = 1._wp/3._wp
         integer                                                :: i  !< Generic loop iterators
-        ! TODO: Make 1D and 2D capable
-        trace = btensor_in(1)%sf(j, k, l) + btensor_in(3)%sf(j, k, l) + btensor_in(6)%sf(j, k, l)
 
-        ! Deviatoric left Cauchy-Green tensor: dev(b) = b - (tr(b)/3)*I
-        btensor_in(1)%sf(j, k, l) = btensor_in(1)%sf(j, k, l) - f13*trace
-        btensor_in(3)%sf(j, k, l) = btensor_in(3)%sf(j, k, l) - f13*trace
-        btensor_in(6)%sf(j, k, l) = btensor_in(6)%sf(j, k, l) - f13*trace
+        call s_hyperelastic_trace_and_deviator(btensor_in, j, k, l, trace)
 
         $:GPU_LOOP(parallelism='[seq]')
         do i = 1, b_size - 1
