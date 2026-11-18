@@ -1539,6 +1539,8 @@ def list_cases() -> typing.List[TestCaseBuilder]:
                             "patch_ib(1)%moving_ibm": 1,
                             "patch_ib(1)%vel(1)": vel,
                         },
+                        # The bank (unreturned gas mass, relaxed over ib_mass_relax steps) is restarted from the IB state record
+                        restart_check=True,
                     )
                 )
             # ib_mass_relax = 1 returns a fixed slip wall's ghost-layer intake in the step it occurs
@@ -4465,6 +4467,20 @@ def list_cases() -> typing.List[TestCaseBuilder]:
                 "2D -> IBM -> Injecting Body -> ib_ip_interp=2",
                 "examples/2D_ibm_burning_grain/case.py",
                 mods={"m": 25, "n": 25, "t_step_stop": 50, "t_step_save": 50, "parallel_io": "F", "ib_ip_interp": 2},
+                override_tol=1e-3,
+            )
+        )
+
+        # The ignition kernel next to the injecting grain is too stiff for the explicit RK3 reaction source at the flow dt of a coarse
+        # grid (dt * |lambda_max| ~ 6 to 26 at 1500 to 2000 K). The Example integrates the reactions by operator splitting; without
+        # it (chem_params%reaction_substeps = 0) this case aborts with VCFL = Inf at step ~35. A 1500 K oxidizer ignites at once, so
+        # the 60 steps cover the ignition and stay short of the point past which GPU vendors drift apart (~step 80 from 1200 K).
+        cases.append(
+            define_case_f(
+                "2D -> Chemistry -> IBM -> Injecting Body -> Coarse Ignition",
+                "examples/2D_ibm_burning_grain/case.py",
+                ["--res", "0.2", "--T0", "1500"],
+                mods={"dt": 3.84e-7, "t_step_stop": 60, "t_step_save": 60, "parallel_io": "F"},
                 override_tol=1e-3,
             )
         )
