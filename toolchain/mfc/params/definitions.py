@@ -1013,7 +1013,11 @@ def _load():
     _EOS_CHOICES = sorted(f.value for f in EOS_FAMILIES)
 
     # fluid_pp (10 fluids)
-    # Members present in physical_parameters: gamma, pi_inf, Re, cv, qv, qvp, G.
+    # Every parameter registered in this loop must have a matching field in physical_parameters
+    # (src/common/m_derived_types.fpp) -- that type is hand-maintained, not generated from this
+    # registry, so a field registered here with no matching Fortran member compiles everywhere
+    # this toolchain checks and fails only when a Fortran compiler actually builds the namelist
+    # read (as the graded_* fields did before this comment was added).
     # mul0/ss/pv/gamma_v/M_v/mu_v/k_v/cp_v/D_v were removed from the Fortran type
     # by upstream #1085/#1093 — they must NOT be registered (namelist read would crash).
     for f in range(1, NF + 1):
