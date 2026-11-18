@@ -943,6 +943,14 @@ class CaseValidator:
             "hyperelasticity is not compatible with cyl_coord = T (m_hyperelastic.fpp's deformation-gradient stencil is "
             "Cartesian only and does not fill the extra cylindrical hoop-stress slot hypoelasticity carries)",
         )
+        wave_speeds = self.get("wave_speeds")
+        cfl_const_dt = self.get("cfl_const_dt", "F") == "T"
+        cfl_adap_dt = self.get("cfl_adap_dt", "F") == "T"
+        self.prohibit(wave_speeds == 2, "Pressure-based wave speeds (wave_speeds = 2) omit the hyperelastic acoustic-tensor correction and are not supported with hyperelasticity")
+        self.prohibit(
+            cfl_const_dt or cfl_adap_dt,
+            "Automatic CFL time stepping uses the acoustic sound speed only and does not bound the hyperelastic characteristic speed; set dt explicitly for hyperelastic runs",
+        )
 
     def check_graded(self):
         """Checks constraints on graded (spatially-varying) material property parameters"""
