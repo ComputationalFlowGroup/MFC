@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Verification of m_riemann_solver_hllc.fpp's hypoelastic contact-wave / tangential-stress
-treatment, requested before touching HLLC for hyperelasticity.
+treatment.
 
 Checks two separate things against the actual code (src/simulation/m_riemann_solver_hllc.fpp,
 the #:if HYPO branch around lines 1138-1260):
@@ -13,14 +13,16 @@ the #:if HYPO branch around lines 1138-1260):
 2. The TANGENTIAL treatment: u_t_star, tau_nt_star. These are solved for by combining the
    tangential-momentum RH jump across the LEFT acoustic wave (speed s_L) and across the RIGHT
    acoustic wave (speed s_R) -- i.e. the code's ansatz is that a SINGLE (u_t*, tau_nt*) pair
-   is continuous across the ENTIRE star region, the same way u* and pres_tot* are. This script
-   finds that u_t_star IS the exact solution of that 2-equation ansatz, but tau_nt_star is NOT:
-   it is missing the velocity-coupling term the tangential-momentum jump requires, and is
-   therefore inconsistent with u_t_star's own derivation. Beyond that specific mismatch, the
-   ansatz itself is also only an approximation: hypoelasticity has a genuine SHEAR
-   characteristic at speed u +/- sqrt(Ca_inv/rho), distinct from the acoustic speed s_L/s_R used
-   to build A_L, A_R, so even a corrected tau_nt_star only approximates the true (v, sigma)
-   jump, which should propagate at its own speed rather than smear across the acoustic fan.
+   is continuous across the ENTIRE star region, the same way u* and pres_tot* are. u_t_star IS
+   the exact solution of that 2-equation ansatz; tau_nt_star previously was not (it averaged
+   tau_nt_L/R with the mass-flux weights alone, dropping the velocity-coupling term the
+   tangential-momentum jump requires). Fixed: tau_nt_star = tau_nt_L + A_L*(u_t_L - u_t_star)
+   (equivalently from the right side), which this script confirms solves the identical 2x2
+   system u_t_star does. Beyond that specific fix, the ansatz itself remains only an
+   approximation: hypoelasticity has a genuine SHEAR characteristic at speed
+   u +/- sqrt(Ca_inv/rho), distinct from the acoustic speed s_L/s_R used to build A_L, A_R, so
+   even the corrected tau_nt_star only approximates the true (v, sigma) jump, which should
+   propagate at its own speed rather than smear across the acoustic fan.
 
 This does NOT affect the planned hyperelasticity extension to HLLC: hyperelastic stress is not
 an independently flux-transported quantity (it is slaved algebraically to the deformation
@@ -107,28 +109,18 @@ def check_tangential_ansatz():
 
     denom_A = A_R - A_L
     u_t_star_code = (A_R * v_R - A_L * v_L + (sig_R - sig_L)) / denom_A
-    tau_nt_star_code = (A_R * sig_R - A_L * sig_L) / denom_A
+    # Fixed formula (m_riemann_solver_hllc.fpp): tau_nt_star = tau_nt_L + A_L*(u_t_L - u_t_star),
+    # i.e. sigma_L + A_L*(v_L - u_t_star) -- the single-left-wave relation, closed with the
+    # already-correct u_t_star rather than averaged independently of it.
+    tau_nt_star_code = sig_L + A_L * (v_L - u_t_star_code)
 
     diff_u = sp.simplify(u_t_star_derived - u_t_star_code)
     diff_tau = sp.simplify(tau_nt_star_derived - tau_nt_star_code)
     print(f"u_t_star:    derived - coded = {diff_u}   (expect 0)")
-    print(f"tau_nt_star: derived - coded = {diff_tau}")
+    print(f"tau_nt_star: derived - coded = {diff_tau}   (expect 0)")
     assert diff_u == 0, "u_t_star does not solve its own stated ansatz -- that would be a coding error."
-    print("u_t_star matches its ansatz exactly: no algebra mistake there.")
-    if diff_tau != 0:
-        print("tau_nt_star does NOT match solving the same 2x2 system as u_t_star -- the code's formula")
-        print("is missing the velocity-coupling terms the tangential-momentum RH jump requires.")
-        print()
-        print("  code's formula:   tau_nt_star = (A_R*sigma_R - A_L*sigma_L) / (A_R - A_L)")
-        print()
-        # Express the correct formula the same simple way, by substituting u_t_star back into
-        # either single-wave relation (both give the same answer once u_t_star is correct).
-        correct_form = sp.simplify(sig_L + A_L * (v_L - u_t_star_code))
-        print("  correct formula:  tau_nt_star = sigma_L + A_L*(v_L - u_t_star)")
-        print("                                = sigma_R + A_R*(v_R - u_t_star)   (equivalently)")
-        print(f"  in full:          tau_nt_star = {correct_form}")
-    else:
-        print("tau_nt_star matches its ansatz exactly too.")
+    assert diff_tau == 0, "tau_nt_star does not solve the same 2x2 system as u_t_star."
+    print("u_t_star and tau_nt_star both match the 2x2 tangential-momentum RH system exactly.")
 
     print()
     print("-" * 78)

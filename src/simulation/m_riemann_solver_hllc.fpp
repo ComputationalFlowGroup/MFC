@@ -1211,9 +1211,14 @@ contains
                                             A_R = rho_R*(s_R - vel_R(dir_idx(1)))
                                             denom_A = A_R - A_L
                                             u_t_star = (A_R*u_t_R - A_L*u_t_L + (tau_nt_R - tau_nt_L))/(denom_A + sgm_eps)
-                                            tau_nt_star = (A_R*tau_nt_R - A_L*tau_nt_L)/(denom_A + sgm_eps)
+                                            ! tau_nt_star closes the SAME tangential-momentum RH jump u_t_star solves
+                                            ! (tau_nt_star = sigma_K + A_K*(v_K - u_t_star), K = L or R, equivalently --
+                                            ! misc/hllc_hypoelastic_contact_wave.py). The two must be solved together: an
+                                            ! average of tau_nt_L/R alone (the old formula) drops the velocity-coupling
+                                            ! term the jump condition requires.
+                                            tau_nt_star = tau_nt_L + A_L*(u_t_L - u_t_star)
                                             u_t2_star = (A_R*u_t2_R - A_L*u_t2_L + (tau_nt2_R - tau_nt2_L))/(denom_A + sgm_eps)
-                                            tau_nt2_star = (A_R*tau_nt2_R - A_L*tau_nt2_L)/(denom_A + sgm_eps)
+                                            tau_nt2_star = tau_nt2_L + A_L*(u_t2_L - u_t2_star)
                                             pres_tot_star = pres_tot_L + A_L*(s_S - vel_L(dir_idx(1)))
                                         #:endif
 
