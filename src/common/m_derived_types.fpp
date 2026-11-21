@@ -469,6 +469,7 @@ module m_derived_types
         real(wp)               :: qv  !< reference energy per unit mass for SGEOS, q (see Le Metayer (2004))
         real(wp)               :: qvp  !< reference entropy per unit mass for SGEOS, q' (see Le Metayer (2004))
         real(wp)               :: Ca_inv
+        real(wp)               :: mr_c2  !< Mooney-Rivlin's second material constant C2 (hyper_model = 2 only)
         integer                :: eos  !< Equation of state selector (eos_* in m_constants)
         real(wp)               :: mg_rho0  !< Mie-Gruneisen reference density
         real(wp)               :: mg_c0  !< Mie-Gruneisen bulk sound speed at mg_rho0

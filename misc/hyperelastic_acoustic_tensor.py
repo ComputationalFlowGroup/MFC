@@ -242,14 +242,10 @@ def main():
 def mooney_rivlin():
     """Same derivation as main(), but for the genuine (two-constant) Mooney-Rivlin law.
 
-    A note before this runs: as actually coded in m_hyperelastic.fpp,
-    s_Mooney_Rivlin_cauchy_solver is byte-for-byte the same formula as
-    s_neoHookean_cauchy_solver -- same dev(B), same strain-energy line, and its own
-    comment still says "neo-Hookean model". hyper_model = 2 is not a different
-    constitutive law in this codebase; it is an unfinished copy of hyper_model = 1. So
-    this function derives the acoustic tensor for what Mooney-Rivlin actually is, as a
-    reference for finishing that implementation, not as a check against existing code
-    (there is nothing distinct in the code yet to check against).
+    s_Mooney_Rivlin_cauchy_solver now implements this: see
+    mooney_rivlin_implementation_check() below for the additional identities that
+    implementation relies on (B^-1 = grad_xi^T grad_xi, the component-wise stress split,
+    and the second invariant formula), verified against this derivation.
 
     The standard (Rivlin) isotropic stress for W = C1*(I1 - 3) + C2*(I2 - 3) is
     sigma = -p*I + 2*C1*B - 2*C2*B^-1 (up to the pressure term, handled separately by the
@@ -465,7 +461,96 @@ def plane_strain_reduction():
     print("same formula, not a separate derivation.")
 
 
+def mooney_rivlin_implementation_check():
+    """Verifies the specific discrete identities s_Mooney_Rivlin_cauchy_solver (m_hyperelastic.fpp)
+    relies on, so that implementation can avoid ever explicitly inverting B.
+
+    1. B^-1 = grad_xi^T * grad_xi. Since F = (grad_xi)^-1 (the code's own convention), B^-1 =
+       (F F^T)^-1 = (F^-1)^T F^-1 = grad_xi^T grad_xi -- the EXACT SAME "sum of products" formula
+       the code already uses for B = F F^T (STEP 3 of s_hyperelastic_rmt_stress_update), just
+       applied to grad_xi instead of F. This means B^-1 needs no separate matrix inversion in the
+       general case; it only needed the code to also invert B directly via its own adjugate/det
+       (det(B) = J**2), which is what is implemented, checked here against this identity.
+    2. The second invariant I2 = 0.5*(tr(B)**2 - tr(B**2)) matches the textbook sum of principal
+       2x2 minors.
+    3. The component-wise stress formula (subtract trace/3 from diagonal entries only, leave
+       off-diagonal entries alone, matching s_hyperelastic_trace_and_deviator's own convention)
+       is algebraically identical to the matrix form tau = (1/J)*(2*C1*dev(B) - 2*C2*dev(B^-1)).
+    4. The 1D/2D frozen-direction convention for tr(B**2) (diagonal terms squared, off-diagonal
+       terms squared and doubled, plus (3 - num_dims) for the frozen unit diagonal entries)
+       matches the full 3D embedding, the same way plane_strain_reduction() checked tr(B) itself.
+    """
+    print("\n" + "#" * 78)
+    print("# Mooney-Rivlin implementation check (discrete identities used in the Fortran code)")
+    print("#" * 78)
+
+    print("\n" + "=" * 78)
+    print("1. B^-1 = grad_xi^T * grad_xi")
+    print("=" * 78)
+    M = sp.Matrix(3, 3, lambda i, j: sp.Symbol(f"m{i + 1}{j + 1}"))  # grad_xi
+    F = M.inv()
+    B = sp.simplify(F * F.T)
+    Binv_direct = sp.simplify(B.inv())
+    Binv_identity = sp.simplify(M.T * M)
+    diff = sp.simplify(Binv_direct - Binv_identity)
+    assert diff == sp.zeros(3, 3), "B^-1 != grad_xi^T * grad_xi"
+    print("Confirmed: B^-1 = grad_xi^T * grad_xi -- not needed in the final implementation (which")
+    print("inverts B directly via its own adjugate/determinant instead), but confirms the identity")
+    print("the two routes agree, and documents why a second inversion path was not necessary.")
+
+    print("\n" + "=" * 78)
+    print("2. Second invariant I2")
+    print("=" * 78)
+    Bxx, Bxy, Bxz, Byy, Byz, Bzz = sp.symbols("Bxx Bxy Bxz Byy Byz Bzz", real=True)
+    B3 = sp.Matrix([[Bxx, Bxy, Bxz], [Bxy, Byy, Byz], [Bxz, Byz, Bzz]])
+    trB, trB2 = sp.trace(B3), sp.trace(B3 * B3)
+    I2_formula = sp.Rational(1, 2) * (trB**2 - trB2)
+    I2_minors = Bxx*Byy - Bxy**2 + Byy*Bzz - Byz**2 + Bxx*Bzz - Bxz**2
+    assert sp.simplify(I2_formula - I2_minors) == 0, "I2 formula does not match the principal minors"
+    print("Confirmed: I2 = 0.5*(tr(B)**2 - tr(B**2)) matches the sum of principal 2x2 minors.")
+
+    print("\n" + "=" * 78)
+    print("3. Component-wise stress formula vs. the matrix form")
+    print("=" * 78)
+    import random
+
+    random.seed(1)
+    A = sp.Matrix(3, 3, lambda i, j: random.uniform(-0.5, 0.5))
+    Bnum = sp.simplify(A * A.T + 3 * sp.eye(3))  # positive-definite-ish
+    Jnum = sp.sqrt(Bnum.det())
+    trBnum = sp.trace(Bnum)
+    C1, C2 = sp.Rational(3, 2), sp.Rational(7, 10)
+    Binv_num = Bnum.inv()
+    trBinv_num = sp.trace(Binv_num)
+    I3 = sp.eye(3)
+    tau_matrix = (2 * C1 * (Bnum - trBnum / 3 * I3) - 2 * C2 * (Binv_num - trBinv_num / 3 * I3)) / Jnum
+
+    def tau_component(i, j):
+        if i == j:
+            return (2 * C1 * (Bnum[i, i] - trBnum / 3) - 2 * C2 * (Binv_num[i, i] - trBinv_num / 3)) / Jnum
+        return (2 * C1 * Bnum[i, j] - 2 * C2 * Binv_num[i, j]) / Jnum
+
+    max_err = max(abs(float(sp.simplify(tau_matrix[i, j] - tau_component(i, j)))) for i in range(3) for j in range(3))
+    assert max_err < 1e-12, f"component-wise formula mismatch: {max_err}"
+    print(f"Confirmed: component-wise formula matches the matrix form exactly (max error {max_err:.1e}).")
+
+    print("\n" + "=" * 78)
+    print("4. 1D/2D frozen-direction tr(B**2)")
+    print("=" * 78)
+    Bxx, Bxy, Byy = sp.symbols("Bxx Bxy Byy", real=True)
+    B2d_embedded = sp.diag(Bxx, Byy, 1)
+    B2d_embedded[0, 1] = Bxy
+    B2d_embedded[1, 0] = Bxy
+    trB2_2d_formula = Bxx**2 + Byy**2 + 2 * Bxy**2 + 1  # num_dims = 2: one frozen direction, +1**2
+    trB2_3d_direct = sp.trace(B2d_embedded * B2d_embedded)
+    assert sp.simplify(trB2_2d_formula - trB2_3d_direct) == 0
+    print("Confirmed: the 2D tr(B**2) formula (diagonal terms squared + 2*off-diagonal squared +")
+    print("1 for the frozen z-direction) matches the full 3D embedding exactly. The 1D case is the")
+    print("same formula with zero off-diagonal terms and (3-1)=2 frozen directions.")
+
+
 if __name__ == "__main__":
     main()
     mooney_rivlin()
     plane_strain_reduction()
+    mooney_rivlin_implementation_check()

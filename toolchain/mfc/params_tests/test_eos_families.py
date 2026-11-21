@@ -74,6 +74,7 @@ _EXPECTED_FLUID_PP1_PARAMS = [
     "fluid_pp(1)%mg_s2",
     "fluid_pp(1)%mg_s3",
     "fluid_pp(1)%mg_t0",
+    "fluid_pp(1)%mr_c2",
     "fluid_pp(1)%mu_bulk",
     "fluid_pp(1)%mu_max",
     "fluid_pp(1)%mu_min",

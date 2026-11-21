@@ -617,17 +617,29 @@ time step.
 
 \f[\boldsymbol{\tau}^e = \frac{G}{J}\left(\mathbf{b} - \frac{\text{tr}(\mathbf{b})}{3}\,\mathbf{I}\right)\f]
 
-where \f$J = \det(\mathbf{F})\f$. `hyper_model = 2` (Mooney-Rivlin) is accepted by the case
-validator but currently computes the same stress as the Neo-Hookean model above -- not yet a
-distinct constitutive law.
+where \f$J = \det(\mathbf{F})\f$.
+
+**Mooney-Rivlin Cauchy stress (`hyper_model = 2`):**
+
+\f[\boldsymbol{\tau}^e = \frac{1}{J}\left[G\,\mathrm{dev}(\mathbf{b}) - 2\,C_2\,\mathrm{dev}(\mathbf{b}^{-1})\right]\f]
+
+where \f$C_2\f$ is `fluid_pp(i)%%mr_c2`, a second independent material constant (requires
+`fluid_pp(i)%%mr_c2` to be set); this reduces exactly to the Neo-Hookean stress above at
+\f$C_2 = 0\f$. \f$\mathbf{b}^{-1}\f$ is computed from \f$\mathbf{b}\f$'s own adjugate and
+determinant (\f$\det(\mathbf{b}) = J^2\f$), not by inverting the deformation gradient a second
+time. Derived and verified in `misc/hyperelastic_acoustic_tensor.py`'s `mooney_rivlin()` (the
+continuum form, objectivity, and the \f$C_2 = 0\f$ reduction) and
+`mooney_rivlin_implementation_check()` (the discrete identities the implementation relies on).
 
 **Hyperelastic energy:**
 
-\f[e^e = \frac{G}{2}\bigl(I_{\mathbf{b}} - 3\bigr), \qquad I_{\mathbf{b}} = \text{tr}(\mathbf{b})\f]
+\f[e^e = G\bigl(I_{\mathbf{b}} - 3\bigr)/2 + C_2\bigl(I\!I_{\mathbf{b}} - 3\bigr), \qquad
+I_{\mathbf{b}} = \text{tr}(\mathbf{b}), \quad I\!I_{\mathbf{b}} = \frac{1}{2}\bigl(\text{tr}(\mathbf{b})^2 - \text{tr}(\mathbf{b}^2)\bigr)\f]
 
-The pressure and total energy are corrected by \f$G\,e^e\f$ (divided by \f$\gamma\f$ for the
-pressure, undivided for the energy) after this update, the same way the hypoelastic model above
-corrects for its own elastic energy.
+(\f$C_2 = 0\f$ for Neo-Hookean, recovering \f$e^e = G(I_{\mathbf{b}}-3)/2\f$.) The pressure and
+total energy are corrected by \f$e^e\f$ (divided by \f$\gamma\f$ for the pressure, undivided for
+the energy) after this update, the same way the hypoelastic model above corrects for its own
+elastic energy.
 
 **Direct wave speed (`wave_speeds = 2`, HLL only):** the flat hypoelastic correction
 \f$4G/(3\rho)\f$ is replaced by the finite-strain acoustic-tensor correction
@@ -636,7 +648,11 @@ corrects for its own elastic energy.
 
 which reduces to the hypoelastic constant at \f$\mathbf{b} = \mathbf{I}\f$, \f$J = 1\f$. Derived
 and verified symbolically in `misc/hyperelastic_acoustic_tensor.py`. Currently requires the HLL
-Riemann solver (`riemann_solver = 1`) and is not compatible with `cyl_coord`.
+Riemann solver (`riemann_solver = 1`) and is not compatible with `cyl_coord`. **This correction
+is derived for the Neo-Hookean law only** and does not yet include \f$C_2\f$'s contribution to
+the tangent stiffness (the correct small-strain limit with \f$C_2 \neq 0\f$ is
+\f$4(G/2+C_2)\cdot2/(3\rho)\f$, not \f$4G/(3\rho)\f$) -- a known, flagged gap, not silently
+assumed closed.
 
 **1D and 2D:** directions beyond num_dims are frozen at an identity stretch (no
 deformation) -- the same convention `hypoelasticity` uses when its own velocity components beyond

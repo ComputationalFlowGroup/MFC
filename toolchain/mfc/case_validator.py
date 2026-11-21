@@ -953,6 +953,17 @@ class CaseValidator:
             cfl_const_dt or cfl_adap_dt,
             "Automatic CFL time stepping uses the acoustic sound speed only and does not bound the hyperelastic characteristic speed; set dt explicitly for hyperelastic runs",
         )
+        if hyper_model == 2:
+            num_fluids = self.get("num_fluids")
+            if num_fluids is not None:
+                for i in range(1, int(num_fluids) + 1):
+                    self.prohibit(self.get(f"fluid_pp({i})%mr_c2") is None, f"hyper_model = 2 (Mooney-Rivlin) requires fluid_pp({i})%mr_c2 to be set")
+            # Note (not a prohibition): f_hyperelastic_signal_speed's acoustic-tensor wave speed was derived for the
+            # neo-Hookean stress law only (misc/hyperelastic_acoustic_tensor.py's main()); it does not yet account
+            # for mr_c2's contribution to the tangent stiffness, so the small-strain limit it reduces to is
+            # 4*Ca_inv/3 rather than the correct 4*(Ca_inv/2 + mr_c2)*2/3 whenever mr_c2 != 0 (see mooney_rivlin()'s
+            # own small-strain check in that script). The stress law itself is now correct; this is flagged so the
+            # wave-speed gap is not silently assumed closed too.
 
     def check_graded(self):
         """Checks constraints on graded (spatially-varying) material property parameters"""

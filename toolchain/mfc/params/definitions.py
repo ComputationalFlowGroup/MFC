@@ -1034,6 +1034,7 @@ def _load():
             for suffix, sym in fam.required + fam.optional:
                 _r(f"{px}{fam.prefix}_{suffix}", REAL, math=sym)
         _r(f"{px}Ca_inv", REAL, {"hypoelasticity"}, math=r"\f$Ca^{-1}_k\f$")
+        _r(f"{px}mr_c2", REAL, {"hyperelasticity"}, math=r"\f$C_{2,k}\f$")
         _r(f"{px}graded_Ca_inv", LOG, {"graded"}, math=r"\mathrm{graded}_{Ca^{-1},k}")
         _r(f"{px}graded_Ca_inv_init", REAL, {"graded"}, math=r"\f$Ca^{-1}_{k,\mathrm{init}}\f$")
         _r(f"{px}graded_Ca_inv_end", REAL, {"graded"}, math=r"\f$Ca^{-1}_{k,\mathrm{end}}\f$")
