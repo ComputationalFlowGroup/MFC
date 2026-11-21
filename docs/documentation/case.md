@@ -228,8 +228,10 @@ The following variables are available in IC patch expressions:
 | `z`       | `z_cc(k)`                | `lz`      | The patch's `length_z`    | `zc`      | The patch's `z_centroid` |
 | `eps`     | The patch's `epsilon`    | `beta`    | The patch's `beta`        | `radii`   | The patch's `radii`      |
 | `tau_e`   | The patch's `tau_e`      | `r`       | The patch's `radius`      | `pi`      | \f$\pi\f$ (Fortran constant from `m_constants`) |
+| `dx`      | Smallest cell width in x | `dy`      | Smallest cell width in y  | `dz`      | Smallest cell width in z |
 
 where $(i,j,k)$ are the grid-indices of the current cell in each coordinate direction.
+`dx`, `dy` and `dz` are the widths of the grid being filled, so on an AMR fine block they are the block's.
 
 The allowed functions are the standard Fortran intrinsics:
 `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`,
@@ -433,7 +435,7 @@ Additional details on this specification can be found in [NACA airfoil](https://
 
 - `thermal_bc` selects the thermal immersed-boundary condition. A value of 0 applies a zero-normal-gradient temperature condition, 1 prescribes the wall temperature using `Twall`, 2 solves the reacting-surface energy balance for the surface temperature, and 3 treats the body as one lumped solid whose temperature, starting at `Twall`, evolves as described below. The `thermal_bc = 2` option requires `surface_reaction = 1`. A non-zero `thermal_bc` cannot be combined with `inj_species > 0`, since an injecting surface bypasses the ghost-state reconstruction. Without chemistry, `thermal_bc = 1` needs `fluid_pp(1)%%k_therm > 0` and `num_fluids = 1`; `thermal_bc = 2` and `3` require `chemistry = T`.
 
-- With chemistry, the temperature of a ghost point is the linear mirror \f$T_g = T_s + \theta (T_s - T_{IP})\f$ of the image-point temperature about the surface value, with \f$\theta \le 1\f$ cut so that the two-point conduction across each face to a fluid neighbour cannot take that neighbour past \f$T_s\f$. The conduction gradient (`chem_params%%diffusion`) reads \f$T_g\f$, which has no temperature window: the diffusion properties are evaluated at the ghost's own state temperature. The advected ghost state is wall gas at \f$T_s\f$ for a fixed body and carries \f$T_g\f$ limited to `T_surface_min`..`T_surface_max` for a moving one, whose lab-frame faces advect the ghost into the fluid. The conduction temperature of a ghost is not checkpointed: with diffusion on, the first stage after a restart conducts through the ghost's own temperature, so a restarted run is not bit-identical to an uninterrupted one.
+- With chemistry, the temperature of a ghost point is the linear mirror \f$T_g = T_s + \theta (T_s - T_{IP})\f$ of the image-point temperature about the surface value, with \f$\theta \le 1\f$ cut so that the two-point conduction across each face to a fluid neighbour cannot take that neighbour past \f$T_s\f$. The conduction gradient (`chem_params%%diffusion`) reads \f$T_g\f$, which has no temperature window: the diffusion properties are evaluated at the ghost's own state temperature. The advected ghost state is wall gas at \f$T_s\f$ for a fixed body and carries \f$T_g\f$ limited to `T_surface_min`..`T_surface_max` for a moving one, whose lab-frame faces advect the ghost into the fluid. The conduction temperature of a ghost is saved with the IB state in `restart_data/ib_tcond_<step>.dat` (one record of the global cell index and \f$T_g\f$ per ghost), so a restart continues bit-identically. It cannot be rebuilt from the saved state, because it is formed from the primitive state at the start of the last stage. A restart from before the file existed conducts the first stage through the ghost's own temperature and prints a warning.
 
 - A `thermal_bc = 3` body is one lumped solid at temperature \f$T\f$ (`Twall`) that exchanges heat with the gas through its surface:
 
@@ -973,7 +975,7 @@ uniform Cartesian grid.
 | `amr_buf`               | Integer | Padding around tagged cells in coarse cells; >= 1 with regrid (default 3) |
 | `amr_cluster_eff`       | Real    | Minimum tag efficiency of a clustered box, in (0, 1] (default 0.7) |
 | `amr_blocking_factor`   | Integer | Minimum box width in coarse cells (default 4; 1 = none) |
-| `amr_max_grid_size`     | Integer | Maximum box width in coarse cells; 0 derives it from the decomposition (default 0) |
+| `amr_max_grid_size`     | Integer | Maximum box width in coarse cells; 0 is 32, or half the rank subdomain if smaller (default 0) |
 | `amr_max_blocks`        | Integer | Maximum number of blocks (default 1024) |
 | `amr_max_level`         | Integer | Number of refined levels (default 1) |
 | `amr_ref_ratio`         | Integer | Refinement ratio, 2 or 4; 4 allows one level (default 2) |
