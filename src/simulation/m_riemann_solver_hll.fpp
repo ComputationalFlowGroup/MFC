@@ -212,6 +212,10 @@ contains
                                 call s_compute_mixture_coefficients(alpha_rho_R, alpha_R, rho_R, gamma_R, pi_inf_R, qv_R)
 
                                 if (rmt) then
+                                    ! zeroed first: only num_dims entries are set below, but s_grade_Ca_inv (further down)
+                                    ! always reads all 3 components, so the unset ones (1D/2D) must not be left as
+                                    ! whatever garbage was on the stack from a previous call
+                                    xi_field_L = 0._wp; xi_field_R = 0._wp
                                     $:GPU_LOOP(parallelism='[seq]')
                                     do i = 1, num_dims
                                         xi_field_L(i) = qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%beg - 1 + i)
