@@ -26,6 +26,8 @@ module m_viscous
     use m_variables_conversion, only: s_compute_mixture_coefficients
     use m_constants, only: model_eqns_5eq, recon_type_weno, recon_type_muscl
     use m_hb_function
+    use m_riemann_state, only: s_compute_interface_reynolds
+    use m_graded, only: s_grade_Re, Re_graded_flag
 
     private; public s_get_viscous, s_compute_viscous_stress_cylindrical_boundary, s_initialize_viscous_module, &
         & s_reconstruct_cell_boundary_values_visc_deriv, s_compact_ib_viscous_gradients, s_finalize_viscous_module
@@ -61,11 +63,14 @@ contains
 
     !> Compute viscous stress tensor near cylindrical axis, avoiding 1/r singularity at y_cb(-1)=0
     !> Inverse Reynolds numbers of the mixture at one cell. Non-Newtonian fluids need the local shear rate, which comes from the
-    !! velocity gradients; Newtonian ones reduce to the volume-fraction-weighted harmonic mean.
-    subroutine s_compute_axis_inv_re(grad_x_vf, grad_y_vf, grad_z_vf, alpha_visc, j, k, l, Re_visc, Re_size_loc1, Re_size_loc2)
+    !! velocity gradients; Newtonian ones reduce to the volume-fraction-weighted harmonic mean, delegated to
+    !! s_compute_interface_reynolds (shared with the Riemann solver's interface Reynolds number, graded-Re override included).
+    subroutine s_compute_axis_inv_re(q_prim_vf, grad_x_vf, grad_y_vf, grad_z_vf, alpha_visc, j, k, l, Re_visc, Re_size_loc1, &
+                                     & Re_size_loc2)
 
         $:GPU_ROUTINE(function_name='s_compute_axis_inv_re', parallelism='[seq]', cray_inline=True)
 
+        type(scalar_field), dimension(sys_size), intent(in) :: q_prim_vf
         type(scalar_field), dimension(num_dims), intent(in) :: grad_x_vf, grad_y_vf, grad_z_vf
         #:if not MFC_CASE_OPTIMIZATION and USING_AMD
             real(wp), dimension(3), intent(in) :: alpha_visc
@@ -76,7 +81,32 @@ contains
         real(wp), dimension(2), intent(out) :: Re_visc
         integer, intent(in)                 :: Re_size_loc1, Re_size_loc2
         real(wp)                            :: gamma_dot_c
+        real(wp), dimension(3)              :: xi_visc
+        real(wp), dimension(2, Re_size_max) :: Res_axis
         integer                             :: i, q
+
+        if (graded .and. rmt) then
+            ! zeroed first: only num_dims entries are set below, but s_grade_Re takes all 3
+            ! components (same convention as the segfault fix in m_riemann_solver_hll.fpp)
+            xi_visc = 0._wp
+            $:GPU_LOOP(parallelism='[seq]')
+            do i = 1, num_dims
+                xi_visc(i) = q_prim_vf(eqn_idx%xi%beg - 1 + i)%sf(j, k, l)
+            end do
+            $:GPU_LOOP(parallelism='[seq]')
+            do i = 1, 2
+                $:GPU_LOOP(parallelism='[seq]')
+                do q = 1, Re_size_max
+                    Res_axis(i, q) = Res_viscous(i, q)
+                end do
+                $:GPU_LOOP(parallelism='[seq]')
+                do q = 1, merge(Re_size_loc1, Re_size_loc2, i == 1)
+                    if (Re_graded_flag(Re_idx(i, q))) then
+                        call s_grade_Re(xi_visc(1), xi_visc(2), xi_visc(3), Re_idx(i, q), i, Res_axis(i, q))
+                    end if
+                end do
+            end do
+        end if
 
         if (any_non_newtonian) then
             gamma_dot_c = f_compute_shear_rate_from_components(grad_x_vf(1)%sf(j, k, l), grad_y_vf(2)%sf(j, k, l), 0._wp, &
@@ -89,20 +119,15 @@ contains
                         & l) + grad_y_vf(3)%sf(j, k, l)))
                 end if
             #:endif
-            call s_compute_mixture_inv_re(alpha_visc, gamma_dot_c, Res_viscous, Re_visc, Re_size_loc1, Re_size_loc2)
+            if (graded .and. rmt) then
+                call s_compute_mixture_inv_re(alpha_visc, gamma_dot_c, Res_axis, Re_visc, Re_size_loc1, Re_size_loc2)
+            else
+                call s_compute_mixture_inv_re(alpha_visc, gamma_dot_c, Res_viscous, Re_visc, Re_size_loc1, Re_size_loc2)
+            end if
+        else if (graded .and. rmt) then
+            call s_compute_interface_reynolds(alpha_visc, Re_visc, Re_size_loc1, Re_size_loc2, Res_axis)
         else
-            $:GPU_LOOP(parallelism='[seq]')
-            do i = 1, 2
-                Re_visc(i) = dflt_real
-
-                if (merge(Re_size_loc1, Re_size_loc2, i == 1) > 0) Re_visc(i) = 0._wp
-                $:GPU_LOOP(parallelism='[seq]')
-                do q = 1, merge(Re_size_loc1, Re_size_loc2, i == 1)
-                    Re_visc(i) = alpha_visc(Re_idx(i, q))/Res_viscous(i, q) + Re_visc(i)
-                end do
-
-                Re_visc(i) = 1._wp/max(Re_visc(i), sgm_eps)
-            end do
+            call s_compute_interface_reynolds(alpha_visc, Re_visc, Re_size_loc1, Re_size_loc2)
         end if
 
     end subroutine s_compute_axis_inv_re
@@ -175,8 +200,8 @@ contains
                             call s_compute_mixture_coefficients(alpha_rho_visc, alpha_visc, rho_visc, gamma_visc, pi_inf_visc, &
                                                                 & qv_visc)
                             if (viscous) then
-                                call s_compute_axis_inv_re(grad_x_vf, grad_y_vf, grad_z_vf, alpha_visc, j, k, l, Re_visc, &
-                                                           & Re_size_loc1, Re_size_loc2)
+                                call s_compute_axis_inv_re(q_prim_vf, grad_x_vf, grad_y_vf, grad_z_vf, alpha_visc, j, k, l, &
+                                                           & Re_visc, Re_size_loc1, Re_size_loc2)
                             end if
 
                             ! Shear stress near cylindrical axis: includes v/r hoop term
@@ -230,8 +255,8 @@ contains
                             call s_compute_mixture_coefficients(alpha_rho_visc, alpha_visc, rho_visc, gamma_visc, pi_inf_visc, &
                                                                 & qv_visc)
                             if (viscous) then
-                                call s_compute_axis_inv_re(grad_x_vf, grad_y_vf, grad_z_vf, alpha_visc, j, k, l, Re_visc, &
-                                                           & Re_size_loc1, Re_size_loc2)
+                                call s_compute_axis_inv_re(q_prim_vf, grad_x_vf, grad_y_vf, grad_z_vf, alpha_visc, j, k, l, &
+                                                           & Re_visc, Re_size_loc1, Re_size_loc2)
                             end if
 
                             tau_Re(2, 2) = (grad_x_vf(1)%sf(j, k, l) + grad_y_vf(2)%sf(j, k, &
@@ -279,8 +304,8 @@ contains
                             call s_compute_mixture_coefficients(alpha_rho_visc, alpha_visc, rho_visc, gamma_visc, pi_inf_visc, &
                                                                 & qv_visc)
                             if (viscous) then
-                                call s_compute_axis_inv_re(grad_x_vf, grad_y_vf, grad_z_vf, alpha_visc, j, k, l, Re_visc, &
-                                                           & Re_size_loc1, Re_size_loc2)
+                                call s_compute_axis_inv_re(q_prim_vf, grad_x_vf, grad_y_vf, grad_z_vf, alpha_visc, j, k, l, &
+                                                           & Re_visc, Re_size_loc1, Re_size_loc2)
                             end if
 
                             tau_Re(2, 2) = -(2._wp/3._wp)*grad_z_vf(3)%sf(j, k, l)/y_cc(k)/Re_visc(1)
@@ -331,8 +356,8 @@ contains
                             call s_compute_mixture_coefficients(alpha_rho_visc, alpha_visc, rho_visc, gamma_visc, pi_inf_visc, &
                                                                 & qv_visc)
                             if (viscous) then
-                                call s_compute_axis_inv_re(grad_x_vf, grad_y_vf, grad_z_vf, alpha_visc, j, k, l, Re_visc, &
-                                                           & Re_size_loc1, Re_size_loc2)
+                                call s_compute_axis_inv_re(q_prim_vf, grad_x_vf, grad_y_vf, grad_z_vf, alpha_visc, j, k, l, &
+                                                           & Re_visc, Re_size_loc1, Re_size_loc2)
                             end if
 
                             tau_Re(2, 2) = grad_z_vf(3)%sf(j, k, l)/y_cc(k)/Re_visc(2)

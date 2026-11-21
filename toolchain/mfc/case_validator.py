@@ -988,7 +988,6 @@ class CaseValidator:
         hyperelasticity = self.get("hyperelasticity", "F") == "T"
         hypoelasticity = self.get("hypoelasticity", "F") == "T"
         viscous = self.get("viscous", "F") == "T"
-        cyl_coord = self.get("cyl_coord", "F") == "T"
 
         for i in range(1, int(num_fluids) + 1):
             Ca_inv_graded = self.get(f"fluid_pp({i})%graded_Ca_inv", "F") == "T"
@@ -996,11 +995,6 @@ class CaseValidator:
 
             if not Ca_inv_graded and not Re_graded:
                 continue
-
-            self.prohibit(
-                Re_graded and cyl_coord,
-                f"fluid_pp({i})%graded_Re is not compatible with cyl_coord = T (s_compute_axis_inv_re's cylindrical-axis treatment does not carry the reference map)",
-            )
 
             graded_type = self.get(f"fluid_pp({i})%graded_type")
             graded_profile = self.get(f"fluid_pp({i})%graded_profile")
