@@ -19,6 +19,7 @@ A test is considered passing when our error tolerances are met in order to maint
 - `--max-attempts` (`-m`) the maximum number of attempts to make on a test before considering it failed
 - `--no-examples` skips the testing of cases in the examples folder
 - `--no-chemistry` skips every case that uses chemistry (``chemistry = 'T'``), including reacting example cases
+- Cases with a known GPU-only difference on NVHPC < 25.11 (`NVHPC_GPU_KNOWN_DIFFERENCE_UUIDS` in `toolchain/mfc/test/test.py`, tracked in #2181) are skipped on GPU builds with an old `nvfortran`, with a visible reason line; tolerances are not widened. CPU builds and other compilers run them.
 - `--no-build` runs against existing binaries without rebuilding. Some cases (chemistry, analytic initial conditions) need their own build, which `./mfc.sh build` does not produce; build everything the suite needs with `./mfc.sh test --dry-run <options>`. If any required binary is missing, `--no-build` stops before running any case and lists what is missing.
 - `--rdma-mpi` runs additional tests where RDMA MPI is enabled.
 
@@ -29,6 +30,12 @@ To specify a computer, pass the `-c` flag to `./mfc.sh run` like so:
 where `<computer name>` could be `phoenix` or any of the others in the [templates](https://github.com/MFlowCode/MFC/tree/master/toolchain/templates)).
 You can create new templates with the appropriate run commands or omit this option.
 The use of `--` in the above command passes options to the `./mfc.sh run` command underlying the `./mfc.sh test`.
+
+The comparison tolerance is set per case in `compute_tolerance` (`toolchain/mfc/test/case.py`): a default of 1e-12, looser for cases whose physics amplifies round-off (examples, hypoelasticity, IBM, bubbles and others), and `override_tol` on a `define_case_d` call for a single case. Set an `override_tol` from the spread seen across compiler and device lanes, not from one machine, and in single precision it is floored at the default single-precision tolerance. When a default or an algorithm changes, regenerate the affected goldens in the same change (see [Keeping the goldens current](@ref validation)).
+
+The build configuration is remembered between commands (`build/lock.yaml`), so pass `--no-debug --no-reldebug --no-single` explicitly when you need a plain build after a debug or single-precision one.
+
+CI runs the test suite on GitHub-hosted runners, in NVHPC containers and on cluster runners; see the CI section of [Contributing](@ref contributing). A GPU change that involves more than one MPI rank should be tested with both ranks on one GPU and on two GPUs ([Silent-Failure Traps](@ref silent-failure-traps)).
 
 Besides the golden comparison, every case with ``chemistry = 'T'`` must keep its saved species mass fractions in [0, 1] and must not let the species clean-up fallback move more than roundoff-scale density (`Species cleanup at step ...` in the output); a failure names the step or variable.
 
