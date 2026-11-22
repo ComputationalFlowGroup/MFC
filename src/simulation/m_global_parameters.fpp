@@ -172,16 +172,23 @@ module m_global_parameters
     !! m_weno, the x/y/z_cb family). Equal to m/n/p unless amr_max_grid_size pins a cap larger than the subdomain.
     integer :: m_alloc, n_alloc, p_alloc
 
-    !> @name Herschel-Bulkley non-Newtonian viscosity: per-fluid flags and parameter arrays.
+    !> @name Non-Newtonian viscosity (Herschel-Bulkley or Carreau-Yasuda): per-fluid flags and parameter arrays.
     !> @{
     logical                             :: any_non_newtonian  !< .true. if any fluid is non-Newtonian
     logical, allocatable, dimension(:)  :: is_non_newtonian   !< per-fluid NN flag
+    integer, allocatable, dimension(:)  :: nn_model_arr       !< per-fluid model: 1 = Herschel-Bulkley, 2 = Carreau-Yasuda
     real(wp), allocatable, dimension(:) :: hb_tau0, hb_K, hb_nn, hb_m_arr
     real(wp), allocatable, dimension(:) :: hb_mu_min, hb_mu_max
-    real(wp), allocatable, dimension(:) :: fluid_inv_re       !< per-fluid Newtonian inverse-Re
+    real(wp), allocatable, dimension(:) :: cy_mu0_arr, cy_muinf_arr, cy_lambda_arr, cy_a_arr, cy_n_arr
+    !> Per-fluid worst-case (maximum) viscosity over all shear rates, used as a conservative CFL/output bound in place of a per-cell
+    !! re-evaluation: hb_mu_max for Herschel-Bulkley (an explicit clamp), max(cy_mu0, cy_muinf) for Carreau-Yasuda (its two plateaus
+    !! bound mu_eff regardless of whether cy_n is above or below 1).
+    real(wp), allocatable, dimension(:) :: nn_mu_max_arr
+    real(wp), allocatable, dimension(:) :: fluid_inv_re  !< per-fluid Newtonian inverse-Re
     !> @}
 
-    $:GPU_DECLARE(create='[any_non_newtonian, is_non_newtonian, hb_tau0, hb_K, hb_nn, hb_m_arr, hb_mu_min, hb_mu_max, fluid_inv_re]')
+    $:GPU_DECLARE(create='[any_non_newtonian, is_non_newtonian, nn_model_arr, hb_tau0, hb_K, hb_nn, hb_m_arr, hb_mu_min, &
+                  & hb_mu_max, cy_mu0_arr, cy_muinf_arr, cy_lambda_arr, cy_a_arr, cy_n_arr, nn_mu_max_arr, fluid_inv_re]')
 
     ! WENO averaging flag: use arithmetic mean or unaltered WENO-reconstructed cell-boundary values
     !> @{
@@ -607,6 +614,12 @@ contains
             fluid_pp(i)%mu_min = dflt_real
             fluid_pp(i)%mu_max = dflt_real
             fluid_pp(i)%mu_bulk = dflt_real
+            fluid_pp(i)%non_newtonian_model = 1
+            fluid_pp(i)%cy_mu0 = dflt_real
+            fluid_pp(i)%cy_muinf = dflt_real
+            fluid_pp(i)%cy_lambda = dflt_real
+            fluid_pp(i)%cy_a = dflt_real
+            fluid_pp(i)%cy_n = dflt_real
         end do
 
         ! Subgrid bubble parameters (bub_pp struct + scalar companions; scalar companions are
@@ -1060,29 +1073,44 @@ contains
             end if
         end if
 
-        ! Herschel-Bulkley non-Newtonian viscosity: gather per-fluid parameters into device arrays
-        @:ALLOCATE(is_non_newtonian(1:num_fluids))
+        ! Non-Newtonian viscosity (Herschel-Bulkley or Carreau-Yasuda): gather per-fluid parameters into device arrays
+        @:ALLOCATE(is_non_newtonian(1:num_fluids), nn_model_arr(1:num_fluids))
         @:ALLOCATE(hb_tau0(1:num_fluids), hb_K(1:num_fluids), hb_nn(1:num_fluids), hb_m_arr(1:num_fluids))
         @:ALLOCATE(hb_mu_min(1:num_fluids), hb_mu_max(1:num_fluids))
+        @:ALLOCATE(cy_mu0_arr(1:num_fluids), cy_muinf_arr(1:num_fluids), cy_lambda_arr(1:num_fluids))
+        @:ALLOCATE(cy_a_arr(1:num_fluids), cy_n_arr(1:num_fluids))
+        @:ALLOCATE(nn_mu_max_arr(1:num_fluids))
         @:ALLOCATE(fluid_inv_re(1:num_fluids))
 
         any_non_newtonian = .false.
         do i = 1, num_fluids
             is_non_newtonian(i) = fluid_pp(i)%non_newtonian
             if (is_non_newtonian(i)) any_non_newtonian = .true.
+            nn_model_arr(i) = fluid_pp(i)%non_newtonian_model
             hb_tau0(i) = fluid_pp(i)%tau0
             hb_K(i) = fluid_pp(i)%K
             hb_nn(i) = fluid_pp(i)%nn
             hb_m_arr(i) = fluid_pp(i)%hb_m
             hb_mu_min(i) = fluid_pp(i)%mu_min
             hb_mu_max(i) = fluid_pp(i)%mu_max
+            cy_mu0_arr(i) = fluid_pp(i)%cy_mu0
+            cy_muinf_arr(i) = fluid_pp(i)%cy_muinf
+            cy_lambda_arr(i) = fluid_pp(i)%cy_lambda
+            cy_a_arr(i) = fluid_pp(i)%cy_a
+            cy_n_arr(i) = fluid_pp(i)%cy_n
+            if (is_non_newtonian(i) .and. nn_model_arr(i) == 2) then
+                nn_mu_max_arr(i) = max(cy_mu0_arr(i), cy_muinf_arr(i))
+            else
+                nn_mu_max_arr(i) = hb_mu_max(i)
+            end if
             if (fluid_pp(i)%Re(1) > 0._wp) then
                 fluid_inv_re(i) = 1._wp/fluid_pp(i)%Re(1)
             else
                 fluid_inv_re(i) = 0._wp
             end if
         end do
-        $:GPU_UPDATE(device='[any_non_newtonian, is_non_newtonian, hb_tau0, hb_K, hb_nn, hb_m_arr, hb_mu_min, hb_mu_max, fluid_inv_re]')
+        $:GPU_UPDATE(device='[any_non_newtonian, is_non_newtonian, nn_model_arr, hb_tau0, hb_K, hb_nn, hb_m_arr, hb_mu_min, &
+                     & hb_mu_max, cy_mu0_arr, cy_muinf_arr, cy_lambda_arr, cy_a_arr, cy_n_arr, nn_mu_max_arr, fluid_inv_re]')
 
         if (bubbles_euler .and. qbmm .and. .not. polytropic) then
             allocate (MPI_IO_DATA%view(1:sys_size + 2*nb*nnode))
@@ -1370,10 +1398,12 @@ contains
             @:DEALLOCATE(Re_idx)
         end if
 
-        ! Herschel-Bulkley non-Newtonian viscosity arrays (always allocated)
-        @:DEALLOCATE(is_non_newtonian)
+        ! Non-Newtonian viscosity arrays (always allocated)
+        @:DEALLOCATE(is_non_newtonian, nn_model_arr)
         @:DEALLOCATE(hb_tau0, hb_K, hb_nn, hb_m_arr)
         @:DEALLOCATE(hb_mu_min, hb_mu_max)
+        @:DEALLOCATE(cy_mu0_arr, cy_muinf_arr, cy_lambda_arr, cy_a_arr, cy_n_arr)
+        @:DEALLOCATE(nn_mu_max_arr)
         @:DEALLOCATE(fluid_inv_re)
 
         if (bubbles_euler) then

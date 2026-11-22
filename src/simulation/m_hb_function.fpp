@@ -1,19 +1,20 @@
 !>
 !! @file m_hb_function.f90
-!! @brief Herschel-Bulkley non-Newtonian viscosity: formula, shear rate, and mixture inverse-Re.
+!! @brief Non-Newtonian viscosity (Herschel-Bulkley, Carreau-Yasuda): formulas, shear rate, and mixture inverse-Re.
 
 #:include 'macros.fpp'
 
-!> @brief Herschel-Bulkley non-Newtonian viscosity: formula, shear rate, and mixture inverse-Re.
+!> @brief Non-Newtonian viscosity (Herschel-Bulkley, Carreau-Yasuda): formulas, shear rate, and mixture inverse-Re.
 module m_hb_function
 
     use m_derived_types      !< Definitions of the derived types
-    use m_global_parameters  !< Re_size, Re_idx, sgm_eps, dflt_real, any_non_newtonian, hb_* arrays
+    use m_global_parameters  !< Re_size, Re_idx, sgm_eps, dflt_real, any_non_newtonian, nn_model_arr, hb_*/cy_* arrays
     use m_constants          !< verysmall
 
     implicit none
 
-    private; public :: f_compute_hb_viscosity, f_compute_shear_rate_from_components, s_compute_mixture_inv_re
+    private; public :: f_compute_hb_viscosity, f_compute_carreau_yasuda_viscosity, f_compute_shear_rate_from_components, &
+        & s_compute_mixture_inv_re
 
 contains
 
@@ -41,6 +42,23 @@ contains
         if (mu_max_val > dflt_real) mu = min(mu, mu_max_val)
 
     end function f_compute_hb_viscosity
+
+    !> Carreau-Yasuda viscosity: mu(gamma_dot) = mu_inf + (mu0 - mu_inf) * [1 + (lambda*gamma_dot)^a]^((n-1)/a). Smoothly
+    !! interpolates between the zero-shear plateau mu0 and the infinite-shear plateau mu_inf, with lambda setting the shear rate
+    !! where thinning begins, a setting how sharp that transition is, and n (< 1 for shear thinning) setting the power-law slope in
+    !! between -- no Papanastasiou-style yield-stress regularization is needed here, unlike Herschel-Bulkley, since this model has
+    !! no yield stress to begin with.
+    function f_compute_carreau_yasuda_viscosity(mu0_val, muinf_val, lambda_val, a_val, n_val, shear_rate) result(mu)
+
+        $:GPU_ROUTINE(parallelism='[seq]')
+
+        real(wp), intent(in) :: mu0_val, muinf_val, lambda_val, a_val, n_val
+        real(wp), intent(in) :: shear_rate
+        real(wp)             :: mu
+
+        mu = muinf_val + (mu0_val - muinf_val)*(1._wp + (lambda_val*shear_rate)**a_val)**((n_val - 1._wp)/a_val)
+
+    end function f_compute_carreau_yasuda_viscosity
 
     !> Shear rate gamma_dot = sqrt(2 D_ij D_ij). Absent dims pass 0.
     function f_compute_shear_rate_from_components(D_xx, D_yy, D_zz, D_xy, D_xz, D_yz) result(shear_rate)
@@ -78,8 +96,13 @@ contains
                 fl = Re_idx(i, q)
                 if (any_non_newtonian .and. is_non_newtonian(fl)) then
                     if (i == 1) then
-                        mu_q = f_compute_hb_viscosity(hb_tau0(fl), hb_K(fl), hb_nn(fl), hb_mu_min(fl), hb_mu_max(fl), shear_rate, &
-                                                      & hb_m_arr(fl))
+                        if (nn_model_arr(fl) == 2) then
+                            mu_q = f_compute_carreau_yasuda_viscosity(cy_mu0_arr(fl), cy_muinf_arr(fl), cy_lambda_arr(fl), &
+                                & cy_a_arr(fl), cy_n_arr(fl), shear_rate)
+                        else
+                            mu_q = f_compute_hb_viscosity(hb_tau0(fl), hb_K(fl), hb_nn(fl), hb_mu_min(fl), hb_mu_max(fl), &
+                                                          & shear_rate, hb_m_arr(fl))
+                        end if
                     else
                         ! Non-Newtonian bulk viscosity is not supported (validator rejects mu_bulk and Re(2) for NN fluids)
                         mu_q = 0._wp

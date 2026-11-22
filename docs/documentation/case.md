@@ -752,7 +752,7 @@ This option requires `weno_Re_flux` to be true because cell boundary values are 
 
 - `rmt` activates the Reference Map Technique: a field, the material point's position in its undeformed reference configuration, is advected with the flow. Both `hyperelasticity` and `graded` are built on this reference map and require ``rmt = 'T'``. Currently requires the HLL Riemann solver (`riemann_solver = 1`); the reference map is not yet advected under HLLC or HLLD.
 
-- `hyperelasticity` activates finite-strain elastic stress calculations, as an alternative to `hypoelasticity`'s rate-law treatment (the two cannot be combined). Requires ``rmt = 'T'``, `model_eqns = 2`, `hyper_model` set, and `fd_order` set (1, 2, or 4): the deformation gradient is recovered from the reference map with a finite-difference stencil, and the resulting left Cauchy-Green tensor gives the Cauchy stress. `hyper_model` selects the strain-energy function: [1] Neo-Hookean, \f$\tau = (Ca^{-1}/J) \mathrm{dev}(B)\f$; [2] Mooney-Rivlin, \f$\tau = (1/J)\bigl[Ca^{-1}\,\mathrm{dev}(B) - 2\,mr\_c2\,\mathrm{dev}(B^{-1})\bigr]\f$ (requires `fluid_pp(i)%%mr_c2`; reduces exactly to Neo-Hookean at `mr_c2 = 0`). Currently requires the HLL Riemann solver (`riemann_solver = 1`) and is not compatible with `cyl_coord`. Works in 1D and 2D as well as 3D: directions beyond num_dims are frozen at an identity stretch (no deformation), the same dimensional-reduction convention `hypoelasticity` already uses. The direct wave speed (`wave_speeds = 1`) is derived for the Neo-Hookean law only and does not yet account for `mr_c2`'s contribution to the tangent stiffness.
+- `hyperelasticity` activates finite-strain elastic stress calculations, as an alternative to `hypoelasticity`'s rate-law treatment (the two cannot be combined). Requires ``rmt = 'T'``, `model_eqns = 2`, `hyper_model` set, and `fd_order` set (1, 2, or 4): the deformation gradient is recovered from the reference map with a finite-difference stencil, and the resulting left Cauchy-Green tensor gives the Cauchy stress. `hyper_model` selects the strain-energy function: [1] Neo-Hookean, \f$\tau = (Ca^{-1}/J) \mathrm{dev}(B)\f$; [2] Mooney-Rivlin, \f$\tau = (1/J)\bigl[Ca^{-1}\,\mathrm{dev}(B) - 2\,mr\_c2\,\mathrm{dev}(B^{-1})\bigr]\f$ (requires `fluid_pp(i)%%mr_c2`; reduces exactly to Neo-Hookean at `mr_c2 = 0`). Currently requires the HLL Riemann solver (`riemann_solver = 1`) and is not compatible with `cyl_coord`. Works in 1D and 2D as well as 3D: directions beyond num_dims are frozen at an identity stretch (no deformation), the same dimensional-reduction convention `hypoelasticity` already uses. The direct wave speed (`wave_speeds = 1`) accounts for `mr_c2`'s contribution to the tangent stiffness as an isotropic estimate -- exact at the undeformed reference state and whenever the material is close to it, approximate (not a guaranteed upper or lower bound) otherwise, since the exact direction-aligned component of \f$B^{-1}\f$ is not reconstructed to the Riemann interface. See `misc/hyperelastic_acoustic_tensor.py`'s `mooney_rivlin()` for the derivation.
 
 #### Boundary Condition Patches {#boundary-condition-patches}
 
@@ -1528,20 +1528,26 @@ This boundary condition can be used for fixed-temperature (isothermal) walls at 
 
 
 
-### 19. Non-Newtonian (Herschel-Bulkley) Viscosity {#sec-non-newtonian}
+### 19. Non-Newtonian (Herschel-Bulkley or Carreau-Yasuda) Viscosity {#sec-non-newtonian}
 
 | Parameter                         | Type    | Description                                                          |
 | ---:                              | :----:  | :---                                                                 |
-| `fluid_pp(i)%%non_newtonian`      | Logical | Enable Herschel-Bulkley non-Newtonian viscosity for fluid \f$i\f$.  |
-| `fluid_pp(i)%%K`                  | Real    | Consistency index \f$K\f$.                                          |
-| `fluid_pp(i)%%nn`                 | Real    | Flow index \f$n\f$ (\f$n<1\f$ shear-thinning, \f$n>1\f$ shear-thickening). |
-| `fluid_pp(i)%%tau0`               | Real    | Yield stress \f$\tau_0\f$; set to 0 for pure power-law.             |
-| `fluid_pp(i)%%hb_m`               | Real    | Papanastasiou regularization parameter \f$m\f$; required when `tau0 > 0`. |
-| `fluid_pp(i)%%mu_min`             | Real    | Lower viscosity clamp \f$\mu_{\min}\f$.                              |
-| `fluid_pp(i)%%mu_max`             | Real    | Upper viscosity clamp \f$\mu_{\max}\f$ (required).                  |
+| `fluid_pp(i)%%non_newtonian`      | Logical | Enable non-Newtonian viscosity for fluid \f$i\f$ (model chosen below). |
+| `fluid_pp(i)%%non_newtonian_model`| Integer | Rheology model: `1` Herschel-Bulkley (default), `2` Carreau-Yasuda. |
+| `fluid_pp(i)%%K`                  | Real    | Model 1: consistency index \f$K\f$.                                  |
+| `fluid_pp(i)%%nn`                 | Real    | Model 1: flow index \f$n\f$ (\f$n<1\f$ shear-thinning, \f$n>1\f$ shear-thickening). |
+| `fluid_pp(i)%%tau0`               | Real    | Model 1: yield stress \f$\tau_0\f$; set to 0 for pure power-law.    |
+| `fluid_pp(i)%%hb_m`               | Real    | Model 1: Papanastasiou regularization parameter \f$m\f$; required when `tau0 > 0`. |
+| `fluid_pp(i)%%mu_min`             | Real    | Model 1: lower viscosity clamp \f$\mu_{\min}\f$.                     |
+| `fluid_pp(i)%%mu_max`             | Real    | Model 1: upper viscosity clamp \f$\mu_{\max}\f$ (required).         |
 | `fluid_pp(i)%%mu_bulk`            | Real    | Reserved; non-Newtonian bulk viscosity is not yet supported. The validator rejects it on a non-Newtonian fluid; on a Newtonian fluid it is accepted and ignored. |
+| `fluid_pp(i)%%cy_mu0`             | Real    | Model 2: zero-shear viscosity \f$\mu_0\f$ (required, positive).     |
+| `fluid_pp(i)%%cy_muinf`           | Real    | Model 2: infinite-shear viscosity \f$\mu_\infty\f$ (required, non-negative, `< cy_mu0`). |
+| `fluid_pp(i)%%cy_lambda`          | Real    | Model 2: relaxation time \f$\lambda\f$ (required, positive).        |
+| `fluid_pp(i)%%cy_a`               | Real    | Model 2: Yasuda transition exponent \f$a\f$ (required, positive).   |
+| `fluid_pp(i)%%cy_n`               | Real    | Model 2: power-law index \f$n\f$ (required, positive; `< 1` for shear thinning). |
 
-The effective dynamic viscosity is computed from the Papanastasiou-regularized Herschel-Bulkley model:
+**Model 1 (Herschel-Bulkley):** the effective dynamic viscosity is computed from the Papanastasiou-regularized Herschel-Bulkley model:
 
 \f[
 \mu_{\rm eff}(\dot\gamma) = \frac{\tau_0}{\dot\gamma}\!\left(1 - e^{-m\,\dot\gamma}\right) + K\,\dot\gamma^{n-1},
@@ -1558,15 +1564,24 @@ Special cases:
 - `tau0 = 0`, `nn = 1`: Newtonian fluid with constant viscosity \f$\mu = K\f$.
 - `tau0 > 0`, `nn = 1`: Bingham plastic.
 
+**Model 2 (Carreau-Yasuda):**
+
+\f[
+\mu_{\rm eff}(\dot\gamma) = \mu_\infty + (\mu_0 - \mu_\infty)\Bigl[1 + (\lambda\,\dot\gamma)^a\Bigr]^{(n-1)/a}.
+\f]
+
+No yield stress, so no Papanastasiou regularization and no external clamps: for `cy_n <= 1`, \f$\mu_{\rm eff}\f$ is already bounded between `cy_muinf` and `cy_mu0` for any shear rate. `cy_lambda` sets the shear rate where thinning begins; `cy_a` sets how sharp that transition is; `cy_n` sets the power-law slope in between.
+
 Usage notes:
 
-- Requires `viscous = T`. `fluid_pp(i)%%Re(1)` must be set (use `1.0/K` to register the fluid as viscous; the HB model overrides \f$\mu_{\rm eff}\f$ cell-by-cell). `fluid_pp(i)%%Re(2)` (bulk viscosity) must not be set for a non-Newtonian fluid.
-- `mu_max` is required; `mu_min` is inactive if omitted (no lower clamp applied).
-- Positivity requirements: `K`, `nn`, and `mu_max` must be positive; `mu_min` and `hb_m` must be positive when set; `tau0` must be non-negative.
+- Requires `viscous = T`. `fluid_pp(i)%%Re(1)` must be set (use `1.0/K`, model 1, or any positive placeholder, model 2, to register the fluid as viscous; the chosen model overrides \f$\mu_{\rm eff}\f$ cell-by-cell). `fluid_pp(i)%%Re(2)` (bulk viscosity) must not be set for a non-Newtonian fluid.
+- Model 1: `mu_max` is required; `mu_min` is inactive if omitted (no lower clamp applied). Positivity requirements: `K`, `nn`, and `mu_max` must be positive; `mu_min` and `hb_m` must be positive when set; `tau0` must be non-negative.
+- Model 2: `cy_mu0`, `cy_muinf`, `cy_lambda`, `cy_a`, `cy_n` are all required; all must be positive except `cy_muinf`, which must be non-negative and strictly less than `cy_mu0`.
+- A fluid's parameters must match its own `non_newtonian_model`: the validator rejects Herschel-Bulkley parameters (`K`, `nn`, `tau0`, `hb_m`, `mu_min`, `mu_max`, `mu_bulk`) on a model-2 fluid, Carreau-Yasuda parameters (`cy_*`) on a model-1 fluid, and either set on a fluid without `non_newtonian = T`.
 - Requires `model_eqns = 2` or `3` and is incompatible with `igr`.
 - Supported only with `riemann_solver = 1` (HLL) or `riemann_solver = 2` (HLLC).
-- The HB parameters (`K`, `nn`, `tau0`, `hb_m`, `mu_min`, `mu_max`, `mu_bulk`) may only be set on a fluid with `non_newtonian = T`; the validator rejects them otherwise.
-- All HB parameters are non-dimensional (scaled by \f$\rho_{\rm ref} U_{\rm ref} L_{\rm ref}\f$), so \f$1/\mu_{\rm eff}\f$ equals the local effective Reynolds number.
+- All parameters of either model are non-dimensional (scaled by \f$\rho_{\rm ref} U_{\rm ref} L_{\rm ref}\f$), so \f$1/\mu_{\rm eff}\f$ equals the local effective Reynolds number.
+- Different non-Newtonian fluids in the same simulation may use different models.
 - For cylindrical geometry (`cyl_coord = T`) the shear rate uses the grid-direction strain components; curvature corrections to \f$\dot\gamma\f$ are not yet included.
 
 ### 20. GPU Performance (NVIDIA UVM)

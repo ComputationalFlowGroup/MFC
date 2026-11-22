@@ -242,7 +242,7 @@ contains
                             Re(1) = 0._wp
                             do fl = 1, num_fluids
                                 if (is_non_newtonian(fl)) then
-                                    Re(1) = Re(1) + alpha(fl)*hb_mu_max(fl)
+                                    Re(1) = Re(1) + alpha(fl)*nn_mu_max_arr(fl)
                                 else
                                     Re(1) = Re(1) + alpha(fl)*fluid_inv_re(fl)
                                 end if
@@ -405,7 +405,7 @@ contains
                         Re(1) = 0._wp
                         do fl = 1, num_fluids
                             if (is_non_newtonian(fl)) then
-                                Re(1) = Re(1) + alpha(fl)*hb_mu_max(fl)
+                                Re(1) = Re(1) + alpha(fl)*nn_mu_max_arr(fl)
                             else
                                 Re(1) = Re(1) + alpha(fl)*fluid_inv_re(fl)
                             end if

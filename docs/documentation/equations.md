@@ -388,11 +388,21 @@ Input parameters: `Re_inv` (shear and volume Reynolds numbers per fluid).
 
 **Non-Newtonian viscosity (`fluid_pp(i)%%non_newtonian = .true.`):**
 
-Per-fluid Herschel-Bulkley rheology with Papanastasiou regularization (\cite Papanastasiou87) replaces the constant viscosity with a shear-rate-dependent effective viscosity, recomputed from the local strain-rate tensor at every time step:
+Per-fluid shear-dependent viscosity, recomputed from the local strain-rate tensor at every time step, with the model selected per fluid by `fluid_pp(i)%%non_newtonian_model`:
+
+**[1] Herschel-Bulkley (default)** with Papanastasiou regularization (\cite Papanastasiou87):
 
 \f[\mu_{\rm eff}(\dot\gamma) = \frac{\tau_0}{\dot\gamma}\left(1 - e^{-m\,\dot\gamma}\right) + K\,\dot\gamma^{\,n-1}, \qquad \dot\gamma = \sqrt{2\,\mathbf{D}:\mathbf{D}}\f]
 
-This covers power-law shear-thinning/thickening (\f$\tau_0 = 0\f$), Bingham plastic (\f$n = 1,\ \tau_0 > 0\f$), and general Herschel-Bulkley yield-stress fluids. The mixture rule above applies with \f$1/\text{Re}_j = \mu_{{\rm eff},j}\f$ evaluated at the local shear rate; Newtonian and non-Newtonian fluids can be mixed. Supported with the HLL and HLLC Riemann solvers, including immersed boundaries. See @ref sec-non-newtonian "the case documentation" for parameters, constraints, and validated example cases.
+This covers power-law shear-thinning/thickening (\f$\tau_0 = 0\f$), Bingham plastic (\f$n = 1,\ \tau_0 > 0\f$), and general Herschel-Bulkley yield-stress fluids.
+
+**[2] Carreau-Yasuda** (\cite Yasuda81):
+
+\f[\mu_{\rm eff}(\dot\gamma) = \mu_\infty + (\mu_0 - \mu_\infty)\left[1 + (\lambda\,\dot\gamma)^a\right]^{(n-1)/a}\f]
+
+Smoothly interpolates between a zero-shear plateau \f$\mu_0\f$ (`cy_mu0`) and an infinite-shear plateau \f$\mu_\infty\f$ (`cy_muinf`, \f$< \mu_0\f$), with the relaxation time \f$\lambda\f$ (`cy_lambda`) setting the shear rate where thinning begins, the Yasuda exponent \f$a\f$ (`cy_a`) setting how sharp that transition is, and the power-law index \f$n\f$ (`cy_n`, \f$< 1\f$ for shear thinning) setting the slope in between. Unlike Herschel-Bulkley, this model has no yield stress and needs no Papanastasiou regularization or external viscosity clamps (`mu_min`/`mu_max`), since \f$\mu_{\rm eff}\f$ is already bounded between \f$\mu_\infty\f$ and \f$\mu_0\f$ for \f$n \le 1\f$.
+
+Either model: the mixture rule above applies with \f$1/\text{Re}_j = \mu_{{\rm eff},j}\f$ evaluated at the local shear rate; Newtonian and non-Newtonian fluids can be mixed, and different non-Newtonian fluids in the same simulation may use different models. Supported with the HLL and HLLC Riemann solvers, including immersed boundaries. See @ref sec-non-newtonian "the case documentation" for parameters, constraints, and validated example cases.
 
 ---
 
@@ -644,15 +654,20 @@ elastic energy.
 **Direct wave speed (`wave_speeds = 2`, HLL only):** the flat hypoelastic correction
 \f$4G/(3\rho)\f$ is replaced by the finite-strain acoustic-tensor correction
 
-\f[c^2 \to c^2 + \frac{4\,G\,\text{tr}(\mathbf{b})}{9\,J\,\rho} - \frac{2\,\tau_{nn}^e}{3\,\rho},\f]
+\f[c^2 \to c^2 + \frac{4\,G\,\text{tr}(\mathbf{b})}{9\,J\,\rho} - \frac{2\,\tau_{nn}^e}{3\,\rho}
++ \frac{8\,C_2\,\text{tr}(\mathbf{b}^{-1})}{9\,J\,\rho},\f]
 
-which reduces to the hypoelastic constant at \f$\mathbf{b} = \mathbf{I}\f$, \f$J = 1\f$. Derived
-and verified symbolically in `misc/hyperelastic_acoustic_tensor.py`. Currently requires the HLL
-Riemann solver (`riemann_solver = 1`) and is not compatible with `cyl_coord`. **This correction
-is derived for the Neo-Hookean law only** and does not yet include \f$C_2\f$'s contribution to
-the tangent stiffness (the correct small-strain limit with \f$C_2 \neq 0\f$ is
-\f$4(G/2+C_2)\cdot2/(3\rho)\f$, not \f$4G/(3\rho)\f$) -- a known, flagged gap, not silently
-assumed closed.
+which reduces to the hypoelastic constant at \f$\mathbf{b} = \mathbf{I}\f$, \f$J = 1\f$, and to
+the Neo-Hookean-only correction above at \f$C_2 = 0\f$. The \f$G\f$ term is exact (it uses
+\f$B_{nn} = \text{tr}(\mathbf{b})/3 + J\tau_{nn}^e/G\f$, available at the interface via the
+already-reconstructed stress). **The \f$C_2\f$ term is an isotropic estimate**
+(\f$B^{-1}_{nn} \approx \text{tr}(\mathbf{b}^{-1})/3\f$): exact at the undeformed state and
+near it, since \f$B^{-1}\f$'s exact direction-aligned component is not reconstructed to the
+Riemann interface (only its trace is, stashed alongside \f$\text{tr}(\mathbf{b})\f$ and
+\f$J\f$). A fully exact version needs \f$B^{-1}_{nn}\f$ reconstructed per sweep direction, a
+larger stash-scheme change not undertaken here. Derived and verified symbolically in
+`misc/hyperelastic_acoustic_tensor.py`'s `mooney_rivlin()` (Steps 5-6). Currently requires the
+HLL Riemann solver (`riemann_solver = 1`) and is not compatible with `cyl_coord`.
 
 **1D and 2D:** directions beyond num_dims are frozen at an identity stretch (no
 deformation) -- the same convention `hypoelasticity` uses when its own velocity components beyond

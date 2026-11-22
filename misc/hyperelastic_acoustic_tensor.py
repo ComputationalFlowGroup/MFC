@@ -365,6 +365,92 @@ def mooney_rivlin():
     assert sp.simplify(transverse - mu) == 0
     print("Both match the classical small-strain Mooney-Rivlin shear modulus mu = 2*(C1 + C2).")
 
+    print("\n" + "=" * 78)
+    print("Step 5: the GENERAL-B longitudinal correction (used by f_hyperelastic_signal_speed)")
+    print("=" * 78)
+
+    rho_c2 = sp.expand((n_vec.T * A_of_n * n_vec)[0])
+    B_nn = (n_vec.T * B * n_vec)[0]
+    Binv_nn = (n_vec.T * Binv * n_vec)[0]
+
+    # Separate the C1-proportional and C2-proportional parts (the whole derivation above is
+    # linear in C1 and C2 separately, by construction -- tau itself is 2*C1*(...) - 2*C2*(...)).
+    c1_coeff = sp.simplify(rho_c2.subs(C2, 0) / C1)
+    c2_coeff = sp.simplify(rho_c2.subs(C1, 0) / C2)
+
+    c1_closed = (4 / (3 * J)) * (trB - B_nn)
+    # General-B closed form for the C2 part, in terms of tr(B^-1) and its own direction-aligned
+    # component Binv_nn -- NOT simply a mirror of the C1 form (the coefficient on Binv_nn is 5,
+    # not 1: B^-1's rate law, -B^-1*Bdot*B^-1, is genuinely different from B's own, L*B+B*L^T).
+    c2_closed = (4 / (3 * J)) * (5 * Binv_nn - trBinv)
+
+    # n.n = 1 is needed for these to match and is not something sympy's simplify can exploit on
+    # its own (same reason main()'s own Step 6 above checks numerically rather than
+    # symbolically): verify over random UNIT n and random symmetric B instead.
+    import random
+
+    random.seed(7)
+    max_err_c1 = 0.0
+    max_err_c2 = 0.0
+    for _ in range(20):
+        v = [random.uniform(-1, 1) for _ in range(3)]
+        norm = sum(c * c for c in v) ** 0.5
+        n_num = [c / norm for c in v]
+        B_num = sp.Matrix(3, 3, lambda i, j: random.uniform(0.5, 2.0) if i == j else random.uniform(-0.3, 0.3))
+        B_num = (B_num + B_num.T) / 2
+        subs_num = {n1: n_num[0], n2: n_num[1], n3: n_num[2], J: 1.3}
+        for i in range(3):
+            for j in range(i, 3):
+                subs_num[B[i, j]] = B_num[i, j]
+        max_err_c1 = max(max_err_c1, abs(float(c1_coeff.subs(subs_num)) - float(c1_closed.subs(subs_num))))
+        max_err_c2 = max(max_err_c2, abs(float(c2_coeff.subs(subs_num)) - float(c2_closed.subs(subs_num))))
+    print(f"C1 coefficient vs. closed form, max error over 20 random (unit n, symmetric B): {max_err_c1:.2e}")
+    print(f"C2 coefficient vs. closed form, max error over 20 random (unit n, symmetric B): {max_err_c2:.2e}")
+    assert max_err_c1 < 1e-10, "C1 part of the general-B correction does not match the closed form!"
+    assert max_err_c2 < 1e-10, "C2 part of the general-B correction does not match the closed form!"
+    print("Confirmed: rho*c_correction**2 = (4/3J)*[C1*(trB - B_nn) + C2*(5*Binv_nn - trBinv)]")
+    print("(C1 part reduces to the existing neo-Hookean formula exactly when C2 = 0.)")
+
+    print("\n" + "=" * 78)
+    print("Step 6: f_hyperelastic_signal_speed's ISOTROPIC estimate of the C2 part")
+    print("=" * 78)
+    print("""
+f_hyperelastic_signal_speed (m_riemann_state.fpp) cannot read Binv_nn directly -- only its
+trace, tr(B^-1), is reconstructed to the Riemann interface (stashed by m_hyperelastic.fpp
+alongside tr(B) and J; Binv_nn, like B_nn, depends on the sweep direction and would need the
+full B^-1 tensor reconstructed there, which it is not). The C1 part avoids this exactly by
+substituting B_nn = tr(B)/3 + J*tau_nn/Ca_inv (tau_nn is already an interface-reconstructed
+primitive variable) -- a trick specific to neo-Hookean's single-constant structure. For C2
+there is no analogous already-available per-direction quantity (tau_nn is the SUM of both
+constants' contributions, not separable into pieces without more information), so the
+implemented formula instead takes the ISOTROPIC estimate Binv_nn ~= tr(B^-1)/3:
+""")
+    # Abstract symbols for this step: c2_closed above is built from the literal matrix
+    # expression for Binv_nn, which subs() cannot match structurally once it has been
+    # combined with the rest of the expression -- so redo the substitution at the level of
+    # the closed FORM (symbol placeholders), not the matrix expression, for clean algebra.
+    Binv_nn_sym, trBinv_sym = sp.symbols("Binv_nn trBinv")
+    c2_closed_form = (4 / (3 * J)) * (5 * Binv_nn_sym - trBinv_sym)
+    isotropic_c2 = sp.simplify(c2_closed_form.subs(Binv_nn_sym, trBinv_sym / 3))
+    print(f"  C2 part at Binv_nn = tr(B^-1)/3 (isotropic): {isotropic_c2}")
+    implemented = sp.Rational(8, 9) * trBinv_sym / J  # m_riemann_state.fpp: (8*mr_c2*trBinv)/(9*J*rho)
+    diff_impl = sp.simplify(isotropic_c2 - implemented)
+    print(f"  implemented (8*trBinv)/(9*J):            matches isotropic estimate? diff = {diff_impl}")
+    assert diff_impl == 0, "Implemented formula does not match the isotropic estimate derived here!"
+
+    # Exact only when devBinv_nn = 0, which holds exactly at the undeformed state (B = I,
+    # Binv = I, Binv_nn = 1 = trBinv/3): confirmed already by Step 4's small-strain check,
+    # since isotropic_c2 at trBinv = 3 reduces to 8/3, matching mu = 2*(C1+C2)'s own 8*C2/3
+    # contribution to 4*mu/3. Away from the undeformed state, this is an approximation --
+    # it drops the deviatoric (shear) part of B^-1's contribution to the wave speed, not the
+    # whole C2 effect. Flagged accordingly in m_riemann_state.fpp, case_validator.py, and
+    # equations.md/case.md.
+    print()
+    print("This is an approximation (exact only when dev(B^-1)_nn = 0, i.e. at or near the")
+    print("undeformed reference state); it is NOT the general-B result from Step 5. A fully")
+    print("exact direct wave speed for C2 would need Binv_nn reconstructed per sweep direction")
+    print("at the interface, which needs a larger stash-scheme change not undertaken here.")
+
 
 def plane_strain_reduction():
     """Verifies the 1D and 2D closed forms proposed for m_hyperelastic.fpp against the full

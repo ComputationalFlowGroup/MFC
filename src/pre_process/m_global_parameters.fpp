@@ -391,6 +391,12 @@ contains
             fluid_pp(i)%mu_min = dflt_real
             fluid_pp(i)%mu_max = dflt_real
             fluid_pp(i)%mu_bulk = dflt_real
+            fluid_pp(i)%non_newtonian_model = 1
+            fluid_pp(i)%cy_mu0 = dflt_real
+            fluid_pp(i)%cy_muinf = dflt_real
+            fluid_pp(i)%cy_lambda = dflt_real
+            fluid_pp(i)%cy_a = dflt_real
+            fluid_pp(i)%cy_n = dflt_real
         end do
 
         ! Subgrid bubble parameters

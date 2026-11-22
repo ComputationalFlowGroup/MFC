@@ -491,7 +491,8 @@ module m_derived_types
         real(wp)               :: vinet_gruneisen  !< Gruneisen coefficient at rho0
         real(wp)               :: vinet_gruneisen_a  !< d(Gamma_G)/d(mu)
         real(wp)               :: vinet_t0  !< temperature at the reference density (for T output)
-        logical                :: non_newtonian  !< Enable Herschel-Bulkley non-Newtonian viscosity
+        logical                :: non_newtonian  !< Enable non-Newtonian viscosity (model chosen by non_newtonian_model)
+        integer                :: non_newtonian_model  !< 1 = Herschel-Bulkley (default), 2 = Carreau-Yasuda
         real(wp)               :: K  !< HB consistency index
         real(wp)               :: nn  !< HB flow behavior index
         real(wp)               :: tau0  !< HB yield stress (0 => power-law)
@@ -499,6 +500,11 @@ module m_derived_types
         real(wp)               :: mu_min  !< Lower viscosity clamp (inactive sentinel = dflt_real)
         real(wp)               :: mu_max  !< Upper viscosity clamp (required when non_newtonian)
         real(wp)               :: mu_bulk  !< Bulk viscosity for NN (inactive sentinel = dflt_real)
+        real(wp)               :: cy_mu0  !< Carreau-Yasuda zero-shear viscosity (non_newtonian_model = 2 only)
+        real(wp)               :: cy_muinf  !< Carreau-Yasuda infinite-shear viscosity
+        real(wp)               :: cy_lambda  !< Carreau-Yasuda relaxation time
+        real(wp)               :: cy_a  !< Carreau-Yasuda transition (Yasuda) exponent
+        real(wp)               :: cy_n  !< Carreau-Yasuda power-law index
         logical                :: graded_Ca_inv  !< Grade this fluid's shear modulus (inverse Cauchy number) in space
         real(wp)               :: graded_Ca_inv_init  !< Ca_inv at the profile's starting location
         real(wp)               :: graded_Ca_inv_end  !< Ca_inv at the profile's ending location

@@ -352,6 +352,10 @@ contains
         ! tr(B) and J = det(F), stashed for the Riemann solver's direct wave speed (see m_riemann_solver_hll.fpp)
         q_prim_vf(eqn_idx%xi%end + 2)%sf(j, k, l) = trace
         q_prim_vf(eqn_idx%xi%end + 3)%sf(j, k, l) = btensor_in(b_size)%sf(j, k, l)
+        ! tr(B^-1) is only read when mr_c2 != 0 (hyper_model = 2); unused here since this solver only runs under
+        ! hyper_model = 1, but the slot still exists (sys_size does not vary per hyper_model) and must not be left
+        ! uninitialized.
+        q_prim_vf(eqn_idx%xi%end + 4)%sf(j, k, l) = 0._wp
 
     end subroutine s_neoHookean_cauchy_solver
 
@@ -438,9 +442,11 @@ contains
 
         ! Strain energy W = C1*(I1 - 3) + C2*(I2 - 3), stashed as the full energy (see the STEP 5b comment above)
         q_prim_vf(eqn_idx%xi%end + 1)%sf(j, k, l) = (C1*(trB - 3._wp) + C2*(I2 - 3._wp))/J_det
-        ! tr(B) and J = det(F), stashed for the Riemann solver's direct wave speed (see m_riemann_solver_hll.fpp)
+        ! tr(B), J = det(F), and tr(B^-1) (already computed above), stashed for the Riemann solver's direct wave
+        ! speed (see m_riemann_solver_hll.fpp)
         q_prim_vf(eqn_idx%xi%end + 2)%sf(j, k, l) = trB
         q_prim_vf(eqn_idx%xi%end + 3)%sf(j, k, l) = J_det
+        q_prim_vf(eqn_idx%xi%end + 4)%sf(j, k, l) = trBinv
 
     end subroutine s_Mooney_Rivlin_cauchy_solver
 

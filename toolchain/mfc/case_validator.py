@@ -299,20 +299,26 @@ PHYSICS_DOCS = {
         "explanation": ("Requires model_eqns = 2. Incompatible with characteristic BCs, bubbles, MHD, and elastic models."),
     },
     "check_non_newtonian": {
-        "title": "Non-Newtonian (Herschel-Bulkley) Viscosity",
+        "title": "Non-Newtonian Viscosity (Herschel-Bulkley or Carreau-Yasuda)",
         "category": "Feature Compatibility",
-        "math": r"\tau = (\tau_0 + K \dot{\gamma}^n) \hat{e}, \quad \mu_{\rm eff} \in [\mu_{\min}, \mu_{\max}]",
+        "math": (
+            r"\tau = (\tau_0 + K \dot{\gamma}^n) \hat{e}, \quad \mu_{\rm eff} \in [\mu_{\min}, \mu_{\max}] "
+            r"\quad\text{or}\quad \mu(\dot\gamma) = \mu_\infty + (\mu_0 - \mu_\infty)\bigl[1+(\lambda\dot\gamma)^a\bigr]^{(n-1)/a}"
+        ),
         "explanation": (
-            "Per-fluid Herschel-Bulkley shear-dependent viscosity. "
-            "Requires viscous=T, model_eqns 2 or 3, riemann_solver 1 (HLL) or 2 (HLLC), "
-            "and K, nn, mu_max to be set. "
-            "When tau0 > 0, hb_m (Papanastasiou regularization) must also be set. "
-            "K, nn, mu_max must be positive; mu_min and hb_m must be positive when set; tau0 must be non-negative. "
-            "Re(2) and mu_bulk (bulk viscosity) are rejected for non-Newtonian fluids, "
-            "and HB parameters are rejected on fluids without non_newtonian=T. "
+            "Per-fluid shear-dependent viscosity, selected by non_newtonian_model: [1] Herschel-Bulkley (default) "
+            "or [2] Carreau-Yasuda. "
+            "Requires viscous=T, model_eqns 2 or 3, riemann_solver 1 (HLL) or 2 (HLLC). "
+            "Model 1 requires K, nn, mu_max to be set (K, nn, mu_max must be positive; mu_min and hb_m must be "
+            "positive when set; tau0 must be non-negative; when tau0 > 0, hb_m (Papanastasiou regularization) must "
+            "also be set); Re(2) and mu_bulk (bulk viscosity) are rejected. "
+            "Model 2 requires cy_mu0, cy_muinf, cy_lambda, cy_a, cy_n to be set (all positive except cy_muinf, "
+            "which is non-negative and must be less than cy_mu0); it has no yield stress or external viscosity "
+            "clamps, so it does not use the Herschel-Bulkley parameters. "
+            "Neither model's parameters are accepted on fluids without non_newtonian=T. "
             "Incompatible with igr."
         ),
-        "references": ["Papanastasiou87"],
+        "references": ["Papanastasiou87", "Yasuda81"],
         "docs_section": "sec-non-newtonian",
     },
     # Adaptive Mesh Refinement
@@ -958,12 +964,13 @@ class CaseValidator:
             if num_fluids is not None:
                 for i in range(1, int(num_fluids) + 1):
                     self.prohibit(self.get(f"fluid_pp({i})%mr_c2") is None, f"hyper_model = 2 (Mooney-Rivlin) requires fluid_pp({i})%mr_c2 to be set")
-            # Note (not a prohibition): f_hyperelastic_signal_speed's acoustic-tensor wave speed was derived for the
-            # neo-Hookean stress law only (misc/hyperelastic_acoustic_tensor.py's main()); it does not yet account
-            # for mr_c2's contribution to the tangent stiffness, so the small-strain limit it reduces to is
-            # 4*Ca_inv/3 rather than the correct 4*(Ca_inv/2 + mr_c2)*2/3 whenever mr_c2 != 0 (see mooney_rivlin()'s
-            # own small-strain check in that script). The stress law itself is now correct; this is flagged so the
-            # wave-speed gap is not silently assumed closed too.
+            # Note (not a prohibition): f_hyperelastic_signal_speed now includes mr_c2's contribution to the direct
+            # wave speed (misc/hyperelastic_acoustic_tensor.py's mooney_rivlin(), Step 5), but only as an ISOTROPIC
+            # estimate (Step 6 of that same function): it substitutes Binv_nn ~= tr(B^-1)/3, since the exact,
+            # direction-aligned Binv_nn is not reconstructed to the Riemann interface (only its trace is). This is
+            # exact at the undeformed reference state (matching the small-strain limit 4*(Ca_inv/2 + mr_c2)*2/3
+            # exactly) and whenever dev(B^-1) is small, but drops the deviatoric part of B^-1's contribution away
+            # from it -- an approximation, not yet the fully exact general-B formula Step 5 derives.
 
     def check_graded(self):
         """Checks constraints on graded (spatially-varying) material property parameters"""
@@ -2094,7 +2101,7 @@ class CaseValidator:
         )
 
     def check_non_newtonian(self):
-        """Checks constraints on non-Newtonian (Herschel-Bulkley) parameters (simulation)"""
+        """Checks constraints on non-Newtonian (Herschel-Bulkley or Carreau-Yasuda) parameters (simulation)"""
         num_fluids = self.get("num_fluids")
         # If num_fluids is not set, check at least fluid 1 (for model_eqns=1)
         if num_fluids is None:
@@ -2105,49 +2112,86 @@ class CaseValidator:
         model_eqns = self.get("model_eqns")
         riemann_solver = self.get("riemann_solver")
 
+        hb_params = ["K", "nn", "tau0", "hb_m", "mu_min", "mu_max", "mu_bulk"]
+        cy_params = ["cy_mu0", "cy_muinf", "cy_lambda", "cy_a", "cy_n"]
+
         for i in range(1, num_fluids + 1):
             if self.get(f"fluid_pp({i})%non_newtonian", "F") != "T":
-                for hb_param in ["K", "nn", "tau0", "hb_m", "mu_min", "mu_max", "mu_bulk"]:
+                for nn_param in hb_params + cy_params + ["non_newtonian_model"]:
                     self.prohibit(
-                        self.get(f"fluid_pp({i})%{hb_param}") is not None,
-                        f"fluid_pp({i})%{hb_param} is set, but fluid_pp({i})%non_newtonian is not enabled",
+                        self.get(f"fluid_pp({i})%{nn_param}") is not None,
+                        f"fluid_pp({i})%{nn_param} is set, but fluid_pp({i})%non_newtonian is not enabled",
                     )
                 continue
 
             self.prohibit(not viscous, f"fluid_pp({i})%non_newtonian requires viscous = T")
-            self.prohibit(self.get(f"fluid_pp({i})%K") is None, f"fluid_pp({i})%non_newtonian requires fluid_pp({i})%K to be set")
-            self.prohibit(self.get(f"fluid_pp({i})%nn") is None, f"fluid_pp({i})%non_newtonian requires fluid_pp({i})%nn to be set")
-            self.prohibit(self.get(f"fluid_pp({i})%mu_max") is None, f"fluid_pp({i})%non_newtonian requires fluid_pp({i})%mu_max to be set")
 
-            K = self.get(f"fluid_pp({i})%K")
-            nn = self.get(f"fluid_pp({i})%nn")
-            mu_min = self.get(f"fluid_pp({i})%mu_min")
-            mu_max = self.get(f"fluid_pp({i})%mu_max")
-            hb_m = self.get(f"fluid_pp({i})%hb_m")
-            tau0 = self.get(f"fluid_pp({i})%tau0", 0.0)
+            nn_model = self.get(f"fluid_pp({i})%non_newtonian_model", 1)
+            self.prohibit(nn_model not in (1, 2), f"fluid_pp({i})%non_newtonian_model must be 1 (Herschel-Bulkley) or 2 (Carreau-Yasuda)")
 
-            self.prohibit(K is not None and K <= 0, f"fluid_pp({i})%K must be positive")
-            self.prohibit(nn is not None and nn <= 0, f"fluid_pp({i})%nn must be positive")
-            self.prohibit(mu_max is not None and mu_max <= 0, f"fluid_pp({i})%mu_max must be positive")
-            self.prohibit(mu_min is not None and mu_min <= 0, f"fluid_pp({i})%mu_min must be positive")
-            self.prohibit(hb_m is not None and hb_m <= 0, f"fluid_pp({i})%hb_m must be positive")
-            self.prohibit(tau0 is not None and tau0 < 0, f"fluid_pp({i})%tau0 must be non-negative")
+            if nn_model == 2:
+                for cy_param in cy_params:
+                    self.prohibit(self.get(f"fluid_pp({i})%{cy_param}") is None, f"fluid_pp({i})%non_newtonian_model = 2 (Carreau-Yasuda) requires fluid_pp({i})%{cy_param} to be set")
+                for hb_param in hb_params:
+                    self.prohibit(
+                        self.get(f"fluid_pp({i})%{hb_param}") is not None,
+                        f"fluid_pp({i})%{hb_param} is set, but fluid_pp({i})%non_newtonian_model = 2 (Carreau-Yasuda) does not use Herschel-Bulkley parameters",
+                    )
 
-            if tau0 is not None and tau0 > 0:
-                self.prohibit(hb_m is None, f"fluid_pp({i})%non_newtonian: tau0 > 0 requires fluid_pp({i})%hb_m to be set")
+                cy_mu0 = self.get(f"fluid_pp({i})%cy_mu0")
+                cy_muinf = self.get(f"fluid_pp({i})%cy_muinf")
+                cy_lambda = self.get(f"fluid_pp({i})%cy_lambda")
+                cy_a = self.get(f"fluid_pp({i})%cy_a")
+                cy_n = self.get(f"fluid_pp({i})%cy_n")
 
-            if mu_min is not None and mu_max is not None:
-                self.prohibit(mu_max <= mu_min, f"fluid_pp({i})%non_newtonian: mu_max must exceed mu_min")
+                self.prohibit(cy_mu0 is not None and cy_mu0 <= 0, f"fluid_pp({i})%cy_mu0 must be positive")
+                self.prohibit(cy_muinf is not None and cy_muinf < 0, f"fluid_pp({i})%cy_muinf must be non-negative")
+                self.prohibit(cy_lambda is not None and cy_lambda <= 0, f"fluid_pp({i})%cy_lambda must be positive")
+                self.prohibit(cy_a is not None and cy_a <= 0, f"fluid_pp({i})%cy_a must be positive")
+                self.prohibit(cy_n is not None and cy_n <= 0, f"fluid_pp({i})%cy_n must be positive")
+                if cy_mu0 is not None and cy_muinf is not None:
+                    self.prohibit(cy_muinf >= cy_mu0, f"fluid_pp({i})%non_newtonian_model = 2: cy_muinf must be less than cy_mu0")
+            else:
+                for cy_param in cy_params:
+                    self.prohibit(
+                        self.get(f"fluid_pp({i})%{cy_param}") is not None,
+                        f"fluid_pp({i})%{cy_param} is set, but fluid_pp({i})%non_newtonian_model = 1 (Herschel-Bulkley) does not use Carreau-Yasuda parameters",
+                    )
+
+                self.prohibit(self.get(f"fluid_pp({i})%K") is None, f"fluid_pp({i})%non_newtonian requires fluid_pp({i})%K to be set")
+                self.prohibit(self.get(f"fluid_pp({i})%nn") is None, f"fluid_pp({i})%non_newtonian requires fluid_pp({i})%nn to be set")
+                self.prohibit(self.get(f"fluid_pp({i})%mu_max") is None, f"fluid_pp({i})%non_newtonian requires fluid_pp({i})%mu_max to be set")
+
+                K = self.get(f"fluid_pp({i})%K")
+                nn = self.get(f"fluid_pp({i})%nn")
+                mu_min = self.get(f"fluid_pp({i})%mu_min")
+                mu_max = self.get(f"fluid_pp({i})%mu_max")
+                hb_m = self.get(f"fluid_pp({i})%hb_m")
+                tau0 = self.get(f"fluid_pp({i})%tau0", 0.0)
+
+                self.prohibit(K is not None and K <= 0, f"fluid_pp({i})%K must be positive")
+                self.prohibit(nn is not None and nn <= 0, f"fluid_pp({i})%nn must be positive")
+                self.prohibit(mu_max is not None and mu_max <= 0, f"fluid_pp({i})%mu_max must be positive")
+                self.prohibit(mu_min is not None and mu_min <= 0, f"fluid_pp({i})%mu_min must be positive")
+                self.prohibit(hb_m is not None and hb_m <= 0, f"fluid_pp({i})%hb_m must be positive")
+                self.prohibit(tau0 is not None and tau0 < 0, f"fluid_pp({i})%tau0 must be non-negative")
+
+                if tau0 is not None and tau0 > 0:
+                    self.prohibit(hb_m is None, f"fluid_pp({i})%non_newtonian: tau0 > 0 requires fluid_pp({i})%hb_m to be set")
+
+                if mu_min is not None and mu_max is not None:
+                    self.prohibit(mu_max <= mu_min, f"fluid_pp({i})%non_newtonian: mu_max must exceed mu_min")
+
+                self.prohibit(
+                    self.get(f"fluid_pp({i})%mu_bulk") is not None,
+                    f"fluid_pp({i})%mu_bulk (non-Newtonian bulk viscosity) is not yet supported",
+                )
 
             self.prohibit(igr, f"fluid_pp({i})%non_newtonian is incompatible with igr")
             self.prohibit(model_eqns is not None and model_eqns not in (2, 3), f"fluid_pp({i})%non_newtonian requires model_eqns 2 or 3")
             self.prohibit(
                 riemann_solver is not None and riemann_solver not in (1, 2),
                 f"fluid_pp({i})%non_newtonian requires riemann_solver 1 (HLL) or 2 (HLLC)",
-            )
-            self.prohibit(
-                self.get(f"fluid_pp({i})%mu_bulk") is not None,
-                f"fluid_pp({i})%mu_bulk (non-Newtonian bulk viscosity) is not yet supported",
             )
             self.prohibit(
                 self.get(f"fluid_pp({i})%Re(2)") is not None,

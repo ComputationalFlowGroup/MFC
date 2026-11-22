@@ -67,6 +67,8 @@ module m_riemann_state
 
     real(wp), allocatable, dimension(:) :: Ca_invs_rs
     $:GPU_DECLARE(create='[Ca_invs_rs]')
+    real(wp), allocatable, dimension(:) :: mr_c2s_rs  !< Mooney-Rivlin's second material constant (C2), per fluid
+    $:GPU_DECLARE(create='[mr_c2s_rs]')
 
     real(wp), allocatable, dimension(:,:) :: Res_gs
     $:GPU_DECLARE(create='[Res_gs]')
@@ -91,14 +93,21 @@ contains
     !! = rho*c_elastic**2 = (2*Ca_inv/3)*(tr(B) - B_nn), with B_nn = tr(B)/3 + J*tau_nn/Ca_inv recovered from the already-available
     !! normal stress rather than carrying B_nn itself; this reduces to rho*c_elastic**2 = 4*Ca_inv/3 (the small-strain/hypoelastic
     !! constant) at B = I, J = 1, tau_nn = 0. Callers subtract it for the left-going wave and add it for the right-going one.
-    function f_hyperelastic_signal_speed(c, Ca_inv, trB, J, tau_nn, rho) result(a)
+    !> Neo-Hookean term exact (derived in misc/hyperelastic_acoustic_tensor.py's main()); the Mooney-Rivlin mr_c2 term is an
+    !! ISOTROPIC estimate (misc/hyperelastic_acoustic_tensor.py's mooney_rivlin(), general-B closed form), not the full
+    !! direction-dependent correction -- the exact version needs B^-1's direction-aligned component, which is not reconstructed to
+    !! the interface (only its trace, trBinv, is). Exact at mr_c2 = 0 (unchanged from before) and at the undeformed reference state
+    !! (trBinv = 3), where the isotropic estimate coincides with the true value; approximate away from it. See case_validator.py's
+    !! check_hyperelasticity() for the same note.
+    function f_hyperelastic_signal_speed(c, Ca_inv, mr_c2, trB, trBinv, J, tau_nn, rho) result(a)
 
         $:GPU_ROUTINE(function_name='f_hyperelastic_signal_speed', parallelism='[seq]', cray_inline=True)
 
-        real(wp), intent(in) :: c, Ca_inv, trB, J, tau_nn, rho
+        real(wp), intent(in) :: c, Ca_inv, mr_c2, trB, trBinv, J, tau_nn, rho
         real(wp)             :: a
 
-        a = sqrt(max(verysmall, c*c + (4._wp*Ca_inv*trB)/(9._wp*J*rho) - (2._wp*tau_nn)/(3._wp*rho)))
+        a = sqrt(max(verysmall, &
+                 & c*c + (4._wp*Ca_inv*trB)/(9._wp*J*rho) - (2._wp*tau_nn)/(3._wp*rho) + (8._wp*mr_c2*trBinv)/(9._wp*J*rho)))
 
     end function f_hyperelastic_signal_speed
 

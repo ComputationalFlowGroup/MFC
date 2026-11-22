@@ -272,15 +272,15 @@ contains
             end if
 
             if (rmt) then
-                ! Reference map (xi), plus hyperelasticity's strain-energy/tr(B)/J stash (xi%end+1:xi%end+3, see
-                ! m_global_parameters_common.fpp) when hyperelasticity is active alongside it.
+                ! Reference map (xi), plus hyperelasticity's strain-energy/tr(B)/J/tr(B^-1) stash (xi%end+1:xi%end+4,
+                ! see m_global_parameters_common.fpp) when hyperelasticity is active alongside it.
                 do i = eqn_idx%xi%beg, eqn_idx%xi%end
                     @:ALLOCATE(q_prim_vf(i)%sf(idwbuff(1)%beg:idwbuff(1)%end, idwbuff(2)%beg:idwbuff(2)%end, &
                                & idwbuff(3)%beg:idwbuff(3)%end))
                     @:ACC_SETUP_SFs(q_prim_vf(i))
                 end do
                 if (hyperelasticity) then
-                    do i = eqn_idx%xi%end + 1, eqn_idx%xi%end + 3
+                    do i = eqn_idx%xi%end + 1, eqn_idx%xi%end + 4
                         @:ALLOCATE(q_prim_vf(i)%sf(idwbuff(1)%beg:idwbuff(1)%end, idwbuff(2)%beg:idwbuff(2)%end, &
                                    & idwbuff(3)%beg:idwbuff(3)%end))
                         @:ACC_SETUP_SFs(q_prim_vf(i))
@@ -810,7 +810,7 @@ contains
                                     Re(1) = 0._wp
                                     do fl = 1, num_fluids
                                         if (is_non_newtonian(fl)) then
-                                            Re(1) = Re(1) + alpha(fl)*hb_mu_max(fl)
+                                            Re(1) = Re(1) + alpha(fl)*nn_mu_max_arr(fl)
                                         else
                                             Re(1) = Re(1) + alpha(fl)*fluid_inv_re(fl)
                                         end if
@@ -825,7 +825,8 @@ contains
                                     end do
                                     T_cell = q_T_sf%sf(j, k, l)
                                     call s_compute_transport_dt_re(pres, rho, T_cell, Ys, Re_chem)
-                                    ! Keep the bounds Cantera does not replace: the HB mu_max in Re(1) and bulk viscosity in Re(2).
+                                    ! Keep the bounds Cantera does not replace: the non-Newtonian max-viscosity bound
+                                    ! (nn_mu_max_arr) in Re(1) and bulk viscosity in Re(2).
                                     ! Without viscous, Re holds dflt_real, not a bound
                                     if (viscous) then
                                         if (any_non_newtonian) Re_chem(1) = min(Re_chem(1), Re(1))
@@ -1254,7 +1255,7 @@ contains
                     @:DEALLOCATE(q_prim_vf(i)%sf)
                 end do
                 if (hyperelasticity) then
-                    do i = eqn_idx%xi%end + 1, eqn_idx%xi%end + 3
+                    do i = eqn_idx%xi%end + 1, eqn_idx%xi%end + 4
                         @:DEALLOCATE(q_prim_vf(i)%sf)
                     end do
                 end if
