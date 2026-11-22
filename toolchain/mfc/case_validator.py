@@ -964,13 +964,6 @@ class CaseValidator:
             if num_fluids is not None:
                 for i in range(1, int(num_fluids) + 1):
                     self.prohibit(self.get(f"fluid_pp({i})%mr_c2") is None, f"hyper_model = 2 (Mooney-Rivlin) requires fluid_pp({i})%mr_c2 to be set")
-            # Note (not a prohibition): f_hyperelastic_signal_speed now includes mr_c2's contribution to the direct
-            # wave speed (misc/hyperelastic_acoustic_tensor.py's mooney_rivlin(), Step 5), but only as an ISOTROPIC
-            # estimate (Step 6 of that same function): it substitutes Binv_nn ~= tr(B^-1)/3, since the exact,
-            # direction-aligned Binv_nn is not reconstructed to the Riemann interface (only its trace is). This is
-            # exact at the undeformed reference state (matching the small-strain limit 4*(Ca_inv/2 + mr_c2)*2/3
-            # exactly) and whenever dev(B^-1) is small, but drops the deviatoric part of B^-1's contribution away
-            # from it -- an approximation, not yet the fully exact general-B formula Step 5 derives.
 
     def check_graded(self):
         """Checks constraints on graded (spatially-varying) material property parameters"""

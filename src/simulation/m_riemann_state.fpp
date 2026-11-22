@@ -89,25 +89,21 @@ contains
     end function f_elastic_signal_speed
 
     !> Hyperelastic signal speed: the acoustic speed stiffened by the finite-strain (neo-Hookean/Mooney-Rivlin) tangent stiffness,
-    !! derived from the acoustic tensor (Truesdell rate of the Cauchy stress, see misc/hyperelastic_acoustic_tensor.py). correction
-    !! = rho*c_elastic**2 = (2*Ca_inv/3)*(tr(B) - B_nn), with B_nn = tr(B)/3 + J*tau_nn/Ca_inv recovered from the already-available
-    !! normal stress rather than carrying B_nn itself; this reduces to rho*c_elastic**2 = 4*Ca_inv/3 (the small-strain/hypoelastic
-    !! constant) at B = I, J = 1, tau_nn = 0. Callers subtract it for the left-going wave and add it for the right-going one.
-    !> Neo-Hookean term exact (derived in misc/hyperelastic_acoustic_tensor.py's main()); the Mooney-Rivlin mr_c2 term is an
-    !! ISOTROPIC estimate (misc/hyperelastic_acoustic_tensor.py's mooney_rivlin(), general-B closed form), not the full
-    !! direction-dependent correction -- the exact version needs B^-1's direction-aligned component, which is not reconstructed to
-    !! the interface (only its trace, trBinv, is). Exact at mr_c2 = 0 (unchanged from before) and at the undeformed reference state
-    !! (trBinv = 3), where the isotropic estimate coincides with the true value; approximate away from it. See case_validator.py's
-    !! check_hyperelasticity() for the same note.
-    function f_hyperelastic_signal_speed(c, Ca_inv, mr_c2, trB, trBinv, J, tau_nn, rho) result(a)
+    !! derived from the acoustic tensor (Truesdell rate of the Cauchy stress, see misc/hyperelastic_acoustic_tensor.py's main() and
+    !! mooney_rivlin(), Step 5). Exact for any B, J, mr_c2 (not an isotropic or small-strain approximation): rho*c_elastic**2 =
+    !! (2*Ca_inv/3)*(tr(B) - B_nn) + (4*mr_c2/3)*(5*B^-1_nn - tr(B^-1)). B_nn and B^-1_nn are the direction-aligned (dir_idx(1))
+    !! diagonal entries of B and B^-1, stashed by m_hyperelastic.fpp alongside tr(B)/J/tr(B^-1) so neither tensor needs
+    !! reconstructing at the interface. Reduces to rho*c_elastic**2 = 4*Ca_inv/3 (the small-strain/hypoelastic constant) at B = I, J
+    !! = 1, mr_c2 = 0. Callers subtract it for the left-going wave and add it for the right-going one.
+    function f_hyperelastic_signal_speed(c, Ca_inv, mr_c2, trB, B_nn, trBinv, Binv_nn, J, rho) result(a)
 
         $:GPU_ROUTINE(function_name='f_hyperelastic_signal_speed', parallelism='[seq]', cray_inline=True)
 
-        real(wp), intent(in) :: c, Ca_inv, mr_c2, trB, trBinv, J, tau_nn, rho
+        real(wp), intent(in) :: c, Ca_inv, mr_c2, trB, B_nn, trBinv, Binv_nn, J, rho
         real(wp)             :: a
 
         a = sqrt(max(verysmall, &
-                 & c*c + (4._wp*Ca_inv*trB)/(9._wp*J*rho) - (2._wp*tau_nn)/(3._wp*rho) + (8._wp*mr_c2*trBinv)/(9._wp*J*rho)))
+                 & c*c + (2._wp*Ca_inv*(trB - B_nn))/(3._wp*J*rho) + (4._wp*mr_c2*(5._wp*Binv_nn - trBinv))/(3._wp*J*rho)))
 
     end function f_hyperelastic_signal_speed
 

@@ -412,44 +412,29 @@ def mooney_rivlin():
     print("(C1 part reduces to the existing neo-Hookean formula exactly when C2 = 0.)")
 
     print("\n" + "=" * 78)
-    print("Step 6: f_hyperelastic_signal_speed's ISOTROPIC estimate of the C2 part")
+    print("Step 6: f_hyperelastic_signal_speed implements the EXACT general-B formula")
     print("=" * 78)
     print("""
-f_hyperelastic_signal_speed (m_riemann_state.fpp) cannot read Binv_nn directly -- only its
-trace, tr(B^-1), is reconstructed to the Riemann interface (stashed by m_hyperelastic.fpp
-alongside tr(B) and J; Binv_nn, like B_nn, depends on the sweep direction and would need the
-full B^-1 tensor reconstructed there, which it is not). The C1 part avoids this exactly by
-substituting B_nn = tr(B)/3 + J*tau_nn/Ca_inv (tau_nn is already an interface-reconstructed
-primitive variable) -- a trick specific to neo-Hookean's single-constant structure. For C2
-there is no analogous already-available per-direction quantity (tau_nn is the SUM of both
-constants' contributions, not separable into pieces without more information), so the
-implemented formula instead takes the ISOTROPIC estimate Binv_nn ~= tr(B^-1)/3:
+m_hyperelastic.fpp stashes the direction-aligned (sweep-direction) diagonal entries of B and
+B^-1 per cell, alongside their traces and J (xi%end+5 onward) -- so, unlike the earlier
+version of this fix, f_hyperelastic_signal_speed does not need an isotropic estimate of
+Binv_nn: it reads the real B_nn and Binv_nn for whichever direction is being swept, exactly.
 """)
-    # Abstract symbols for this step: c2_closed above is built from the literal matrix
-    # expression for Binv_nn, which subs() cannot match structurally once it has been
-    # combined with the rest of the expression -- so redo the substitution at the level of
-    # the closed FORM (symbol placeholders), not the matrix expression, for clean algebra.
-    Binv_nn_sym, trBinv_sym = sp.symbols("Binv_nn trBinv")
-    c2_closed_form = (4 / (3 * J)) * (5 * Binv_nn_sym - trBinv_sym)
-    isotropic_c2 = sp.simplify(c2_closed_form.subs(Binv_nn_sym, trBinv_sym / 3))
-    print(f"  C2 part at Binv_nn = tr(B^-1)/3 (isotropic): {isotropic_c2}")
-    implemented = sp.Rational(8, 9) * trBinv_sym / J  # m_riemann_state.fpp: (8*mr_c2*trBinv)/(9*J*rho)
-    diff_impl = sp.simplify(isotropic_c2 - implemented)
-    print(f"  implemented (8*trBinv)/(9*J):            matches isotropic estimate? diff = {diff_impl}")
-    assert diff_impl == 0, "Implemented formula does not match the isotropic estimate derived here!"
-
-    # Exact only when devBinv_nn = 0, which holds exactly at the undeformed state (B = I,
-    # Binv = I, Binv_nn = 1 = trBinv/3): confirmed already by Step 4's small-strain check,
-    # since isotropic_c2 at trBinv = 3 reduces to 8/3, matching mu = 2*(C1+C2)'s own 8*C2/3
-    # contribution to 4*mu/3. Away from the undeformed state, this is an approximation --
-    # it drops the deviatoric (shear) part of B^-1's contribution to the wave speed, not the
-    # whole C2 effect. Flagged accordingly in m_riemann_state.fpp, case_validator.py, and
-    # equations.md/case.md.
-    print()
-    print("This is an approximation (exact only when dev(B^-1)_nn = 0, i.e. at or near the")
-    print("undeformed reference state); it is NOT the general-B result from Step 5. A fully")
-    print("exact direct wave speed for C2 would need Binv_nn reconstructed per sweep direction")
-    print("at the interface, which needs a larger stash-scheme change not undertaken here.")
+    # Abstract symbols at the level of the closed FORM (c1_closed/c2_closed above are built
+    # from literal matrix expressions, which subs() cannot cleanly re-substitute at this
+    # level): confirm the code's own formula, read verbatim from m_riemann_state.fpp, is
+    # algebraically identical to Step 5's derived closed form.
+    B_nn_sym, Binv_nn_sym, trBinv_sym = sp.symbols("B_nn Binv_nn trBinv")
+    exact_closed_form = (4 / (3 * J)) * (C1 * (trB - B_nn_sym) + C2 * (5 * Binv_nn_sym - trBinv_sym))
+    # m_riemann_state.fpp: c*c + (2*Ca_inv*(trB-B_nn))/(3*J*rho) + (4*mr_c2*(5*Binv_nn-trBinv))/(3*J*rho),
+    # Ca_inv = 2*C1, mr_c2 = C2, correction only (the rho*c*c/rho = c*c term is the base sound speed, not part
+    # of this correction).
+    implemented = (2 * (2 * C1) * (trB - B_nn_sym)) / (3 * J) + (4 * C2 * (5 * Binv_nn_sym - trBinv_sym)) / (3 * J)
+    diff_impl = sp.simplify(exact_closed_form - implemented)
+    print(f"  code's formula vs. Step 5's closed form: diff = {diff_impl}   (expect 0)")
+    assert diff_impl == 0, "f_hyperelastic_signal_speed's formula does not match the exact general-B derivation!"
+    print("Confirmed: the implemented formula is the exact general-B result from Step 5, for any")
+    print("deformation state -- not an isotropic or small-strain approximation.")
 
 
 def plane_strain_reduction():

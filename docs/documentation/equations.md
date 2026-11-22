@@ -654,19 +654,17 @@ elastic energy.
 **Direct wave speed (`wave_speeds = 2`, HLL only):** the flat hypoelastic correction
 \f$4G/(3\rho)\f$ is replaced by the finite-strain acoustic-tensor correction
 
-\f[c^2 \to c^2 + \frac{4\,G\,\text{tr}(\mathbf{b})}{9\,J\,\rho} - \frac{2\,\tau_{nn}^e}{3\,\rho}
-+ \frac{8\,C_2\,\text{tr}(\mathbf{b}^{-1})}{9\,J\,\rho},\f]
+\f[c^2 \to c^2 + \frac{2\,G\,(\text{tr}(\mathbf{b}) - B_{nn})}{3\,J\,\rho}
++ \frac{4\,C_2\,(5\,B^{-1}_{nn} - \text{tr}(\mathbf{b}^{-1}))}{3\,J\,\rho},\f]
 
 which reduces to the hypoelastic constant at \f$\mathbf{b} = \mathbf{I}\f$, \f$J = 1\f$, and to
-the Neo-Hookean-only correction above at \f$C_2 = 0\f$. The \f$G\f$ term is exact (it uses
-\f$B_{nn} = \text{tr}(\mathbf{b})/3 + J\tau_{nn}^e/G\f$, available at the interface via the
-already-reconstructed stress). **The \f$C_2\f$ term is an isotropic estimate**
-(\f$B^{-1}_{nn} \approx \text{tr}(\mathbf{b}^{-1})/3\f$): exact at the undeformed state and
-near it, since \f$B^{-1}\f$'s exact direction-aligned component is not reconstructed to the
-Riemann interface (only its trace is, stashed alongside \f$\text{tr}(\mathbf{b})\f$ and
-\f$J\f$). A fully exact version needs \f$B^{-1}_{nn}\f$ reconstructed per sweep direction, a
-larger stash-scheme change not undertaken here. Derived and verified symbolically in
-`misc/hyperelastic_acoustic_tensor.py`'s `mooney_rivlin()` (Steps 5-6). Currently requires the
+the Neo-Hookean-only correction above at \f$C_2 = 0\f$. \f$B_{nn}\f$ and \f$B^{-1}_{nn}\f$ are
+the direction-aligned (sweep-direction) diagonal entries of \f$\mathbf{b}\f$ and
+\f$\mathbf{b}^{-1}\f$, stashed by `m_hyperelastic.fpp` per cell (alongside their traces and
+\f$J\f$) and read directly at the interface for whichever direction is swept -- exact for any
+deformation state, not an isotropic or small-strain approximation, since neither tensor needs
+reconstructing there. Derived and verified symbolically in
+`misc/hyperelastic_acoustic_tensor.py`'s `mooney_rivlin()` (Step 5). Currently requires the
 HLL Riemann solver (`riemann_solver = 1`) and is not compatible with `cyl_coord`.
 
 **1D and 2D:** directions beyond num_dims are frozen at an identity stretch (no

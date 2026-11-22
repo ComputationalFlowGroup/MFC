@@ -335,7 +335,7 @@ contains
         real(wp), intent(in)                                   :: Ca_inv_param
         integer, intent(in)                                    :: j, k, l
         real(wp)                                               :: trace
-        integer                                                :: i  !< Generic loop iterators
+        integer                                                :: i, dk  !< Generic loop iterators
 
         call s_hyperelastic_trace_and_deviator(btensor_in, j, k, l, trace)
 
@@ -356,6 +356,20 @@ contains
         ! hyper_model = 1, but the slot still exists (sys_size does not vary per hyper_model) and must not be left
         ! uninitialized.
         q_prim_vf(eqn_idx%xi%end + 4)%sf(j, k, l) = 0._wp
+        ! Direction-aligned diagonal entries of B itself, for the Riemann solver's exact B_nn at whichever
+        ! direction it is sweeping (replaces the old tau_nn-based substitution, which stopped being exact once
+        ! Mooney-Rivlin's C2 term could also contribute to tau_nn -- see m_riemann_state.fpp). btensor_in now holds
+        ! dev(B) (mutated in place by s_hyperelastic_trace_and_deviator above), so B_dd = dev(B)_dd + trace/3.
+        $:GPU_LOOP(parallelism='[seq]')
+        do dk = 1, num_dims
+            q_prim_vf(eqn_idx%xi%end + 4 + dk)%sf(j, k, l) = btensor_in(dk*(dk + 1)/2)%sf(j, k, l) + trace/3._wp
+        end do
+        ! B^-1's diagonal is not needed here (hyper_model = 1 has no B^-1 at all); the slots still exist and must
+        ! not be left uninitialized.
+        $:GPU_LOOP(parallelism='[seq]')
+        do dk = 1, num_dims
+            q_prim_vf(eqn_idx%xi%end + 4 + num_dims + dk)%sf(j, k, l) = 0._wp
+        end do
 
     end subroutine s_neoHookean_cauchy_solver
 
@@ -418,9 +432,12 @@ contains
         end if
 
         trBinv = real(3 - num_dims, wp)
+        ! Stash B^-1's raw (pre-deviatoric) direction-aligned diagonal entries for the Riemann solver's exact
+        ! B^-1_nn at whichever direction it sweeps, before the dev(B^-1) projection below overwrites them.
         $:GPU_LOOP(parallelism='[seq]')
         do dk = 1, num_dims
             trBinv = trBinv + Binv(dk*(dk + 1)/2)
+            q_prim_vf(eqn_idx%xi%end + 4 + num_dims + dk)%sf(j, k, l) = Binv(dk*(dk + 1)/2)
         end do
 
         ! dev(B^-1) in place in the local Binv array (dev(B) itself is taken care of by the trace-and-deviator call
@@ -430,6 +447,13 @@ contains
         do dk = 1, num_dims
             diag_idx = dk*(dk + 1)/2
             Binv(diag_idx) = Binv(diag_idx) - f13*trBinv
+        end do
+
+        ! Likewise, stash B's own raw diagonal entries before the trace-and-deviator call below mutates
+        ! btensor_in into dev(B) in place.
+        $:GPU_LOOP(parallelism='[seq]')
+        do dk = 1, num_dims
+            q_prim_vf(eqn_idx%xi%end + 4 + dk)%sf(j, k, l) = btensor_in(dk*(dk + 1)/2)%sf(j, k, l)
         end do
 
         call s_hyperelastic_trace_and_deviator(btensor_in, j, k, l, trB)
@@ -443,7 +467,8 @@ contains
         ! Strain energy W = C1*(I1 - 3) + C2*(I2 - 3), stashed as the full energy (see the STEP 5b comment above)
         q_prim_vf(eqn_idx%xi%end + 1)%sf(j, k, l) = (C1*(trB - 3._wp) + C2*(I2 - 3._wp))/J_det
         ! tr(B), J = det(F), and tr(B^-1) (already computed above), stashed for the Riemann solver's direct wave
-        ! speed (see m_riemann_solver_hll.fpp)
+        ! speed (see m_riemann_solver_hll.fpp). The direction-aligned B_nn/B^-1_nn diagonal entries (xi%end+5
+        ! onward) were already stashed above, before this call mutated btensor_in/Binv into their deviatoric form.
         q_prim_vf(eqn_idx%xi%end + 2)%sf(j, k, l) = trB
         q_prim_vf(eqn_idx%xi%end + 3)%sf(j, k, l) = J_det
         q_prim_vf(eqn_idx%xi%end + 4)%sf(j, k, l) = trBinv

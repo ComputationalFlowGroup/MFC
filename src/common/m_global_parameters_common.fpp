@@ -271,12 +271,13 @@ contains
                     ! number of entries in the symmetric left Cauchy-Green tensor plus the Jacobian
                     b_size = (num_dims*(num_dims + 1))/2 + 1
                     tensor_size = num_dims**2 + 1
-                    ! four more scalars to carry: the elastic strain energy (xi%end+1), tr(B) (xi%end+2), the Jacobian
-                    ! J = det(F) (xi%end+3), and tr(B^-1) (xi%end+4). tr(B), J and tr(B^-1) let the Riemann solver
-                    ! recover the direction-aligned B_nn = tr(B)/3 + J*tau_nn/Ca_inv for its direct wave speed, and an
-                    ! isotropic (near-undeformed-state-exact) estimate of Mooney-Rivlin's C2 contribution to that same
-                    ! speed, without reconstructing B or B^-1 themselves.
-                    sys_size = sys_size + 4
+                    ! 4 + 2*num_dims more scalars to carry: the elastic strain energy (xi%end+1), tr(B) (xi%end+2), the
+                    ! Jacobian J = det(F) (xi%end+3), tr(B^-1) (xi%end+4), the num_dims direction-aligned diagonal
+                    ! entries of B itself (xi%end+5 .. xi%end+4+num_dims), and of B^-1 (the next num_dims slots). The
+                    ! direct wave speed needs B_nn and B^-1_nn for whichever direction it is evaluating -- these let
+                    ! the Riemann solver read them exactly, rather than only their isotropic traces, without
+                    ! reconstructing the full B/B^-1 tensors at the interface.
+                    sys_size = sys_size + 4 + 2*num_dims
                 end if
             end if
 
