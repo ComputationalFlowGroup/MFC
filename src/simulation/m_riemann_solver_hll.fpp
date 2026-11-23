@@ -72,7 +72,7 @@ contains
             real(wp)                             :: c_L, c_R
             real(wp), dimension(6)               :: tau_e_L, tau_e_R
             real(wp), dimension(3)               :: xi_field_L, xi_field_R
-            real(wp)                             :: Ca_inv_L, Ca_inv_R, mr_c2_L, mr_c2_R
+            real(wp)                             :: Ca_inv_L, Ca_inv_R, Ca_inv_2_L, Ca_inv_2_R
             real(wp)                             :: trB_L, trB_R, J_L, J_R, trBinv_L, trBinv_R
             real(wp)                             :: B_nn_L, B_nn_R, Binv_nn_L, Binv_nn_R
             real(wp)                             :: damage_L, damage_R
@@ -127,11 +127,11 @@ contains
                                         & s_P, s_S, xi_M, xi_P, c_fast, pres_mag, B, Ga, vdotB, B2, b4, cm, pcorr, rho_L, rho_R, &
                                         & pres_L, pres_R, E_L, E_R, H_L, H_R, c_sum_Yi_Phi, T_L, T_R, Y_L, Y_R, MW_L, MW_R, &
                                         & R_gas_L, R_gas_R, Cp_L, Cp_R, Cv_L, Cv_R, Gamm_L, Gamm_R, gamma_L, gamma_R, pi_inf_L, &
-                                        & pi_inf_R, qv_L, qv_R, qv_avg, c_L, c_R, Ca_inv_L, Ca_inv_R, mr_c2_L, mr_c2_R, trB_L, &
-                                        & trB_R, J_L, J_R, trBinv_L, trBinv_R, B_nn_L, B_nn_R, Binv_nn_L, Binv_nn_R, damage_L, &
-                                        & damage_R, solid_partial_density_L, solid_partial_density_R, rho_avg, H_avg, c_avg, &
-                                        & gamma_avg, ptilde_L, ptilde_R, vel_L_rms, vel_R_rms, vel_avg_rms, Ms_L, Ms_R, pres_SL, &
-                                        & pres_SR, alpha_L_sum, alpha_R_sum, flux_tau_L, flux_tau_R, vel_interface]', &
+                                        & pi_inf_R, qv_L, qv_R, qv_avg, c_L, c_R, Ca_inv_L, Ca_inv_R, Ca_inv_2_L, Ca_inv_2_R, &
+                                        & trB_L, trB_R, J_L, J_R, trBinv_L, trBinv_R, B_nn_L, B_nn_R, Binv_nn_L, Binv_nn_R, &
+                                        & damage_L, damage_R, solid_partial_density_L, solid_partial_density_R, rho_avg, H_avg, &
+                                        & c_avg, gamma_avg, ptilde_L, ptilde_R, vel_L_rms, vel_R_rms, vel_avg_rms, Ms_L, Ms_R, &
+                                        & pres_SL, pres_SR, alpha_L_sum, alpha_R_sum, flux_tau_L, flux_tau_R, vel_interface]', &
                                         & copyin='[norm_dir]', firstprivate='[Re_size_loc1, Re_size_loc2, need_nc_vel]')
                     do l = ${Z_BND}$%beg, ${Z_BND}$%end
                         do k = ${Y_BND}$%beg, ${Y_BND}$%end
@@ -400,7 +400,7 @@ contains
                                     Binv_nn_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%end + 4 + num_dims + dir_idx(1))
 
                                     Ca_inv_L = 0._wp; Ca_inv_R = 0._wp
-                                    mr_c2_L = 0._wp; mr_c2_R = 0._wp
+                                    Ca_inv_2_L = 0._wp; Ca_inv_2_R = 0._wp
                                     $:GPU_LOOP(parallelism='[seq]')
                                     do i = 1, num_fluids
                                         if (graded) then
@@ -410,9 +410,9 @@ contains
                                             Ca_inv_L = Ca_inv_L + alpha_L(i)*Ca_invs_rs(i)
                                             Ca_inv_R = Ca_inv_R + alpha_R(i)*Ca_invs_rs(i)
                                         end if
-                                        ! mr_c2 mixing is not graded (same as m_hyperelastic.fpp's own mr_c2_local)
-                                        mr_c2_L = mr_c2_L + alpha_L(i)*mr_c2s_rs(i)
-                                        mr_c2_R = mr_c2_R + alpha_R(i)*mr_c2s_rs(i)
+                                        ! Ca_inv_2 mixing is not graded (same as m_hyperelastic.fpp's own Ca_inv_2_local)
+                                        Ca_inv_2_L = Ca_inv_2_L + alpha_L(i)*Ca_inv_2s_rs(i)
+                                        Ca_inv_2_R = Ca_inv_2_R + alpha_R(i)*Ca_inv_2s_rs(i)
                                     end do
                                 end if
 
@@ -476,13 +476,13 @@ contains
                                     else if (hyperelasticity) then
                                         ! Hyperelastic wave speed from the acoustic tensor (see
                                         ! misc/hyperelastic_acoustic_tensor.py)
-                                        s_L = min(vel_L(dir_idx(1)) - f_hyperelastic_signal_speed(c_L, Ca_inv_L, mr_c2_L, trB_L, &
-                                                  & B_nn_L, trBinv_L, Binv_nn_L, J_L, rho_L), &
-                                                  & vel_R(dir_idx(1)) - f_hyperelastic_signal_speed(c_R, Ca_inv_R, mr_c2_R, &
+                                        s_L = min(vel_L(dir_idx(1)) - f_hyperelastic_signal_speed(c_L, Ca_inv_L, Ca_inv_2_L, &
+                                                  & trB_L, B_nn_L, trBinv_L, Binv_nn_L, J_L, rho_L), &
+                                                  & vel_R(dir_idx(1)) - f_hyperelastic_signal_speed(c_R, Ca_inv_R, Ca_inv_2_R, &
                                                   & trB_R, B_nn_R, trBinv_R, Binv_nn_R, J_R, rho_R))
-                                        s_R = max(vel_R(dir_idx(1)) + f_hyperelastic_signal_speed(c_R, Ca_inv_R, mr_c2_R, trB_R, &
-                                                  & B_nn_R, trBinv_R, Binv_nn_R, J_R, rho_R), &
-                                                  & vel_L(dir_idx(1)) + f_hyperelastic_signal_speed(c_L, Ca_inv_L, mr_c2_L, &
+                                        s_R = max(vel_R(dir_idx(1)) + f_hyperelastic_signal_speed(c_R, Ca_inv_R, Ca_inv_2_R, &
+                                                  & trB_R, B_nn_R, trBinv_R, Binv_nn_R, J_R, rho_R), &
+                                                  & vel_L(dir_idx(1)) + f_hyperelastic_signal_speed(c_L, Ca_inv_L, Ca_inv_2_L, &
                                                   & trB_L, B_nn_L, trBinv_L, Binv_nn_L, J_L, rho_L))
                                     else
                                         s_L = min(vel_L(dir_idx(1)) - c_L, vel_R(dir_idx(1)) - c_R)

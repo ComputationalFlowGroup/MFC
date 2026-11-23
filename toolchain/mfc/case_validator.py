@@ -971,12 +971,12 @@ class CaseValidator:
         if num_fluids is not None:
             for i in range(1, int(num_fluids) + 1):
                 if hyper_model == 2:
-                    self.prohibit(self.get(f"fluid_pp({i})%mr_c2") is None, f"hyper_model = 2 (Mooney-Rivlin) requires fluid_pp({i})%mr_c2 to be set")
+                    self.prohibit(self.get(f"fluid_pp({i})%Ca_inv_2") is None, f"hyper_model = 2 (Mooney-Rivlin) requires fluid_pp({i})%Ca_inv_2 to be set")
                 else:
-                    # Neo-Hookean has no second material constant: accepting mr_c2 here would silently ignore it
+                    # Neo-Hookean has no second material constant: accepting Ca_inv_2 here would silently ignore it
                     self.prohibit(
-                        self.get(f"fluid_pp({i})%mr_c2") is not None,
-                        f"fluid_pp({i})%mr_c2 is set, but hyper_model = 1 (Neo-Hookean) does not use a second material constant",
+                        self.get(f"fluid_pp({i})%Ca_inv_2") is not None,
+                        f"fluid_pp({i})%Ca_inv_2 is set, but hyper_model = 1 (Neo-Hookean) does not use a second material constant",
                     )
 
     def check_graded(self):

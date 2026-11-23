@@ -426,8 +426,8 @@ Binv_nn: it reads the real B_nn and Binv_nn for whichever direction is being swe
     # algebraically identical to Step 5's derived closed form.
     B_nn_sym, Binv_nn_sym, trBinv_sym = sp.symbols("B_nn Binv_nn trBinv")
     exact_closed_form = (4 / (3 * J)) * (C1 * (trB - B_nn_sym) + C2 * (5 * Binv_nn_sym - trBinv_sym))
-    # m_riemann_state.fpp: c*c + (2*Ca_inv*(trB-B_nn))/(3*J*rho) + (4*mr_c2*(5*Binv_nn-trBinv))/(3*J*rho),
-    # Ca_inv = 2*C1, mr_c2 = C2, correction only (the rho*c*c/rho = c*c term is the base sound speed, not part
+    # m_riemann_state.fpp: c*c + (2*Ca_inv*(trB-B_nn))/(3*J*rho) + (4*Ca_inv_2*(5*Binv_nn-trBinv))/(3*J*rho),
+    # Ca_inv = 2*C1, Ca_inv_2 = C2, correction only (the rho*c*c/rho = c*c term is the base sound speed, not part
     # of this correction).
     implemented = (2 * (2 * C1) * (trB - B_nn_sym)) / (3 * J) + (4 * C2 * (5 * Binv_nn_sym - trBinv_sym)) / (3 * J)
     diff_impl = sp.simplify(exact_closed_form - implemented)

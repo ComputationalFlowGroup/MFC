@@ -27,6 +27,7 @@ _EXPECTED_CHOICES = [1, 2, 3, 4, 5]
 # on the unmodified tree (HEAD 949a131c), before eos_families.py existed.
 _EXPECTED_FLUID_PP1_PARAMS = [
     "fluid_pp(1)%Ca_inv",
+    "fluid_pp(1)%Ca_inv_2",
     "fluid_pp(1)%K",
     "fluid_pp(1)%Re(1)",
     "fluid_pp(1)%Re(2)",
@@ -79,7 +80,6 @@ _EXPECTED_FLUID_PP1_PARAMS = [
     "fluid_pp(1)%mg_s2",
     "fluid_pp(1)%mg_s3",
     "fluid_pp(1)%mg_t0",
-    "fluid_pp(1)%mr_c2",
     "fluid_pp(1)%mu_max",
     "fluid_pp(1)%mu_min",
     "fluid_pp(1)%nn",

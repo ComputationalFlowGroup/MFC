@@ -633,8 +633,8 @@ where \f$J = \det(\mathbf{F})\f$.
 
 \f[\boldsymbol{\tau}^e = \frac{1}{J}\left[G\,\mathrm{dev}(\mathbf{b}) - 2\,C_2\,\mathrm{dev}(\mathbf{b}^{-1})\right]\f]
 
-where \f$C_2\f$ is `fluid_pp(i)%%mr_c2`, a second independent material constant (requires
-`fluid_pp(i)%%mr_c2` to be set); this reduces exactly to the Neo-Hookean stress above at
+where \f$C_2\f$ is `fluid_pp(i)%%Ca_inv_2`, a second independent material constant (requires
+`fluid_pp(i)%%Ca_inv_2` to be set); this reduces exactly to the Neo-Hookean stress above at
 \f$C_2 = 0\f$. \f$\mathbf{b}^{-1}\f$ is computed from \f$\mathbf{b}\f$'s own adjugate and
 determinant (\f$\det(\mathbf{b}) = J^2\f$), not by inverting the deformation gradient a second
 time. Derived and verified in `misc/hyperelastic_acoustic_tensor.py`'s `mooney_rivlin()` (the

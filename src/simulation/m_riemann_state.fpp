@@ -67,8 +67,8 @@ module m_riemann_state
 
     real(wp), allocatable, dimension(:) :: Ca_invs_rs
     $:GPU_DECLARE(create='[Ca_invs_rs]')
-    real(wp), allocatable, dimension(:) :: mr_c2s_rs  !< Mooney-Rivlin's second material constant (C2), per fluid
-    $:GPU_DECLARE(create='[mr_c2s_rs]')
+    real(wp), allocatable, dimension(:) :: Ca_inv_2s_rs  !< Mooney-Rivlin's second material constant (C2), per fluid
+    $:GPU_DECLARE(create='[Ca_inv_2s_rs]')
 
     real(wp), allocatable, dimension(:,:) :: Res_gs
     $:GPU_DECLARE(create='[Res_gs]')
@@ -90,20 +90,20 @@ contains
 
     !> Hyperelastic signal speed: the acoustic speed stiffened by the finite-strain (neo-Hookean/Mooney-Rivlin) tangent stiffness,
     !! derived from the acoustic tensor (Truesdell rate of the Cauchy stress, see misc/hyperelastic_acoustic_tensor.py's main() and
-    !! mooney_rivlin(), Step 5). Exact for any B, J, mr_c2 (not an isotropic or small-strain approximation): rho*c_elastic**2 =
-    !! (2*Ca_inv/3)*(tr(B) - B_nn) + (4*mr_c2/3)*(5*B^-1_nn - tr(B^-1)). B_nn and B^-1_nn are the direction-aligned (dir_idx(1))
+    !! mooney_rivlin(), Step 5). Exact for any B, J, Ca_inv_2 (not an isotropic or small-strain approximation): rho*c_elastic**2 =
+    !! (2*Ca_inv/3)*(tr(B) - B_nn) + (4*Ca_inv_2/3)*(5*B^-1_nn - tr(B^-1)). B_nn and B^-1_nn are the direction-aligned (dir_idx(1))
     !! diagonal entries of B and B^-1, stashed by m_hyperelastic.fpp alongside tr(B)/J/tr(B^-1) so neither tensor needs
     !! reconstructing at the interface. Reduces to rho*c_elastic**2 = 4*Ca_inv/3 (the small-strain/hypoelastic constant) at B = I, J
-    !! = 1, mr_c2 = 0. Callers subtract it for the left-going wave and add it for the right-going one.
-    function f_hyperelastic_signal_speed(c, Ca_inv, mr_c2, trB, B_nn, trBinv, Binv_nn, J, rho) result(a)
+    !! = 1, Ca_inv_2 = 0. Callers subtract it for the left-going wave and add it for the right-going one.
+    function f_hyperelastic_signal_speed(c, Ca_inv, Ca_inv_2, trB, B_nn, trBinv, Binv_nn, J, rho) result(a)
 
         $:GPU_ROUTINE(function_name='f_hyperelastic_signal_speed', parallelism='[seq]', cray_inline=True)
 
-        real(wp), intent(in) :: c, Ca_inv, mr_c2, trB, B_nn, trBinv, Binv_nn, J, rho
+        real(wp), intent(in) :: c, Ca_inv, Ca_inv_2, trB, B_nn, trBinv, Binv_nn, J, rho
         real(wp)             :: a
 
         a = sqrt(max(verysmall, &
-                 & c*c + (2._wp*Ca_inv*(trB - B_nn))/(3._wp*J*rho) + (4._wp*mr_c2*(5._wp*Binv_nn - trBinv))/(3._wp*J*rho)))
+                 & c*c + (2._wp*Ca_inv*(trB - B_nn))/(3._wp*J*rho) + (4._wp*Ca_inv_2*(5._wp*Binv_nn - trBinv))/(3._wp*J*rho)))
 
     end function f_hyperelastic_signal_speed
 

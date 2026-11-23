@@ -31,8 +31,8 @@ module m_hyperelastic
     $:GPU_DECLARE(create='[fd_coeff_x_hyper, fd_coeff_y_hyper, fd_coeff_z_hyper]')
     real(wp), allocatable, dimension(:) :: Ca_invs_hyper
     $:GPU_DECLARE(create='[Ca_invs_hyper]')
-    real(wp), allocatable, dimension(:) :: mr_c2s_hyper  !< Mooney-Rivlin's second material constant (C2), per fluid
-    $:GPU_DECLARE(create='[mr_c2s_hyper]')
+    real(wp), allocatable, dimension(:) :: Ca_inv_2s_hyper  !< Mooney-Rivlin's second material constant (C2), per fluid
+    $:GPU_DECLARE(create='[Ca_inv_2s_hyper]')
 
 contains
 
@@ -50,13 +50,13 @@ contains
         end do
         @:ACC_SETUP_VFs(btensor)
 
-        @:ALLOCATE(Ca_invs_hyper(1:num_fluids), mr_c2s_hyper(1:num_fluids))
+        @:ALLOCATE(Ca_invs_hyper(1:num_fluids), Ca_inv_2s_hyper(1:num_fluids))
         $:GPU_LOOP(parallelism='[seq]')
         do i = 1, num_fluids
             Ca_invs_hyper(i) = fluid_pp(i)%Ca_inv
-            mr_c2s_hyper(i) = fluid_pp(i)%mr_c2
+            Ca_inv_2s_hyper(i) = fluid_pp(i)%Ca_inv_2
         end do
-        $:GPU_UPDATE(device='[Ca_invs_hyper, mr_c2s_hyper]')
+        $:GPU_UPDATE(device='[Ca_invs_hyper, Ca_inv_2s_hyper]')
 
         ! s_compute_finite_difference_coefficients always extends fd_number beyond the interior on each side
         @:ALLOCATE(fd_coeff_x_hyper(-fd_number:fd_number, -fd_number:m_alloc + fd_number))
@@ -116,12 +116,12 @@ contains
             real(wp), dimension(num_fluids) :: Ca_inv_graded_loc
         #:endif
         real(wp) :: rho, gamma, pi_inf, qv
-        real(wp) :: Ca_inv_local, mr_c2_local
+        real(wp) :: Ca_inv_local, Ca_inv_2_local
         real(wp) :: xi_x, xi_y, xi_z
         integer  :: j, k, l, i, r
 
         $:GPU_PARALLEL_LOOP(collapse=3, private='[i, j, k, l, r, alpha_K, alpha_rho_K, Ca_inv_graded_loc, rho, gamma, pi_inf, qv, &
-                            & Ca_inv_local, mr_c2_local, tensora, tensorb, xi_x, xi_y, xi_z]')
+                            & Ca_inv_local, Ca_inv_2_local, tensora, tensorb, xi_x, xi_y, xi_z]')
         do l = 0, p
             do k = 0, n
                 do j = 0, m
@@ -149,10 +149,10 @@ contains
 
                     ! Mooney-Rivlin's second material constant: a plain alpha-weighted mixture average, same as
                     ! Ca_inv's own static (non-graded) mixing -- grading C2 independently is not supported.
-                    mr_c2_local = 0._wp
+                    Ca_inv_2_local = 0._wp
                     $:GPU_LOOP(parallelism='[seq]')
                     do i = 1, num_fluids
-                        mr_c2_local = mr_c2_local + alpha_k(i)*mr_c2s_hyper(i)
+                        Ca_inv_2_local = Ca_inv_2_local + alpha_k(i)*Ca_inv_2s_hyper(i)
                     end do
 
                     ! Reference-state defaults for the WHOLE stash, written for every cell before the guards below.
@@ -292,7 +292,7 @@ contains
                             if (hyper_model == 1) then
                                 call s_neoHookean_cauchy_solver(btensor%vf, q_prim_vf, Ca_inv_local, j, k, l)
                             else if (hyper_model == 2) then
-                                call s_Mooney_Rivlin_cauchy_solver(btensor%vf, q_prim_vf, Ca_inv_local, mr_c2_local, j, k, l)
+                                call s_Mooney_Rivlin_cauchy_solver(btensor%vf, q_prim_vf, Ca_inv_local, Ca_inv_2_local, j, k, l)
                             end if
                             ! STEP 5b: updating the pressure field (subtracting the elastic strain energy). Both Cauchy
                             ! solvers now stash the FULL strain energy (already scaled by their own material
@@ -379,22 +379,22 @@ contains
             q_prim_vf(eqn_idx%xi%end + 4 + dk)%sf(j, k, l) = btensor_in(dk*(dk + 1)/2)%sf(j, k, l) + trace/3._wp
         end do
         ! tr(B^-1) and B^-1's diagonal are left at the reference-state defaults the caller already wrote: this model
-        ! has no B^-1 at all, and mr_c2 is prohibited under hyper_model = 1, so the C2 term they feed is identically
+        ! has no B^-1 at all, and Ca_inv_2 is prohibited under hyper_model = 1, so the C2 term they feed is identically
         ! zero. Writing nothing here keeps one owner for that default rather than two conventions.
 
     end subroutine s_neoHookean_cauchy_solver
 
     !> Compute the Mooney-Rivlin Cauchy stress from the left Cauchy-Green tensor: tau = (1/J)*(2*C1*dev(B) - 2*C2*dev(B^-1)), C1 =
-    !! Ca_inv_param/2, C2 = mr_c2_param (reduces exactly to neo-Hookean at C2 = 0). Derived and verified in
+    !! Ca_inv_param/2, C2 = Ca_inv_2_param (reduces exactly to neo-Hookean at C2 = 0). Derived and verified in
     !! misc/hyperelastic_acoustic_tensor.py's mooney_rivlin() (the continuum form) and mooney_rivlin_implementation_check() (the
     !! discrete identities used below: B^-1 computed via its own adjoint/determinant rather than a second grad_xi inversion, the
     !! second invariant I2 = 0.5*(tr(B)^2 - tr(B^2)), and the 1D/2D frozen-direction convention for tr(B^2)).
-    subroutine s_Mooney_Rivlin_cauchy_solver(btensor_in, q_prim_vf, Ca_inv_param, mr_c2_param, j, k, l)
+    subroutine s_Mooney_Rivlin_cauchy_solver(btensor_in, q_prim_vf, Ca_inv_param, Ca_inv_2_param, j, k, l)
 
         $:GPU_ROUTINE(parallelism='[seq]')
         type(scalar_field), dimension(sys_size), intent(inout) :: q_prim_vf
         type(scalar_field), dimension(b_size), intent(inout)   :: btensor_in
-        real(wp), intent(in)                                   :: Ca_inv_param, mr_c2_param
+        real(wp), intent(in)                                   :: Ca_inv_param, Ca_inv_2_param
         integer, intent(in)                                    :: j, k, l
         real(wp)                                               :: trB, trB2, trBinv, I2, C1, C2, J_det, detB
         real(wp)                                               :: sum_all, sum_diag
@@ -403,7 +403,7 @@ contains
         integer                                                :: i, dk, diag_idx
 
         C1 = 0.5_wp*Ca_inv_param
-        C2 = mr_c2_param
+        C2 = Ca_inv_2_param
         J_det = btensor_in(b_size)%sf(j, k, l)
         detB = J_det*J_det
 
@@ -494,7 +494,7 @@ contains
         do i = 1, b_size
             @:DEALLOCATE(btensor%vf(i)%sf)
         end do
-        @:DEALLOCATE(Ca_invs_hyper, mr_c2s_hyper)
+        @:DEALLOCATE(Ca_invs_hyper, Ca_inv_2s_hyper)
         @:DEALLOCATE(fd_coeff_x_hyper)
         if (n > 0) then
             @:DEALLOCATE(fd_coeff_y_hyper)

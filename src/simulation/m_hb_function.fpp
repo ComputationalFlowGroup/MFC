@@ -94,20 +94,18 @@ contains
             if (merge(Re_size_loc1, Re_size_loc2, i == 1) > 0) Re_out(i) = 0._wp
             do q = 1, merge(Re_size_loc1, Re_size_loc2, i == 1)
                 fl = Re_idx(i, q)
-                if (any_non_newtonian .and. is_non_newtonian(fl)) then
-                    if (i == 1) then
-                        if (nn_model_arr(fl) == 2) then
-                            mu_q = f_compute_carreau_yasuda_viscosity(cy_mu0_arr(fl), cy_muinf_arr(fl), cy_lambda_arr(fl), &
-                                & cy_a_arr(fl), cy_n_arr(fl), shear_rate)
-                        else
-                            mu_q = f_compute_hb_viscosity(hb_tau0(fl), hb_K(fl), hb_nn(fl), hb_mu_min(fl), hb_mu_max(fl), &
-                                                          & shear_rate, hb_m_arr(fl))
-                        end if
+                ! Both models are shear closures only: neither makes the bulk viscosity shear-rate dependent, so a
+                ! non-Newtonian fluid's bulk direction (i == 2) takes the same alpha/Res(2,q) path a Newtonian one
+                ! does, reading its own bulk Reynolds number. Today that is unreachable anyway -- Re_idx(2,:) lists
+                ! only fluids with Re(2) > 0, which the validator rejects for a non-Newtonian fluid -- so this is the
+                ! correct behavior should that prohibition ever be lifted, with no separate bulk parameter needed.
+                if (any_non_newtonian .and. is_non_newtonian(fl) .and. i == 1) then
+                    if (nn_model_arr(fl) == 2) then
+                        mu_q = f_compute_carreau_yasuda_viscosity(cy_mu0_arr(fl), cy_muinf_arr(fl), cy_lambda_arr(fl), &
+                            & cy_a_arr(fl), cy_n_arr(fl), shear_rate)
                     else
-                        ! Unreachable: Re_idx(2,:) only lists fluids with Re(2) > 0, and the validator rejects
-                        ! Re(2) on a non-Newtonian fluid, so no such fluid ever reaches the bulk direction. Kept
-                        ! as a defined value rather than a fall-through in case that prohibition is ever lifted.
-                        mu_q = 0._wp
+                        mu_q = f_compute_hb_viscosity(hb_tau0(fl), hb_K(fl), hb_nn(fl), hb_mu_min(fl), hb_mu_max(fl), shear_rate, &
+                                                      & hb_m_arr(fl))
                     end if
                     Re_out(i) = alpha(fl)*mu_q + Re_out(i)
                 else
