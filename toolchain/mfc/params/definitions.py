@@ -1073,7 +1073,6 @@ def _load():
         _r(f"{px}hb_m", REAL, {"viscosity"}, math=r"m_k")
         _r(f"{px}mu_min", REAL, {"viscosity"}, math=r"\mu_{\min,k}")
         _r(f"{px}mu_max", REAL, {"viscosity"}, math=r"\mu_{\max,k}")
-        _r(f"{px}mu_bulk", REAL, {"viscosity"}, math=r"\mu_{\mathrm{bulk},k}")
         _r(f"{px}cy_mu0", REAL, {"viscosity"}, math=r"\mu_{0,k}")
         _r(f"{px}cy_muinf", REAL, {"viscosity"}, math=r"\mu_{\infty,k}")
         _r(f"{px}cy_lambda", REAL, {"viscosity"}, math=r"\lambda_k")

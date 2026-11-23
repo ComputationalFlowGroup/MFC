@@ -104,7 +104,9 @@ contains
                                                           & shear_rate, hb_m_arr(fl))
                         end if
                     else
-                        ! Non-Newtonian bulk viscosity is not supported (validator rejects mu_bulk and Re(2) for NN fluids)
+                        ! Unreachable: Re_idx(2,:) only lists fluids with Re(2) > 0, and the validator rejects
+                        ! Re(2) on a non-Newtonian fluid, so no such fluid ever reaches the bulk direction. Kept
+                        ! as a defined value rather than a fall-through in case that prohibition is ever lifted.
                         mu_q = 0._wp
                     end if
                     Re_out(i) = alpha(fl)*mu_q + Re_out(i)

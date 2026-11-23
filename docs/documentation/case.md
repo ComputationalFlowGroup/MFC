@@ -1555,7 +1555,6 @@ This boundary condition can be used for fixed-temperature (isothermal) walls at 
 | `fluid_pp(i)%%hb_m`               | Real    | Model 1: Papanastasiou regularization parameter \f$m\f$; required when `tau0 > 0`. |
 | `fluid_pp(i)%%mu_min`             | Real    | Model 1: lower viscosity clamp \f$\mu_{\min}\f$.                     |
 | `fluid_pp(i)%%mu_max`             | Real    | Model 1: upper viscosity clamp \f$\mu_{\max}\f$ (required).         |
-| `fluid_pp(i)%%mu_bulk`            | Real    | Reserved; non-Newtonian bulk viscosity is not yet supported. The validator rejects it on a non-Newtonian fluid; on a Newtonian fluid it is accepted and ignored. |
 | `fluid_pp(i)%%cy_mu0`             | Real    | Model 2: zero-shear viscosity \f$\mu_0\f$ (required, positive).     |
 | `fluid_pp(i)%%cy_muinf`           | Real    | Model 2: infinite-shear viscosity \f$\mu_\infty\f$ (required, non-negative, `< cy_mu0`). |
 | `fluid_pp(i)%%cy_lambda`          | Real    | Model 2: relaxation time \f$\lambda\f$ (required, positive).        |
@@ -1592,7 +1591,7 @@ Usage notes:
 - Requires `viscous = T`. `fluid_pp(i)%%Re(1)` must be set (use `1.0/K`, model 1, or any positive placeholder, model 2, to register the fluid as viscous; the chosen model overrides \f$\mu_{\rm eff}\f$ cell-by-cell). `fluid_pp(i)%%Re(2)` (bulk viscosity) must not be set for a non-Newtonian fluid.
 - Model 1: `mu_max` is required; `mu_min` is inactive if omitted (no lower clamp applied). Positivity requirements: `K`, `nn`, and `mu_max` must be positive; `mu_min` and `hb_m` must be positive when set; `tau0` must be non-negative.
 - Model 2: `cy_mu0`, `cy_muinf`, `cy_lambda`, `cy_a`, `cy_n` are all required; all must be positive except `cy_muinf`, which must be non-negative and strictly less than `cy_mu0`.
-- A fluid's parameters must match its own `non_newtonian_model`: the validator rejects Herschel-Bulkley parameters (`K`, `nn`, `tau0`, `hb_m`, `mu_min`, `mu_max`, `mu_bulk`) on a model-2 fluid, Carreau-Yasuda parameters (`cy_*`) on a model-1 fluid, and either set on a fluid without `non_newtonian = T`.
+- A fluid's parameters must match its own `non_newtonian_model`: the validator rejects Herschel-Bulkley parameters (`K`, `nn`, `tau0`, `hb_m`, `mu_min`, `mu_max`) on a model-2 fluid, Carreau-Yasuda parameters (`cy_*`) on a model-1 fluid, and either set on a fluid without `non_newtonian = T`.
 - Requires `model_eqns = 2` or `3` and is incompatible with `igr`.
 - Supported only with `riemann_solver = 1` (HLL) or `riemann_solver = 2` (HLLC).
 - All parameters of either model are non-dimensional (scaled by \f$\rho_{\rm ref} U_{\rm ref} L_{\rm ref}\f$), so \f$1/\mu_{\rm eff}\f$ equals the local effective Reynolds number.

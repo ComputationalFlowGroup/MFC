@@ -651,7 +651,7 @@ total energy are corrected by \f$e^e\f$ (divided by \f$\gamma\f$ for the pressur
 the energy) after this update, the same way the hypoelastic model above corrects for its own
 elastic energy.
 
-**Direct wave speed (`wave_speeds = 2`, HLL only):** the flat hypoelastic correction
+**Direct wave speed (`wave_speeds = 1`, HLL only):** the flat hypoelastic correction
 \f$4G/(3\rho)\f$ is replaced by the finite-strain acoustic-tensor correction
 
 \f[c^2 \to c^2 + \frac{2\,G\,(\text{tr}(\mathbf{b}) - B_{nn})}{3\,J\,\rho}

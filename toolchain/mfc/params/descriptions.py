@@ -409,7 +409,6 @@ PATTERNS = [
     (r"fluid_pp\((\d+)\)%hb_m", "Papanastasiou regularization parameter for fluid {0}"),
     (r"fluid_pp\((\d+)\)%mu_min", "Lower viscosity clamp for fluid {0}"),
     (r"fluid_pp\((\d+)\)%mu_max", "Upper viscosity clamp for fluid {0}"),
-    (r"fluid_pp\((\d+)\)%mu_bulk", "Bulk viscosity (non-Newtonian) for fluid {0}"),
     # patch_ib patterns
     (r"patch_ib\((\d+)\)%geometry", "Geometry type for immersed boundary {0}"),
     (r"patch_ib\((\d+)\)%x_centroid", "X-coordinate of centroid for IB patch {0}"),

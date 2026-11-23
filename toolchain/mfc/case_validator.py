@@ -311,7 +311,7 @@ PHYSICS_DOCS = {
             "Requires viscous=T, model_eqns 2 or 3, riemann_solver 1 (HLL) or 2 (HLLC). "
             "Model 1 requires K, nn, mu_max to be set (K, nn, mu_max must be positive; mu_min and hb_m must be "
             "positive when set; tau0 must be non-negative; when tau0 > 0, hb_m (Papanastasiou regularization) must "
-            "also be set); Re(2) and mu_bulk (bulk viscosity) are rejected. "
+            "also be set); Re(2) (bulk viscosity) is rejected. "
             "Model 2 requires cy_mu0, cy_muinf, cy_lambda, cy_a, cy_n to be set (all positive except cy_muinf, "
             "which is non-negative and must be less than cy_mu0); it has no yield stress or external viscosity "
             "clamps, so it does not use the Herschel-Bulkley parameters. "
@@ -945,6 +945,14 @@ class CaseValidator:
         self.prohibit(hyper_model is None, "hyperelasticity requires hyper_model to be set")
         self.prohibit(hyper_model is not None and hyper_model not in [1, 2], "hyper_model must be 1 (Neo-Hookean) or 2 (Mooney-Rivlin)")
         self.prohibit(fd_order is None, "hyperelasticity requires fd_order to be set (1, 2, or 4); the reference-map gradient is computed with a finite-difference stencil")
+        # Only m_riemann_solver_hll.fpp implements hyperelasticity; HLLC/HLLD/LF carry no hyperelastic branch at all,
+        # so they would silently drop the elastic stress from the fluxes and the elastic term from the wave speed
+        riemann_solver = self.get("riemann_solver")
+        self.prohibit(
+            riemann_solver is not None and riemann_solver != 1,
+            "hyperelasticity requires the HLL Riemann solver (riemann_solver = 1); only HLL implements the "
+            "hyperelastic stress flux and acoustic-tensor wave speed, so another solver would silently run without them",
+        )
         self.prohibit(hypoelasticity, "hyperelasticity and hypoelasticity cannot both be enabled (each fluid's stress model is ambiguous otherwise)")
         self.prohibit(
             cyl_coord,
@@ -2131,7 +2139,7 @@ class CaseValidator:
         model_eqns = self.get("model_eqns")
         riemann_solver = self.get("riemann_solver")
 
-        hb_params = ["K", "nn", "tau0", "hb_m", "mu_min", "mu_max", "mu_bulk"]
+        hb_params = ["K", "nn", "tau0", "hb_m", "mu_min", "mu_max"]
         cy_params = ["cy_mu0", "cy_muinf", "cy_lambda", "cy_a", "cy_n"]
 
         for i in range(1, num_fluids + 1):
@@ -2200,11 +2208,6 @@ class CaseValidator:
 
                 if mu_min is not None and mu_max is not None:
                     self.prohibit(mu_max <= mu_min, f"fluid_pp({i})%non_newtonian: mu_max must exceed mu_min")
-
-                self.prohibit(
-                    self.get(f"fluid_pp({i})%mu_bulk") is not None,
-                    f"fluid_pp({i})%mu_bulk (non-Newtonian bulk viscosity) is not yet supported",
-                )
 
             self.prohibit(igr, f"fluid_pp({i})%non_newtonian is incompatible with igr")
             self.prohibit(model_eqns is not None and model_eqns not in (2, 3), f"fluid_pp({i})%non_newtonian requires model_eqns 2 or 3")

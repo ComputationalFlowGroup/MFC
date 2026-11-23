@@ -502,7 +502,6 @@ module m_derived_types
         real(wp)               :: hb_m  !< Papanastasiou regularization parameter
         real(wp)               :: mu_min  !< Lower viscosity clamp (inactive sentinel = dflt_real)
         real(wp)               :: mu_max  !< Upper viscosity clamp (required when non_newtonian)
-        real(wp)               :: mu_bulk  !< Bulk viscosity for NN (inactive sentinel = dflt_real)
         real(wp)               :: cy_mu0  !< Carreau-Yasuda zero-shear viscosity (non_newtonian_model = 2 only)
         real(wp)               :: cy_muinf  !< Carreau-Yasuda infinite-shear viscosity
         real(wp)               :: cy_lambda  !< Carreau-Yasuda relaxation time
