@@ -903,8 +903,12 @@ class CaseValidator:
         self.prohibit(wave_speeds == 2, "Pressure-based wave speeds (wave_speeds = 2) omit the elastic longitudinal speed and are not supported with hypoelasticity")
         self.prohibit(riemann_hypo_ADC and low_Mach > 0, "riemann_hypo_ADC does not support low_Mach (the ADC HLL reference flux uses pre-correction velocities)")
         self.prohibit(riemann_hypo_ADC and ADC_kappa is not None and ADC_kappa <= 0, "ADC_kappa must be positive")
+        # Automatic CFL now bounds the elastic characteristic speed per direction (s_compute_elastic_signal_speeds),
+        # but from the STATIC per-fluid modulus: a graded modulus can exceed it locally, which would under-bound dt
         self.prohibit(
-            cfl_const_dt or cfl_adap_dt, "Automatic CFL time stepping uses the acoustic sound speed only and does not bound the elastic characteristic speed; set dt explicitly for hypoelastic runs"
+            (cfl_const_dt or cfl_adap_dt) and self.get("graded", "F") == "T",
+            "Automatic CFL time stepping bounds the elastic characteristic speed from the static per-fluid shear "
+            "modulus, which a graded modulus can locally exceed; set dt explicitly for graded hypoelastic runs",
         )
 
     def check_rmt(self):
@@ -963,9 +967,11 @@ class CaseValidator:
         cfl_const_dt = self.get("cfl_const_dt", "F") == "T"
         cfl_adap_dt = self.get("cfl_adap_dt", "F") == "T"
         self.prohibit(wave_speeds == 2, "Pressure-based wave speeds (wave_speeds = 2) omit the hyperelastic acoustic-tensor correction and are not supported with hyperelasticity")
+        # As for hypoelasticity: the elastic speed is bounded per direction now, but from the static modulus
         self.prohibit(
-            cfl_const_dt or cfl_adap_dt,
-            "Automatic CFL time stepping uses the acoustic sound speed only and does not bound the hyperelastic characteristic speed; set dt explicitly for hyperelastic runs",
+            (cfl_const_dt or cfl_adap_dt) and self.get("graded", "F") == "T",
+            "Automatic CFL time stepping bounds the hyperelastic characteristic speed from the static per-fluid "
+            "shear modulus, which a graded modulus can locally exceed; set dt explicitly for graded hyperelastic runs",
         )
         num_fluids = self.get("num_fluids")
         if num_fluids is not None:

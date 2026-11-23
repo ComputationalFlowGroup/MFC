@@ -775,6 +775,8 @@ contains
         real(wp) :: pi_inf                           !< Cell-avg. liquid stiffness function
         real(wp) :: qv                               !< Cell-avg. fluid reference energy
         real(wp) :: c                                !< Cell-avg. sound speed
+        real(wp) :: Ca_inv_cell                      !< Cell-avg. inverse Cauchy number, for the elastic signal speed
+        real(wp), dimension(3) :: c_dir              !< Per-direction advective signal speed (elastic where applicable)
         real(wp), dimension(2) :: Re                 !< Cell-avg. Reynolds numbers
         real(wp), dimension(4) :: max_dt             !< Cell dt candidates (inviscid, viscous, capillary, thermal)
         real(wp) :: icfl_dt_local, vcfl_dt_local, ccfl_dt_local, tcfl_dt_local, coll_dt_local
@@ -808,9 +810,10 @@ contains
             if (amr .eqv. ${'.true.' if ON_AMR else '.false.'}$) then
                 $:GPU_PARALLEL_LOOP(collapse=3, firstprivate='[Re_size_loc1, &
                                     & Re_size_loc2' + (', pw1, pw2, pw3' if ON_AMR else '') + ']', private='[vel, alpha, &
-                                    & alpha_rho, Re, rho, vel_sum, pres, gamma, pi_inf, c, qv, fl, max_dt, is_fluid_cell, Ys, &
-                                    & Re_chem, T_cell' + (', rf' if ON_AMR else '') + ']', reduction='[[icfl_dt_local, &
-                                    & vcfl_dt_local, ccfl_dt_local, tcfl_dt_local], [bad_cell]]', reductionOp='[min, max]')
+                                    & alpha_rho, Re, rho, vel_sum, pres, gamma, pi_inf, c, Ca_inv_cell, c_dir, qv, fl, max_dt, &
+                                    & is_fluid_cell, Ys, Re_chem, T_cell' + (', rf' if ON_AMR else '') + ']', &
+                                    & reduction='[[icfl_dt_local, vcfl_dt_local, ccfl_dt_local, tcfl_dt_local], [bad_cell]]', &
+                                    & reductionOp='[min, max]')
                 do l = 0, p
                     do k = 0, n
                         do j = 0, m
@@ -822,10 +825,12 @@ contains
                             if (is_fluid_cell) then
                                 if (igr) then
                                     call s_compute_cell_state(q_cons_ts(1)%vf, pres, rho, gamma, pi_inf, Re, alpha, alpha_rho, &
-                                                              & vel, vel_sum, qv, j, k, l, Re_size_loc1, Re_size_loc2)
+                                                              & vel, vel_sum, qv, j, k, l, Re_size_loc1, Re_size_loc2, &
+                                                              & Ca_inv_K=Ca_inv_cell)
                                 else
                                     call s_compute_cell_state(q_prim_vf, pres, rho, gamma, pi_inf, Re, alpha, alpha_rho, vel, &
-                                                              & vel_sum, qv, j, k, l, Re_size_loc1, Re_size_loc2)
+                                                              & vel_sum, qv, j, k, l, Re_size_loc1, Re_size_loc2, &
+                                                              & Ca_inv_K=Ca_inv_cell)
                                 end if
 
                                 ! Compute mixture sound speed
@@ -860,7 +865,11 @@ contains
                                     Re = Re_chem
                                 end if
 
-                                call s_compute_dt_from_cfl(vel, c, max_dt, rho, Re, alpha, alpha_rho, j, k, l)
+                                ! The fastest characteristic of an elastic material is c stiffened by the elastic
+                                ! tangent modulus, and that stiffening differs per direction; c_dir reduces to c
+                                ! exactly when neither elastic model is active.
+                                call s_compute_elastic_signal_speeds(q_prim_vf, c, Ca_inv_cell, alpha, rho, j, k, l, c_dir)
+                                call s_compute_dt_from_cfl(vel, c, max_dt, rho, Re, alpha, alpha_rho, j, k, l, c_dir=c_dir)
                                 #:if ON_AMR
                                     rf = amr_cfl_rf(j, k, l)
                                     max_dt(1) = max_dt(1)/rf**pw1

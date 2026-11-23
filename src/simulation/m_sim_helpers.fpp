@@ -11,11 +11,12 @@ module m_sim_helpers
     use m_derived_types
     use m_global_parameters
     use m_variables_conversion
+    use m_riemann_state, only: f_elastic_signal_speed, f_hyperelastic_signal_speed, Ca_inv_2s_rs
 
     implicit none
 
     private; public :: s_compute_cell_state, s_compute_stability_from_dt, s_compute_dt_from_cfl, s_amr_scale_stability, &
-        & dt_limiter, dt_limiter_names
+        & s_compute_elastic_signal_speeds, dt_limiter, dt_limiter_names
 
     !> Criterion currently limiting the adaptive time step (ICFL, VCFL, CCFL, TCFL, the collision cap, or the ramp limiter)
     character(len=4)                          :: dt_limiter = 'none'
@@ -48,7 +49,7 @@ contains
 
     !> Computes the mixture coefficients, velocity and pressure of one cell
     subroutine s_compute_cell_state(q_prim_vf, pres, rho, gamma, pi_inf, Re, alpha, alpha_rho, vel, vel_sum, qv, j, k, l, &
-                                    & Re_size_loc1, Re_size_loc2)
+                                    & Re_size_loc1, Re_size_loc2, Ca_inv_K)
 
         $:GPU_ROUTINE(function_name='s_compute_cell_state',parallelism='[seq]', cray_inline=True)
 
@@ -70,18 +71,24 @@ contains
         #:else
             real(wp), dimension(num_fluids) :: Ca_invs
         #:endif
-        real(wp) :: Ca_inv_local
-        integer  :: i
+        !> Mixture inverse Cauchy number, for callers that need the elastic signal speed (see s_compute_elastic_signal_speeds). The
+        !! static per-fluid table is used, not the graded override, so the automatic-CFL path that consumes it stays prohibited
+        !! under `graded`.
+        real(wp), optional, intent(out) :: Ca_inv_K
+        real(wp)                        :: Ca_inv_local
+        integer                         :: i
 
         call s_compute_species_fraction(q_prim_vf, j, k, l, alpha_rho, alpha)
 
-        if (hypoelasticity) then
+        Ca_inv_local = 0._wp
+        if (hypoelasticity .or. hyperelasticity) then
             call s_convert_species_to_mixture_variables_kernel(rho, gamma, pi_inf, qv, alpha, alpha_rho, Re, Ca_inv_local, &
                 & Ca_invs, Re_size_loc1=Re_size_loc1, Re_size_loc2=Re_size_loc2)
         else
             call s_convert_species_to_mixture_variables_kernel(rho, gamma, pi_inf, qv, alpha, alpha_rho, Re, &
                 & Re_size_loc1=Re_size_loc1, Re_size_loc2=Re_size_loc2)
         end if
+        if (present(Ca_inv_K)) Ca_inv_K = Ca_inv_local
 
         if (igr) then
             $:GPU_LOOP(parallelism='[seq]')
@@ -109,8 +116,57 @@ contains
 
     end subroutine s_compute_cell_state
 
+    !> Per-direction signal speed for the advective CFL criterion. For an elastic material the fastest characteristic is not the
+    !! acoustic speed c but c stiffened by the elastic tangent modulus, and that stiffening is DIRECTION-DEPENDENT, so each
+    !! direction gets its own speed: an isotropic worst case would be needlessly restrictive in some directions and wrong in others.
+    !! Entries beyond num_dims are filled with c and never read. Reduces to c exactly when neither elastic model is active, so
+    !! callers can pass the result unconditionally.
+    subroutine s_compute_elastic_signal_speeds(q_prim_vf, c, Ca_inv_K, alpha, rho, j, k, l, c_dir)
+
+        $:GPU_ROUTINE(function_name='s_compute_elastic_signal_speeds', parallelism='[seq]', cray_inline=True)
+
+        type(scalar_field), intent(in), dimension(sys_size) :: q_prim_vf
+        #:if not MFC_CASE_OPTIMIZATION and USING_AMD
+            real(wp), dimension(3), intent(in) :: alpha
+        #:else
+            real(wp), dimension(num_fluids), intent(in) :: alpha
+        #:endif
+        real(wp), intent(in)                :: c, Ca_inv_K, rho
+        integer, intent(in)                 :: j, k, l
+        real(wp), dimension(3), intent(out) :: c_dir
+        real(wp)                            :: trB, trBinv, J_det, Ca_inv_2_K
+        integer                             :: d, diag_idx
+
+        c_dir = c
+        if (.not. (hypoelasticity .or. hyperelasticity)) return
+
+        if (hypoelasticity) then
+            ! The transported stress is already the right linearization point for a rate law: tau_nn for the
+            ! direction in question is the diagonal entry at the triangular position d(d+1)/2.
+            do d = 1, num_dims
+                diag_idx = d*(d + 1)/2
+                c_dir(d) = f_elastic_signal_speed(c, Ca_inv_K, q_prim_vf(eqn_idx%stress%beg - 1 + diag_idx)%sf(j, k, l), rho)
+            end do
+        else
+            ! Finite strain: read the cell-centered stash m_hyperelastic.fpp wrote this step -- tr(B), J, tr(B^-1)
+            ! and, per direction, the aligned diagonal entries of B and B^-1 (see m_global_parameters_common.fpp).
+            trB = q_prim_vf(eqn_idx%xi%end + 2)%sf(j, k, l)
+            J_det = q_prim_vf(eqn_idx%xi%end + 3)%sf(j, k, l)
+            trBinv = q_prim_vf(eqn_idx%xi%end + 4)%sf(j, k, l)
+            Ca_inv_2_K = 0._wp
+            do d = 1, num_fluids
+                Ca_inv_2_K = Ca_inv_2_K + alpha(d)*Ca_inv_2s_rs(d)
+            end do
+            do d = 1, num_dims
+                c_dir(d) = f_hyperelastic_signal_speed(c, Ca_inv_K, Ca_inv_2_K, trB, q_prim_vf(eqn_idx%xi%end + 4 + d)%sf(j, k, &
+                      & l), trBinv, q_prim_vf(eqn_idx%xi%end + 4 + num_dims + d)%sf(j, k, l), J_det, rho)
+            end do
+        end if
+
+    end subroutine s_compute_elastic_signal_speeds
+
     !> Computes stability criterion for a specified dt
-    subroutine s_compute_stability_from_dt(vel, c, rho, Re_l, alpha, alpha_rho, j, k, l, icfl, vcfl, Rc, ccfl, tcfl)
+    subroutine s_compute_stability_from_dt(vel, c, rho, Re_l, alpha, alpha_rho, j, k, l, icfl, vcfl, Rc, ccfl, tcfl, c_dir)
 
         $:GPU_ROUTINE(parallelism='[seq]')
         real(wp), intent(in), dimension(num_vels) :: vel
@@ -124,9 +180,17 @@ contains
             real(wp), dimension(num_fluids), intent(in) :: alpha, alpha_rho
         #:endif
         integer, intent(in) :: j, k, l
-        real(wp)            :: fltr_dtheta
-        real(wp)            :: k_mix, rho_cv
-        integer             :: i
+        !> Per-direction advective signal speed (s_compute_elastic_signal_speeds). Absent, the acoustic c is used in every
+        !! direction, which is the correct ICFL only when no elastic model is active. Rc below deliberately keeps c: it reports
+        !! viscous-against-advective scaling, not a wave-speed bound.
+        real(wp), dimension(3), optional, intent(in) :: c_dir
+        real(wp)                                     :: fltr_dtheta
+        real(wp)                                     :: k_mix, rho_cv
+        real(wp), dimension(3)                       :: a
+        integer                                      :: i
+
+        a = c
+        if (present(c_dir)) a = c_dir
 
         ! Inviscid CFL calculation
         ! The multi-dimensional CFL terms are written out here rather than
@@ -137,15 +201,15 @@ contains
             #:if not MFC_CASE_OPTIMIZATION or num_dims > 2
                 if (grid_geometry == 3) then
                     fltr_dtheta = f_compute_filtered_dtheta(k, l)
-                    icfl = dt/min(dx(j)/(abs(vel(1)) + c), dy(k)/(abs(vel(2)) + c), fltr_dtheta/(abs(vel(3)) + c))
+                    icfl = dt/min(dx(j)/(abs(vel(1)) + a(1)), dy(k)/(abs(vel(2)) + a(2)), fltr_dtheta/(abs(vel(3)) + a(3)))
                 else
-                    icfl = dt/min(dx(j)/(abs(vel(1)) + c), dy(k)/(abs(vel(2)) + c), dz(l)/(abs(vel(3)) + c))
+                    icfl = dt/min(dx(j)/(abs(vel(1)) + a(1)), dy(k)/(abs(vel(2)) + a(2)), dz(l)/(abs(vel(3)) + a(3)))
                 end if
             #:endif
         else if (n > 0) then
-            icfl = dt/min(dx(j)/(abs(vel(1)) + c), dy(k)/(abs(vel(2)) + c))
+            icfl = dt/min(dx(j)/(abs(vel(1)) + a(1)), dy(k)/(abs(vel(2)) + a(2)))
         else
-            icfl = (dt/dx(j))*(abs(vel(1)) + c)
+            icfl = (dt/dx(j))*(abs(vel(1)) + a(1))
         end if
 
         ! Viscous calculations
@@ -232,7 +296,7 @@ contains
 
     !> Computes the candidate dts for a specified CFL number: max_dt(1) from the inviscid, max_dt(2) the viscous, max_dt(3) the
     !! capillary, and max_dt(4) the thermal diffusion criterion (huge where the criterion is inactive)
-    subroutine s_compute_dt_from_cfl(vel, c, max_dt, rho, Re_l, alpha, alpha_rho, j, k, l)
+    subroutine s_compute_dt_from_cfl(vel, c, max_dt, rho, Re_l, alpha, alpha_rho, j, k, l, c_dir)
 
         $:GPU_ROUTINE(parallelism='[seq]')
         real(wp), dimension(num_vels), intent(in) :: vel
@@ -245,14 +309,21 @@ contains
             real(wp), dimension(num_fluids), intent(in) :: alpha, alpha_rho
         #:endif
         integer, intent(in) :: j, k, l
-        real(wp)            :: vcfl_dt, ccfl_dt, tcfl_dt
-        real(wp)            :: fltr_dtheta
-        real(wp)            :: k_mix, rho_cv
-        integer             :: i
+        !> Per-direction advective signal speed (s_compute_elastic_signal_speeds). Absent, the acoustic c is used in every
+        !! direction, which is the correct bound only when no elastic model is active.
+        real(wp), dimension(3), optional, intent(in) :: c_dir
+        real(wp)                                     :: vcfl_dt, ccfl_dt, tcfl_dt
+        real(wp)                                     :: fltr_dtheta
+        real(wp)                                     :: k_mix, rho_cv
+        real(wp), dimension(3)                       :: a
+        integer                                      :: i
 
         max_dt(2) = huge(1._wp)
         max_dt(3) = huge(1._wp)
         max_dt(4) = huge(1._wp)
+
+        a = c
+        if (present(c_dir)) a = c_dir
 
         ! Inviscid CFL calculation
         ! The multi-dimensional CFL terms are written out here rather than
@@ -263,15 +334,16 @@ contains
             #:if not MFC_CASE_OPTIMIZATION or num_dims > 2
                 if (grid_geometry == 3) then
                     fltr_dtheta = f_compute_filtered_dtheta(k, l)
-                    max_dt(1) = cfl_target*min(dx(j)/(abs(vel(1)) + c), dy(k)/(abs(vel(2)) + c), fltr_dtheta/(abs(vel(3)) + c))
+                    max_dt(1) = cfl_target*min(dx(j)/(abs(vel(1)) + a(1)), dy(k)/(abs(vel(2)) + a(2)), &
+                           & fltr_dtheta/(abs(vel(3)) + a(3)))
                 else
-                    max_dt(1) = cfl_target*min(dx(j)/(abs(vel(1)) + c), dy(k)/(abs(vel(2)) + c), dz(l)/(abs(vel(3)) + c))
+                    max_dt(1) = cfl_target*min(dx(j)/(abs(vel(1)) + a(1)), dy(k)/(abs(vel(2)) + a(2)), dz(l)/(abs(vel(3)) + a(3)))
                 end if
             #:endif
         else if (n > 0) then
-            max_dt(1) = cfl_target*min(dx(j)/(abs(vel(1)) + c), dy(k)/(abs(vel(2)) + c))
+            max_dt(1) = cfl_target*min(dx(j)/(abs(vel(1)) + a(1)), dy(k)/(abs(vel(2)) + a(2)))
         else
-            max_dt(1) = cfl_target*(dx(j)/(abs(vel(1)) + c))
+            max_dt(1) = cfl_target*(dx(j)/(abs(vel(1)) + a(1)))
         end if
 
         ! Viscous calculations

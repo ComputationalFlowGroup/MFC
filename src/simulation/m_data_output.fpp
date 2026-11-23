@@ -189,6 +189,8 @@ contains
         real(wp)               :: tcfl_max_loc, tcfl_max_glb  !< TCFL stability extrema on local and global grids
         real(wp)               :: Rc_min_loc, Rc_min_glb  !< Rc stability extrema on local and global grids
         real(wp)               :: icfl, vcfl, ccfl, tcfl, Rc
+        real(wp)               :: Ca_inv_cell  !< Cell-avg. inverse Cauchy number, for the elastic signal speed
+        real(wp), dimension(3) :: c_dir  !< Per-direction advective signal speed (elastic where applicable)
         real(wp)               :: pw1, pw2, pw3  !< amr_cfl_pow (scalars for the kernel)
         logical                :: amr_on  !< host copy of amr for the kernel
         real(wp)               :: mu_frac, mu_frac_max_loc, mu_frac_max_glb  !< Compression as a fraction of the EOS limit
@@ -209,9 +211,10 @@ contains
         pw1 = amr_cfl_pow(1); pw2 = amr_cfl_pow(2); pw3 = amr_cfl_pow(3); amr_on = amr
         ! Computing Stability Criteria at Current Time-step
         $:GPU_PARALLEL_LOOP(collapse=3, private='[j, k, l, vel, alpha, alpha_rho, Re, rho, vel_sum, pres, gamma, pi_inf, c, qv, &
-                            & icfl, vcfl, Rc, ccfl, tcfl, fl, mu_frac, include_cell]', reduction='[[icfl_max_loc, vcfl_max_loc, &
-                            & ccfl_max_loc, tcfl_max_loc, mu_frac_max_loc], [Rc_min_loc]]', reductionOp='[max, min]', &
-                            & firstprivate='[Re_size_loc1, Re_size_loc2, pw1, pw2, pw3, amr_on]')
+                            & icfl, vcfl, Rc, ccfl, tcfl, fl, mu_frac, include_cell, Ca_inv_cell, c_dir]', &
+                            & reduction='[[icfl_max_loc, vcfl_max_loc, ccfl_max_loc, tcfl_max_loc, &
+                            & mu_frac_max_loc], [Rc_min_loc]]', reductionOp='[max, min]', firstprivate='[Re_size_loc1, &
+                            & Re_size_loc2, pw1, pw2, pw3, amr_on]')
         do l = 0, p
             do k = 0, n
                 do j = 0, m
@@ -220,7 +223,7 @@ contains
                     if (ib) include_cell = (ib_markers%sf(j, k, l) == 0)
                     if (include_cell) then
                         call s_compute_cell_state(q_prim_vf, pres, rho, gamma, pi_inf, Re, alpha, alpha_rho, vel, vel_sum, qv, j, &
-                                                  & k, l, Re_size_loc1, Re_size_loc2)
+                                                  & k, l, Re_size_loc1, Re_size_loc2, Ca_inv_K=Ca_inv_cell)
 
                         call s_compute_speed_of_sound(pres, rho, gamma, pi_inf, alpha, c, alpha_rho)
 
@@ -250,7 +253,9 @@ contains
                             Re(1) = 1._wp/max(Re(1), sgm_eps)
                         end if
 
-                        call s_compute_stability_from_dt(vel, c, rho, Re, alpha, alpha_rho, j, k, l, icfl, vcfl, Rc, ccfl, tcfl)
+                        call s_compute_elastic_signal_speeds(q_prim_vf, c, Ca_inv_cell, alpha, rho, j, k, l, c_dir)
+                        call s_compute_stability_from_dt(vel, c, rho, Re, alpha, alpha_rho, j, k, l, icfl, vcfl, Rc, ccfl, tcfl, &
+                                                         & c_dir=c_dir)
                         if (amr_on) call s_amr_scale_stability(amr_cfl_rf(j, k, l), pw1, pw2, pw3, icfl, vcfl, Rc, ccfl, tcfl)
 
                         icfl_max_loc = max(icfl_max_loc, icfl)
@@ -373,6 +378,8 @@ contains
         real(wp)                                            :: rho, vel_sum, pres, gamma, pi_inf, qv, c
         real(wp)                                            :: rho_hit, pres_hit, c_hit
         real(wp)                                            :: icfl, vcfl, Rc, ccfl, tcfl, icfl_hit
+        real(wp)                                            :: Ca_inv_cell
+        real(wp), dimension(3)                              :: c_dir
         integer                                             :: i, j, k, l, fl, j_hit, k_hit, l_hit
         real(wp)                                            :: x_hit, y_hit, z_hit, dist
         logical                                             :: nan_hit
@@ -398,7 +405,7 @@ contains
                     end if
 
                     call s_compute_cell_state(q_prim_vf, pres, rho, gamma, pi_inf, Re, alpha, alpha_rho, vel, vel_sum, qv, j, k, &
-                                              & l, Re_size(1), Re_size(2))
+                                              & l, Re_size(1), Re_size(2), Ca_inv_K=Ca_inv_cell)
                     call s_compute_speed_of_sound(pres, rho, gamma, pi_inf, alpha, c, alpha_rho)
 
                     if (any_non_newtonian) then
@@ -413,7 +420,9 @@ contains
                         Re(1) = 1._wp/max(Re(1), sgm_eps)
                     end if
 
-                    call s_compute_stability_from_dt(vel, c, rho, Re, alpha, alpha_rho, j, k, l, icfl, vcfl, Rc, ccfl, tcfl)
+                    call s_compute_elastic_signal_speeds(q_prim_vf, c, Ca_inv_cell, alpha, rho, j, k, l, c_dir)
+                    call s_compute_stability_from_dt(vel, c, rho, Re, alpha, alpha_rho, j, k, l, icfl, vcfl, Rc, ccfl, tcfl, &
+                                                     & c_dir=c_dir)
                     if (amr) call s_amr_scale_stability(amr_cfl_rf(j, k, l), amr_cfl_pow(1), amr_cfl_pow(2), amr_cfl_pow(3), &
                         & icfl, vcfl, Rc, ccfl, tcfl)
 
