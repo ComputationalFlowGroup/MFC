@@ -603,6 +603,7 @@ contains
             fluid_pp(i)%Re(:) = dflt_real
             fluid_pp(i)%k_therm = 0._wp
             fluid_pp(i)%Ca_inv = 0._wp
+            fluid_pp(i)%mr_c2 = 0._wp
             fluid_pp(i)%non_newtonian = .false.
             fluid_pp(i)%K = dflt_real
             fluid_pp(i)%nn = dflt_real

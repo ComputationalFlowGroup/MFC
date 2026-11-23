@@ -959,11 +959,17 @@ class CaseValidator:
             cfl_const_dt or cfl_adap_dt,
             "Automatic CFL time stepping uses the acoustic sound speed only and does not bound the hyperelastic characteristic speed; set dt explicitly for hyperelastic runs",
         )
-        if hyper_model == 2:
-            num_fluids = self.get("num_fluids")
-            if num_fluids is not None:
-                for i in range(1, int(num_fluids) + 1):
+        num_fluids = self.get("num_fluids")
+        if num_fluids is not None:
+            for i in range(1, int(num_fluids) + 1):
+                if hyper_model == 2:
                     self.prohibit(self.get(f"fluid_pp({i})%mr_c2") is None, f"hyper_model = 2 (Mooney-Rivlin) requires fluid_pp({i})%mr_c2 to be set")
+                else:
+                    # Neo-Hookean has no second material constant: accepting mr_c2 here would silently ignore it
+                    self.prohibit(
+                        self.get(f"fluid_pp({i})%mr_c2") is not None,
+                        f"fluid_pp({i})%mr_c2 is set, but hyper_model = 1 (Neo-Hookean) does not use a second material constant",
+                    )
 
     def check_graded(self):
         """Checks constraints on graded (spatially-varying) material property parameters"""

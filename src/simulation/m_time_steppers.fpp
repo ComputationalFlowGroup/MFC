@@ -286,6 +286,23 @@ contains
                                    & idwbuff(3)%beg:idwbuff(3)%end))
                         @:ACC_SETUP_SFs(q_prim_vf(i))
                     end do
+                    ! Seed the whole stash, buffer region included, with the undeformed reference state B = I (see
+                    ! s_hyperelastic_rmt_stress_update, which writes the same defaults per interior cell every RHS
+                    ! call). These slots are primitive-only: no conservative counterpart initializes them, and the
+                    ! primitive BC buffers are populated BEFORE the first stress update runs, so without this the
+                    ! first step reconstructs ghost-cell interfaces from uninitialized memory -- and the wave speed
+                    ! divides by the stashed J. @:ALLOCATE maps device memory with `create`, not `copyin`, so the
+                    ! host assignment alone would leave the device copy uninitialized: each field is pushed over.
+                    do i = eqn_idx%xi%end + 1, eqn_idx%xi%end + 4 + 2*num_dims
+                        if (i == eqn_idx%xi%end + 1) then
+                            q_prim_vf(i)%sf = 0._wp  ! strain energy
+                        else if (i == eqn_idx%xi%end + 2 .or. i == eqn_idx%xi%end + 4) then
+                            q_prim_vf(i)%sf = 3._wp  ! tr(B), tr(B^-1)
+                        else
+                            q_prim_vf(i)%sf = 1._wp  ! J, and B/B^-1's unit diagonals
+                        end if
+                        $:GPU_UPDATE(device='[q_prim_vf(i)%sf]')
+                    end do
                 end if
             end if
 

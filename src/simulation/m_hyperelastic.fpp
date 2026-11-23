@@ -155,6 +155,24 @@ contains
                         mr_c2_local = mr_c2_local + alpha_k(i)*mr_c2s_hyper(i)
                     end do
 
+                    ! Reference-state defaults for the WHOLE stash, written for every cell before the guards below.
+                    ! A cell with no solid phase skips the elastic update (Ca_inv_local is clamped only to
+                    ! sgm_eps = 1e-16, which is below verysmall = 1e-12, so the guard really does reject it), and so
+                    ! does a degenerate reference map (det(grad_xi) <= verysmall). But the Riemann solver reads this
+                    ! stash at EVERY interface whenever hyperelasticity is on, and divides by the stashed J. These
+                    ! slots are primitive-only -- no conservative counterpart initializes them -- so left unwritten
+                    ! the read is of uninitialized memory, and a zero J there gives a NaN wave speed. The undeformed
+                    ! state B = I is the honest default: no strain energy, tr(B) = tr(B^-1) = 3, J = 1, unit diagonals.
+                    q_prim_vf(eqn_idx%xi%end + 1)%sf(j, k, l) = 0._wp
+                    q_prim_vf(eqn_idx%xi%end + 2)%sf(j, k, l) = 3._wp
+                    q_prim_vf(eqn_idx%xi%end + 3)%sf(j, k, l) = 1._wp
+                    q_prim_vf(eqn_idx%xi%end + 4)%sf(j, k, l) = 3._wp
+                    $:GPU_LOOP(parallelism='[seq]')
+                    do i = 1, num_dims
+                        q_prim_vf(eqn_idx%xi%end + 4 + i)%sf(j, k, l) = 1._wp
+                        q_prim_vf(eqn_idx%xi%end + 4 + num_dims + i)%sf(j, k, l) = 1._wp
+                    end do
+
                     if (Ca_inv_local > verysmall) then
                         $:GPU_LOOP(parallelism='[seq]')
                         do i = 1, tensor_size
@@ -352,10 +370,6 @@ contains
         ! tr(B) and J = det(F), stashed for the Riemann solver's direct wave speed (see m_riemann_solver_hll.fpp)
         q_prim_vf(eqn_idx%xi%end + 2)%sf(j, k, l) = trace
         q_prim_vf(eqn_idx%xi%end + 3)%sf(j, k, l) = btensor_in(b_size)%sf(j, k, l)
-        ! tr(B^-1) is only read when mr_c2 != 0 (hyper_model = 2); unused here since this solver only runs under
-        ! hyper_model = 1, but the slot still exists (sys_size does not vary per hyper_model) and must not be left
-        ! uninitialized.
-        q_prim_vf(eqn_idx%xi%end + 4)%sf(j, k, l) = 0._wp
         ! Direction-aligned diagonal entries of B itself, for the Riemann solver's exact B_nn at whichever
         ! direction it is sweeping (replaces the old tau_nn-based substitution, which stopped being exact once
         ! Mooney-Rivlin's C2 term could also contribute to tau_nn -- see m_riemann_state.fpp). btensor_in now holds
@@ -364,12 +378,9 @@ contains
         do dk = 1, num_dims
             q_prim_vf(eqn_idx%xi%end + 4 + dk)%sf(j, k, l) = btensor_in(dk*(dk + 1)/2)%sf(j, k, l) + trace/3._wp
         end do
-        ! B^-1's diagonal is not needed here (hyper_model = 1 has no B^-1 at all); the slots still exist and must
-        ! not be left uninitialized.
-        $:GPU_LOOP(parallelism='[seq]')
-        do dk = 1, num_dims
-            q_prim_vf(eqn_idx%xi%end + 4 + num_dims + dk)%sf(j, k, l) = 0._wp
-        end do
+        ! tr(B^-1) and B^-1's diagonal are left at the reference-state defaults the caller already wrote: this model
+        ! has no B^-1 at all, and mr_c2 is prohibited under hyper_model = 1, so the C2 term they feed is identically
+        ! zero. Writing nothing here keeps one owner for that default rather than two conventions.
 
     end subroutine s_neoHookean_cauchy_solver
 
