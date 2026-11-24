@@ -13,6 +13,8 @@ module m_amr_stage
     use m_phase_timing
     use m_amr_registers, only: s_amr_apply_reflux, amr_rk_c
     use m_phase_change, only: s_infinite_relaxation_k
+    use m_hyperelastic, only: s_hyperelastic_refresh_stash
+    use m_amr_state, only: amr_scr_prim
     use m_icpp_patches, only: s_apply_icpp_patches
     use m_assign_variables, only: s_initialize_assign_variables_module
     use m_variables_conversion, only: s_convert_primitive_to_conservative_variables
@@ -283,18 +285,30 @@ contains
     end subroutine s_amr_step_fold
 
     !> End-of-step phase-change relaxation on the fine blocks (the coarse grid's is in m_start_up), then a restrict so the covered
-    !! cells hold the average of the relaxed fine cells. The relaxation is cell-local, so block order is free.
-    impure subroutine s_amr_relax_fine(q_cons)
+    !! cells hold the average of the relaxed fine cells. The relaxation is cell-local, so block order is free. Under hyperelasticity
+    !! each block's elastic strain energy is excluded from the relaxation's energy balance, for the reason m_start_up.fpp gives at
+    !! the coarse call. The stash is per block and lives in shared scratch (amr_scr_prim, left by the last RHS batch), so it is
+    !! refreshed inside the block frame before it is read. The refresh converts over the buffered extent and fills no buffers: a
+    !! fine block's ghosts come from the coarse level through amr_cons_br, so they belong to this block rather than to whichever
+    !! block last used the scratch.
+    impure subroutine s_amr_relax_fine(q_cons, q_T_sf, bc_type)
 
-        type(scalar_field), dimension(sys_size), intent(inout) :: q_cons
-        integer                                                :: kk, nb
+        type(scalar_field), dimension(sys_size), intent(inout)     :: q_cons
+        type(scalar_field), intent(inout)                          :: q_T_sf
+        type(integer_field), dimension(1:num_dims,1:2), intent(in) :: bc_type
+        integer                                                    :: kk, nb
 
         call s_amr_refresh_my_blocks()
         nb = amr_bat_n; amr_bat_n = 1  ! one block's extents in the frame, not a batch slab
         do kk = 1, amr_n_my
             call s_amr_select_slot(amr_my_blk(kk))
             call s_amr_fine_enter()
-            call s_infinite_relaxation_k(amr_cons_br)
+            if (hyperelasticity) then
+                call s_hyperelastic_refresh_stash(amr_cons_br, amr_scr_prim, q_T_sf, bc_type, idwbuff, .true.)
+                call s_infinite_relaxation_k(amr_cons_br, amr_scr_prim(eqn_idx%elastic_W))
+            else
+                call s_infinite_relaxation_k(amr_cons_br)
+            end if
             call s_amr_fine_leave()
         end do
         amr_bat_n = nb

@@ -588,6 +588,11 @@ contains
                 print *, 'initial condition might have been altered due to enforcement of pTg-equilibrium (relax = "T" activated)'
             end if
 
+            ! No excluded energy is passed, and none is needed. m_assign_variables.fpp seeds the reference map to each
+            ! cell's own coordinate, so F = I, B = I, J = 1 and the elastic strain energy is identically zero here --
+            ! q_cons_vf(E) holds thermal and kinetic energy alone. A pre-strained initial condition cannot be
+            ! prescribed in pre-process, and a restart reads the data files instead and goes through m_start_up's own
+            ! relaxation call, which does pass it.
             call s_infinite_relaxation_k(ic%q_cons_vf)
         end if
 

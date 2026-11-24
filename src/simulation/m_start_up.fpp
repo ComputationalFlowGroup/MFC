@@ -711,8 +711,21 @@ contains
         end if
 
         if (relax) then
-            call s_infinite_relaxation_k(q_cons_ts(1)%vf)
-            if (amr) call s_amr_relax_fine(q_cons_ts(1)%vf)
+            ! The relaxation inverts q_cons_vf(E) minus the kinetic energy for (p, T), so it reads what is left as heat.
+            ! Under hyperelasticity E also carries the elastic strain energy (m_hyperelastic.fpp stashes it and takes it
+            ! back out of the pressure; m_variables_conversion.fpp adds it back to E). Left in, that energy raises the
+            ! inverted temperature and boils phase that must not boil -- so refresh the stash against the state the RK
+            ! step just produced and hand it over to be excluded. E itself is never written here: the relaxation holds
+            ! it fixed, so the strain energy the vaporising phase gives up becomes heat on the next conversion, which
+            ! is both conservative and the intended physics.
+            if (hyperelasticity) then
+                call s_hyperelastic_refresh_stash(q_cons_ts(1)%vf, q_prim_qp%vf, q_T_sf, bc_type, idwint, .false., pb_ts(1)%sf, &
+                                                  & mv_ts(1)%sf)
+                call s_infinite_relaxation_k(q_cons_ts(1)%vf, q_prim_qp%vf(eqn_idx%elastic_W))
+            else
+                call s_infinite_relaxation_k(q_cons_ts(1)%vf)
+            end if
+            if (amr) call s_amr_relax_fine(q_cons_ts(1)%vf, q_T_sf, bc_type)
         end if
 
         ! Time-stepping loop controls

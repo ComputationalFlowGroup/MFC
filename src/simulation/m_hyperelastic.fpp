@@ -14,11 +14,12 @@ module m_hyperelastic
     use m_variables_conversion
     use m_finite_differences
     use m_graded, only: s_grade_Ca_inv, Ca_inv_graded_flag
+    use m_boundary_common, only: s_populate_variables_buffers
 
     implicit none
 
     private; public :: s_hyperelastic_rmt_stress_update, s_initialize_hyperelastic_module, s_finalize_hyperelastic_module, &
-        & s_hyperelastic_update_fd_coeffs
+        & s_hyperelastic_update_fd_coeffs, s_hyperelastic_refresh_stash
 
     ! The left Cauchy-Green tensor at cell centers. Computed once per RHS call and reused for both the Cauchy stress and
     ! the elastic strain energy, so it is kept at module scope rather than recomputed.
@@ -314,6 +315,31 @@ contains
         $:END_GPU_PARALLEL_LOOP()
 
     end subroutine s_hyperelastic_rmt_stress_update
+
+    !> Refresh the stash against the state q_cons_vf holds now, for a consumer that runs outside the RHS. The stash is recomputed
+    !! every RHS call, so after a completed time step it describes the last RHS stage, not the updated state. This repeats the
+    !! sequence s_compute_rhs uses -- convert, fill the primitive buffers the reference-map gradient stencil reads, then the stress
+    !! update -- and adds no new state of its own.
+    !! @param skip_bc Suppress the buffer fill. An AMR fine block takes .true.: its ghosts come from the coarse level
+    !!   through amr_cons_br, not from this frame's boundary conditions or MPI faces, and s_populate_variables_buffers
+    !!   would act on the block frame as though it were the domain. Those ghosts are one update old, so the block's
+    !!   outermost interior cells carry an O(dt) stash error; every other cell is exact. Pass ibounds covering the
+    !!   buffered extent there, so the ghosts come from the block's own register rather than from shared scratch.
+    impure subroutine s_hyperelastic_refresh_stash(q_cons_vf, q_prim_vf, q_T_sf, bc_type, ibounds, skip_bc, pb_in, mv_in)
+
+        type(scalar_field), dimension(sys_size), intent(in)                                                  :: q_cons_vf
+        type(scalar_field), dimension(sys_size), intent(inout)                                               :: q_prim_vf
+        type(scalar_field), intent(inout)                                                                    :: q_T_sf
+        type(integer_field), dimension(1:num_dims,1:2), intent(in)                                           :: bc_type
+        type(int_bounds_info), dimension(1:3), intent(in)                                                    :: ibounds
+        logical, intent(in)                                                                                  :: skip_bc
+        real(stp), optional, dimension(idwbuff(1)%beg:,idwbuff(2)%beg:,idwbuff(3)%beg:,1:,1:), intent(inout) :: pb_in, mv_in
+
+        call s_convert_conservative_to_primitive_variables(q_cons_vf, q_T_sf, q_prim_vf, ibounds)
+        if (.not. skip_bc) call s_populate_variables_buffers(bc_type, q_prim_vf, pb_in, mv_in, q_T_sf)
+        call s_hyperelastic_rmt_stress_update(q_cons_vf, q_prim_vf)
+
+    end subroutine s_hyperelastic_refresh_stash
 
     !> Trace of B (the full 3D invariant I1, with (3 - num_dims) added for the directions frozen at identity stretch -- see
     !! misc/hyperelastic_acoustic_tensor.py's plane_strain_reduction() for the derivation) and the in-place deviatoric projection

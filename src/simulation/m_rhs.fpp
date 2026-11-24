@@ -709,6 +709,15 @@ contains
                 else
                     call s_hyperelastic_rmt_stress_update(q_cons_vf, q_prim_qp%vf)
                 end if
+                ! Fill the buffers again. The stress update needs xi's ghosts, so it has to follow the fill above, but it
+                ! then overwrites the pressure (it subtracts the elastic strain energy), the Cauchy stress and the stash
+                ! over the interior only -- j = 0..m, k = 0..n, l = 0..p. Without this the ghost ring keeps an
+                ! uncorrected pressure, too high by W/gamma, and a stress and stash one RHS call old, and the
+                ! reconstruction reads exactly those cells at a domain boundary. Only hyperelasticity needs it:
+                ! hypoelasticity transports its stress, so the conversion and the first fill already agree.
+                call nvtxEndRange
+                call nvtxStartRange("RHS-COMMUNICATION")
+                call s_populate_variables_buffers(bc_type, q_prim_qp%vf, pb_in, mv_in, q_T_sf, skip_mpi=amr_cons_ghosts_valid)
                 call nvtxEndRange
             end if
         end if

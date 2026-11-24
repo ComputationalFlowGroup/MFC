@@ -51,9 +51,14 @@ contains
     end subroutine s_initialize_phasechange_module
 
     !> Apply pT- or pTg-equilibrium relaxation with mass depletion based on the incoming state conditions.
-    subroutine s_infinite_relaxation_k(q_cons_vf)
+    subroutine s_infinite_relaxation_k(q_cons_vf, e_excl)
 
         type(scalar_field), dimension(sys_size), intent(inout) :: q_cons_vf
+        !> Energy density to leave out of the thermodynamic balance: the part of q_cons_vf(E) that is neither thermal
+        !> nor kinetic, so the pT/pTg solves invert the thermal internal energy alone. Under hyperelasticity that is
+        !> the elastic strain energy m_hyperelastic.fpp stashes, which E carries (see the rhoe comment below).
+        !> Absent means nothing is excluded, which is exact whenever E holds thermal and kinetic energy only.
+        type(scalar_field), intent(in), optional :: e_excl
         real(wp) :: pS                    !< equilibrium pressure
         real(wp) :: TS                    !< equilibrium temperature
         real(wp) :: rhoe, dynE, rhos      !< total internal energy, kinetic energy, and total entropy
@@ -116,8 +121,10 @@ contains
 
                     ! calculating the total energy that MUST be preserved throughout the pT- and pTg-relaxation procedures at each
                     ! of the cells. The internal energy is calculated as the total energy minus the kinetic energy to preserved its
-                    ! value at sharp interfaces
+                    ! value at sharp interfaces, and minus any energy the caller excludes: E may carry a non-thermal part that the
+                    ! stiffened-gas inversion below would otherwise read as heat, and so boil on
                     rhoe = q_cons_vf(eqn_idx%E)%sf(j, k, l) - dynE
+                    if (present(e_excl)) rhoe = rhoe - e_excl%sf(j, k, l)
 
                     ! Calling pT-equilibrium for either finishing phase-change module, or as an IC for the pTg-equilibrium for this
                     ! case, MFL cannot be either 0 or 1, so I chose it to be 2
