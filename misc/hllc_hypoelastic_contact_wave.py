@@ -24,11 +24,18 @@ the #:if HYPO branch around lines 1138-1260):
    even the corrected tau_nt_star only approximates the true (v, sigma) jump, which should
    propagate at its own speed rather than smear across the acoustic fan.
 
-This does NOT affect the planned hyperelasticity extension to HLLC: hyperelastic stress is not
-an independently flux-transported quantity (it is slaved algebraically to the deformation
-gradient every RHS call -- see m_hyperelastic.fpp), so it has no u_t_star/tau_nt_star-style
-tangential star-state to compute at all. Only the normal-direction substitution checked in
-part 1 (already confirmed correct) is relevant to that extension.
+Both results carry over to the hyperelasticity extension of HLLC, now implemented. The jump
+relations part 2 solves are statements of tangential-momentum CONSERVATION -- flux
+rho*u_n*v - sigma -- so they hold whatever constitutes sigma, a rate law or an algebraic
+function of the deformation gradient. The hyperelastic path therefore reuses u_t_star and the
+corrected tau_nt_star unchanged (the energy flux needs tau_nt_star for the work of the
+tangential traction across the wave, so it is genuinely required, not optional). What it does
+NOT need is the stress-EQUATION fluxes: a hyperelastic stress is recomputed from the reference
+map every RHS call, so their divergence is discarded before it is read. The approximation it
+inherits is that the star-state stress so obtained is not re-derived from a star-state
+deformation gradient -- HLLC constructs no such state -- which is inherent to applying a
+contact-wave solver to a slaved-stress model, and is the same compromise HLL's two-state
+average already makes.
 """
 
 import sympy as sp

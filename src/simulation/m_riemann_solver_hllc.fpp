@@ -106,17 +106,22 @@ contains
             real(wp)               :: R3V2Lbar, R3V2Rbar
             real(wp), dimension(6) :: tau_e_L, tau_e_R
             real(wp)               :: Ca_inv_L, Ca_inv_R
-            real(wp)               :: damage_L, damage_R
-            real(wp)               :: solid_partial_density_L, solid_partial_density_R
-            real(wp)               :: vel_L_rms, vel_R_rms, vel_avg_rms
-            real(wp)               :: rho_Star, E_Star, p_Star, p_K_Star, vel_K_star
-            real(wp)               :: alpha_K_star, alpha_rho_K_star, p_isen_L, p_isen_R, e_K_star
-            real(wp)               :: pres_SL, pres_SR, Ms_L, Ms_R
-            real(wp)               :: pcorr          !< low Mach number correction
-            logical                :: ib_fw          !< ib_flux_wall: a face between a fluid cell and a body's cell
-            integer                :: fw_o           !< its body cell's offset from the face's left cell (0 or 1)
-            real(wp)               :: fw_a, fw_m     !< signed share of the wall rates, their mass flux
-            integer                :: i, j, k, l, q  !< Generic loop iterators
+            !> Hyperelastic-only interface state: Mooney-Rivlin's second constant and the cell-centered stash m_hyperelastic.fpp
+            !! wrote (tr(B), J, tr(B^-1) and the direction-aligned B/B^-1 diagonals)
+            real(wp) :: Ca_inv_2_L, Ca_inv_2_R
+            real(wp) :: trB_L, trB_R, J_L, J_R, trBinv_L, trBinv_R
+            real(wp) :: B_nn_L, B_nn_R, Binv_nn_L, Binv_nn_R
+            real(wp) :: damage_L, damage_R
+            real(wp) :: solid_partial_density_L, solid_partial_density_R
+            real(wp) :: vel_L_rms, vel_R_rms, vel_avg_rms
+            real(wp) :: rho_Star, E_Star, p_Star, p_K_Star, vel_K_star
+            real(wp) :: alpha_K_star, alpha_rho_K_star, p_isen_L, p_isen_R, e_K_star
+            real(wp) :: pres_SL, pres_SR, Ms_L, Ms_R
+            real(wp) :: pcorr          !< low Mach number correction
+            logical  :: ib_fw          !< ib_flux_wall: a face between a fluid cell and a body's cell
+            integer  :: fw_o           !< its body cell's offset from the face's left cell (0 or 1)
+            real(wp) :: fw_a, fw_m     !< signed share of the wall rates, their mass flux
+            integer  :: i, j, k, l, q  !< Generic loop iterators
 
             ! HLLC star-state helpers
             #:if not MFC_CASE_OPTIMIZATION and USING_AMD
@@ -855,7 +860,7 @@ contains
                         $:END_GPU_PARALLEL_LOOP()
                         #:for HYPO in [True, False]
                             #:if HYPO
-                            else if (hypoelasticity) then
+                            else if (hypoelasticity .or. hyperelasticity) then
                             #:else
                             else
                             #:endif
@@ -879,8 +884,9 @@ contains
                                 & 'alpha_lim_L', 'alpha_lim_R']
                             #:set _hllc_a2 = ['Ys_L', 'Ys_R', 'Xs_L', 'Xs_R', 'Gamma_iL', 'Gamma_iR', 'Cp_iL', 'Cp_iR', 'R_species', &
                                 & 'h_iL', 'h_iR']
-                            #:set _hllc_e1 = ['ptilde_L', 'ptilde_R', 'Ca_inv_L', 'Ca_inv_R', 'damage_L', 'damage_R', 'solid_partial_density_L', &
-                                & 'solid_partial_density_R']
+                            #:set _hllc_e1 = ['ptilde_L', 'ptilde_R', 'Ca_inv_L', 'Ca_inv_R', 'Ca_inv_2_L', 'Ca_inv_2_R', &
+                                & 'trB_L', 'trB_R', 'J_L', 'J_R', 'trBinv_L', 'trBinv_R', 'B_nn_L', 'B_nn_R', 'Binv_nn_L', &
+                                & 'Binv_nn_R', 'damage_L', 'damage_R', 'solid_partial_density_L', 'solid_partial_density_R']
                             #:set _hllc_ea = ['tau_e_L', 'tau_e_R', 'U_L', 'U_R', 'F_L', 'F_R', 'F_star_L', 'F_star_R', 'F_HLLC', &
                                 & 'F_HLL']
                             #:set _hllc_e2 = ['u_n_HLLC', 'u_t_HLLC', 'u_t2_HLLC', 'pres_tot_L', 'pres_tot_R', 'u_n_L', 'u_n_R', &
@@ -1062,24 +1068,52 @@ contains
                                         end if
 
                                         #:if HYPO
-                                            ! ENERGY ADJUSTMENTS FOR HYPOELASTIC ENERGY
                                             $:GPU_LOOP(parallelism='[seq]')
                                             do i = 1, eqn_idx%stress%end - eqn_idx%stress%beg + 1
                                                 tau_e_L(i) = qL_prim_rsx_vf(${SF('')}$, eqn_idx%stress%beg - 1 + i)
                                                 tau_e_R(i) = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%stress%beg - 1 + i)
                                             end do
-                                            damage_L = 0._wp; damage_R = 0._wp
-                                            if (cont_damage) then
-                                                damage_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%damage)
-                                                damage_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%damage)
-                                            end if
+                                            if (hypoelasticity) then
+                                                ! ENERGY ADJUSTMENTS FOR HYPOELASTIC ENERGY
+                                                damage_L = 0._wp; damage_R = 0._wp
+                                                if (cont_damage) then
+                                                    damage_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%damage)
+                                                    damage_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%damage)
+                                                end if
 
-                                            call s_compute_hypoelastic_interface_energy(num_fluids, alpha_L, alpha_R, damage_L, &
-                                                & damage_R, tau_e_L, tau_e_R, Ca_inv_L, Ca_inv_R, E_L, E_R)
-                                            ! The acoustic EOS sound speed is based on thermal/kinetic enthalpy. The
-                                            ! hypoelastic stress energy remains in E_L/E_R for the conservative state,
-                                            ! but must not inflate the base acoustic sound speed used below, so H_L/H_R
-                                            ! keep their pre-adjustment values here.
+                                                call s_compute_hypoelastic_interface_energy(num_fluids, alpha_L, alpha_R, &
+                                                    & damage_L, damage_R, tau_e_L, tau_e_R, Ca_inv_L, Ca_inv_R, E_L, E_R)
+                                                ! The acoustic EOS sound speed is based on thermal/kinetic enthalpy. The
+                                                ! hypoelastic stress energy remains in E_L/E_R for the conservative state,
+                                                ! but must not inflate the base acoustic sound speed used below, so H_L/H_R
+                                                ! keep their pre-adjustment values here.
+                                            else
+                                                ! Hyperelasticity: the strain energy was already taken out of the pressure
+                                                ! field by s_hyperelastic_rmt_stress_update, so E_L/E_R and H_L/H_R are
+                                                ! already consistent -- no interface energy correction here (and hence no
+                                                ! mixture modulus from that routine either, so mix it directly). Then read
+                                                ! the cell-centered stash the wave speed below needs.
+                                                Ca_inv_L = 0._wp; Ca_inv_R = 0._wp
+                                                Ca_inv_2_L = 0._wp; Ca_inv_2_R = 0._wp
+                                                $:GPU_LOOP(parallelism='[seq]')
+                                                do i = 1, num_fluids
+                                                    Ca_inv_L = Ca_inv_L + alpha_L(i)*Ca_invs_rs(i)
+                                                    Ca_inv_R = Ca_inv_R + alpha_R(i)*Ca_invs_rs(i)
+                                                    Ca_inv_2_L = Ca_inv_2_L + alpha_L(i)*Ca_inv_2s_rs(i)
+                                                    Ca_inv_2_R = Ca_inv_2_R + alpha_R(i)*Ca_inv_2s_rs(i)
+                                                end do
+                                                trB_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%end + 2)
+                                                trB_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%end + 2)
+                                                J_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%end + 3)
+                                                J_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%end + 3)
+                                                trBinv_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%end + 4)
+                                                trBinv_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%end + 4)
+                                                B_nn_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%end + 4 + dir_idx(1))
+                                                B_nn_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%end + 4 + dir_idx(1))
+                                                Binv_nn_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%end + 4 + num_dims + dir_idx(1))
+                                                Binv_nn_R = qR_prim_rsx_vf(${SF(' + 1')}$, &
+                                                                           & eqn_idx%xi%end + 4 + num_dims + dir_idx(1))
+                                            end if
                                         #:else
                                             H_L = (E_L + pres_L)/rho_L
                                             H_R = (E_R + pres_R)/rho_R
@@ -1133,15 +1167,31 @@ contains
 
                                         if (wave_speeds == wave_speeds_direct) then
                                             #:if HYPO
-                                                ! Elastic wave speed, Rodriguez et al. JCP (2019)
-                                                s_L = min(vel_L(dir_idx(1)) - f_elastic_signal_speed(c_L, Ca_inv_L, &
-                                                          & tau_e_L(dir_idx_tau(1)), rho_L), &
-                                                          & vel_R(dir_idx(1)) - f_elastic_signal_speed(c_R, Ca_inv_R, &
-                                                          & tau_e_R(dir_idx_tau(1)), rho_R))
-                                                s_R = max(vel_R(dir_idx(1)) + f_elastic_signal_speed(c_R, Ca_inv_R, &
-                                                          & tau_e_R(dir_idx_tau(1)), rho_R), &
-                                                          & vel_L(dir_idx(1)) + f_elastic_signal_speed(c_L, Ca_inv_L, &
-                                                          & tau_e_L(dir_idx_tau(1)), rho_L))
+                                                if (hyperelasticity) then
+                                                    ! Finite-strain acoustic-tensor speed (misc/hyperelastic_acoustic_tensor.py)
+                                                    s_L = min(vel_L(dir_idx(1)) - f_hyperelastic_signal_speed(c_L, Ca_inv_L, &
+                                                              & Ca_inv_2_L, trB_L, B_nn_L, trBinv_L, Binv_nn_L, J_L, rho_L), &
+                                                              & vel_R(dir_idx(1)) - f_hyperelastic_signal_speed(c_R, Ca_inv_R, &
+                                                              & Ca_inv_2_R, trB_R, B_nn_R, trBinv_R, Binv_nn_R, J_R, rho_R))
+                                                    s_R = max(vel_R(dir_idx(1)) + f_hyperelastic_signal_speed(c_R, Ca_inv_R, &
+                                                              & Ca_inv_2_R, trB_R, B_nn_R, trBinv_R, Binv_nn_R, J_R, rho_R), &
+                                                              & vel_L(dir_idx(1)) + f_hyperelastic_signal_speed(c_L, Ca_inv_L, &
+                                                              & Ca_inv_2_L, trB_L, B_nn_L, trBinv_L, Binv_nn_L, J_L, rho_L))
+                                                else
+                                                    ! Elastic wave speed, Rodriguez et al. JCP (2019)
+                                                    s_L = min(vel_L(dir_idx(1)) - f_elastic_signal_speed(c_L, Ca_inv_L, &
+                                                              & tau_e_L(dir_idx_tau(1)), rho_L), &
+                                                              & vel_R(dir_idx(1)) - f_elastic_signal_speed(c_R, Ca_inv_R, &
+                                                              & tau_e_R(dir_idx_tau(1)), rho_R))
+                                                    s_R = max(vel_R(dir_idx(1)) + f_elastic_signal_speed(c_R, Ca_inv_R, &
+                                                              & tau_e_R(dir_idx_tau(1)), rho_R), &
+                                                              & vel_L(dir_idx(1)) + f_elastic_signal_speed(c_L, Ca_inv_L, &
+                                                              & tau_e_L(dir_idx_tau(1)), rho_L))
+                                                end if
+                                                ! Contact speed: the same two-wave normal-momentum relation for either
+                                                ! model, since it substitutes pres_tot = pres - tau_nn and nothing about
+                                                ! how tau_nn was constituted enters it (verified in
+                                                ! misc/hllc_hypoelastic_contact_wave.py, part 1)
                                                 s_S = (pres_R - tau_e_R(dir_idx_tau(1)) - pres_L + tau_e_L(dir_idx_tau(1)) &
                                                        & + rho_L*vel_L(dir_idx(1))*(s_L - vel_L(dir_idx(1))) &
                                                        & - rho_R*vel_R(dir_idx(1))*(s_R - vel_R(dir_idx(1))))/(rho_L*(s_L &
@@ -1226,6 +1276,22 @@ contains
                                                         & + xi_P*qR_prim_rsx_vf(${SF(' + 1')}$, i)*(vel_R(dir_idx(1)) + s_P*xi_R_m1)
                                         end do
 
+                                        ! Reference map: rho*xi is advected with the flow, so it takes exactly the form
+                                        ! the partial densities above take, with rho*xi in place of alpha_i*rho_i.
+                                        ! Hyperelasticity recovers the deformation gradient from xi and graded material
+                                        ! properties are evaluated at it, so without this the reference map would stay
+                                        ! frozen and neither would ever see the motion.
+                                        if (rmt) then
+                                            $:GPU_LOOP(parallelism='[seq]')
+                                            do i = 1, num_dims
+                                                flux_rsx_vf(${SF('')}$, &
+                                                            & eqn_idx%xi%beg - 1 + i) = xi_M*rho_L*qL_prim_rsx_vf(${SF('')}$, &
+                                                            & eqn_idx%xi%beg - 1 + i)*(vel_L(dir_idx(1)) + s_M*xi_L_m1) &
+                                                            & + xi_P*rho_R*qR_prim_rsx_vf(${SF(' + 1')}$, &
+                                                            & eqn_idx%xi%beg - 1 + i)*(vel_R(dir_idx(1)) + s_P*xi_R_m1)
+                                            end do
+                                        end if
+
                                         #:if HYPO
                                             flux_rsx_vf(${SF('')}$, &
                                                         & eqn_idx%cont%end + dir_idx(1)) = xi_M*(rho_L*(vel_L(dir_idx(1)) &
@@ -1260,76 +1326,86 @@ contains
                                                         & - u_t2_star*tau_nt2_star)/(s_R - vel_R(dir_idx(1)))) - E_R)) + (s_M/s_L) &
                                                         & *(s_P/s_R)*pcorr*s_S
 
-                                            if (n == 0) then
-                                                flux_rsx_vf(${SF('')}$, &
-                                                            & eqn_idx%stress%beg) = xi_M*rho_L*tau_nn_L*(vel_L(dir_idx(1)) &
-                                                            & + s_M*(xi_L - 1._wp)) + xi_P*rho_R*tau_nn_R*(vel_R(dir_idx(1)) &
-                                                            & + s_P*(xi_R - 1._wp))
-                                            else if (p == 0) then
-                                                if (dir_idx(1) == 1) then
+                                            ! Elastic-stress equation fluxes: hypoelasticity only. Hyperelastic stress is slaved
+                                            ! algebraically to the current reference map (s_hyperelastic_rmt_stress_update
+                                            ! overwrites q_cons_vf(stress) from the deformation gradient at the start of every RHS
+                                            ! call), so whatever this flux's divergence would integrate into it is discarded before
+                                            ! it is read again -- only xi itself needs advecting. Same reasoning as
+                                            ! m_riemann_solver_hll.fpp's own stress-flux guard.
+                                            if (hypoelasticity) then
+                                                if (n == 0) then
                                                     flux_rsx_vf(${SF('')}$, &
                                                                 & eqn_idx%stress%beg) = xi_M*rho_L*tau_nn_L*(vel_L(dir_idx(1)) &
                                                                 & + s_M*(xi_L - 1._wp)) + xi_P*rho_R*tau_nn_R*(vel_R(dir_idx(1)) &
                                                                 & + s_P*(xi_R - 1._wp))
-                                                    flux_rsx_vf(${SF('')}$, &
-                                                                & eqn_idx%stress%beg + 1) = xi_M*(rho_L*vel_L(dir_idx(1)) &
-                                                                & *tau_nt_L + s_M*(rho_L*xi_L*tau_nt_star - rho_L*tau_nt_L)) &
-                                                                & + xi_P*(rho_R*vel_R(dir_idx(1))*tau_nt_R &
-                                                                & + s_P*(rho_R*xi_R*tau_nt_star - rho_R*tau_nt_R))
-                                                    flux_rsx_vf(${SF('')}$, &
-                                                                & eqn_idx%stress%beg + 2) = xi_M*rho_L*tau_tt_L*(vel_L(dir_idx(1)) &
-                                                                & + s_M*(xi_L - 1._wp)) + xi_P*rho_R*tau_tt_R*(vel_R(dir_idx(1)) &
-                                                                & + s_P*(xi_R - 1._wp))
+                                                else if (p == 0) then
+                                                    if (dir_idx(1) == 1) then
+                                                        flux_rsx_vf(${SF('')}$, &
+                                                                    & eqn_idx%stress%beg) = xi_M*rho_L*tau_nn_L*(vel_L(dir_idx(1)) &
+                                                                    & + s_M*(xi_L - 1._wp)) &
+                                                                    & + xi_P*rho_R*tau_nn_R*(vel_R(dir_idx(1)) + s_P*(xi_R - 1._wp))
+                                                        flux_rsx_vf(${SF('')}$, &
+                                                                    & eqn_idx%stress%beg + 1) = xi_M*(rho_L*vel_L(dir_idx(1)) &
+                                                                    & *tau_nt_L + s_M*(rho_L*xi_L*tau_nt_star - rho_L*tau_nt_L)) &
+                                                                    & + xi_P*(rho_R*vel_R(dir_idx(1))*tau_nt_R &
+                                                                    & + s_P*(rho_R*xi_R*tau_nt_star - rho_R*tau_nt_R))
+                                                        flux_rsx_vf(${SF('')}$, &
+                                                                    & eqn_idx%stress%beg + 2) &
+                                                                    & = xi_M*rho_L*tau_tt_L*(vel_L(dir_idx(1)) + s_M*(xi_L &
+                                                                    & - 1._wp)) + xi_P*rho_R*tau_tt_R*(vel_R(dir_idx(1)) &
+                                                                    & + s_P*(xi_R - 1._wp))
+                                                    else
+                                                        flux_rsx_vf(${SF('')}$, &
+                                                                    & eqn_idx%stress%beg + 2) &
+                                                                    & = xi_M*rho_L*tau_nn_L*(vel_L(dir_idx(1)) + s_M*(xi_L &
+                                                                    & - 1._wp)) + xi_P*rho_R*tau_nn_R*(vel_R(dir_idx(1)) &
+                                                                    & + s_P*(xi_R - 1._wp))
+                                                        flux_rsx_vf(${SF('')}$, &
+                                                                    & eqn_idx%stress%beg + 1) = xi_M*(rho_L*vel_L(dir_idx(1)) &
+                                                                    & *tau_nt_L + s_M*(rho_L*xi_L*tau_nt_star - rho_L*tau_nt_L)) &
+                                                                    & + xi_P*(rho_R*vel_R(dir_idx(1))*tau_nt_R &
+                                                                    & + s_P*(rho_R*xi_R*tau_nt_star - rho_R*tau_nt_R))
+                                                        flux_rsx_vf(${SF('')}$, &
+                                                                    & eqn_idx%stress%beg) = xi_M*rho_L*tau_tt_L*(vel_L(dir_idx(1)) &
+                                                                    & + s_M*(xi_L - 1._wp)) &
+                                                                    & + xi_P*rho_R*tau_tt_R*(vel_R(dir_idx(1)) + s_P*(xi_R - 1._wp))
+                                                    end if
                                                 else
                                                     flux_rsx_vf(${SF('')}$, &
-                                                                & eqn_idx%stress%beg + 2) = xi_M*rho_L*tau_nn_L*(vel_L(dir_idx(1)) &
-                                                                & + s_M*(xi_L - 1._wp)) + xi_P*rho_R*tau_nn_R*(vel_R(dir_idx(1)) &
-                                                                & + s_P*(xi_R - 1._wp))
+                                                                & eqn_idx%stress%beg - 1 + stress_perm(1)) &
+                                                                & = xi_M*rho_L*tau_nn_L*(vel_L(dir_idx(1)) + s_M*(xi_L - 1._wp)) &
+                                                                & + xi_P*rho_R*tau_nn_R*(vel_R(dir_idx(1)) + s_P*(xi_R - 1._wp))
                                                     flux_rsx_vf(${SF('')}$, &
-                                                                & eqn_idx%stress%beg + 1) = xi_M*(rho_L*vel_L(dir_idx(1)) &
-                                                                & *tau_nt_L + s_M*(rho_L*xi_L*tau_nt_star - rho_L*tau_nt_L)) &
+                                                                & eqn_idx%stress%beg - 1 + stress_perm(2)) &
+                                                                & = xi_M*(rho_L*vel_L(dir_idx(1))*tau_nt_L &
+                                                                & + s_M*(rho_L*xi_L*tau_nt_star - rho_L*tau_nt_L)) &
                                                                 & + xi_P*(rho_R*vel_R(dir_idx(1))*tau_nt_R &
                                                                 & + s_P*(rho_R*xi_R*tau_nt_star - rho_R*tau_nt_R))
                                                     flux_rsx_vf(${SF('')}$, &
-                                                                & eqn_idx%stress%beg) = xi_M*rho_L*tau_tt_L*(vel_L(dir_idx(1)) &
-                                                                & + s_M*(xi_L - 1._wp)) + xi_P*rho_R*tau_tt_R*(vel_R(dir_idx(1)) &
+                                                                & eqn_idx%stress%beg - 1 + stress_perm(4)) &
+                                                                & = xi_M*(rho_L*vel_L(dir_idx(1))*tau_nt2_L &
+                                                                & + s_M*(rho_L*xi_L*tau_nt2_star - rho_L*tau_nt2_L)) &
+                                                                & + xi_P*(rho_R*vel_R(dir_idx(1))*tau_nt2_R &
+                                                                & + s_P*(rho_R*xi_R*tau_nt2_star - rho_R*tau_nt2_R))
+                                                    flux_rsx_vf(${SF('')}$, &
+                                                                & eqn_idx%stress%beg - 1 + stress_perm(3)) &
+                                                                & = xi_M*rho_L*tau_tt_L*(vel_L(dir_idx(1)) + s_M*(xi_L - 1._wp)) &
+                                                                & + xi_P*rho_R*tau_tt_R*(vel_R(dir_idx(1)) + s_P*(xi_R - 1._wp))
+                                                    flux_rsx_vf(${SF('')}$, &
+                                                                & eqn_idx%stress%beg - 1 + stress_perm(6)) &
+                                                                & = xi_M*rho_L*tau_t2t2_L*(vel_L(dir_idx(1)) + s_M*(xi_L - 1._wp)) &
+                                                                & + xi_P*rho_R*tau_t2t2_R*(vel_R(dir_idx(1)) + s_P*(xi_R - 1._wp))
+                                                    flux_rsx_vf(${SF('')}$, &
+                                                                & eqn_idx%stress%beg - 1 + stress_perm(5)) &
+                                                                & = xi_M*rho_L*tau_t1t2_L*(vel_L(dir_idx(1)) + s_M*(xi_L - 1._wp)) &
+                                                                & + xi_P*rho_R*tau_t1t2_R*(vel_R(dir_idx(1)) + s_P*(xi_R - 1._wp))
+                                                end if
+                                                if (cyl_coord) then
+                                                    flux_rsx_vf(${SF('')}$, &
+                                                                & eqn_idx%stress%end) = xi_M*rho_L*tau_qq_L*(vel_L(dir_idx(1)) &
+                                                                & + s_M*(xi_L - 1._wp)) + xi_P*rho_R*tau_qq_R*(vel_R(dir_idx(1)) &
                                                                 & + s_P*(xi_R - 1._wp))
                                                 end if
-                                            else
-                                                flux_rsx_vf(${SF('')}$, &
-                                                            & eqn_idx%stress%beg - 1 + stress_perm(1)) &
-                                                            & = xi_M*rho_L*tau_nn_L*(vel_L(dir_idx(1)) + s_M*(xi_L - 1._wp)) &
-                                                            & + xi_P*rho_R*tau_nn_R*(vel_R(dir_idx(1)) + s_P*(xi_R - 1._wp))
-                                                flux_rsx_vf(${SF('')}$, &
-                                                            & eqn_idx%stress%beg - 1 + stress_perm(2)) &
-                                                            & = xi_M*(rho_L*vel_L(dir_idx(1))*tau_nt_L &
-                                                            & + s_M*(rho_L*xi_L*tau_nt_star - rho_L*tau_nt_L)) &
-                                                            & + xi_P*(rho_R*vel_R(dir_idx(1))*tau_nt_R &
-                                                            & + s_P*(rho_R*xi_R*tau_nt_star - rho_R*tau_nt_R))
-                                                flux_rsx_vf(${SF('')}$, &
-                                                            & eqn_idx%stress%beg - 1 + stress_perm(4)) &
-                                                            & = xi_M*(rho_L*vel_L(dir_idx(1))*tau_nt2_L &
-                                                            & + s_M*(rho_L*xi_L*tau_nt2_star - rho_L*tau_nt2_L)) &
-                                                            & + xi_P*(rho_R*vel_R(dir_idx(1))*tau_nt2_R &
-                                                            & + s_P*(rho_R*xi_R*tau_nt2_star - rho_R*tau_nt2_R))
-                                                flux_rsx_vf(${SF('')}$, &
-                                                            & eqn_idx%stress%beg - 1 + stress_perm(3)) &
-                                                            & = xi_M*rho_L*tau_tt_L*(vel_L(dir_idx(1)) + s_M*(xi_L - 1._wp)) &
-                                                            & + xi_P*rho_R*tau_tt_R*(vel_R(dir_idx(1)) + s_P*(xi_R - 1._wp))
-                                                flux_rsx_vf(${SF('')}$, &
-                                                            & eqn_idx%stress%beg - 1 + stress_perm(6)) &
-                                                            & = xi_M*rho_L*tau_t2t2_L*(vel_L(dir_idx(1)) + s_M*(xi_L - 1._wp)) &
-                                                            & + xi_P*rho_R*tau_t2t2_R*(vel_R(dir_idx(1)) + s_P*(xi_R - 1._wp))
-                                                flux_rsx_vf(${SF('')}$, &
-                                                            & eqn_idx%stress%beg - 1 + stress_perm(5)) &
-                                                            & = xi_M*rho_L*tau_t1t2_L*(vel_L(dir_idx(1)) + s_M*(xi_L - 1._wp)) &
-                                                            & + xi_P*rho_R*tau_t1t2_R*(vel_R(dir_idx(1)) + s_P*(xi_R - 1._wp))
-                                            end if
-                                            if (cyl_coord) then
-                                                flux_rsx_vf(${SF('')}$, &
-                                                            & eqn_idx%stress%end) = xi_M*rho_L*tau_qq_L*(vel_L(dir_idx(1)) &
-                                                            & + s_M*(xi_L - 1._wp)) + xi_P*rho_R*tau_qq_R*(vel_R(dir_idx(1)) &
-                                                            & + s_P*(xi_R - 1._wp))
                                             end if
 
                                             ! Damage flux: U_D = m_s*D (damageable-solid partial mass)

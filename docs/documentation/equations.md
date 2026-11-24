@@ -664,8 +664,12 @@ the direction-aligned (sweep-direction) diagonal entries of \f$\mathbf{b}\f$ and
 \f$J\f$) and read directly at the interface for whichever direction is swept -- exact for any
 deformation state, not an isotropic or small-strain approximation, since neither tensor needs
 reconstructing there. Derived and verified symbolically in
-`misc/hyperelastic_acoustic_tensor.py`'s `mooney_rivlin()` (Step 5). Currently requires the
-HLL Riemann solver (`riemann_solver = 1`) and is not compatible with `cyl_coord`.
+`misc/hyperelastic_acoustic_tensor.py`'s `mooney_rivlin()` (Step 5). Available with the HLL
+and HLLC Riemann solvers, and not compatible with `cyl_coord`. In HLLC the elastic stress enters the
+momentum and energy fluxes through the same contact-wave construction hypoelasticity uses --
+the tangential-momentum jump relations it rests on are conservation statements, independent of
+how the stress is constituted -- while the stress-equation fluxes are skipped, since a
+hyperelastic stress is recomputed from the reference map every RHS call.
 
 **1D and 2D:** directions beyond num_dims are frozen at an identity stretch (no
 deformation) -- the same convention `hypoelasticity` uses when its own velocity components beyond

@@ -919,6 +919,14 @@ class CaseValidator:
 
         self.prohibit(hyperelasticity and not rmt, "hyperelasticity requires rmt = T (it needs the reference map to recover the deformation gradient)")
         self.prohibit(graded and not rmt, "graded requires rmt = T (graded material properties are evaluated at the reference map)")
+        # Only HLL threads the graded overrides through to the interface state: it builds Res_graded_L/R and
+        # Ca_inv_rs_graded_L/R per face and passes them on. The other solvers call the same routines without those
+        # optional tables, so a graded case would run silently against the static per-fluid values instead.
+        self.prohibit(
+            graded and self.get("riemann_solver") is not None and self.get("riemann_solver") != 1,
+            "graded requires the HLL Riemann solver (riemann_solver = 1); the other solvers do not pass the graded "
+            "shear-modulus and Reynolds-number overrides to their interface states and would silently use the static values",
+        )
 
         if not rmt:
             return
@@ -949,13 +957,13 @@ class CaseValidator:
         self.prohibit(hyper_model is None, "hyperelasticity requires hyper_model to be set")
         self.prohibit(hyper_model is not None and hyper_model not in [1, 2], "hyper_model must be 1 (Neo-Hookean) or 2 (Mooney-Rivlin)")
         self.prohibit(fd_order is None, "hyperelasticity requires fd_order to be set (1, 2, or 4); the reference-map gradient is computed with a finite-difference stencil")
-        # Only m_riemann_solver_hll.fpp implements hyperelasticity; HLLC/HLLD/LF carry no hyperelastic branch at all,
-        # so they would silently drop the elastic stress from the fluxes and the elastic term from the wave speed
+        # HLL (1) and HLLC (2) implement hyperelasticity; HLLD and LF carry no hyperelastic branch at all, so they
+        # would silently drop the elastic stress from the fluxes and the elastic term from the wave speed
         riemann_solver = self.get("riemann_solver")
         self.prohibit(
-            riemann_solver is not None and riemann_solver != 1,
-            "hyperelasticity requires the HLL Riemann solver (riemann_solver = 1); only HLL implements the "
-            "hyperelastic stress flux and acoustic-tensor wave speed, so another solver would silently run without them",
+            riemann_solver is not None and riemann_solver not in (1, 2),
+            "hyperelasticity requires the HLL (1) or HLLC (2) Riemann solver; the others implement neither the "
+            "hyperelastic stress nor the acoustic-tensor wave speed, so they would silently run without them",
         )
         self.prohibit(hypoelasticity, "hyperelasticity and hypoelasticity cannot both be enabled (each fluid's stress model is ambiguous otherwise)")
         self.prohibit(
