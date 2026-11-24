@@ -55,8 +55,10 @@ module m_global_parameters_common
 
     !> @name Hyperelastic left Cauchy-Green tensor sizes (identical across all three executables)
     !> @{
-    integer :: b_size       !< Number of entries in the symmetric left Cauchy-Green tensor, plus the Jacobian
-    integer :: tensor_size  !< Number of entries in the (non-symmetric) deformation gradient tensor, plus the Jacobian
+    !> Set only when hyperelasticity is active; defaulted so an inactive build never sizes an array from an indeterminate value,
+    !! even though every current use is already behind a hyperelasticity guard.
+    integer :: b_size = 0       !< Number of entries in the symmetric left Cauchy-Green tensor, plus the Jacobian
+    integer :: tensor_size = 0  !< Number of entries in the (non-symmetric) deformation gradient tensor, plus the Jacobian
     !> @}
 
     !> @name Material properties derived from fluid_pp

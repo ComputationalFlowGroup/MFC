@@ -897,19 +897,10 @@ class CaseValidator:
         wave_speeds = self.get("wave_speeds")
         low_Mach = self.get("low_Mach", 0)
         ADC_kappa = self.get("ADC_kappa")
-        cfl_const_dt = self.get("cfl_const_dt", "F") == "T"
-        cfl_adap_dt = self.get("cfl_adap_dt", "F") == "T"
         self.prohibit(fd_order is None, "hypoelasticity requires fd_order to be set (1, 2, or 4); the finite-difference coefficients are initialized unconditionally")
         self.prohibit(wave_speeds == 2, "Pressure-based wave speeds (wave_speeds = 2) omit the elastic longitudinal speed and are not supported with hypoelasticity")
         self.prohibit(riemann_hypo_ADC and low_Mach > 0, "riemann_hypo_ADC does not support low_Mach (the ADC HLL reference flux uses pre-correction velocities)")
         self.prohibit(riemann_hypo_ADC and ADC_kappa is not None and ADC_kappa <= 0, "ADC_kappa must be positive")
-        # Automatic CFL now bounds the elastic characteristic speed per direction (s_compute_elastic_signal_speeds),
-        # but from the STATIC per-fluid modulus: a graded modulus can exceed it locally, which would under-bound dt
-        self.prohibit(
-            (cfl_const_dt or cfl_adap_dt) and self.get("graded", "F") == "T",
-            "Automatic CFL time stepping bounds the elastic characteristic speed from the static per-fluid shear "
-            "modulus, which a graded modulus can locally exceed; set dt explicitly for graded hypoelastic runs",
-        )
 
     def check_rmt(self):
         """Checks constraints on the Reference Map Technique and its dependents (hyperelasticity, graded)"""
@@ -972,15 +963,8 @@ class CaseValidator:
             "Cartesian only and does not fill the extra cylindrical hoop-stress slot hypoelasticity carries)",
         )
         wave_speeds = self.get("wave_speeds")
-        cfl_const_dt = self.get("cfl_const_dt", "F") == "T"
-        cfl_adap_dt = self.get("cfl_adap_dt", "F") == "T"
         self.prohibit(wave_speeds == 2, "Pressure-based wave speeds (wave_speeds = 2) omit the hyperelastic acoustic-tensor correction and are not supported with hyperelasticity")
-        # As for hypoelasticity: the elastic speed is bounded per direction now, but from the static modulus
-        self.prohibit(
-            (cfl_const_dt or cfl_adap_dt) and self.get("graded", "F") == "T",
-            "Automatic CFL time stepping bounds the hyperelastic characteristic speed from the static per-fluid "
-            "shear modulus, which a graded modulus can locally exceed; set dt explicitly for graded hyperelastic runs",
-        )
+
         num_fluids = self.get("num_fluids")
         if num_fluids is not None:
             for i in range(1, int(num_fluids) + 1):
@@ -2290,6 +2274,13 @@ class CaseValidator:
         self.prohibit(surface_tension, "IGR does not support surface tension")
         self.prohibit(hypoelasticity, "IGR does not support hypoelasticity")
         self.prohibit(hyperelasticity, "IGR does not support hyperelasticity")
+        # The reference map is advected by the Riemann solvers, which IGR bypasses, and the hyperelastic stress update
+        # sits inside m_rhs.fpp's `.not. igr` block -- so under IGR xi never moves and its stash is never written. This
+        # also covers `graded`, which requires rmt: grading reads a reference map that would stay frozen.
+        self.prohibit(
+            self.get("rmt", "F") == "T",
+            "IGR does not support rmt (the reference map is advected by the Riemann solvers, which IGR bypasses), and " "so does not support graded material properties either",
+        )
         self.prohibit(acoustic_source, "IGR does not support acoustic sources")
         self.prohibit(graded, "IGR does not support graded material properties")
         self.prohibit(relax, "IGR does not support phase change")

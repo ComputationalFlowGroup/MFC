@@ -231,10 +231,18 @@ contains
 
         if (present(Ca_inv_K)) then
             Ca_inv_K = 0._wp
-            do i = 1, num_fluids
-                ! TODO: change to use Ca_invs_vc directly here? TODO: Make this change as well for GPUs
-                Ca_inv_K = Ca_inv_K + alpha_K(i)*Ca_inv(i)
-            end do
+            ! Same optional-override pattern as Res/Res_vc below: an absent Ca_inv means "no grading", so fall back to
+            ! this module's own per-fluid table rather than requiring every caller to hand one over. Callers that do
+            ! not grade previously passed an uninitialized local array here, which this removes the need for.
+            if (present(Ca_inv)) then
+                do i = 1, num_fluids
+                    Ca_inv_K = Ca_inv_K + alpha_K(i)*Ca_inv(i)
+                end do
+            else
+                do i = 1, num_fluids
+                    Ca_inv_K = Ca_inv_K + alpha_K(i)*Ca_invs_vc(i)
+                end do
+            end if
             Ca_inv_K = max(0._wp, Ca_inv_K)
         end if
 

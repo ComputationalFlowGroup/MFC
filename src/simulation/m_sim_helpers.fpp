@@ -11,7 +11,8 @@ module m_sim_helpers
     use m_derived_types
     use m_global_parameters
     use m_variables_conversion
-    use m_riemann_state, only: f_elastic_signal_speed, f_hyperelastic_signal_speed, Ca_inv_2s_rs
+    use m_riemann_state, only: f_elastic_signal_speed, f_hyperelastic_signal_speed, Ca_inv_2s_rs, Ca_invs_rs, Res_gs
+    use m_graded, only: s_grade_Ca_inv, Ca_inv_graded_flag, s_grade_Re, Re_graded_flag
 
     implicit none
 
@@ -65,22 +66,65 @@ contains
         integer, intent(in)                   :: j, k, l
         real(wp), dimension(2), intent(inout) :: Re
         #:if not MFC_CASE_OPTIMIZATION and USING_AMD
-            real(wp), dimension(3) :: Ca_invs
+            real(wp), dimension(3) :: Ca_inv_graded_loc
         #:else
-            real(wp), dimension(num_fluids) :: Ca_invs
+            real(wp), dimension(num_fluids) :: Ca_inv_graded_loc
         #:endif
-        !> Mixture inverse Cauchy number, for callers that need the elastic signal speed (see s_compute_elastic_signal_speeds). The
-        !! static per-fluid table is used, not the graded override, so the automatic-CFL path that consumes it stays prohibited
-        !! under `graded`.
+        real(wp), dimension(2, Re_size_max) :: Res_graded_loc
+        !> Mixture inverse Cauchy number, for callers that need the elastic signal speed (see s_compute_elastic_signal_speeds).
+        !! Graded where the case grades it, so the automatic-CFL bound built from it is correct for a spatially varying modulus too.
         real(wp), optional, intent(out) :: Ca_inv_K
         real(wp)                        :: Ca_inv_local
-        integer                         :: i
+        real(wp)                        :: xi_x, xi_y, xi_z
+        integer                         :: i, j_re
 
         call s_compute_species_fraction(q_prim_vf, j, k, l, alpha_rho, alpha)
 
+        ! Graded material properties are evaluated at the reference map, so build this cell's overrides first -- the same
+        ! default-then-override loops m_hyperelastic.fpp and m_riemann_solver_hll.fpp use, so the dt bound this feeds sees
+        ! the same moduli and viscosities the fluxes do. Absent, the conversion kernel falls back to its own static tables.
+        if (graded) then
+            xi_x = q_prim_vf(eqn_idx%xi%beg)%sf(j, k, l)
+            xi_y = 0._wp; xi_z = 0._wp
+            if (num_dims >= 2) xi_y = q_prim_vf(eqn_idx%xi%beg + 1)%sf(j, k, l)
+            if (num_dims == 3) xi_z = q_prim_vf(eqn_idx%xi%end)%sf(j, k, l)
+
+            $:GPU_LOOP(parallelism='[seq]')
+            do i = 1, num_fluids
+                Ca_inv_graded_loc(i) = Ca_invs_rs(i)
+                if (Ca_inv_graded_flag(i)) call s_grade_Ca_inv(xi_x, xi_y, xi_z, i, Ca_inv_graded_loc(i))
+            end do
+
+            if (viscous) then
+                $:GPU_LOOP(parallelism='[seq]')
+                do i = 1, 2
+                    $:GPU_LOOP(parallelism='[seq]')
+                    do j_re = 1, Re_size_max
+                        Res_graded_loc(i, j_re) = Res_gs(i, j_re)
+                    end do
+                    $:GPU_LOOP(parallelism='[seq]')
+                    do j_re = 1, Re_size(i)
+                        if (Re_graded_flag(Re_idx(i, j_re))) then
+                            call s_grade_Re(xi_x, xi_y, xi_z, Re_idx(i, j_re), i, Res_graded_loc(i, j_re))
+                        end if
+                    end do
+                end do
+            end if
+        end if
+
         Ca_inv_local = 0._wp
         if (hypoelasticity .or. hyperelasticity) then
-            call s_convert_species_to_mixture_variables_kernel(rho, gamma, pi_inf, qv, alpha, alpha_rho, Re, Ca_inv_local, Ca_invs)
+            if (graded .and. viscous) then
+                call s_convert_species_to_mixture_variables_kernel(rho, gamma, pi_inf, qv, alpha, alpha_rho, Re, Ca_inv_local, &
+                    & Ca_inv_graded_loc, Res_graded_loc)
+            else if (graded) then
+                call s_convert_species_to_mixture_variables_kernel(rho, gamma, pi_inf, qv, alpha, alpha_rho, Re, Ca_inv_local, &
+                    & Ca_inv_graded_loc)
+            else
+                call s_convert_species_to_mixture_variables_kernel(rho, gamma, pi_inf, qv, alpha, alpha_rho, Re, Ca_inv_local)
+            end if
+        else if (graded .and. viscous) then
+            call s_convert_species_to_mixture_variables_kernel(rho, gamma, pi_inf, qv, alpha, alpha_rho, Re, Res=Res_graded_loc)
         else
             call s_convert_species_to_mixture_variables_kernel(rho, gamma, pi_inf, qv, alpha, alpha_rho, Re)
         end if
