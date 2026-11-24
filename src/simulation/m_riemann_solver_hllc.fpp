@@ -1102,17 +1102,16 @@ contains
                                                     Ca_inv_2_L = Ca_inv_2_L + alpha_L(i)*Ca_inv_2s_rs(i)
                                                     Ca_inv_2_R = Ca_inv_2_R + alpha_R(i)*Ca_inv_2s_rs(i)
                                                 end do
-                                                trB_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%end + 2)
-                                                trB_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%end + 2)
-                                                J_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%end + 3)
-                                                J_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%end + 3)
-                                                trBinv_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%end + 4)
-                                                trBinv_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%end + 4)
-                                                B_nn_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%end + 4 + dir_idx(1))
-                                                B_nn_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%end + 4 + dir_idx(1))
-                                                Binv_nn_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%end + 4 + num_dims + dir_idx(1))
-                                                Binv_nn_R = qR_prim_rsx_vf(${SF(' + 1')}$, &
-                                                                           & eqn_idx%xi%end + 4 + num_dims + dir_idx(1))
+                                                trB_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%trB)
+                                                trB_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%trB)
+                                                J_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%Jdet)
+                                                J_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%Jdet)
+                                                trBinv_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%trBinv)
+                                                trBinv_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%trBinv)
+                                                B_nn_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%Bdiag%beg - 1 + dir_idx(1))
+                                                B_nn_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%Bdiag%beg - 1 + dir_idx(1))
+                                                Binv_nn_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%Binvdiag%beg - 1 + dir_idx(1))
+                                                Binv_nn_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%Binvdiag%beg - 1 + dir_idx(1))
                                             end if
                                         #:else
                                             H_L = (E_L + pres_L)/rho_L

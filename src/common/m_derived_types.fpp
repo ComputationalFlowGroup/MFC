@@ -139,23 +139,32 @@ module m_derived_types
     !> Range indices (beg/end) use int_bounds_info; scalar indices are plain integers (0 = inactive).
     !> Contains no allocatable members - safe for GPU_DECLARE as a single struct.
     type eqn_idx_info
-        type(idx_bounds_info) :: cont     !< Partial densities (continuity equations)
-        type(idx_bounds_info) :: mom      !< Momentum components
-        type(idx_bounds_info) :: adv      !< Volume fractions (advection equations)
-        type(idx_bounds_info) :: bub      !< Bubble equation range (beg/end only)
-        type(idx_bounds_info) :: stress   !< Stress tensor components
-        type(idx_bounds_info) :: xi       !< Reference map (graded material properties)
-        type(idx_bounds_info) :: B        !< Magnetic field components
-        type(idx_bounds_info) :: int_en   !< Internal energy equations
-        type(idx_bounds_info) :: species  !< Chemistry species equations
-        integer               :: E        !< Energy/pressure equation
-        integer               :: n        !< Number density equation
-        integer               :: alf      !< Void fraction (scalar, model_eqns=4)
-        integer               :: gamma    !< Specific heat ratio function (model_eqns=1)
-        integer               :: pi_inf   !< Liquid stiffness function (model_eqns=1)
-        integer               :: c        !< Color function equation
-        integer               :: damage   !< Damage variable equation
-        integer               :: psi      !< Psi variable equation
+        type(idx_bounds_info) :: cont    !< Partial densities (continuity equations)
+        type(idx_bounds_info) :: mom     !< Momentum components
+        type(idx_bounds_info) :: adv     !< Volume fractions (advection equations)
+        type(idx_bounds_info) :: bub     !< Bubble equation range (beg/end only)
+        type(idx_bounds_info) :: stress  !< Stress tensor components
+        type(idx_bounds_info) :: xi      !< Reference map (graded material properties)
+        !> Hyperelastic derived quantities. s_hyperelastic_rmt_stress_update stashes these in q_prim_vf each RHS call;
+        !> the Riemann solvers, the CFL bound and the phase-change energy split read them back. Dedicated indices, so
+        !> no consumer computes an offset from xi%end. Inactive (0) unless hyperelasticity is enabled.
+        integer               :: elastic_W = 0  !< Elastic strain energy per unit volume
+        integer               :: trB = 0        !< tr(B)
+        integer               :: Jdet = 0       !< J = det(F)
+        integer               :: trBinv = 0     !< tr(B^-1)
+        type(idx_bounds_info) :: Bdiag          !< Direction-aligned diagonal entries of B
+        type(idx_bounds_info) :: Binvdiag       !< Direction-aligned diagonal entries of B^-1
+        type(idx_bounds_info) :: B              !< Magnetic field components
+        type(idx_bounds_info) :: int_en         !< Internal energy equations
+        type(idx_bounds_info) :: species        !< Chemistry species equations
+        integer               :: E              !< Energy/pressure equation
+        integer               :: n              !< Number density equation
+        integer               :: alf            !< Void fraction (scalar, model_eqns=4)
+        integer               :: gamma          !< Specific heat ratio function (model_eqns=1)
+        integer               :: pi_inf         !< Liquid stiffness function (model_eqns=1)
+        integer               :: c              !< Color function equation
+        integer               :: damage         !< Damage variable equation
+        integer               :: psi            !< Psi variable equation
     end type eqn_idx_info
 
     !> Indices of the projected Lagrangian particle fields (q_particles); vector ranges span num_dims

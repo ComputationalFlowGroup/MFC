@@ -163,14 +163,14 @@ contains
                     ! slots are primitive-only -- no conservative counterpart initializes them -- so left unwritten
                     ! the read is of uninitialized memory, and a zero J there gives a NaN wave speed. The undeformed
                     ! state B = I is the honest default: no strain energy, tr(B) = tr(B^-1) = 3, J = 1, unit diagonals.
-                    q_prim_vf(eqn_idx%xi%end + 1)%sf(j, k, l) = 0._wp
-                    q_prim_vf(eqn_idx%xi%end + 2)%sf(j, k, l) = 3._wp
-                    q_prim_vf(eqn_idx%xi%end + 3)%sf(j, k, l) = 1._wp
-                    q_prim_vf(eqn_idx%xi%end + 4)%sf(j, k, l) = 3._wp
+                    q_prim_vf(eqn_idx%elastic_W)%sf(j, k, l) = 0._wp
+                    q_prim_vf(eqn_idx%trB)%sf(j, k, l) = 3._wp
+                    q_prim_vf(eqn_idx%Jdet)%sf(j, k, l) = 1._wp
+                    q_prim_vf(eqn_idx%trBinv)%sf(j, k, l) = 3._wp
                     $:GPU_LOOP(parallelism='[seq]')
                     do i = 1, num_dims
-                        q_prim_vf(eqn_idx%xi%end + 4 + i)%sf(j, k, l) = 1._wp
-                        q_prim_vf(eqn_idx%xi%end + 4 + num_dims + i)%sf(j, k, l) = 1._wp
+                        q_prim_vf(eqn_idx%Bdiag%beg - 1 + i)%sf(j, k, l) = 1._wp
+                        q_prim_vf(eqn_idx%Binvdiag%beg - 1 + i)%sf(j, k, l) = 1._wp
                     end do
 
                     if (Ca_inv_local > verysmall) then
@@ -296,10 +296,10 @@ contains
                             end if
                             ! STEP 5b: updating the pressure field (subtracting the elastic strain energy). Both Cauchy
                             ! solvers now stash the FULL strain energy (already scaled by their own material
-                            ! constant(s)) at xi%end+1, not energy-per-unit-modulus, since Mooney-Rivlin has two
+                            ! constant(s)) at eqn_idx%elastic_W, not energy-per-unit-modulus, since Mooney-Rivlin has two
                             ! independent constants that do not scale together.
                             q_prim_vf(eqn_idx%E)%sf(j, k, l) = q_prim_vf(eqn_idx%E)%sf(j, k, &
-                                      & l) - q_prim_vf(eqn_idx%xi%end + 1)%sf(j, k, l)/gamma
+                                      & l) - q_prim_vf(eqn_idx%elastic_W)%sf(j, k, l)/gamma
                             ! STEP 5c: updating the Cauchy stress conservative scalar field
                             $:GPU_LOOP(parallelism='[seq]')
                             do i = 1, b_size - 1
@@ -366,17 +366,17 @@ contains
         ! First invariant strain energy: W = Ca_inv/2 * (I1 - 3), neo-Hookean model. Stashed as the FULL energy
         ! (already scaled by Ca_inv_param), not energy-per-unit-modulus -- see the STEP 5b comment in
         ! s_hyperelastic_rmt_stress_update for why.
-        q_prim_vf(eqn_idx%xi%end + 1)%sf(j, k, l) = 0.5_wp*Ca_inv_param*(trace - 3.0_wp)/btensor_in(b_size)%sf(j, k, l)
+        q_prim_vf(eqn_idx%elastic_W)%sf(j, k, l) = 0.5_wp*Ca_inv_param*(trace - 3.0_wp)/btensor_in(b_size)%sf(j, k, l)
         ! tr(B) and J = det(F), stashed for the Riemann solver's direct wave speed (see m_riemann_solver_hll.fpp)
-        q_prim_vf(eqn_idx%xi%end + 2)%sf(j, k, l) = trace
-        q_prim_vf(eqn_idx%xi%end + 3)%sf(j, k, l) = btensor_in(b_size)%sf(j, k, l)
+        q_prim_vf(eqn_idx%trB)%sf(j, k, l) = trace
+        q_prim_vf(eqn_idx%Jdet)%sf(j, k, l) = btensor_in(b_size)%sf(j, k, l)
         ! Direction-aligned diagonal entries of B itself, for the Riemann solver's exact B_nn at whichever
         ! direction it is sweeping (replaces the old tau_nn-based substitution, which stopped being exact once
         ! Mooney-Rivlin's C2 term could also contribute to tau_nn -- see m_riemann_state.fpp). btensor_in now holds
         ! dev(B) (mutated in place by s_hyperelastic_trace_and_deviator above), so B_dd = dev(B)_dd + trace/3.
         $:GPU_LOOP(parallelism='[seq]')
         do dk = 1, num_dims
-            q_prim_vf(eqn_idx%xi%end + 4 + dk)%sf(j, k, l) = btensor_in(dk*(dk + 1)/2)%sf(j, k, l) + trace/3._wp
+            q_prim_vf(eqn_idx%Bdiag%beg - 1 + dk)%sf(j, k, l) = btensor_in(dk*(dk + 1)/2)%sf(j, k, l) + trace/3._wp
         end do
         ! tr(B^-1) and B^-1's diagonal are left at the reference-state defaults the caller already wrote: this model
         ! has no B^-1 at all, and Ca_inv_2 is prohibited under hyper_model = 1, so the C2 term they feed is identically
@@ -448,7 +448,7 @@ contains
         $:GPU_LOOP(parallelism='[seq]')
         do dk = 1, num_dims
             trBinv = trBinv + Binv(dk*(dk + 1)/2)
-            q_prim_vf(eqn_idx%xi%end + 4 + num_dims + dk)%sf(j, k, l) = Binv(dk*(dk + 1)/2)
+            q_prim_vf(eqn_idx%Binvdiag%beg - 1 + dk)%sf(j, k, l) = Binv(dk*(dk + 1)/2)
         end do
 
         ! dev(B^-1) in place in the local Binv array (dev(B) itself is taken care of by the trace-and-deviator call
@@ -464,7 +464,7 @@ contains
         ! btensor_in into dev(B) in place.
         $:GPU_LOOP(parallelism='[seq]')
         do dk = 1, num_dims
-            q_prim_vf(eqn_idx%xi%end + 4 + dk)%sf(j, k, l) = btensor_in(dk*(dk + 1)/2)%sf(j, k, l)
+            q_prim_vf(eqn_idx%Bdiag%beg - 1 + dk)%sf(j, k, l) = btensor_in(dk*(dk + 1)/2)%sf(j, k, l)
         end do
 
         call s_hyperelastic_trace_and_deviator(btensor_in, j, k, l, trB)
@@ -476,13 +476,13 @@ contains
         end do
 
         ! Strain energy W = C1*(I1 - 3) + C2*(I2 - 3), stashed as the full energy (see the STEP 5b comment above)
-        q_prim_vf(eqn_idx%xi%end + 1)%sf(j, k, l) = (C1*(trB - 3._wp) + C2*(I2 - 3._wp))/J_det
+        q_prim_vf(eqn_idx%elastic_W)%sf(j, k, l) = (C1*(trB - 3._wp) + C2*(I2 - 3._wp))/J_det
         ! tr(B), J = det(F), and tr(B^-1) (already computed above), stashed for the Riemann solver's direct wave
-        ! speed (see m_riemann_solver_hll.fpp). The direction-aligned B_nn/B^-1_nn diagonal entries (xi%end+5
-        ! onward) were already stashed above, before this call mutated btensor_in/Binv into their deviatoric form.
-        q_prim_vf(eqn_idx%xi%end + 2)%sf(j, k, l) = trB
-        q_prim_vf(eqn_idx%xi%end + 3)%sf(j, k, l) = J_det
-        q_prim_vf(eqn_idx%xi%end + 4)%sf(j, k, l) = trBinv
+        ! speed (see m_riemann_solver_hll.fpp). The direction-aligned B_nn/B^-1_nn diagonal entries (eqn_idx%Bdiag and
+        ! eqn_idx%Binvdiag) were already stashed above, before this call mutated btensor_in/Binv into deviatoric form.
+        q_prim_vf(eqn_idx%trB)%sf(j, k, l) = trB
+        q_prim_vf(eqn_idx%Jdet)%sf(j, k, l) = J_det
+        q_prim_vf(eqn_idx%trBinv)%sf(j, k, l) = trBinv
 
     end subroutine s_Mooney_Rivlin_cauchy_solver
 

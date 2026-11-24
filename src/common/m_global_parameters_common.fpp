@@ -273,13 +273,21 @@ contains
                     ! number of entries in the symmetric left Cauchy-Green tensor plus the Jacobian
                     b_size = (num_dims*(num_dims + 1))/2 + 1
                     tensor_size = num_dims**2 + 1
-                    ! 4 + 2*num_dims more scalars to carry: the elastic strain energy (xi%end+1), tr(B) (xi%end+2), the
-                    ! Jacobian J = det(F) (xi%end+3), tr(B^-1) (xi%end+4), the num_dims direction-aligned diagonal
-                    ! entries of B itself (xi%end+5 .. xi%end+4+num_dims), and of B^-1 (the next num_dims slots). The
-                    ! direct wave speed needs B_nn and B^-1_nn for whichever direction it is evaluating -- these let
-                    ! the Riemann solver read them exactly, rather than only their isotropic traces, without
-                    ! reconstructing the full B/B^-1 tensors at the interface.
-                    sys_size = sys_size + 4 + 2*num_dims
+                    ! 4 + 2*num_dims more scalars to carry: the elastic strain energy, tr(B), the Jacobian
+                    ! J = det(F), tr(B^-1), the num_dims direction-aligned diagonal entries of B itself, and those of
+                    ! B^-1. The direct wave speed needs B_nn and B^-1_nn for whichever direction it is evaluating --
+                    ! these let the Riemann solver read them exactly, rather than only their isotropic traces, without
+                    ! reconstructing the full B/B^-1 tensors at the interface. Each slot gets a dedicated eqn_idx
+                    ! entry, so no consumer offsets from xi%end, and sys_size follows from the last index.
+                    eqn_idx%elastic_W = sys_size + 1
+                    eqn_idx%trB = sys_size + 2
+                    eqn_idx%Jdet = sys_size + 3
+                    eqn_idx%trBinv = sys_size + 4
+                    eqn_idx%Bdiag%beg = sys_size + 5
+                    eqn_idx%Bdiag%end = eqn_idx%Bdiag%beg + num_dims - 1
+                    eqn_idx%Binvdiag%beg = eqn_idx%Bdiag%end + 1
+                    eqn_idx%Binvdiag%end = eqn_idx%Binvdiag%beg + num_dims - 1
+                    sys_size = eqn_idx%Binvdiag%end
                 end if
             end if
 

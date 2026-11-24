@@ -190,16 +190,16 @@ contains
         else
             ! Finite strain: read the cell-centered stash m_hyperelastic.fpp wrote this step -- tr(B), J, tr(B^-1)
             ! and, per direction, the aligned diagonal entries of B and B^-1 (see m_global_parameters_common.fpp).
-            trB = q_prim_vf(eqn_idx%xi%end + 2)%sf(j, k, l)
-            J_det = q_prim_vf(eqn_idx%xi%end + 3)%sf(j, k, l)
-            trBinv = q_prim_vf(eqn_idx%xi%end + 4)%sf(j, k, l)
+            trB = q_prim_vf(eqn_idx%trB)%sf(j, k, l)
+            J_det = q_prim_vf(eqn_idx%Jdet)%sf(j, k, l)
+            trBinv = q_prim_vf(eqn_idx%trBinv)%sf(j, k, l)
             Ca_inv_2_K = 0._wp
             do d = 1, num_fluids
                 Ca_inv_2_K = Ca_inv_2_K + alpha(d)*Ca_inv_2s_rs(d)
             end do
             do d = 1, num_dims
-                c_dir(d) = f_hyperelastic_signal_speed(c, Ca_inv_K, Ca_inv_2_K, trB, q_prim_vf(eqn_idx%xi%end + 4 + d)%sf(j, k, &
-                      & l), trBinv, q_prim_vf(eqn_idx%xi%end + 4 + num_dims + d)%sf(j, k, l), J_det, rho)
+                c_dir(d) = f_hyperelastic_signal_speed(c, Ca_inv_K, Ca_inv_2_K, trB, q_prim_vf(eqn_idx%Bdiag%beg - 1 + d)%sf(j, &
+                      & k, l), trBinv, q_prim_vf(eqn_idx%Binvdiag%beg - 1 + d)%sf(j, k, l), J_det, rho)
             end do
         end if
 

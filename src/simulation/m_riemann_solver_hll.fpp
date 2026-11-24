@@ -383,18 +383,18 @@ contains
                                     ! The elastic strain energy was already subtracted from the pressure field in
                                     ! s_hyperelastic_rmt_stress_update, so pres_L/pres_R (hence E_L/E_R above) are
                                     ! already mechanically consistent -- no separate energy correction here.
-                                    trB_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%end + 2)
-                                    trB_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%end + 2)
-                                    J_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%end + 3)
-                                    J_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%end + 3)
-                                    trBinv_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%end + 4)
-                                    trBinv_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%end + 4)
+                                    trB_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%trB)
+                                    trB_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%trB)
+                                    J_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%Jdet)
+                                    J_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%Jdet)
+                                    trBinv_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%trBinv)
+                                    trBinv_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%trBinv)
                                     ! Direction-aligned (dir_idx(1)) diagonal entries of B and B^-1, for the exact
                                     ! B_nn/B^-1_nn the direct wave speed needs (see f_hyperelastic_signal_speed)
-                                    B_nn_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%end + 4 + dir_idx(1))
-                                    B_nn_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%end + 4 + dir_idx(1))
-                                    Binv_nn_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%xi%end + 4 + num_dims + dir_idx(1))
-                                    Binv_nn_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%xi%end + 4 + num_dims + dir_idx(1))
+                                    B_nn_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%Bdiag%beg - 1 + dir_idx(1))
+                                    B_nn_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%Bdiag%beg - 1 + dir_idx(1))
+                                    Binv_nn_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%Binvdiag%beg - 1 + dir_idx(1))
+                                    Binv_nn_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%Binvdiag%beg - 1 + dir_idx(1))
 
                                     Ca_inv_L = 0._wp; Ca_inv_R = 0._wp
                                     Ca_inv_2_L = 0._wp; Ca_inv_2_R = 0._wp

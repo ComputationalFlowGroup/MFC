@@ -1056,7 +1056,7 @@ contains
 
                     if (hyperelasticity) then
                         ! Mirrors the hypoelastic block above: q_prim_vf(stress) stores tau/rho, so the conservative
-                        ! stress is rho*tau; q_prim_vf(xi%end+1) stores the FULL strain energy W, already scaled by
+                        ! stress is rho*tau; q_prim_vf(eqn_idx%elastic_W) stores the FULL strain energy W, already scaled by
                         ! the model's own material constant(s) (set by m_hyperelastic.fpp's Cauchy solvers -- not
                         ! energy-per-unit-modulus, since Mooney-Rivlin has two constants that do not scale together).
                         ! So the energy added back is W itself, with no further Ca_inv factor: that is the exact
@@ -1066,7 +1066,7 @@ contains
                         do i = eqn_idx%stress%beg, eqn_idx%stress%end
                             q_cons_vf(i)%sf(j, k, l) = rho*q_prim_vf(i)%sf(j, k, l)
                         end do
-                        q_cons_vf(eqn_idx%E)%sf(j, k, l) = q_cons_vf(eqn_idx%E)%sf(j, k, l) + q_prim_vf(eqn_idx%xi%end + 1)%sf(j, &
+                        q_cons_vf(eqn_idx%E)%sf(j, k, l) = q_cons_vf(eqn_idx%E)%sf(j, k, l) + q_prim_vf(eqn_idx%elastic_W)%sf(j, &
                                   & k, l)
                     end if
 

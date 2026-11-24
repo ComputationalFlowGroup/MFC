@@ -273,7 +273,7 @@ contains
 
             if (rmt) then
                 ! Reference map (xi), plus hyperelasticity's strain-energy/tr(B)/J/tr(B^-1)/B_diag/Binv_diag stash
-                ! (xi%end+1:xi%end+4+2*num_dims, see m_global_parameters_common.fpp) when hyperelasticity is
+                ! (eqn_idx%elastic_W:eqn_idx%Binvdiag%end, see m_global_parameters_common.fpp) when hyperelasticity is
                 ! active alongside it.
                 do i = eqn_idx%xi%beg, eqn_idx%xi%end
                     @:ALLOCATE(q_prim_vf(i)%sf(idwbuff(1)%beg:idwbuff(1)%end, idwbuff(2)%beg:idwbuff(2)%end, &
@@ -281,7 +281,7 @@ contains
                     @:ACC_SETUP_SFs(q_prim_vf(i))
                 end do
                 if (hyperelasticity) then
-                    do i = eqn_idx%xi%end + 1, eqn_idx%xi%end + 4 + 2*num_dims
+                    do i = eqn_idx%elastic_W, eqn_idx%Binvdiag%end
                         @:ALLOCATE(q_prim_vf(i)%sf(idwbuff(1)%beg:idwbuff(1)%end, idwbuff(2)%beg:idwbuff(2)%end, &
                                    & idwbuff(3)%beg:idwbuff(3)%end))
                         @:ACC_SETUP_SFs(q_prim_vf(i))
@@ -293,10 +293,10 @@ contains
                     ! first step reconstructs ghost-cell interfaces from uninitialized memory -- and the wave speed
                     ! divides by the stashed J. @:ALLOCATE maps device memory with `create`, not `copyin`, so the
                     ! host assignment alone would leave the device copy uninitialized: each field is pushed over.
-                    do i = eqn_idx%xi%end + 1, eqn_idx%xi%end + 4 + 2*num_dims
-                        if (i == eqn_idx%xi%end + 1) then
+                    do i = eqn_idx%elastic_W, eqn_idx%Binvdiag%end
+                        if (i == eqn_idx%elastic_W) then
                             q_prim_vf(i)%sf = 0._wp  ! strain energy
-                        else if (i == eqn_idx%xi%end + 2 .or. i == eqn_idx%xi%end + 4) then
+                        else if (i == eqn_idx%trB .or. i == eqn_idx%trBinv) then
                             q_prim_vf(i)%sf = 3._wp  ! tr(B), tr(B^-1)
                         else
                             q_prim_vf(i)%sf = 1._wp  ! J, and B/B^-1's unit diagonals
@@ -1285,7 +1285,7 @@ contains
                     @:DEALLOCATE(q_prim_vf(i)%sf)
                 end do
                 if (hyperelasticity) then
-                    do i = eqn_idx%xi%end + 1, eqn_idx%xi%end + 4 + 2*num_dims
+                    do i = eqn_idx%elastic_W, eqn_idx%Binvdiag%end
                         @:DEALLOCATE(q_prim_vf(i)%sf)
                     end do
                 end if
