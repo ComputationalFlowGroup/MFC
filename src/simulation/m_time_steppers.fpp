@@ -56,6 +56,7 @@ module m_time_steppers
     integer, private                              :: num_probe_ts
     !> Max dt*(species loss rate) of the explicit reaction source over the run
     real(wp), private :: chem_stiff_max = 0._wp
+    logical, private  :: visc_cap_warned = .false.  !< The one-time notice that visc_dt_cap limits the step was printed
     logical, private  :: chem_stiff_warned = .false.
 
     $:GPU_DECLARE(create='[q_cons_ts, q_prim_vf, q_T_sf, rhs_vf, q_prim_ts1, q_prim_ts2, rhs_mv, rhs_pb, rk_coef, stor, bc_type]')
@@ -710,7 +711,7 @@ contains
             if (moving_immersed_boundary_flag) then
                 call s_wrap_periodic_ibs()  ! wraps the positions of IBs to the local proc
                 call s_handoff_ib_ownership()  ! recomputes which ranks own which IBs and communicate to neighbors
-            else if (ib_state_wrt) then
+            else if (ib_state_wrt .or. ib_force_wrt) then
                 call s_compute_ib_forces()
             end if
         end if
@@ -778,6 +779,7 @@ contains
         real(wp) :: Ca_inv_cell                      !< Cell-avg. inverse Cauchy number, for the elastic signal speed
         real(wp), dimension(3) :: c_dir              !< Per-direction advective signal speed (elastic where applicable)
         real(wp), dimension(2) :: Re                 !< Cell-avg. Reynolds numbers
+        real(wp) :: Dth                              !< Cell thermal diffusivity (s_compute_cell_diffusivity)
         real(wp), dimension(4) :: max_dt             !< Cell dt candidates (inviscid, viscous, capillary, thermal)
         real(wp) :: icfl_dt_local, vcfl_dt_local, ccfl_dt_local, tcfl_dt_local, coll_dt_local
         real(wp), dimension(6) :: dt_candidates_loc  !< Rank-local dt candidates (ICFL, VCFL, CCFL, TCFL, collision cap, WCOL)
@@ -806,8 +808,8 @@ contains
         #:for ON_AMR in [False, True]
             if (amr .eqv. ${'.true.' if ON_AMR else '.false.'}$) then
                 $:GPU_PARALLEL_LOOP(collapse=3, firstprivate=('[pw1, pw2, pw3]' if ON_AMR else None), private='[vel, alpha, &
-                                    & alpha_rho, Re, rho, vel_sum, pres, gamma, pi_inf, c, Ca_inv_cell, c_dir, qv, fl, max_dt, &
-                                    & is_fluid_cell, Ys, Re_chem, T_cell' + (', rf' if ON_AMR else '') + ']', &
+                                    & alpha_rho, Re, Dth, rho, vel_sum, pres, gamma, pi_inf, c, Ca_inv_cell, c_dir, qv, fl, &
+                                    & max_dt, is_fluid_cell, Ys, Re_chem, T_cell' + (', rf' if ON_AMR else '') + ']', &
                                     & reduction='[[icfl_dt_local, vcfl_dt_local, ccfl_dt_local, tcfl_dt_local], [bad_cell]]', &
                                     & reductionOp='[min, max]')
                 do l = 0, p
@@ -863,7 +865,8 @@ contains
                                 ! tangent modulus, and that stiffening differs per direction; c_dir reduces to c
                                 ! exactly when neither elastic model is active.
                                 call s_compute_elastic_signal_speeds(q_prim_vf, c, Ca_inv_cell, alpha, rho, j, k, l, c_dir)
-                                call s_compute_dt_from_cfl(vel, c, max_dt, rho, Re, alpha, alpha_rho, j, k, l, c_dir=c_dir)
+                                call s_compute_cell_diffusivity(alpha, alpha_rho, Dth)
+                                call s_compute_dt_from_cfl(vel, c, max_dt, rho, Re, alpha, alpha_rho, Dth, j, k, l, c_dir=c_dir)
                                 #:if ON_AMR
                                     rf = amr_cfl_rf(j, k, l)
                                     max_dt(1) = max_dt(1)/rf**pw1
@@ -918,6 +921,12 @@ contains
 
         dt = minval(dt_candidates_glb)
         dt_limiter = dt_limiter_names(minloc(dt_candidates_glb, dim=1))
+        if (dt_limiter == 'VCFL' .and. cfl_target > visc_dt_cap .and. .not. visc_cap_warned) then
+            visc_cap_warned = .true.
+            if (proc_rank == 0) print '(A,ES11.4,A,F5.2,A,I0,A,F5.2,A)', ' WARNING: viscous step limited to dt = ', dt, &
+                & ' (VCFL = ', visc_dt_cap, ', stability limit of ' // trim(visc_dt_stencil) // ' in ', num_dims, &
+                & 'D); cfl_target = ', cfl_target, ' exceeds it'
+        end if
 
         ! limit how much the time step can grow relative to the previous step
         if (ramp_ratio > 0._wp .and. dt_prev > 0._wp .and. ramp_ratio*dt_prev < dt) then
@@ -935,7 +944,6 @@ contains
 
         logical, intent(in), optional :: reach
         real(wp), dimension(6)        :: dt_cand
-        real(wp)                      :: cfl_save
         real(wp), allocatable         :: rf_save(:,:,:)
         logical                       :: all_fine
         character(len=256)            :: msg
@@ -948,11 +956,7 @@ contains
             rf_save = amr_cfl_rf; amr_cfl_rf = real(amr_ref_ratio**amr_max_level, wp)
             $:GPU_UPDATE(device='[amr_cfl_rf]')
         end if
-        cfl_save = cfl_target; cfl_target = 1._wp
-        $:GPU_UPDATE(device='[cfl_target]')
-        call s_compute_dt(dt_cand)
-        cfl_target = cfl_save
-        $:GPU_UPDATE(device='[cfl_target]')
+        call s_compute_dt_limits(dt_cand)
         if (all_fine) then
             amr_cfl_rf = rf_save
             $:GPU_UPDATE(device='[amr_cfl_rf]')
@@ -970,6 +974,43 @@ contains
         call s_mpi_abort(trim(msg))
 
     end subroutine s_amr_check_fixed_dt
+
+    !> The dt candidates of s_compute_dt at cfl_target = 1: the stability limits of the current state
+    impure subroutine s_compute_dt_limits(dt_cand)
+
+        real(wp), dimension(6), intent(out) :: dt_cand
+        real(wp)                            :: cfl_save
+
+        cfl_save = cfl_target; cfl_target = 1._wp
+        $:GPU_UPDATE(device='[cfl_target]')
+        call s_compute_dt(dt_cand)
+        cfl_target = cfl_save
+        $:GPU_UPDATE(device='[cfl_target]')
+
+    end subroutine s_compute_dt_limits
+
+    !> Fixed dt with viscosity: warn at start-up if dt exceeds the viscous stability limit (visc_dt_cap) of the stencil. The
+    !! chemistry temperature is the Newton guess of the next conversion, so it is restored and the run stays bitwise unchanged.
+    impure subroutine s_check_fixed_dt_viscous()
+
+        real(wp), dimension(6) :: dt_cand
+        real(stp), allocatable :: T_save(:,:,:)
+
+        if (cfl_dt .or. .not. viscous .or. relativity) return
+        if (chemistry) then
+            $:GPU_UPDATE(host='[q_T_sf%sf]')
+            T_save = q_T_sf%sf
+        end if
+        call s_compute_dt_limits(dt_cand)
+        if (chemistry) then
+            q_T_sf%sf = T_save
+            $:GPU_UPDATE(device='[q_T_sf%sf]')
+        end if
+        if (proc_rank == 0 .and. dt > dt_cand(2)) print '(A,ES11.4,A,F7.3,A,I0,A,ES11.4,A)', ' WARNING: dt = ', dt, ' is ', &
+            & dt/dt_cand(2), ' times the viscous stability limit of ' // trim(visc_dt_stencil) // ' in ', num_dims, &
+            & 'D (stable up to dt = ', dt_cand(2), '); the run may diverge. Reduce dt or set cfl_adap_dt.'
+
+    end subroutine s_check_fixed_dt_viscous
 
     !> Abort with the location of a fluid cell whose state admits no valid time step (NaN or non-positive inviscid dt).
     impure subroutine s_abort_on_bad_dt_cell(idx)

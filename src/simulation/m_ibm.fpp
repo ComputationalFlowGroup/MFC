@@ -119,8 +119,8 @@ module m_ibm
     type(integer_field), public :: ib_markers_fine
     $:GPU_DECLARE(create='[ib_markers_fine]')
 
-    !> 1 at ghost points whose image point reaches the fluid, 0 elsewhere. Ghost points with a buried image point average over these
-    !! neighbors, and never over each other.
+    !> 1 at ghost points whose image point reaches the fluid, 2 at those with a buried image point, 0 elsewhere. The latter average
+    !! over the former, and never over each other.
     type(integer_field) :: corrected_gps
     $:GPU_DECLARE(create='[corrected_gps]')
 
@@ -363,8 +363,8 @@ contains
         ! body must still take part in its allreduce.
         call s_mpi_allreduce_integer_sum(int(count(patch_ib(1:num_ibs)%thermal_bc == 3), 8), n_lumped)
         ib_exchange = n_lumped > 0 .or. ib_heat_wrt .or. ib_mass_relax > 0
-        ib_mass_only = ib_mass_relax > 0 .and. n_lumped == 0 .and. .not. (ib_heat_wrt .or. ib_state_wrt &
-            & .or. moving_immersed_boundary_flag .or. amr)
+        ib_mass_only = ib_mass_relax > 0 .and. n_lumped == 0 .and. .not. (ib_heat_wrt .or. ib_state_wrt .or. ib_force_wrt &
+            & .or. moving_immersed_boundary_flag .or. amr .or. hypo_nc_mode == hypo_nc_mode_dual_pass)
         record_surface = ib_surface_wrt .or. ib_exchange
         $:GPU_UPDATE(device='[record_surface]')
         if (record_surface) then
@@ -643,10 +643,10 @@ contains
         real(wp)               :: buf, buf_prim
         type(ghost_point)      :: gp
 
-        ! set the Moving IBM interior conservative variables. A solid cell that is a ghost keeps the value of the last correction
-        ! when the interpolation reads solid cells (ib_keep_ghost): resetting it to the body velocity, and without chemistry to a
-        ! pressure of 1 Pa, would feed those values into the image-point state. Inverse-distance weights drop solid cells, so they
-        ! never see it.
+        ! set the Moving IBM interior conservative variables. A solid cell that is a ghost, its image point buried or not, keeps the
+        ! value of the last correction when the interpolation reads solid cells (ib_keep_ghost): resetting it to the body velocity,
+        ! and without chemistry to a pressure of 1 Pa, would feed those values into the image-point state. Inverse-distance weights
+        ! drop solid cells, so they never see it.
         $:GPU_PARALLEL_LOOP(private='[i, j, k, patch_id, rho, patch_id_temp]', collapse=3)
         do l = 0, p
             do k = 0, n
@@ -1054,7 +1054,7 @@ contains
                     do jj = j - rad, j + rad
                         do kk = k - rad, k + rad
                             do ll = l - rad_z, l + rad_z
-                                num_nbrs = num_nbrs + corrected_gps%sf(jj, kk, ll)
+                                if (corrected_gps%sf(jj, kk, ll) == 1) num_nbrs = num_nbrs + 1
                             end do
                         end do
                     end do
@@ -2094,28 +2094,37 @@ contains
     end subroutine s_ib_bank_step
 
     !> ib_mass_relax: tag the fluid cells within ib_shell_width cells of each body (ib_shell) and add their gas mass to ib_part(3)
-    !! (summed into ib_heat(5) by s_update_ib_temperatures). A cell within reach of two bodies is assigned to the first one found.
+    !! (summed into ib_heat(5) by s_update_ib_temperatures). A cell within reach of two bodies goes to the nearer one.
     impure subroutine s_ib_shell_mass(q_cons_vf)
 
         type(scalar_field), dimension(sys_size), intent(in) :: q_cons_vf
-        real(wp)                                            :: rho, vol
-        integer                                             :: i, j, k, l, jj, kk, ll, wz, mk, ib_tmp, ib_id, g, xp, yp, zp, sh
+        real(wp) :: rho, vol
+        integer :: i, j, k, l, jj, kk, ll, wz, mk, ib_tmp, ib_id, g, xp, yp, zp, sh, c, d2, d2min
 
         wz = 0
         if (num_dims == 3) wz = ib_shell_width
         ! Shell membership from the markers, which carry the halo, so a cell next to another rank's body is found too
-        $:GPU_PARALLEL_LOOP(private='[i, j, k, l, jj, kk, ll, mk, ib_tmp, ib_id, g, xp, yp, zp, rho, vol, sh]', collapse=3, &
-                            & copyin='[wz]')
+        $:GPU_PARALLEL_LOOP(private='[i, j, k, l, jj, kk, ll, mk, ib_tmp, ib_id, g, xp, yp, zp, rho, vol, sh, c, d2, d2min]', &
+                            & collapse=3, copyin='[wz]')
         do l = 0, p
             do k = 0, n
                 do j = 0, m
                     g = 0
                     if (ib_markers%sf(j, k, l) == 0) then
+                        ! Nearest marker, ties to the smaller patch id (not the encoded marker, whose periodic offset is
+                        ! axis-ordered): independent of the scan order, so of orientation
                         mk = 0
+                        d2min = huge(d2min)
                         do ll = -wz, wz
                             do kk = -ib_shell_width, ib_shell_width
                                 do jj = -ib_shell_width, ib_shell_width
-                                    if (mk == 0) mk = ib_markers%sf(j + jj, k + kk, l + ll)
+                                    c = ib_markers%sf(j + jj, k + kk, l + ll)
+                                    d2 = jj*jj + kk*kk + ll*ll
+                                    if (c /= 0 .and. (d2 < d2min .or. (d2 == d2min .and. mod(c - 1, &
+                                        & num_gbl_ibs + 1) < mod(mk - 1, num_gbl_ibs + 1)))) then
+                                        mk = c
+                                        d2min = d2
+                                    end if
                                 end do
                             end do
                         end do
@@ -2859,7 +2868,7 @@ contains
                 ghost_points(q)%ip_stencil(kk) = merge(ic(kk) - 1, gp%ip_grid(kk), ib_ip_interp == 2)
             end do
             if (p == 0) ghost_points(q)%ip_stencil(3) = 0
-            if (ghost_points(q)%interp_valid) corrected_gps%sf(gp%loc(1), gp%loc(2), gp%loc(3)) = 1
+            corrected_gps%sf(gp%loc(1), gp%loc(2), gp%loc(3)) = merge(1, 2, ghost_points(q)%interp_valid)
         end do
         $:END_GPU_PARALLEL_LOOP()
 
@@ -3036,8 +3045,8 @@ contains
     !!
     !! (d = ghost_depth, s1 = probe1_dist, s2 = probe2_dist below.) L0 + L1 + L2 = 1 and at d = 0 they reduce to (1, 0, 0), so the
     !! wall value is exact on the wall. s1 = max(h, d) bounds the weights by (3, -3, 1) at any ghost depth. Tier 1 uses both probes;
-    !! tier 2 is the linear mirror where the outer probe has too little fluid around it (a narrow gap, a rim, a neighbouring body);
-    !! tier 3 leaves the default treatment.
+    !! tier 2 is the linear mirror where the outer probe has too little fluid around it (a narrow gap, a rim, a neighbouring body)
+    !! or lies beyond the halo (a ghost several cells deep); tier 3 leaves the default treatment.
     subroutine s_wall_fill(gp, wf)
 
         $:GPU_ROUTINE(parallelism='[seq]')
@@ -3049,6 +3058,11 @@ contains
         real(wp)                      :: probe1_dist, probe2_dist  !< Distances of the probes from the wall along wall_normal
         real(wp)                      :: probe1_fluid_frac, probe2_fluid_frac  !< Fraction of each probe's TSC weight on fluid cells
         real(wp)                      :: cell_vol
+        real(wp), dimension(3)        :: probe_loc  !< Named, not an expression argument (see the Silent-Failure Traps)
+        real(wp)                      :: reach  !< Largest probe offset from the ghost, in its cell widths, inside the halo
+        real(wp), dimension(3)        :: width  !< Cell widths at the ghost
+        logical                       :: in1, in2  !< Each probe's stencil lies inside the halo
+        integer                       :: d
 
         cell_vol = dx(gp%loc(1))*dy(gp%loc(2))
         if (p > 0) cell_vol = cell_vol*dz(gp%loc(3))
@@ -3061,15 +3075,28 @@ contains
         wall_loc(1) = x_cc(gp%loc(1)); wall_loc(2) = y_cc(gp%loc(2))
         if (p > 0) wall_loc(3) = z_cc(gp%loc(3))
         wall_loc = wall_loc + ghost_depth*wall_normal
-        call s_tsc_weights(ib_markers, wall_loc + probe1_dist*wall_normal, wf%ic1, wf%wd1, probe1_fluid_frac)
-        call s_tsc_weights(ib_markers, wall_loc + probe2_dist*wall_normal, wf%ic2, wf%wd2, probe2_fluid_frac)
+        probe_loc = wall_loc + probe1_dist*wall_normal
+        call s_tsc_weights(ib_markers, probe_loc, wf%ic1, wf%wd1, probe1_fluid_frac)
+        probe_loc = wall_loc + probe2_dist*wall_normal
+        call s_tsc_weights(ib_markers, probe_loc, wf%ic2, wf%wd2, probe2_fluid_frac)
+
+        ! A deep ghost's probe can lie beyond the halo, where its stencil is clamped and the fill would depend on the domain
+        ! decomposition. Decided from the ghost's own geometry, so every decomposition drops the same ghosts a tier.
+        reach = real(buff_size, wp) - 2.5_wp
+        width(1) = dx(gp%loc(1)); width(2) = dy(gp%loc(2)); width(3) = 1._wp
+        if (p > 0) width(3) = dz(gp%loc(3))
+        in1 = .true.; in2 = .true.
+        do d = 1, num_dims
+            in1 = in1 .and. abs((ghost_depth + probe1_dist)*wall_normal(d)) <= reach*width(d)
+            in2 = in2 .and. abs((ghost_depth + probe2_dist)*wall_normal(d)) <= reach*width(d)
+        end do
 
         wf%llin = [1._wp + ghost_depth/probe1_dist, -ghost_depth/probe1_dist]
         wf%lw = [wf%llin(1), wf%llin(2), 0._wp]
         wf%tier = 3
-        if (probe1_fluid_frac < FLUID_FRAC_MIN) return
+        if (probe1_fluid_frac < FLUID_FRAC_MIN .or. .not. in1) return
         wf%tier = 2
-        if (probe2_fluid_frac < FLUID_FRAC_MIN) return
+        if (probe2_fluid_frac < FLUID_FRAC_MIN .or. .not. in2) return
         wf%lw = [(ghost_depth + probe1_dist)*(ghost_depth + probe2_dist)/(probe1_dist*probe2_dist), &
                   & -ghost_depth*(ghost_depth + probe2_dist)/(probe1_dist*(probe2_dist - probe1_dist)), &
                   & ghost_depth*(ghost_depth + probe1_dist)/(probe2_dist*(probe2_dist - probe1_dist))]
@@ -3492,17 +3519,16 @@ contains
 
     end function f_ib_stage_weight
 
-    !> The mass part of s_accumulate_ib_face_fluxes alone: ib_mass_relax on fixed bodies with no forces, heat output, lumped body or
-    !! AMR. A kernel's launch cost grows with the arrays it names (about 0.5 ms on an MI300A for the general one), so this one names
-    !! only what the mass sum needs.
+    !> The mass part of s_accumulate_ib_face_fluxes alone: ib_mass_relax on fixed bodies with no forces, heat output, lumped body,
+    !! AMR or dual-pass HLLD. A kernel's launch cost grows with the arrays it names (about 0.5 ms on an MI300A for the general one),
+    !! so this one names only what the mass sum needs. It reads flux_rsx_vf itself: f_ib_face_mass, which NVHPC did not inline here,
+    !! returned the fluxes of the first RHS evaluation at every step on an A100 (#2414).
     subroutine s_accumulate_ib_mass(idir, stage)
 
         integer, intent(in) :: idir, stage
         real(wp)            :: w, area, f_m
         integer             :: i, j, k, l, jn, kn, ln, ci, cj, ck, side, ib_id, ib_tmp, xp, yp, zp, g, sh, j0, k0, l0
-        logical             :: hatR, dual_pass
 
-        dual_pass = hypo_nc_mode == hypo_nc_mode_dual_pass
         w = f_ib_stage_weight(stage)
         j0 = 0; k0 = 0; l0 = 0
         if (idir == 1) j0 = -1
@@ -3510,7 +3536,7 @@ contains
         if (idir == 3) l0 = -1
 
         $:GPU_PARALLEL_LOOP(collapse=3, private='[i, j, k, l, jn, kn, ln, ci, cj, ck, side, ib_id, ib_tmp, xp, yp, zp, g, sh, &
-                            & area, f_m, hatR]', firstprivate='[w, dual_pass]')
+                            & area, f_m]', firstprivate='[w]')
         do l = l0, p
             do k = k0, n
                 do j = j0, m
@@ -3529,7 +3555,6 @@ contains
                         side = 1
                     end if
                     if (side /= 0) then
-                        hatR = dual_pass .and. side == -1
                         ci = jn; cj = kn; ck = ln
                         if (side == -1) then
                             ci = j; cj = k; ck = l
@@ -3538,7 +3563,10 @@ contains
                         call s_get_neighborhood_idx(ib_tmp, ib_id)
                         if (ib_id > 0) then
                             area = f_ib_face_area(idir, j, k, l)
-                            f_m = f_ib_face_mass(hatR, j, k, l)
+                            f_m = 0._wp
+                            do i = eqn_idx%cont%beg, eqn_idx%cont%end
+                                f_m = f_m + flux_rsx_vf(j, k, l, i)
+                            end do
                             g = ib_id
                             sh = f_ib_shard(j, k, l)
                             $:GPU_ATOMIC(atomic='update')
@@ -3570,7 +3598,7 @@ contains
         integer :: j0, k0, l0, fj, fk, fl, ibm, jl, kl, ll, sd, bw, cov, nc, sh, c
         logical :: has_src, has_src_E, do_ft, all_ibs, dual_pass, hatR, fine, heat, covd
 
-        do_ft = moving_immersed_boundary_flag .or. ib_state_wrt
+        do_ft = moving_immersed_boundary_flag .or. ib_state_wrt .or. ib_force_wrt
         if (num_ibs == 0 .or. .not. (do_ft .or. ib_exchange)) return
         if (ib_mass_only) then
             call s_accumulate_ib_mass(idir, stage)
@@ -4788,7 +4816,7 @@ contains
     end subroutine s_ibm_reserve_park
 
     !> Rebuild corrected_gps from the ghost-point list now in ghost_points: s_compute_interpolation_coeffs only sets entries, so
-    !! clear the whole field and re-mark the valid ghost points on-device.
+    !! clear the whole field and re-mark the ghost points on-device.
     impure subroutine s_ibm_rebuild_corrected_gps(n_g)
 
         integer, intent(in) :: n_g
@@ -4805,9 +4833,8 @@ contains
 
         $:GPU_PARALLEL_LOOP(private='[a]', firstprivate='[n_g]')
         do a = 1, n_g
-            if (ghost_points(a)%interp_valid) then
-                corrected_gps%sf(ghost_points(a)%loc(1), ghost_points(a)%loc(2), ghost_points(a)%loc(3)) = 1
-            end if
+            corrected_gps%sf(ghost_points(a)%loc(1), ghost_points(a)%loc(2), ghost_points(a)%loc(3)) = merge(1, 2, &
+                             & ghost_points(a)%interp_valid)
         end do
         $:END_GPU_PARALLEL_LOOP()
 

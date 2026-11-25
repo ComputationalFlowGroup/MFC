@@ -36,7 +36,8 @@ AMR lives in `simulation` (`src/simulation/m_amr*.fpp`); post_process can overla
   whatever `amr_tag_abs`. Tags are clustered
   by Berger-Rigoutsos bisection into boxes that reach `amr_cluster_eff` tag efficiency, are at least `amr_blocking_factor` cells wide, are padded by `amr_buf`
   cells and are capped at `amr_max_grid_size` cells per dimension. Levels nest properly (a level-2 box lies inside one
-  level-1 box).
+  level-1 box); boxes that end on either side of a seam between two parent blocks with the same extents along it are
+  joined across the seam.
 - **Prolongation.** New blocks and fine ghost cells are filled from the parent level by conservative minmod-limited
   linear interpolation (`amr_prolong = 1`) or conservative quartic interpolation (`amr_prolong = 2`). The quartic fill
   falls back to limited linear in a cell whose children would leave the range of the neighbouring coarse averages (widened
@@ -76,7 +77,7 @@ owner and the ranks it overlaps. All exchanges are posted in a fixed order, so r
 
 On GPUs every block array is device-resident. A rank advances its blocks of equal level in batches stacked along the
 last dimension, one solver call per batch; this is why AMR needs a uniform Cartesian grid. The toolchain enables
-`amr_device_pack` (fused exchange kernels) when `amr_max_grid_size <= 64` and sets `amr_snap = min(2, amr_buf - 2)`
+`amr_device_pack` (fused exchange kernels) and sets `amr_snap = min(2, amr_buf - 2)`
 (regrid hysteresis) under dynamic regrid, unless they are set explicitly.
 
 `rank_time_wrt = T` prints a per-phase time budget of the AMR step, the block-balance report, and at the end of the run
@@ -121,7 +122,7 @@ Full descriptions: @ref case.
 | `amr_buf` | 3 | Padding around tagged cells, coarse cells (>= 1 with regrid) |
 | `amr_cluster_eff` | 0.7 | Minimum tag efficiency of a clustered box |
 | `amr_blocking_factor` | 4 | Minimum box width, coarse cells |
-| `amr_max_grid_size` | 0 | Maximum box width, coarse cells; 0 derives it from the decomposition |
+| `amr_max_grid_size` | 0 | Maximum box width, coarse cells; 0 derives it from the decomposition (and, on several ranks, tiles regrid boxes smaller, not below 32, until there are two per rank) |
 | `amr_max_blocks` | 1024 | Maximum number of blocks |
 | `amr_max_level` | 1 | Number of refined levels |
 | `amr_ref_ratio` | 2 | Refinement ratio, 2 or 4 (4: one level only) |
@@ -145,7 +146,8 @@ Full descriptions: @ref case.
 ```
 
 Complete cases: `examples/2D_amr_droplet` (a tracked interface), `examples/2D_amr_blast_multilevel` (two refined
-levels), `examples/2D_amr_ibm_cylinder` (an immersed body) and `examples/3D_amr_blast` (3D, subcycled).
+levels), `examples/2D_amr_ibm_cylinder` (an immersed body), `examples/3D_amr_blast` (3D, subcycled) and
+`examples/1D_amr_reactive_shocktube` (chemistry: the blocks follow a reacting front tagged on temperature).
 
 ## When AMR pays {#amr-payoff}
 
@@ -178,14 +180,19 @@ against a uniform 128^3, the blocks holding 54% of the fine cells) took 1.86 (lo
 ## Limitations {#amr-limitations}
 
 - **Block size.** A block spans at most about half a rank's subdomain per dimension unless `amr_max_grid_size` is set;
-  larger features are covered by several blocks.
+  larger features are covered by several blocks. On several ranks, regrid tiles the level-1 boxes smaller (not below 32
+  coarse cells) until there are at least two per rank, so a small refined region still spreads over the ranks.
 - **Restart.** `parallel_io` restarts work on any rank count when `amr_max_grid_size` is set; otherwise restart on no
   more ranks than wrote the checkpoint. The serial format needs the rank count that wrote it.
   The file header records `amr_ref_ratio`, `amr_max_level` and the storage precision, which must match (the level count may
   only grow); a missing fine-level file aborts the restart.
 - **Nesting.** A level-2 or deeper block lies inside one block of the level above; regrid builds each block's children
-  inside it, a few coarse cells from its edge. Where a feature crosses the seam between two parent blocks, a strip that
-  wide on each side of the seam stays at the parent's resolution. A larger `amr_max_grid_size` gives fewer seams.
+  inside it, a few coarse cells from its edge. Where a feature crosses the seam between two parent blocks, the children
+  on the two sides are joined across it when their extents along it are equal (a feature that crosses it squarely):
+  each is extended to the seam, or, where that would exceed its level's size cap, the gap is filled by a thin block of
+  its own. Otherwise a strip that wide on each side of the seam stays at the parent's resolution; so does every seam with
+  immersed boundaries, or with `amr_prolong = 2` on a scheme with fewer
+  than 4 ghost cells (WENO3 and below). A larger `amr_max_grid_size` gives fewer seams.
 - **Regrid.** When no cell is tagged, regrid replaces the hierarchy with one small dormant level-1 block (one coarse cell
   at the domain center, padded by `amr_buf`), since the solver needs at least one block. At every level, the part of a
   new block that an old block of the same level covered keeps the old data; the rest is prolonged from the parent.
