@@ -13,9 +13,18 @@ and only after a successful build, and an entry that is incomplete or damaged is
 a miss.
 """
 
+import os
 import shutil
 import subprocess
 from pathlib import Path
+
+import pytest
+
+# root holds the DAC-override capability, so it reads a file whatever its permission bits say.
+# A test that makes a file unreadable to provoke a read failure cannot provoke one as root, and
+# containers commonly run as root. Such a test is skipped rather than failed: it carries no signal
+# either way here, and CI runs unprivileged, where it still guards the behaviour.
+IS_ROOT = os.name == "posix" and os.geteuid() == 0
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -174,6 +183,10 @@ def test_a_damaged_entry_is_replaced_by_the_next_save(tmp_path):
     assert [p.name for p in cache.iterdir()] == [_entries(cache)[0].name], "leftovers in the cache folder"
 
 
+@pytest.mark.skipif(
+    IS_ROOT,
+    reason="root ignores permission bits, so chmod(0) leaves the file readable and the copy this test needs to fail succeeds",
+)
 def test_a_copy_that_fails_publishes_nothing(tmp_path):
     """An entry with a library missing would pass its own completeness check: the census is taken from what was copied."""
     cache = tmp_path / "cache"
