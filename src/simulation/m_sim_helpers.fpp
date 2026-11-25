@@ -104,7 +104,7 @@ contains
     end subroutine s_compute_visc_diffusivity
 
     !> Computes the mixture coefficients, velocity and pressure of one cell
-    subroutine s_compute_cell_state(q_prim_vf, pres, rho, gamma, pi_inf, Re, alpha, alpha_rho, vel, vel_sum, qv, j, k, l, Ca_inv_K)
+    subroutine s_compute_cell_state(q_prim_vf, pres, rho, gamma, pi_inf, Re, alpha, alpha_rho, vel, vel_sum, qv, j, k, l)
 
         $:GPU_ROUTINE(function_name='s_compute_cell_state',parallelism='[seq]', cray_inline=True)
 
@@ -120,70 +120,40 @@ contains
         real(wp), intent(out)                 :: qv
         integer, intent(in)                   :: j, k, l
         real(wp), dimension(2), intent(inout) :: Re
-        #:if not MFC_CASE_OPTIMIZATION and USING_AMD
-            real(wp), dimension(3) :: Ca_inv_graded_loc
-        #:else
-            real(wp), dimension(num_fluids) :: Ca_inv_graded_loc
-        #:endif
-        real(wp), dimension(2, Re_size_max) :: Res_graded_loc
-        !> Mixture inverse Cauchy number, for callers that need the elastic signal speed (see s_compute_elastic_signal_speeds).
-        !! Graded where the case grades it, so the automatic-CFL bound built from it is correct for a spatially varying modulus too.
-        real(wp), optional, intent(out) :: Ca_inv_K
-        real(wp)                        :: Ca_inv_local
-        real(wp)                        :: xi_x, xi_y, xi_z
-        integer                         :: i, j_re
+        real(wp), dimension(2, Re_size_max)   :: Res_graded_loc
+        real(wp)                              :: xi_x, xi_y, xi_z
+        integer                               :: i, j_re
 
         call s_compute_species_fraction(q_prim_vf, j, k, l, alpha_rho, alpha)
 
-        ! Graded material properties are evaluated at the reference map, so build this cell's overrides first -- the same
-        ! default-then-override loops m_hyperelastic.fpp and m_riemann_solver_hll.fpp use, so the dt bound this feeds sees
-        ! the same moduli and viscosities the fluxes do. Absent, the conversion kernel falls back to its own static tables.
-        if (graded) then
+        ! A graded viscosity is evaluated at the reference map, so build this cell's Re override first; absent, the kernel
+        ! falls back to its own static table. No elastic modulus is mixed here: master dropped that call because its
+        ! result was unused, and the one consumer that does need it, s_compute_elastic_signal_speeds, mixes it itself
+        ! from the alpha it already receives.
+        if (graded .and. viscous) then
             xi_x = q_prim_vf(eqn_idx%xi%beg)%sf(j, k, l)
             xi_y = 0._wp; xi_z = 0._wp
             if (num_dims >= 2) xi_y = q_prim_vf(eqn_idx%xi%beg + 1)%sf(j, k, l)
             if (num_dims == 3) xi_z = q_prim_vf(eqn_idx%xi%end)%sf(j, k, l)
 
             $:GPU_LOOP(parallelism='[seq]')
-            do i = 1, num_fluids
-                Ca_inv_graded_loc(i) = Ca_invs_rs(i)
-                if (Ca_inv_graded_flag(i)) call s_grade_Ca_inv(xi_x, xi_y, xi_z, i, Ca_inv_graded_loc(i))
+            do i = 1, 2
+                $:GPU_LOOP(parallelism='[seq]')
+                do j_re = 1, Re_size_max
+                    Res_graded_loc(i, j_re) = Res_gs(i, j_re)
+                end do
+                $:GPU_LOOP(parallelism='[seq]')
+                do j_re = 1, Re_size(i)
+                    if (Re_graded_flag(Re_idx(i, j_re))) then
+                        call s_grade_Re(xi_x, xi_y, xi_z, Re_idx(i, j_re), i, Res_graded_loc(i, j_re))
+                    end if
+                end do
             end do
 
-            if (viscous) then
-                $:GPU_LOOP(parallelism='[seq]')
-                do i = 1, 2
-                    $:GPU_LOOP(parallelism='[seq]')
-                    do j_re = 1, Re_size_max
-                        Res_graded_loc(i, j_re) = Res_gs(i, j_re)
-                    end do
-                    $:GPU_LOOP(parallelism='[seq]')
-                    do j_re = 1, Re_size(i)
-                        if (Re_graded_flag(Re_idx(i, j_re))) then
-                            call s_grade_Re(xi_x, xi_y, xi_z, Re_idx(i, j_re), i, Res_graded_loc(i, j_re))
-                        end if
-                    end do
-                end do
-            end if
-        end if
-
-        Ca_inv_local = 0._wp
-        if (hypoelasticity .or. hyperelasticity) then
-            if (graded .and. viscous) then
-                call s_convert_species_to_mixture_variables_kernel(rho, gamma, pi_inf, qv, alpha, alpha_rho, Re, Ca_inv_local, &
-                    & Ca_inv_graded_loc, Res_graded_loc)
-            else if (graded) then
-                call s_convert_species_to_mixture_variables_kernel(rho, gamma, pi_inf, qv, alpha, alpha_rho, Re, Ca_inv_local, &
-                    & Ca_inv_graded_loc)
-            else
-                call s_convert_species_to_mixture_variables_kernel(rho, gamma, pi_inf, qv, alpha, alpha_rho, Re, Ca_inv_local)
-            end if
-        else if (graded .and. viscous) then
             call s_convert_species_to_mixture_variables_kernel(rho, gamma, pi_inf, qv, alpha, alpha_rho, Re, Res=Res_graded_loc)
         else
             call s_convert_species_to_mixture_variables_kernel(rho, gamma, pi_inf, qv, alpha, alpha_rho, Re)
         end if
-        if (present(Ca_inv_K)) Ca_inv_K = Ca_inv_local
 
         if (igr) then
             $:GPU_LOOP(parallelism='[seq]')
@@ -216,7 +186,7 @@ contains
     !! direction gets its own speed: an isotropic worst case would be needlessly restrictive in some directions and wrong in others.
     !! Entries beyond num_dims are filled with c and never read. Reduces to c exactly when neither elastic model is active, so
     !! callers can pass the result unconditionally.
-    subroutine s_compute_elastic_signal_speeds(q_prim_vf, c, Ca_inv_K, alpha, rho, j, k, l, c_dir)
+    subroutine s_compute_elastic_signal_speeds(q_prim_vf, c, alpha, rho, j, k, l, c_dir)
 
         $:GPU_ROUTINE(function_name='s_compute_elastic_signal_speeds', parallelism='[seq]', cray_inline=True)
 
@@ -226,14 +196,38 @@ contains
         #:else
             real(wp), dimension(num_fluids), intent(in) :: alpha
         #:endif
-        real(wp), intent(in)                :: c, Ca_inv_K, rho
+        real(wp), intent(in)                :: c, rho
         integer, intent(in)                 :: j, k, l
         real(wp), dimension(3), intent(out) :: c_dir
-        real(wp)                            :: trB, trBinv, J_det, Ca_inv_2_K
+        real(wp)                            :: trB, trBinv, J_det, Ca_inv_K, Ca_inv_2_K, Ca_inv_d
+        real(wp)                            :: xi_x, xi_y, xi_z
         integer                             :: d, diag_idx
 
         c_dir = c
         if (.not. (hypoelasticity .or. hyperelasticity)) return
+
+        ! The mixture moduli are mixed here rather than threaded through s_compute_cell_state: master dropped that
+        ! routine's modulus call because its result was unused there, and this is the only consumer that needs one. The
+        ! alpha weighting matches the conversion kernel's own, clamp included, and Ca_inv_2 was already done this way.
+        ! A graded modulus is evaluated at the reference map, as m_hyperelastic.fpp and m_riemann_solver_hll.fpp do, so
+        ! the dt bound sees the same moduli the fluxes do.
+        xi_x = 0._wp; xi_y = 0._wp; xi_z = 0._wp
+        if (graded) then
+            xi_x = q_prim_vf(eqn_idx%xi%beg)%sf(j, k, l)
+            if (num_dims >= 2) xi_y = q_prim_vf(eqn_idx%xi%beg + 1)%sf(j, k, l)
+            if (num_dims == 3) xi_z = q_prim_vf(eqn_idx%xi%end)%sf(j, k, l)
+        end if
+
+        Ca_inv_K = 0._wp
+        $:GPU_LOOP(parallelism='[seq]')
+        do d = 1, num_fluids
+            Ca_inv_d = Ca_invs_rs(d)
+            if (graded) then
+                if (Ca_inv_graded_flag(d)) call s_grade_Ca_inv(xi_x, xi_y, xi_z, d, Ca_inv_d)
+            end if
+            Ca_inv_K = Ca_inv_K + alpha(d)*Ca_inv_d
+        end do
+        Ca_inv_K = max(0._wp, Ca_inv_K)
 
         if (hypoelasticity) then
             ! The transported stress is already the right linearization point for a rate law: tau_nn for the
@@ -249,6 +243,7 @@ contains
             J_det = q_prim_vf(eqn_idx%Jdet)%sf(j, k, l)
             trBinv = q_prim_vf(eqn_idx%trBinv)%sf(j, k, l)
             Ca_inv_2_K = 0._wp
+            $:GPU_LOOP(parallelism='[seq]')
             do d = 1, num_fluids
                 Ca_inv_2_K = Ca_inv_2_K + alpha(d)*Ca_inv_2s_rs(d)
             end do
