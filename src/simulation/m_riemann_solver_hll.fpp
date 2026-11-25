@@ -91,16 +91,20 @@ contains
             real(wp)                             :: ptilde_L, ptilde_R
             real(wp)                             :: vel_L_rms, vel_R_rms, vel_avg_rms
             real(wp)                             :: Ms_L, Ms_R, pres_SL, pres_SR
-            real(wp)                             :: alpha_L_sum, alpha_R_sum
-            real(wp)                             :: pcorr       !< low Mach number correction
-            type(riemann_states)                 :: c_fast, pres_mag
-            type(riemann_states_vec3)            :: B
-            type(riemann_states)                 :: Ga          !< Gamma (Lorentz factor)
-            type(riemann_states)                 :: vdotB, B2
-            type(riemann_states_vec3)            :: b4          !< 4-magnetic field components (spatial: b4x, b4y, b4z)
-            type(riemann_states_vec3)            :: cm          !< Conservative momentum variables
-            integer                              :: i, j, k, l  !< Generic loop iterators
-            integer                              :: j_re        !< Generic loop iterator over a Res channel's fluids
+            !> Longitudinal signal speed per side: the acoustic c stiffened by the elastic tangent modulus where an elastic model is
+            !! active, c itself otherwise. Shared by both wave-speed estimates, so the pressure-based one cannot silently drop the
+            !! elastic term.
+            real(wp)                  :: a_L, a_R
+            real(wp)                  :: alpha_L_sum, alpha_R_sum
+            real(wp)                  :: pcorr       !< low Mach number correction
+            type(riemann_states)      :: c_fast, pres_mag
+            type(riemann_states_vec3) :: B
+            type(riemann_states)      :: Ga          !< Gamma (Lorentz factor)
+            type(riemann_states)      :: vdotB, B2
+            type(riemann_states_vec3) :: b4          !< 4-magnetic field components (spatial: b4x, b4y, b4z)
+            type(riemann_states_vec3) :: cm          !< Conservative momentum variables
+            integer                   :: i, j, k, l  !< Generic loop iterators
+            integer                   :: j_re        !< Generic loop iterator over a Res channel's fluids
             ! Populating the buffers of the left and right Riemann problem states variables, based on the choice of boundary
             ! conditions
 
@@ -120,16 +124,16 @@ contains
                     $:GPU_PARALLEL_LOOP(collapse=3, privateArrays='[alpha_rho_L, alpha_rho_R, vel_L, vel_R, alpha_L, alpha_R, &
                                         & tau_e_L, tau_e_R, xi_field_L, xi_field_R, Re_L, Re_R, Res_graded_L, Res_graded_R, &
                                         & Ca_inv_rs_graded_L, Ca_inv_rs_graded_R, Ys_L, Ys_R, R_species, h_iL, h_iR, Cp_iL, &
-                                        & Cp_iR, Xs_L, Xs_R, Gamma_iL, Gamma_iR]', private='[i, j, k, l, j_re, s_L, s_R, s_M, &
-                                        & s_P, s_S, xi_M, xi_P, c_fast, pres_mag, B, Ga, vdotB, B2, b4, cm, pcorr, rho_L, rho_R, &
-                                        & pres_L, pres_R, E_L, E_R, H_L, H_R, c_sum_Yi_Phi, T_L, T_R, Y_L, Y_R, MW_L, MW_R, &
-                                        & R_gas_L, R_gas_R, Cp_L, Cp_R, Cv_L, Cv_R, Gamm_L, Gamm_R, gamma_L, gamma_R, pi_inf_L, &
-                                        & pi_inf_R, qv_L, qv_R, qv_avg, c_L, c_R, Ca_inv_L, Ca_inv_R, Ca_inv_2_L, Ca_inv_2_R, &
-                                        & trB_L, trB_R, J_L, J_R, trBinv_L, trBinv_R, B_nn_L, B_nn_R, Binv_nn_L, Binv_nn_R, &
-                                        & damage_L, damage_R, solid_partial_density_L, solid_partial_density_R, rho_avg, H_avg, &
-                                        & c_avg, gamma_avg, ptilde_L, ptilde_R, vel_L_rms, vel_R_rms, vel_avg_rms, Ms_L, Ms_R, &
-                                        & pres_SL, pres_SR, alpha_L_sum, alpha_R_sum, flux_tau_L, flux_tau_R, vel_interface]', &
-                                        & copyin='[norm_dir]', firstprivate='[need_nc_vel]')
+                                        & Cp_iR, Xs_L, Xs_R, Gamma_iL, Gamma_iR]', private='[i, j, k, l, j_re, a_L, a_R, s_L, &
+                                        & s_R, s_M, s_P, s_S, xi_M, xi_P, c_fast, pres_mag, B, Ga, vdotB, B2, b4, cm, pcorr, &
+                                        & rho_L, rho_R, pres_L, pres_R, E_L, E_R, H_L, H_R, c_sum_Yi_Phi, T_L, T_R, Y_L, Y_R, &
+                                        & MW_L, MW_R, R_gas_L, R_gas_R, Cp_L, Cp_R, Cv_L, Cv_R, Gamm_L, Gamm_R, gamma_L, gamma_R, &
+                                        & pi_inf_L, pi_inf_R, qv_L, qv_R, qv_avg, c_L, c_R, Ca_inv_L, Ca_inv_R, Ca_inv_2_L, &
+                                        & Ca_inv_2_R, trB_L, trB_R, J_L, J_R, trBinv_L, trBinv_R, B_nn_L, B_nn_R, Binv_nn_L, &
+                                        & Binv_nn_R, damage_L, damage_R, solid_partial_density_L, solid_partial_density_R, &
+                                        & rho_avg, H_avg, c_avg, gamma_avg, ptilde_L, ptilde_R, vel_L_rms, vel_R_rms, &
+                                        & vel_avg_rms, Ms_L, Ms_R, pres_SL, pres_SR, alpha_L_sum, alpha_R_sum, flux_tau_L, &
+                                        & flux_tau_R, vel_interface]', copyin='[norm_dir]', firstprivate='[need_nc_vel]')
                     do l = ${Z_BND}$%beg, ${Z_BND}$%end
                         do k = ${Y_BND}$%beg, ${Y_BND}$%end
                             do j = ${X_BND}$%beg, ${X_BND}$%end
@@ -454,36 +458,33 @@ contains
                                     end do
                                 end if
 
+                                ! Longitudinal signal speed per side. Built once and used by both estimates below: the
+                                ! pressure-based one used to take the bare acoustic c, which omits the elastic term and
+                                ! under-estimates the fastest characteristic of an elastic material.
+                                if (hypoelasticity) then
+                                    ! Elastic wave speed, Rodriguez et al. JCP (2019)
+                                    a_L = f_elastic_signal_speed(c_L, Ca_inv_L, tau_e_L(dir_idx_tau(1)), rho_L)
+                                    a_R = f_elastic_signal_speed(c_R, Ca_inv_R, tau_e_R(dir_idx_tau(1)), rho_R)
+                                else if (hyperelasticity) then
+                                    ! Hyperelastic wave speed from the acoustic tensor (see misc/hyperelastic_acoustic_tensor.py)
+                                    a_L = f_hyperelastic_signal_speed(c_L, Ca_inv_L, Ca_inv_2_L, trB_L, B_nn_L, trBinv_L, &
+                                                                      & Binv_nn_L, J_L, rho_L)
+                                    a_R = f_hyperelastic_signal_speed(c_R, Ca_inv_R, Ca_inv_2_R, trB_R, B_nn_R, trBinv_R, &
+                                                                      & Binv_nn_R, J_R, rho_R)
+                                else
+                                    a_L = c_L
+                                    a_R = c_R
+                                end if
+
                                 ! Wave speed estimates (wave_speeds=1: direct, wave_speeds=2: pressure-based)
                                 if (wave_speeds == wave_speeds_direct) then
                                     if (mhd) then
                                         ! MHD: use fast magnetosonic speed
                                         s_L = min(vel_L(dir_idx(1)) - c_fast%L, vel_R(dir_idx(1)) - c_fast%R)
                                         s_R = max(vel_R(dir_idx(1)) + c_fast%R, vel_L(dir_idx(1)) + c_fast%L)
-                                    else if (hypoelasticity) then
-                                        ! Elastic wave speed, Rodriguez et al. JCP (2019)
-                                        s_L = min(vel_L(dir_idx(1)) - f_elastic_signal_speed(c_L, Ca_inv_L, &
-                                                  & tau_e_L(dir_idx_tau(1)), rho_L), &
-                                                  & vel_R(dir_idx(1)) - f_elastic_signal_speed(c_R, Ca_inv_R, &
-                                                  & tau_e_R(dir_idx_tau(1)), rho_R))
-                                        s_R = max(vel_R(dir_idx(1)) + f_elastic_signal_speed(c_R, Ca_inv_R, &
-                                                  & tau_e_R(dir_idx_tau(1)), rho_R), &
-                                                  & vel_L(dir_idx(1)) + f_elastic_signal_speed(c_L, Ca_inv_L, &
-                                                  & tau_e_L(dir_idx_tau(1)), rho_L))
-                                    else if (hyperelasticity) then
-                                        ! Hyperelastic wave speed from the acoustic tensor (see
-                                        ! misc/hyperelastic_acoustic_tensor.py)
-                                        s_L = min(vel_L(dir_idx(1)) - f_hyperelastic_signal_speed(c_L, Ca_inv_L, Ca_inv_2_L, &
-                                                  & trB_L, B_nn_L, trBinv_L, Binv_nn_L, J_L, rho_L), &
-                                                  & vel_R(dir_idx(1)) - f_hyperelastic_signal_speed(c_R, Ca_inv_R, Ca_inv_2_R, &
-                                                  & trB_R, B_nn_R, trBinv_R, Binv_nn_R, J_R, rho_R))
-                                        s_R = max(vel_R(dir_idx(1)) + f_hyperelastic_signal_speed(c_R, Ca_inv_R, Ca_inv_2_R, &
-                                                  & trB_R, B_nn_R, trBinv_R, Binv_nn_R, J_R, rho_R), &
-                                                  & vel_L(dir_idx(1)) + f_hyperelastic_signal_speed(c_L, Ca_inv_L, Ca_inv_2_L, &
-                                                  & trB_L, B_nn_L, trBinv_L, Binv_nn_L, J_L, rho_L))
                                     else
-                                        s_L = min(vel_L(dir_idx(1)) - c_L, vel_R(dir_idx(1)) - c_R)
-                                        s_R = max(vel_R(dir_idx(1)) + c_R, vel_L(dir_idx(1)) + c_L)
+                                        s_L = min(vel_L(dir_idx(1)) - a_L, vel_R(dir_idx(1)) - a_R)
+                                        s_R = max(vel_R(dir_idx(1)) + a_R, vel_L(dir_idx(1)) + a_L)
                                     end if
 
                                     if (hyper_cleaning) then
@@ -510,8 +511,8 @@ contains
                                                & /f_isentrope_exponent(gamma_R)*(pres_SR - pres_R)/(pres_R &
                                                & + f_isentrope_pressure(pi_inf_R, gamma_R))))
 
-                                    s_L = vel_L(dir_idx(1)) - c_L*Ms_L
-                                    s_R = vel_R(dir_idx(1)) + c_R*Ms_R
+                                    s_L = vel_L(dir_idx(1)) - a_L*Ms_L
+                                    s_R = vel_R(dir_idx(1)) + a_R*Ms_R
 
                                     s_S = 5.e-1_wp*((vel_L(dir_idx(1)) + vel_R(dir_idx(1))) + (pres_L - pres_R)/(rho_avg*c_avg))
                                 end if

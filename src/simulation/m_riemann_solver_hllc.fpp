@@ -136,6 +136,9 @@ contains
             real(wp) :: u_n_L, u_n_R, u_t_L, u_t_R
             real(wp) :: u_t2_L, u_t2_R
             real(wp) :: tau_nn_L, tau_nn_R, tau_nt_L, tau_nt_R, tau_tt_L, tau_tt_R
+            !> Longitudinal signal speed per side: the acoustic c stiffened by the elastic tangent modulus. Built once and used by
+            !! both wave-speed estimates, so the pressure-based one cannot drop the elastic term.
+            real(wp) :: a_L, a_R
             real(wp) :: tau_nt2_L, tau_nt2_R, tau_t2t2_L, tau_t2t2_R, tau_t1t2_L, tau_t1t2_R
             real(wp) :: tau_qq_L, tau_qq_R
             real(wp) :: p_face, tau_qq_face
@@ -884,7 +887,7 @@ contains
                                 & 'alpha_lim_L', 'alpha_lim_R']
                             #:set _hllc_a2 = ['Ys_L', 'Ys_R', 'Xs_L', 'Xs_R', 'Gamma_iL', 'Gamma_iR', 'Cp_iL', 'Cp_iR', 'R_species', &
                                 & 'h_iL', 'h_iR']
-                            #:set _hllc_e1 = ['ptilde_L', 'ptilde_R', 'Ca_inv_L', 'Ca_inv_R', 'Ca_inv_2_L', 'Ca_inv_2_R', &
+                            #:set _hllc_e1 = ['a_L', 'a_R', 'ptilde_L', 'ptilde_R', 'Ca_inv_L', 'Ca_inv_R', 'Ca_inv_2_L', 'Ca_inv_2_R', &
                                 & 'trB_L', 'trB_R', 'J_L', 'J_R', 'trBinv_L', 'trBinv_R', 'B_nn_L', 'B_nn_R', 'Binv_nn_L', &
                                 & 'Binv_nn_R', 'damage_L', 'damage_R', 'solid_partial_density_L', 'solid_partial_density_R']
                             #:set _hllc_ea = ['tau_e_L', 'tau_e_R', 'U_L', 'U_R', 'F_L', 'F_R', 'F_star_L', 'F_star_R', 'F_HLLC', &
@@ -1164,29 +1167,25 @@ contains
                                                                            & vel_R(dir_idx(1)))
                                         end if
 
+                                        #:if HYPO
+                                            ! Longitudinal signal speed per side, shared by both estimates below
+                                            if (hyperelasticity) then
+                                                ! Finite-strain acoustic-tensor speed (misc/hyperelastic_acoustic_tensor.py)
+                                                a_L = f_hyperelastic_signal_speed(c_L, Ca_inv_L, Ca_inv_2_L, trB_L, B_nn_L, &
+                                                                                  & trBinv_L, Binv_nn_L, J_L, rho_L)
+                                                a_R = f_hyperelastic_signal_speed(c_R, Ca_inv_R, Ca_inv_2_R, trB_R, B_nn_R, &
+                                                                                  & trBinv_R, Binv_nn_R, J_R, rho_R)
+                                            else
+                                                ! Elastic wave speed, Rodriguez et al. JCP (2019)
+                                                a_L = f_elastic_signal_speed(c_L, Ca_inv_L, tau_e_L(dir_idx_tau(1)), rho_L)
+                                                a_R = f_elastic_signal_speed(c_R, Ca_inv_R, tau_e_R(dir_idx_tau(1)), rho_R)
+                                            end if
+                                        #:endif
+
                                         if (wave_speeds == wave_speeds_direct) then
                                             #:if HYPO
-                                                if (hyperelasticity) then
-                                                    ! Finite-strain acoustic-tensor speed (misc/hyperelastic_acoustic_tensor.py)
-                                                    s_L = min(vel_L(dir_idx(1)) - f_hyperelastic_signal_speed(c_L, Ca_inv_L, &
-                                                              & Ca_inv_2_L, trB_L, B_nn_L, trBinv_L, Binv_nn_L, J_L, rho_L), &
-                                                              & vel_R(dir_idx(1)) - f_hyperelastic_signal_speed(c_R, Ca_inv_R, &
-                                                              & Ca_inv_2_R, trB_R, B_nn_R, trBinv_R, Binv_nn_R, J_R, rho_R))
-                                                    s_R = max(vel_R(dir_idx(1)) + f_hyperelastic_signal_speed(c_R, Ca_inv_R, &
-                                                              & Ca_inv_2_R, trB_R, B_nn_R, trBinv_R, Binv_nn_R, J_R, rho_R), &
-                                                              & vel_L(dir_idx(1)) + f_hyperelastic_signal_speed(c_L, Ca_inv_L, &
-                                                              & Ca_inv_2_L, trB_L, B_nn_L, trBinv_L, Binv_nn_L, J_L, rho_L))
-                                                else
-                                                    ! Elastic wave speed, Rodriguez et al. JCP (2019)
-                                                    s_L = min(vel_L(dir_idx(1)) - f_elastic_signal_speed(c_L, Ca_inv_L, &
-                                                              & tau_e_L(dir_idx_tau(1)), rho_L), &
-                                                              & vel_R(dir_idx(1)) - f_elastic_signal_speed(c_R, Ca_inv_R, &
-                                                              & tau_e_R(dir_idx_tau(1)), rho_R))
-                                                    s_R = max(vel_R(dir_idx(1)) + f_elastic_signal_speed(c_R, Ca_inv_R, &
-                                                              & tau_e_R(dir_idx_tau(1)), rho_R), &
-                                                              & vel_L(dir_idx(1)) + f_elastic_signal_speed(c_L, Ca_inv_L, &
-                                                              & tau_e_L(dir_idx_tau(1)), rho_L))
-                                                end if
+                                                s_L = min(vel_L(dir_idx(1)) - a_L, vel_R(dir_idx(1)) - a_R)
+                                                s_R = max(vel_R(dir_idx(1)) + a_R, vel_L(dir_idx(1)) + a_L)
                                                 ! Contact speed: the same two-wave normal-momentum relation for either
                                                 ! model, since it substitutes pres_tot = pres - tau_nn and nothing about
                                                 ! how tau_nn was constituted enters it (verified in
@@ -1203,8 +1202,21 @@ contains
                                                        & - vel_L(dir_idx(1))) - rho_R*(s_R - vel_R(dir_idx(1))))
                                             #:endif
                                         else if (wave_speeds == wave_speeds_pressure) then
-                                            pres_SL = 5.e-1_wp*(pres_L + pres_R + rho_avg*c_avg*(vel_L(dir_idx(1)) &
-                                                                & - vel_R(dir_idx(1))))
+                                            #:if HYPO
+                                                ! The PVRS star pressure and contact estimate below are built on the
+                                                ! longitudinal impedance and on the pressure that the normal-momentum
+                                                ! relation actually balances. For an elastic material those are
+                                                ! rho*a rather than rho*c, and pres_tot = pres - tau_nn rather than pres
+                                                ! -- the same substitution the direct branch's contact relation makes
+                                                ! (misc/hllc_hypoelastic_contact_wave.py, part 1). Left on the acoustic
+                                                ! c and the bare pressure, the two wave_speeds options would disagree on
+                                                ! the contact for the same state, and HLLC divides by s_L - s_S.
+                                                pres_SL = 5.e-1_wp*(pres_tot_L + pres_tot_R + rho_avg*5.e-1_wp*(a_L + a_R) &
+                                                                    & *(vel_L(dir_idx(1)) - vel_R(dir_idx(1))))
+                                            #:else
+                                                pres_SL = 5.e-1_wp*(pres_L + pres_R + rho_avg*c_avg*(vel_L(dir_idx(1)) &
+                                                                    & - vel_R(dir_idx(1))))
+                                            #:endif
 
                                             pres_SR = pres_SL
 
@@ -1218,11 +1230,19 @@ contains
                                                        & /f_isentrope_exponent(gamma_R)*(pres_SR - pres_R)/(pres_R &
                                                        & + f_isentrope_pressure(pi_inf_R, gamma_R))))
 
-                                            s_L = vel_L(dir_idx(1)) - c_L*Ms_L
-                                            s_R = vel_R(dir_idx(1)) + c_R*Ms_R
+                                            #:if HYPO
+                                                s_L = vel_L(dir_idx(1)) - a_L*Ms_L
+                                                s_R = vel_R(dir_idx(1)) + a_R*Ms_R
 
-                                            s_S = 5.e-1_wp*((vel_L(dir_idx(1)) + vel_R(dir_idx(1))) + (pres_L - pres_R) &
-                                                            & /(rho_avg*c_avg))
+                                                s_S = 5.e-1_wp*((vel_L(dir_idx(1)) + vel_R(dir_idx(1))) + (pres_tot_L &
+                                                                & - pres_tot_R)/(rho_avg*5.e-1_wp*(a_L + a_R)))
+                                            #:else
+                                                s_L = vel_L(dir_idx(1)) - c_L*Ms_L
+                                                s_R = vel_R(dir_idx(1)) + c_R*Ms_R
+
+                                                s_S = 5.e-1_wp*((vel_L(dir_idx(1)) + vel_R(dir_idx(1))) + (pres_L - pres_R) &
+                                                                & /(rho_avg*c_avg))
+                                            #:endif
                                         end if
 
                                         ! follows Einfeldt et al. s_M/P = min/max(0.,s_L/R)

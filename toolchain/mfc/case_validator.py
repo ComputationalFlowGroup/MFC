@@ -898,11 +898,9 @@ class CaseValidator:
             "riemann_hypo_ADC does not support bubbles, surface tension, chemistry, or continuum damage (the ADC HLL blend omits their flux components)",
         )
         fd_order = self.get("fd_order")
-        wave_speeds = self.get("wave_speeds")
         low_Mach = self.get("low_Mach", 0)
         ADC_kappa = self.get("ADC_kappa")
         self.prohibit(fd_order is None, "hypoelasticity requires fd_order to be set (1, 2, or 4); the finite-difference coefficients are initialized unconditionally")
-        self.prohibit(wave_speeds == 2, "Pressure-based wave speeds (wave_speeds = 2) omit the elastic longitudinal speed and are not supported with hypoelasticity")
         self.prohibit(riemann_hypo_ADC and low_Mach > 0, "riemann_hypo_ADC does not support low_Mach (the ADC HLL reference flux uses pre-correction velocities)")
         self.prohibit(riemann_hypo_ADC and ADC_kappa is not None and ADC_kappa <= 0, "ADC_kappa must be positive")
 
@@ -966,8 +964,6 @@ class CaseValidator:
             "hyperelasticity is not compatible with cyl_coord = T (m_hyperelastic.fpp's deformation-gradient stencil is "
             "Cartesian only and does not fill the extra cylindrical hoop-stress slot hypoelasticity carries)",
         )
-        wave_speeds = self.get("wave_speeds")
-        self.prohibit(wave_speeds == 2, "Pressure-based wave speeds (wave_speeds = 2) omit the hyperelastic acoustic-tensor correction and are not supported with hyperelasticity")
 
         num_fluids = self.get("num_fluids")
         if num_fluids is not None:
