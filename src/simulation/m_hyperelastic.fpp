@@ -140,7 +140,14 @@ contains
         do l = -hyper_wz, p + hyper_wz
             do k = -hyper_wy, n + hyper_wy
                 do j = -hyper_wx, m + hyper_wx
-                    call s_compute_species_fraction(q_cons_vf, j, k, l, alpha_rho_k, alpha_k)
+                    ! Species fractions come from the PRIMITIVE array, not the conserved one, because this loop now
+                    ! runs into the ghost shells. m_rhs.fpp fills the conserved buffers only under igr, and its
+                    ! conversion range cv_int widens into the buffer only where bc >= 0 -- at a physical boundary the
+                    ! conserved ghosts are deliberately not read, the primitive ones being filled from the boundary
+                    ! conditions instead. alpha and alpha_rho are the same variables in both arrays for
+                    ! model_eqns = 2 (m_rhs.fpp even aliases them by pointer), so this reads identical values in the
+                    ! interior and valid ones in the ghosts.
+                    call s_compute_species_fraction(q_prim_vf, j, k, l, alpha_rho_k, alpha_k)
 
                     xi_x = q_prim_vf(eqn_idx%xi%beg)%sf(j, k, l)
                     xi_y = 0._wp; xi_z = 0._wp
