@@ -21,6 +21,7 @@ module m_amr
     use m_mpi_proxy, only: s_mpi_abort
     use m_mpi_common, only: s_mpi_allreduce_integer_min, s_mpi_allreduce_integer_max
     use m_ibm, only: s_ibm_alloc_fine
+    use m_hyperelastic, only: s_hyperelastic_seed_stash
     use m_phase_timing, only: s_mem_note, s_mem_note_fields, MEM_STORE, MEM_SCRATCH, MEM_PATCH
     use m_amr_state
     use m_amr_distribution
@@ -63,6 +64,14 @@ contains
         call s_amr_init_extents()
         call s_amr_init_report()
         call s_amr_scr_init()
+        ! The advance scratch carries the hyperelastic stash too, and s_amr_scr_init only allocates it. The stress
+        ! update writes the frame interior only, so a fine block's ghost ring would otherwise be reconstructed from
+        ! uninitialised memory on the first advance, with the wave speed dividing by the stashed J. eqn_idx is final
+        ! by here (global parameters initialise well before this module).
+        if (hyperelasticity) then
+            call s_hyperelastic_seed_stash(amr_scr_prim)
+            if (ib .or. synthetic_turbulence) call s_hyperelastic_seed_stash(amr_scr_prim_blk)
+        end if
         call s_amr_init_swap_buffers()
         call s_amr_build_global_cb(0)  ! the fine-distribution owner rebuilds whole-block fine coordinates from these
         call s_amr_init_coarse_patch()
