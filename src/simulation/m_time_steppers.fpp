@@ -203,6 +203,23 @@ contains
 #endif
         !> @endcond
 
+        ! The hyperelastic stash is a primitive-only field group that nevertheless lives inside sys_size (see
+        ! m_global_parameters_common.fpp), so the conserved array carries slots at those indices that nothing ever
+        ! writes or reads: every prim-to-cons copy is bounded by a named range, and no consumer reads
+        ! q_cons_vf(eqn_idx%elastic_W) or its neighbours. Each `do i = 1, sys_size` loop still touches them though,
+        ! the RK update at the head of s_tvd_rk among them, so they are zeroed once here to keep that arithmetic
+        ! defined rather than operating on whatever the allocation left. rhs_vf is already zeroed over the same range
+        ! every RHS call, so the update stays 0 + dt*0. @:ALLOCATE maps with `create`, not `copyin`, so the device
+        ! copy is pushed over too.
+        if (hyperelasticity) then
+            do i = 1, num_ts
+                do j = eqn_idx%elastic_W, eqn_idx%Binvdiag%end
+                    q_cons_ts(i)%vf(j)%sf = 0._wp
+                    $:GPU_UPDATE(device='[q_cons_ts(i)%vf(j)%sf]')
+                end do
+            end do
+        end if
+
         ! Allocating the cell-average primitive ts variables
         if (probe_wrt) then
             @:ALLOCATE(q_prim_ts1(1:num_probe_ts))
