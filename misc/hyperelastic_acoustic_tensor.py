@@ -620,8 +620,115 @@ def mooney_rivlin_implementation_check():
     print("same formula with zero off-diagonal terms and (3-1)=2 frozen directions.")
 
 
+
+def transverse_mode():
+    """The general-B TRANSVERSE (shear) eigenvalue of the Mooney-Rivlin acoustic tensor.
+
+    mooney_rivlin() above derives A(n) and checks its transverse eigenvalue at B = I against
+    the classical small-strain shear modulus mu = 2*(C1 + C2). HLLD needs the general-B form:
+    its inner waves are shear waves whose impedance is sqrt(rho*Ca_inv_eff), and for a
+    hypoelastic material Ca_inv_eff = Ca_inv_hat + tau_nn_hat -- the shear modulus stiffened
+    by the normal stress. A finite-strain law has no transported stress to read that off, so
+    the shear modulus has to come from the acoustic tensor, exactly as the longitudinal speed
+    does.
+
+    For a shear wave the polarization is perpendicular to the propagation direction, so the
+    quantity wanted is t.A(n).t with t.n = 0 (and |t| = |n| = 1). Fitting that against the
+    frame invariants MFC already stashes gives, to machine precision:
+
+        rho*c_T**2 = (2/(3*J)) * [ C1*tr(B) + C2*(3*(Binv_nn + Binv_tt) - tr(Binv)) ]
+
+    Two things are worth noting about this result:
+
+      * The C1 (neo-Hookean) part depends only on tr(B): the shear speed of a neo-Hookean
+        solid is ISOTROPIC even at finite strain, independent of both n and t. Only the
+        Mooney-Rivlin C2 term is direction dependent.
+      * Every term is already carried per interface. tr(B) and tr(Binv) are stashed scalars,
+        and Binv_nn / Binv_tt are the direction-aligned diagonals of Binv -- which MFC stores
+        per coordinate direction, and the Riemann solve is dimensionally split, so n and t are
+        always coordinate axes. No new stashed field is needed.
+
+    At B = I, J = 1 this collapses to 2*(C1 + C2) = mu, the same classical identity
+    mooney_rivlin() checks, which is the consistency check for the whole expression.
+    """
+    import random
+
+    C1, C2, J = sp.symbols("C1 C2 J", positive=True)
+    B = sp.Matrix(3, 3, lambda i, j: sp.Symbol(f"B{min(i, j) + 1}{max(i, j) + 1}"))
+    L = sp.Matrix(3, 3, lambda i, j: sp.Symbol(f"L{i + 1}{j + 1}"))
+    I3 = sp.eye(3)
+
+    print("\n" + "#" * 78)
+    print("# Transverse (shear) mode: the HLLD inner-wave impedance")
+    print("#" * 78)
+
+    Binv = B.inv()
+    dev = lambda M: M - sp.trace(M) / 3 * I3
+    tau = (2 * C1 * dev(B) - 2 * C2 * dev(Binv)) / J
+    Bdot = L * B + B * L.T
+    Binvdot = -Binv * Bdot * Binv
+    tau_dot = ((2 * C1 * dev(Bdot) - 2 * C2 * dev(Binvdot)) / J) - tau * sp.trace(L)
+    tau_truesdell = tau_dot - L * tau - tau * L.T + sp.trace(L) * tau
+
+    d_of_L = sp.Rational(1, 2) * (L + L.T)
+    tau_of_d = tau_truesdell.subs({L[i, j]: d_of_L[i, j] for i in range(3) for j in range(3)}, simultaneous=True)
+
+    u1, u2, u3, n1, n2, n3 = sp.symbols("u1 u2 u3 n1 n2 n3")
+    u_vec = sp.Matrix([u1, u2, u3])
+    n_vec = sp.Matrix([n1, n2, n3])
+    d_plane = sp.Rational(1, 2) * (u_vec * n_vec.T + n_vec * u_vec.T)
+    tau_plane = tau_of_d.subs({L[i, j]: d_plane[i, j] for i in range(3) for j in range(3)}, simultaneous=True)
+    A_of_n = (tau_plane * n_vec).jacobian(u_vec)
+
+    print("\nA(n) built (same construction as mooney_rivlin(), step 4).")
+
+    # The claimed closed form, as a function of the invariants.
+    def closed_form(trB, trBinv, Binv_nn, Binv_tt, Jv):
+        return (2 * (C1 * trB + C2 * (3 * (Binv_nn + Binv_tt) - trBinv))) / (3 * Jv)
+
+    # Numeric verification over random SPD B and random orthonormal (n, t). Exact rationals
+    # throughout, so "equal" means equal, not equal to a tolerance. simplify() cannot exploit
+    # n.n = 1 and t.n = 0 symbolically, which is why this is done numerically -- the same
+    # reason the general-B longitudinal check above is numeric.
+    rng = random.Random(20250601)
+    for trial in range(6):
+        M = sp.Matrix(3, 3, lambda i, j: sp.Rational(rng.randint(-50, 50), 50))
+        Bm = (M * M.T) + sp.Rational(3, 2) * I3  # symmetric positive definite
+        Jv = sp.sqrt(Bm.det())
+        nv = sp.Matrix([sp.Rational(rng.randint(-9, 9), 10) for _ in range(3)])
+        if nv.norm() == 0:
+            continue
+        nv = nv / nv.norm()
+        seed_t = sp.Matrix([1, 0, 0]) if abs(float(nv[0])) < sp.Rational(9, 10) else sp.Matrix([0, 1, 0])
+        tv = seed_t - (seed_t.T * nv)[0] * nv
+        tv = tv / tv.norm()
+        assert sp.simplify((nv.T * tv)[0]) == 0, "t is not perpendicular to n"
+
+        sub = {B[i, j]: Bm[i, j] for i in range(3) for j in range(3)}
+        sub.update({J: Jv, n1: nv[0], n2: nv[1], n3: nv[2]})
+        lhs = sp.expand((tv.T * A_of_n.subs(sub) * tv)[0])
+
+        Bi = Bm.inv()
+        rhs = closed_form(sp.trace(Bm), sp.trace(Bi), (nv.T * Bi * nv)[0], (tv.T * Bi * tv)[0], Jv)
+        assert sp.simplify(sp.expand(lhs - rhs)) == 0, f"transverse closed form failed on trial {trial}"
+    print("Confirmed on 6 random (B, n, t): t.A(n).t equals")
+    print("    rho*c_T**2 = (2/(3*J)) * [ C1*tr(B) + C2*(3*(Binv_nn + Binv_tt) - tr(Binv)) ]")
+    print("exactly, in rational arithmetic.")
+
+    # Undeformed limit: the classical shear modulus.
+    mu_claim = sp.simplify(closed_form(3, 3, 1, 1, 1))
+    assert sp.simplify(mu_claim - 2 * (C1 + C2)) == 0
+    print(f"\nAt B = I, J = 1: {mu_claim} = 2*(C1 + C2) = mu, the classical small-strain shear modulus.")
+
+    # The neo-Hookean part carries no direction dependence at all.
+    c1_part = sp.simplify(closed_form(sp.Symbol("trB"), 0, 0, 0, sp.Symbol("Jd")).coeff(C1))
+    print(f"C1 part: {c1_part} -- a function of tr(B) and J only, so the neo-Hookean shear")
+    print("speed is isotropic even at finite strain. Only the C2 term depends on n and t.")
+
+
 if __name__ == "__main__":
     main()
     mooney_rivlin()
     plane_strain_reduction()
     mooney_rivlin_implementation_check()
+    transverse_mode()
