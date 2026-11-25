@@ -314,6 +314,9 @@ contains
 
         call s_compute_inv_dx2_sum(j, k, l, inv_dx2)
 
+        ! Inactive criteria stay defined: the AMR scaling multiplies all of them
+        vcfl = 0._wp; Rc = huge(1._wp); ccfl = 0._wp
+
         a = c
         if (present(c_dir)) a = c_dir
 
@@ -359,7 +362,6 @@ contains
 
         ! Capillary CFL calculation
         if (surface_tension) then
-            ccfl = 0._wp
             call s_compute_capillary_rho(alpha, alpha_rho, rho_c)
             if (rho_c > 0._wp) then
                 if (p > 0) then
