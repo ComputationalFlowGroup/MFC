@@ -35,6 +35,15 @@ module m_hyperelastic
     real(wp), allocatable, dimension(:) :: Ca_inv_2s_hyper  !< Mooney-Rivlin's second material constant (C2), per fluid
     $:GPU_DECLARE(create='[Ca_inv_2s_hyper]')
 
+    !> Ghost layers the stress update extends into, per direction. The constitutive update is cell-local but its reference-map
+    !! gradient reads xi at j +/- fd_number, and it writes btensor at j, so how far past the interior it can run is bounded by two
+    !! things: fd_coeff_*_hyper is dimensioned from -fd_number (see the allocation below), and the xi it reads must stay inside
+    !! buff_size. Hence min(fd_number, buff_size - fd_number), and zero in an inactive direction. Covering those layers matters
+    !! because the frame interior alone leaves the ghost ring holding an uncorrected pressure -- too high by W/gamma -- and an
+    !! unwritten stash, which the reconstruction then reads.
+    integer :: hyper_wx = 0, hyper_wy = 0, hyper_wz = 0
+    $:GPU_DECLARE(create='[hyper_wx, hyper_wy, hyper_wz]')
+
 contains
 
     !> Initialize the hyperelastic module
@@ -45,9 +54,14 @@ contains
         ! Sized to m_alloc/n_alloc/p_alloc (the largest AMR fine-block batch extent, not the coarse grid's own m/n/p): the
         ! AMR fine advance swaps m/n/p to a block's (or batch's) own values and reuses this same module-level workspace.
 
+        hyper_wx = max(0, min(fd_number, buff_size - fd_number))
+        hyper_wy = 0; if (n > 0) hyper_wy = hyper_wx
+        hyper_wz = 0; if (p > 0) hyper_wz = hyper_wx
+        $:GPU_UPDATE(device='[hyper_wx, hyper_wy, hyper_wz]')
+
         @:ALLOCATE(btensor%vf(1:b_size))
         do i = 1, b_size
-            @:ALLOCATE(btensor%vf(i)%sf(0:m_alloc, 0:n_alloc, 0:p_alloc))
+            @:ALLOCATE(btensor%vf(i)%sf(-hyper_wx:m_alloc + hyper_wx, -hyper_wy:n_alloc + hyper_wy, -hyper_wz:p_alloc + hyper_wz))
         end do
         @:ACC_SETUP_VFs(btensor)
 
@@ -123,9 +137,9 @@ contains
 
         $:GPU_PARALLEL_LOOP(collapse=3, private='[i, j, k, l, r, alpha_K, alpha_rho_K, Ca_inv_graded_loc, rho, gamma, pi_inf, qv, &
                             & Ca_inv_local, Ca_inv_2_local, tensora, tensorb, xi_x, xi_y, xi_z]')
-        do l = 0, p
-            do k = 0, n
-                do j = 0, m
+        do l = -hyper_wz, p + hyper_wz
+            do k = -hyper_wy, n + hyper_wy
+                do j = -hyper_wx, m + hyper_wx
                     call s_compute_species_fraction(q_cons_vf, j, k, l, alpha_rho_k, alpha_k)
 
                     xi_x = q_prim_vf(eqn_idx%xi%beg)%sf(j, k, l)
