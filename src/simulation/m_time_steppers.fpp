@@ -17,6 +17,7 @@ module m_time_steppers
     use m_reactive_burn, only: s_reactive_burn_substep
     use m_pressure_relaxation
     use m_hypoelastic, only: s_enforce_cont_damage_bounds
+    use m_hyperelastic, only: s_hyperelastic_seed_stash, s_hyperelastic_refresh_stash
     use m_data_output
     use m_bubbles_EE
     use m_bubbles_EL
@@ -287,23 +288,9 @@ contains
                                    & idwbuff(3)%beg:idwbuff(3)%end))
                         @:ACC_SETUP_SFs(q_prim_vf(i))
                     end do
-                    ! Seed the whole stash, buffer region included, with the undeformed reference state B = I (see
-                    ! s_hyperelastic_rmt_stress_update, which writes the same defaults per interior cell every RHS
-                    ! call). These slots are primitive-only: no conservative counterpart initializes them, and the
-                    ! primitive BC buffers are populated BEFORE the first stress update runs, so without this the
-                    ! first step reconstructs ghost-cell interfaces from uninitialized memory -- and the wave speed
-                    ! divides by the stashed J. @:ALLOCATE maps device memory with `create`, not `copyin`, so the
-                    ! host assignment alone would leave the device copy uninitialized: each field is pushed over.
-                    do i = eqn_idx%elastic_W, eqn_idx%Binvdiag%end
-                        if (i == eqn_idx%elastic_W) then
-                            q_prim_vf(i)%sf = 0._wp  ! strain energy
-                        else if (i == eqn_idx%trB .or. i == eqn_idx%trBinv) then
-                            q_prim_vf(i)%sf = 3._wp  ! tr(B), tr(B^-1)
-                        else
-                            q_prim_vf(i)%sf = 1._wp  ! J, and B/B^-1's unit diagonals
-                        end if
-                        $:GPU_UPDATE(device='[q_prim_vf(i)%sf]')
-                    end do
+                    ! The stash slots carry no conservative counterpart, so nothing else initialises them; see
+                    ! s_hyperelastic_seed_stash for why an unseeded buffer region is read on the first step.
+                    call s_hyperelastic_seed_stash(q_prim_vf)
                 end if
             end if
 
@@ -793,7 +780,18 @@ contains
         integer :: fl                                !< Fluid loop iterator
 
         if (.not. igr) then
-            call s_convert_conservative_to_primitive_variables(q_cons_ts(1)%vf, q_T_sf, q_prim_vf, idwint)
+            if (hyperelasticity) then
+                ! The elastic dt bound below reads the stash through s_compute_elastic_signal_speeds, and no conversion
+                ! writes it -- those slots have no conservative counterpart. Converting alone would leave the stash at
+                ! whatever it last held, which for a run without probes, IB, Lagrange particles, synthetic turbulence
+                ! or run_time_info is the allocation-time reference state B = I for the entire run: the bound would
+                ! then never see the deformation it exists to bound. Refreshing rebuilds it from this state.
+                ! Hypoelasticity needs no equivalent: its stress is a transported variable the conversion does write.
+                call s_hyperelastic_refresh_stash(q_cons_ts(1)%vf, q_prim_vf, q_T_sf, bc_type, idwint, .false., pb_ts(1)%sf, &
+                                                  & mv_ts(1)%sf)
+            else
+                call s_convert_conservative_to_primitive_variables(q_cons_ts(1)%vf, q_T_sf, q_prim_vf, idwint)
+            end if
         end if
 
         dt_prev = dt

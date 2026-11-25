@@ -222,6 +222,13 @@ contains
             $:GPU_ENTER_DATA(attach='[q_prim_qp%vf(eqn_idx%psi)%sf]')
         end if
 
+        ! The stash slots of q_prim_qp carry no conservative counterpart, so no conversion writes them, and
+        ! s_hyperelastic_rmt_stress_update writes the frame interior only. Without a seed the first RHS call fills this
+        ! array's ghost ring from uninitialised interior values and the reconstruction then reads it, with the wave
+        ! speed dividing by the stashed J. The time stepper's own q_prim_vf is seeded where it is allocated; this is
+        ! the array the stress update, the buffer fill and the reconstruction actually use.
+        if (hyperelasticity) call s_hyperelastic_seed_stash(q_prim_qp%vf)
+
         if (.not. igr) call s_initialize_cons_copy()
 
         if (hypo_nc_mode == hypo_nc_mode_dual_pass) then

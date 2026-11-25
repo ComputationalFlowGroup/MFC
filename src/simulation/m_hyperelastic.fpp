@@ -19,7 +19,7 @@ module m_hyperelastic
     implicit none
 
     private; public :: s_hyperelastic_rmt_stress_update, s_initialize_hyperelastic_module, s_finalize_hyperelastic_module, &
-        & s_hyperelastic_update_fd_coeffs, s_hyperelastic_refresh_stash
+        & s_hyperelastic_update_fd_coeffs, s_hyperelastic_refresh_stash, s_hyperelastic_seed_stash
 
     ! The left Cauchy-Green tensor at cell centers. Computed once per RHS call and reused for both the Cauchy stress and
     ! the elastic strain energy, so it is kept at module scope rather than recomputed.
@@ -340,6 +340,31 @@ contains
         call s_hyperelastic_rmt_stress_update(q_cons_vf, q_prim_vf)
 
     end subroutine s_hyperelastic_refresh_stash
+
+    !> Seed the stash over a primitive array's whole extent, buffer region included, with the undeformed reference state B = I.
+    !! These slots are primitive-only: no conservative counterpart initialises them, and s_hyperelastic_rmt_stress_update writes
+    !! only the frame interior (j = 0..m, k = 0..n, l = 0..p), so without a seed the first step reconstructs ghost-cell interfaces
+    !! from uninitialised memory -- and the wave speed divides by the stashed J. @:ALLOCATE maps device memory with `create`, not
+    !! `copyin`, so the host assignment alone would leave the device copy uninitialised: each field is pushed over. The same
+    !! defaults s_hyperelastic_rmt_stress_update writes per interior cell every RHS call, kept in one place because every primitive
+    !! array that carries the stash needs them -- the time-stepper's q_prim_vf and the AMR advance scratch.
+    impure subroutine s_hyperelastic_seed_stash(q_prim_vf)
+
+        type(scalar_field), dimension(sys_size), intent(inout) :: q_prim_vf
+        integer                                                :: i
+
+        do i = eqn_idx%elastic_W, eqn_idx%Binvdiag%end
+            if (i == eqn_idx%elastic_W) then
+                q_prim_vf(i)%sf = 0._wp  ! strain energy
+            else if (i == eqn_idx%trB .or. i == eqn_idx%trBinv) then
+                q_prim_vf(i)%sf = 3._wp  ! tr(B), tr(B^-1)
+            else
+                q_prim_vf(i)%sf = 1._wp  ! J, and B/B^-1's unit diagonals
+            end if
+            $:GPU_UPDATE(device='[q_prim_vf(i)%sf]')
+        end do
+
+    end subroutine s_hyperelastic_seed_stash
 
     !> Trace of B (the full 3D invariant I1, with (3 - num_dims) added for the directions frozen at identity stretch -- see
     !! misc/hyperelastic_acoustic_tensor.py's plane_strain_reduction() for the derivation) and the in-place deviatoric projection
