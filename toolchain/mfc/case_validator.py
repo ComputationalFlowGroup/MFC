@@ -1079,21 +1079,30 @@ class CaseValidator:
             num_fluids is None or num_fluids < 2,
             "phase change requires num_fluids >= 2 (liquid = 1, vapor = 2)",
         )
-        # relax_model 7 is the latent-heat reservoir method. Its advective flux is carried by HLL and HLLC only,
-        # which is where cont_damage -- the other single advected conserved scalar, and the template the reservoir
-        # follows -- is supported too. HLLD and LF carry no entry for either, so a run there would leave the
-        # reservoir unadvected rather than fail.
+        # relax_model 7 is the latent-heat reservoir method. Its field (eqn_idx%lambda) and its advective flux in
+        # HLL and HLLC are in place, but nothing fills the reservoir: the method itself is not ported. Rejected until
+        # it is, so a case cannot select a phase-change model that silently performs no phase change.
+        self.prohibit(
+            relax_model == 7,
+            "relax_model = 7 (latent-heat reservoir) is not usable yet: the reservoir field is carried and advected, "
+            "but the method that fills it is not implemented, so no phase change would occur",
+        )
+        # The two constraints below are the ones that will apply once it lands, kept here so the record is right.
+        # The method redistributes energy between the phases through their individual internal energies, which only
+        # the 6-equation model carries -- the stale branch's own implementation writes that range -- so it needs
+        # model_eqns = 3. The solver restriction matches cont_damage's: HLLD and LF carry no advective flux entry for
+        # a single conserved scalar of this kind, so the reservoir would go untransported there rather than fail.
+        self.prohibit(
+            relax_model == 7 and model_eqns != 3,
+            "relax_model = 7 (latent-heat reservoir) requires model_eqns = 3: it redistributes energy through the " "per-phase internal energies, which the 5-equation model does not carry",
+        )
         self.prohibit(
             relax_model == 7 and self.get("riemann_solver") not in (None, 1, 2),
             "relax_model = 7 (latent-heat reservoir) requires the HLL (1) or HLLC (2) Riemann solver: the others " "carry no advective flux for the reservoir, so it would not be transported",
         )
         self.prohibit(
-            relax_model == 7 and model_eqns != 2,
-            "relax_model = 7 (latent-heat reservoir) requires model_eqns = 2",
-        )
-        self.prohibit(
-            (model_eqns not in (2, 3) or (model_eqns == 2 and relax_model not in (5, 6, 7)) or (model_eqns == 3 and relax_model not in (1, 4, 5, 6))),
-            "phase change requires model_eqns==2 with relax_model in [5,6,7] or model_eqns==3 with relax_model in [1,4,5,6]",
+            (model_eqns not in (2, 3) or (model_eqns == 2 and relax_model not in (5, 6)) or (model_eqns == 3 and relax_model not in (1, 4, 5, 6, 7))),
+            "phase change requires model_eqns==2 with relax_model in [5,6] or model_eqns==3 with relax_model in [1,4,5,6,7]",
         )
         self.prohibit(palpha_eps is not None and palpha_eps <= 0, "palpha_eps must be positive")
         self.prohibit(palpha_eps is not None and palpha_eps >= 1, "palpha_eps must be less than 1")

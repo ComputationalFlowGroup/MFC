@@ -836,6 +836,15 @@ contains
                                                 flux_gsrc_rsx_vf(${SF('')}$, i) = 0._wp
                                             end if
                                         end do
+
+                                        ! The reservoir advects conservatively, so its geometric source is the
+                                        ! advective flux. Kept out of the hypoelasticity block below, where damage's
+                                        ! equivalent lives: damage requires hypoelasticity and the reservoir does not,
+                                        ! so sharing that guard would leave the reservoir's geometric source unset for
+                                        ! an axisymmetric case without an elastic model.
+                                        if (eqn_idx%lambda > 0) then
+                                            flux_gsrc_rsx_vf(${SF('')}$, eqn_idx%lambda) = flux_rsx_vf(${SF('')}$, eqn_idx%lambda)
+                                        end if
                                     end if
 
                                     if (cyl_coord .and. hypoelasticity) then
@@ -851,11 +860,6 @@ contains
                                         ! Damage advects conservatively, so its geometric source is the advective flux
                                         if (cont_damage) then
                                             flux_gsrc_rsx_vf(${SF('')}$, eqn_idx%damage) = flux_rsx_vf(${SF('')}$, eqn_idx%damage)
-                                        end if
-
-                                        ! The reservoir advects conservatively too, so likewise
-                                        if (eqn_idx%lambda > 0) then
-                                            flux_gsrc_rsx_vf(${SF('')}$, eqn_idx%lambda) = flux_rsx_vf(${SF('')}$, eqn_idx%lambda)
                                         end if
                                     end if
                                 #:endif
