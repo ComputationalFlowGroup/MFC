@@ -1078,9 +1078,20 @@ class CaseValidator:
             num_fluids is None or num_fluids < 2,
             "phase change requires num_fluids >= 2 (liquid = 1, vapor = 2)",
         )
+        # relax_model 7 is the latent-heat reservoir method. Its conserved field and conversion exist, but its
+        # advective flux is not in the Riemann solvers yet, so a run would transport nothing and the reservoir would
+        # sit still in a moving fluid. Rejected until that lands, rather than left to produce a quiet wrong answer.
         self.prohibit(
-            (model_eqns not in (2, 3) or (model_eqns == 2 and relax_model not in (5, 6)) or (model_eqns == 3 and relax_model not in (1, 4, 5, 6))),
-            "phase change requires model_eqns==2 with relax_model in [5,6] or model_eqns==3 with relax_model in [1,4,5,6]",
+            relax_model == 7,
+            "relax_model = 7 (latent-heat reservoir) is not usable yet: the reservoir field and its conversion are in " "place but its advective flux is not, so it would not be transported",
+        )
+        self.prohibit(
+            relax_model == 7 and model_eqns != 2,
+            "relax_model = 7 (latent-heat reservoir) requires model_eqns = 2",
+        )
+        self.prohibit(
+            (model_eqns not in (2, 3) or (model_eqns == 2 and relax_model not in (5, 6, 7)) or (model_eqns == 3 and relax_model not in (1, 4, 5, 6))),
+            "phase change requires model_eqns==2 with relax_model in [5,6,7] or model_eqns==3 with relax_model in [1,4,5,6]",
         )
         self.prohibit(palpha_eps is not None and palpha_eps <= 0, "palpha_eps must be positive")
         self.prohibit(palpha_eps is not None and palpha_eps >= 1, "palpha_eps must be less than 1")

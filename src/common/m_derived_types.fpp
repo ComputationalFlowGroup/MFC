@@ -164,7 +164,11 @@ module m_derived_types
         integer               :: pi_inf         !< Liquid stiffness function (model_eqns=1)
         integer               :: c              !< Color function equation
         integer               :: damage         !< Damage variable equation
-        integer               :: psi            !< Psi variable equation
+        !> Latent-heat reservoir equation. Carries the energy a cell has stored above its saturation internal energy, as the density
+        !! alpha_l*rho_l*Lambda so that it advects like a partial density; Lambda itself (energy per unit mass of the reacting
+        !! liquid) is the primitive form. Inactive (0) unless relax_model selects the reservoir method.
+        integer :: lambda = 0
+        integer :: psi  !< Psi variable equation
     end type eqn_idx_info
 
     !> Indices of the projected Lagrangian particle fields (q_particles); vector ranges span num_dims

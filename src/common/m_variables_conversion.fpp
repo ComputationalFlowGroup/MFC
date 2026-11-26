@@ -743,6 +743,17 @@ contains
                                    & l)/max(solid_partial_density, verysmall), 0._wp), 1._wp)
                     end if
 
+                    if (eqn_idx%lambda > 0) then
+                        ! The reservoir is carried as the density alpha_l*rho_l*Lambda; its primitive form is the
+                        ! specific energy Lambda. The reacting liquid is fluid 1 (lp in m_phase_change.fpp), and its
+                        ! partial density is what the conserved form is scaled by. Guarded like the damage division
+                        ! above: a cell with no liquid carries no reservoir, and Lambda is then meaningless rather
+                        ! than large, so it reads back as zero. Clamped below at zero because the reservoir only ever
+                        ! accumulates energy ABOVE saturation -- a negative value is not a physical state.
+                        qK_prim_vf(eqn_idx%lambda)%sf(j, k, l) = max(0._wp, qK_cons_vf(eqn_idx%lambda)%sf(j, k, &
+                                   & l)/max(qK_cons_vf(eqn_idx%cont%beg)%sf(j, k, l), verysmall))
+                    end if
+
                     if (rmt) then
                         ! Reference map, conservative form \rho \xi (Kamrin et al. JFM 2022)
                         $:GPU_LOOP(parallelism='[seq]')
@@ -1090,6 +1101,13 @@ contains
                             end if
                         end do
                         q_cons_vf(eqn_idx%damage)%sf(j, k, l) = solid_partial_density*q_prim_vf(eqn_idx%damage)%sf(j, k, l)
+                    end if
+
+                    if (eqn_idx%lambda > 0) then
+                        ! Exact inverse of the cons-to-prim division above, so a round trip is the identity wherever
+                        ! the liquid partial density exceeds the guard.
+                        q_cons_vf(eqn_idx%lambda)%sf(j, k, l) = q_prim_vf(eqn_idx%cont%beg)%sf(j, k, &
+                                  & l)*q_prim_vf(eqn_idx%lambda)%sf(j, k, l)
                     end if
 
                     if (hyper_cleaning) q_cons_vf(eqn_idx%psi)%sf(j, k, l) = q_prim_vf(eqn_idx%psi)%sf(j, k, l)

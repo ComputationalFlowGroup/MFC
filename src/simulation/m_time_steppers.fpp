@@ -317,6 +317,12 @@ contains
                 @:ACC_SETUP_SFs(q_prim_vf(eqn_idx%damage))
             end if
 
+            if (eqn_idx%lambda > 0) then
+                @:ALLOCATE(q_prim_vf(eqn_idx%lambda)%sf(idwbuff(1)%beg:idwbuff(1)%end, idwbuff(2)%beg:idwbuff(2)%end, &
+                           & idwbuff(3)%beg:idwbuff(3)%end))
+                @:ACC_SETUP_SFs(q_prim_vf(eqn_idx%lambda))
+            end if
+
             if (hyper_cleaning) then
                 @:ALLOCATE(q_prim_vf(eqn_idx%psi)%sf(idwbuff(1)%beg:idwbuff(1)%end, idwbuff(2)%beg:idwbuff(2)%end, &
                            & idwbuff(3)%beg:idwbuff(3)%end))
@@ -1359,6 +1365,10 @@ contains
 
             if (cont_damage) then
                 @:DEALLOCATE(q_prim_vf(eqn_idx%damage)%sf)
+            end if
+
+            if (eqn_idx%lambda > 0) then
+                @:DEALLOCATE(q_prim_vf(eqn_idx%lambda)%sf)
             end if
 
             if (hyper_cleaning) then

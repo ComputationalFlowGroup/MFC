@@ -162,6 +162,11 @@ module m_constants
     integer, parameter :: num_synth_shells_max = 50  !< Max energy shells for synthetic turbulence
     integer, parameter :: num_turb_sources_max = 10  !< Max Gaussian forcing zones for synthetic turbulence
 
+    !> Latent-heat reservoir phase change. relax_model carries no "names" entry in toolchain/mfc/params/definitions.py, so it
+    !! generates no named constants below and this one is written out here. The pT/pTg equilibrium models keep their bare literals
+    !! in m_phase_change.fpp.
+    integer, parameter :: relax_model_reservoir = 7
+
     ! Named values for enumerated case parameters (e.g. riemann_solver_hllc).
     ! AUTO-GENERATED from "names" in toolchain/mfc/params/definitions.py.
     #:include 'generated_constants.fpp'

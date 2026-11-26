@@ -15,6 +15,7 @@ module m_global_parameters_common
 
     use m_derived_types
     use m_thermochem, only: num_species
+    use m_constants, only: relax_model_reservoir
     use m_constants, only: num_fluids_max, model_eqns_gamma_law, model_eqns_5eq, model_eqns_6eq, recon_type_weno, &
         & recon_type_muscl, name_len, dflt_int, dflt_real, eos_stiffened_gas, eos_ideal_gas
 
@@ -304,6 +305,14 @@ contains
             if (hyper_cleaning) then
                 eqn_idx%psi = sys_size + 1
                 sys_size = eqn_idx%psi
+            end if
+
+            if (relax .and. relax_model == relax_model_reservoir) then
+                ! The latent-heat reservoir, carried as the density alpha_l*rho_l*Lambda so that it advects like a
+                ! partial density. Lambda, the energy stored per unit mass of the reacting liquid above its
+                ! saturation internal energy, is the primitive form.
+                eqn_idx%lambda = sys_size + 1
+                sys_size = eqn_idx%lambda
             end if
         end if
 
