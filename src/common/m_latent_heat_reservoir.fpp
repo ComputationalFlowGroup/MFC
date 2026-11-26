@@ -30,12 +30,19 @@ module m_latent_heat_reservoir
     !> Newton cap for the saturation temperature. The original declared a cap of 1e8 and never used it, so an unconverged solve span
     !! forever inside the offload region. A cell that does not converge keeps its incoming temperature as the saturation estimate,
     !! which leaves the cell unchanged rather than hanging the run.
-    integer, parameter :: tsat_max_iter = 100
+    !!
+    !! The cap has to be read together with the under-relaxation below: at tsat_relax = 1e-3 each step takes a thousandth of the
+    !! Newton correction, so convergence needs thousands of iterations and a small cap would silently make every cell fall back on
+    !! its incoming temperature. m_phase_change.fpp's own Newton carries max_iter = 100000 for the same reason. The residual is
+    !! provably concave or convex with a closed-form stationary point, so a bracketed solve would need a handful of steps instead;
+    !! see the note on s_saturation_temperature.
+    integer, parameter :: tsat_max_iter = 100000
 
     !> Under-relaxation for that solve, as in the original.
     real(wp), parameter :: tsat_relax = 1.e-3_wp
 
-    $:GPU_DECLARE(create='[tsat_max_iter, tsat_relax]')
+    ! Deliberately no GPU_DECLARE: these are Fortran parameters, compile-time constants with no storage to map, and
+    ! m_phase_change.fpp declares its own (max_iter, mixM, lp, vp and the rest) the same way.
 
 contains
 
@@ -134,6 +141,17 @@ contains
     end subroutine s_latent_heat_reservoir
 
     !> Saturation temperature at pSat, by Newton on the Gibbs-equality residual.
+    !!
+    !! The residual has more structure than this solve exploits. With
+    !!   a = cvs_l*n_l - cvs_v*n_v
+    !!   b = -(qvps_l - qvps_v) + cvs_l*(n_l-1)*log(pSat+B_l) - cvs_v*(n_v-1)*log(pSat+B_v)
+    !!   c = qvs_l - qvs_v
+    !! it is exactly FT(T) = c + (a+b)*T - a*T*log(T), so FT'' = -a/T keeps one sign for T > 0: FT is strictly concave or
+    !! strictly convex, with a single stationary point at the closed form T* = exp(b/a), hence at most two roots and
+    !! monotone either side of T*. That is an analytic bracket, so a bisection-safeguarded Newton would converge in a
+    !! handful of steps with a guarantee rather than the thousands this under-relaxed unbracketed version needs; the root
+    !! also has a closed form through the Lambert W function. Left as the original's method here on purpose, so this
+    !! change carries the bookkeeping fixes and not a change of numerics.
     !! @param pSat saturation pressure
     !! @param TIn  incoming temperature, used as the initial estimate
     !! @param TSat saturation temperature; left at TIn if the solve does not converge
