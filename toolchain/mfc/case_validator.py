@@ -1079,18 +1079,10 @@ class CaseValidator:
             num_fluids is None or num_fluids < 2,
             "phase change requires num_fluids >= 2 (liquid = 1, vapor = 2)",
         )
-        # relax_model 7 is the latent-heat reservoir method. Its field (eqn_idx%lambda) and its advective flux in
-        # HLL and HLLC are in place, but nothing fills the reservoir: the method itself is not ported. Rejected until
-        # it is, so a case cannot select a phase-change model that silently performs no phase change.
-        self.prohibit(
-            relax_model == 7,
-            "relax_model = 7 (latent-heat reservoir) is not usable yet: the reservoir field is carried and advected, "
-            "but the method that fills it is not implemented, so no phase change would occur",
-        )
-        # The two constraints below are the ones that will apply once it lands, kept here so the record is right.
-        # The method redistributes energy between the phases through their individual internal energies, which only
-        # the 6-equation model carries -- the stale branch's own implementation writes that range -- so it needs
-        # model_eqns = 3. The solver restriction matches cont_damage's: HLLD and LF carry no advective flux entry for
+        # relax_model 7 is the latent-heat reservoir method (m_latent_heat_reservoir.fpp). It redistributes energy
+        # between the phases through their individual internal energies, which only the 6-equation model carries, so
+        # it needs model_eqns = 3. That also makes it mutually exclusive with hyperelasticity, which requires
+        # model_eqns = 2. The solver restriction matches cont_damage's: HLLD and LF carry no advective flux entry for
         # a single conserved scalar of this kind, so the reservoir would go untransported there rather than fail.
         self.prohibit(
             relax_model == 7 and model_eqns != 3,

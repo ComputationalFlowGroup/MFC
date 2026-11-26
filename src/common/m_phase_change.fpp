@@ -21,6 +21,9 @@ module m_phase_change
 
     private
     public :: s_initialize_phasechange_module, s_relaxation_solver, s_infinite_relaxation_k, s_finalize_relaxation_solver_module
+    !> Exposed for m_latent_heat_reservoir, which shares the reacting-pair indices and the negative-mass correction rather than
+    !! carrying its own copies (the stale branch duplicated the correction verbatim).
+    public :: s_correct_partial_densities, lp, vp
 
     !> @name Parameters for the first order transition phase change
     !> @{

@@ -38,6 +38,7 @@
             "m_hyperelastic",
             "m_graded",
             "m_phase_change",
+            "m_latent_heat_reservoir",
             "m_chemistry",
             "m_conduction",
             "m_acoustic_src",

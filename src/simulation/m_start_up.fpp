@@ -60,10 +60,12 @@ module m_start_up
     use m_amr, only: amr_maxc_fit, s_initialize_amr_module, s_populate_amr_fine, s_finalize_amr_module, s_amr_setup_ib
     use m_amr_regrid, only: s_amr_regrid
     use m_amr_stage, only: s_amr_relax_fine, s_amr_apply_ic_patches
+    use m_latent_heat_reservoir, only: s_latent_heat_reservoir
     use m_amr_restart, only: s_write_amr_restart, s_read_amr_restart
     use m_amr_registers, only: s_initialize_amr_registers, s_finalize_amr_registers
     use m_constants, only: model_eqns_6eq, time_stepper_rk1, time_stepper_rk2, time_stepper_rk3, recon_type_weno, &
-        & recon_type_muscl, ib_state_nfields
+        & use m_constants, only: relax_model_reservoir
+    & recon_type_muscl, ib_state_nfields
 
     implicit none
 
@@ -719,7 +721,14 @@ contains
             ! step just produced and hand it over to be excluded. E itself is never written here: the relaxation holds
             ! it fixed, so the strain energy the vaporising phase gives up becomes heat on the next conversion, which
             ! is both conservative and the intended physics.
-            if (hyperelasticity) then
+            if (relax_model == relax_model_reservoir) then
+                ! The reservoir method needs the cell pressure, which the pT/pTg solvers do not -- they work on the
+                ! conserved state alone. Convert first so q_prim_vf(E) is this state's pressure rather than whatever
+                ! the last RHS stage left. Mutually exclusive with hyperelasticity by model_eqns (3 against 2), so
+                ! the elastic-energy handoff below has no counterpart here.
+                call s_convert_conservative_to_primitive_variables(q_cons_ts(1)%vf, q_T_sf, q_prim_vf, idwint)
+                call s_latent_heat_reservoir(q_cons_ts(1)%vf, q_prim_vf)
+            else if (hyperelasticity) then
                 call s_hyperelastic_refresh_stash(q_cons_ts(1)%vf, q_prim_qp%vf, q_T_sf, bc_type, idwint, .false., pb_ts(1)%sf, &
                                                   & mv_ts(1)%sf)
                 call s_infinite_relaxation_k(q_cons_ts(1)%vf, q_prim_qp%vf(eqn_idx%elastic_W))
