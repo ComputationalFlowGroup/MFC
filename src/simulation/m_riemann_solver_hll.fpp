@@ -76,21 +76,24 @@ contains
             real(wp)                             :: trB_L, trB_R, J_L, J_R, trBinv_L, trBinv_R
             real(wp)                             :: B_nn_L, B_nn_R, Binv_nn_L, Binv_nn_R
             real(wp)                             :: damage_L, damage_R
-            real(wp)                             :: solid_partial_density_L, solid_partial_density_R
-            real(wp), dimension(2)               :: Re_L, Re_R
-            real(wp), dimension(2, Re_size_max)  :: Res_graded_L, Res_graded_R
-            real(wp)                             :: rho_avg
-            real(wp)                             :: H_avg
-            real(wp)                             :: qv_avg
-            real(wp)                             :: gamma_avg
-            real(wp)                             :: c_avg
-            real(wp)                             :: s_L, s_R, s_M, s_P, s_S
-            real(wp)                             :: vel_interface
-            logical                              :: need_nc_vel
-            real(wp)                             :: xi_M, xi_P
-            real(wp)                             :: ptilde_L, ptilde_R
-            real(wp)                             :: vel_L_rms, vel_R_rms, vel_avg_rms
-            real(wp)                             :: Ms_L, Ms_R, pres_SL, pres_SR
+            !> Specific latent-heat reservoir either side of the interface. Its conserved form is the density alpha_l*rho_l*Lambda,
+            !! so it advects like a partial density (see m_derived_types.fpp).
+            real(wp)                            :: lambda_L, lambda_R
+            real(wp)                            :: solid_partial_density_L, solid_partial_density_R
+            real(wp), dimension(2)              :: Re_L, Re_R
+            real(wp), dimension(2, Re_size_max) :: Res_graded_L, Res_graded_R
+            real(wp)                            :: rho_avg
+            real(wp)                            :: H_avg
+            real(wp)                            :: qv_avg
+            real(wp)                            :: gamma_avg
+            real(wp)                            :: c_avg
+            real(wp)                            :: s_L, s_R, s_M, s_P, s_S
+            real(wp)                            :: vel_interface
+            logical                             :: need_nc_vel
+            real(wp)                            :: xi_M, xi_P
+            real(wp)                            :: ptilde_L, ptilde_R
+            real(wp)                            :: vel_L_rms, vel_R_rms, vel_avg_rms
+            real(wp)                            :: Ms_L, Ms_R, pres_SL, pres_SR
             !> Longitudinal signal speed per side: the acoustic c stiffened by the elastic tangent modulus where an elastic model is
             !! active, c itself otherwise. Shared by both wave-speed estimates, so the pressure-based one cannot silently drop the
             !! elastic term.
@@ -130,10 +133,10 @@ contains
                                         & MW_L, MW_R, R_gas_L, R_gas_R, Cp_L, Cp_R, Cv_L, Cv_R, Gamm_L, Gamm_R, gamma_L, gamma_R, &
                                         & pi_inf_L, pi_inf_R, qv_L, qv_R, qv_avg, c_L, c_R, Ca_inv_L, Ca_inv_R, Ca_inv_2_L, &
                                         & Ca_inv_2_R, trB_L, trB_R, J_L, J_R, trBinv_L, trBinv_R, B_nn_L, B_nn_R, Binv_nn_L, &
-                                        & Binv_nn_R, damage_L, damage_R, solid_partial_density_L, solid_partial_density_R, &
-                                        & rho_avg, H_avg, c_avg, gamma_avg, ptilde_L, ptilde_R, vel_L_rms, vel_R_rms, &
-                                        & vel_avg_rms, Ms_L, Ms_R, pres_SL, pres_SR, alpha_L_sum, alpha_R_sum, flux_tau_L, &
-                                        & flux_tau_R, vel_interface]', copyin='[norm_dir]', firstprivate='[need_nc_vel]')
+                                        & Binv_nn_R, damage_L, damage_R, lambda_L, lambda_R, solid_partial_density_L, &
+                                        & solid_partial_density_R, rho_avg, H_avg, c_avg, gamma_avg, ptilde_L, ptilde_R, &
+                                        & vel_L_rms, vel_R_rms, vel_avg_rms, Ms_L, Ms_R, pres_SL, pres_SR, alpha_L_sum, &
+                                        & alpha_R_sum, flux_tau_L, flux_tau_R, vel_interface]', copyin='[norm_dir]', firstprivate='[need_nc_vel]')
                     do l = ${Z_BND}$%beg, ${Z_BND}$%end
                         do k = ${Y_BND}$%beg, ${Y_BND}$%end
                             do j = ${X_BND}$%beg, ${X_BND}$%end
@@ -671,6 +674,19 @@ contains
                                     end do
                                 end if
 
+                                ! Latent-heat reservoir flux: U_Lambda = alpha_l*rho_l*Lambda, so it advects exactly like
+                                ! a partial density. The reacting liquid is fluid 1 (lp in m_phase_change.fpp), so its
+                                ! partial density alpha_rho(1) is the scaling -- unlike damage below, which sums over every
+                                ! damageable solid.
+                                if (eqn_idx%lambda > 0) then
+                                    lambda_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%lambda)
+                                    lambda_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%lambda)
+                                    flux_rsx_vf(${SF('')}$, &
+                                                & eqn_idx%lambda) = (s_M*(alpha_rho_R(1)*vel_R(dir_idx(1))*lambda_R) &
+                                                & - s_P*(alpha_rho_L(1)*vel_L(dir_idx(1))*lambda_L) + s_M*s_P*(alpha_rho_L(1) &
+                                                & *lambda_L - alpha_rho_R(1)*lambda_R))/(s_M - s_P)
+                                end if
+
                                 ! Damage flux: U_D = m_s*D (damageable-solid partial mass)
                                 if (cont_damage) then
                                     solid_partial_density_L = 0._wp; solid_partial_density_R = 0._wp
@@ -835,6 +851,11 @@ contains
                                         ! Damage advects conservatively, so its geometric source is the advective flux
                                         if (cont_damage) then
                                             flux_gsrc_rsx_vf(${SF('')}$, eqn_idx%damage) = flux_rsx_vf(${SF('')}$, eqn_idx%damage)
+                                        end if
+
+                                        ! The reservoir advects conservatively too, so likewise
+                                        if (eqn_idx%lambda > 0) then
+                                            flux_gsrc_rsx_vf(${SF('')}$, eqn_idx%lambda) = flux_rsx_vf(${SF('')}$, eqn_idx%lambda)
                                         end if
                                     end if
                                 #:endif

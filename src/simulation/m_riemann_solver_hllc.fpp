@@ -112,6 +112,9 @@ contains
             real(wp) :: trB_L, trB_R, J_L, J_R, trBinv_L, trBinv_R
             real(wp) :: B_nn_L, B_nn_R, Binv_nn_L, Binv_nn_R
             real(wp) :: damage_L, damage_R
+            !> Specific latent-heat reservoir either side of the interface; its conserved form is the density alpha_l*rho_l*Lambda,
+            !! so it advects like a partial density (see m_derived_types.fpp).
+            real(wp) :: lambda_L, lambda_R
             real(wp) :: solid_partial_density_L, solid_partial_density_R
             real(wp) :: vel_L_rms, vel_R_rms, vel_avg_rms
             real(wp) :: rho_Star, E_Star, p_Star, p_K_Star, vel_K_star
@@ -882,7 +885,7 @@ contains
                                 & 'H_avg', 'c_L', 'c_R', 'c_avg', 's_P', 's_M', 'xi_P', 'xi_M', 'xi_tan', 'xi_L']
                             #:set _hllc_s4 = ['xi_R', 'xi_L_m1', 'xi_R_m1', 'Ms_L', 'Ms_R', 'pres_SL', 'pres_SR', 's_L', 's_R', &
                                 & 's_S', 'vel_avg_rms', 'pcorr']
-                            #:set _hllc_s5 = ['ib_fw', 'fw_o', 'fw_a', 'fw_m']
+                            #:set _hllc_s5 = ['ib_fw', 'fw_o', 'fw_a', 'fw_m', 'lambda_L', 'lambda_R']
                             #:set _hllc_a1 = ['vel_L', 'vel_R', 'Re_L', 'Re_R', 'alpha_L', 'alpha_R', 'alpha_rho_L', 'alpha_rho_R', &
                                 & 'alpha_lim_L', 'alpha_lim_R']
                             #:set _hllc_a2 = ['Ys_L', 'Ys_R', 'Xs_L', 'Xs_R', 'Gamma_iL', 'Gamma_iR', 'Cp_iL', 'Cp_iR', 'R_species', &
@@ -1480,6 +1483,21 @@ contains
                                                         & + s_P*(E_R*xi_R_m1 + xi_R*(s_S - vel_R(dir_idx(1)))*(rho_R*s_S &
                                                         & + pres_R/(s_R - vel_R(dir_idx(1)))))) + (s_M/s_L)*(s_P/s_R)*pcorr*s_S
                                         #:endif
+
+                                        ! LATENT-HEAT RESERVOIR FLUX. U_Lambda = alpha_l*rho_l*Lambda, so it advects
+                                        ! exactly like a partial density; the reacting liquid is fluid 1 (lp in
+                                        ! m_phase_change.fpp), so alpha_rho(1) is the scaling. Placed here, past the
+                                        ! #:endif, because it belongs to BOTH emissions: the reservoir has nothing to do
+                                        ! with elasticity, and the damage flux above sits inside #:if HYPO, so following
+                                        ! that one's position would have left the reservoir unadvected in a plain fluid.
+                                        if (eqn_idx%lambda > 0) then
+                                            lambda_L = qL_prim_rsx_vf(${SF('')}$, eqn_idx%lambda)
+                                            lambda_R = qR_prim_rsx_vf(${SF(' + 1')}$, eqn_idx%lambda)
+                                            flux_rsx_vf(${SF('')}$, &
+                                                        & eqn_idx%lambda) = xi_M*alpha_rho_L(1)*lambda_L*(vel_L(dir_idx(1)) &
+                                                        & + s_M*xi_L_m1) + xi_P*alpha_rho_R(1)*lambda_R*(vel_R(dir_idx(1)) &
+                                                        & + s_P*xi_R_m1)
+                                        end if
 
                                         ! VOLUME FRACTION FLUX.
                                         $:GPU_LOOP(parallelism='[seq]')

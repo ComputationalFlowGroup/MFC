@@ -1078,12 +1078,13 @@ class CaseValidator:
             num_fluids is None or num_fluids < 2,
             "phase change requires num_fluids >= 2 (liquid = 1, vapor = 2)",
         )
-        # relax_model 7 is the latent-heat reservoir method. Its conserved field and conversion exist, but its
-        # advective flux is not in the Riemann solvers yet, so a run would transport nothing and the reservoir would
-        # sit still in a moving fluid. Rejected until that lands, rather than left to produce a quiet wrong answer.
+        # relax_model 7 is the latent-heat reservoir method. Its advective flux is carried by HLL and HLLC only,
+        # which is where cont_damage -- the other single advected conserved scalar, and the template the reservoir
+        # follows -- is supported too. HLLD and LF carry no entry for either, so a run there would leave the
+        # reservoir unadvected rather than fail.
         self.prohibit(
-            relax_model == 7,
-            "relax_model = 7 (latent-heat reservoir) is not usable yet: the reservoir field and its conversion are in " "place but its advective flux is not, so it would not be transported",
+            relax_model == 7 and self.get("riemann_solver") not in (None, 1, 2),
+            "relax_model = 7 (latent-heat reservoir) requires the HLL (1) or HLLC (2) Riemann solver: the others " "carry no advective flux for the reservoir, so it would not be transported",
         )
         self.prohibit(
             relax_model == 7 and model_eqns != 2,
