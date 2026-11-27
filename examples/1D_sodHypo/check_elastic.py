@@ -10,7 +10,7 @@ rest in x, with a jump in the normal stress sigma = -p + tau_xx and/or the shear
 boundary x0. Linear elastodynamics splits the jump into
   longitudinal waves at c_L = sqrt((K + 4G/3) / rho), K = gamma (p + pi_inf), impedance Z_L = rho c_L:
       u* = (sigma_R - sigma_L) / (Z_L,l + Z_L,r);  on each side dp = -K/M dsigma, dtau_xx = (4G/3)/M dsigma, M = K + 4G/3
-  shear waves at c_S = sqrt(G / rho), impedance Z_S = rho c_S:
+  shear waves at c_S = sqrt(Ca_inv / rho), impedance Z_S = rho c_S:
       v* - v0 = (tau_xy,R - tau_xy,L) / (Z_S,l + Z_S,r),  tau_xy* = tau_xy,L + Z_S,l (v* - v0).
 The script averages the last save over y, measures the plateau values (median over the middle 60 % of each
 plateau) and the wave fronts (where u or v - v0 crosses half its star value), and prints their errors relative
@@ -35,13 +35,13 @@ def state(case, i):
     nf = case["num_fluids"]
     rho = sum(case.get(f"{g}alpha_rho({q})", 0.0) for q in range(1, nf + 1))
     al = [case.get(f"{g}alpha({q})", 0.0) for q in range(1, nf + 1)]
-    G = sum(a * case.get(f"fluid_pp({q})%G", 0.0) for q, a in zip(range(1, nf + 1), al))
+    Ca_inv = sum(a * case.get(f"fluid_pp({q})%Ca_inv", 0.0) for q, a in zip(range(1, nf + 1), al))
     gm = sum(a * case[f"fluid_pp({q})%gamma"] for q, a in zip(range(1, nf + 1), al))  # 1/(gamma-1) of the mixture
     pim = sum(a * case.get(f"fluid_pp({q})%pi_inf", 0.0) for q, a in zip(range(1, nf + 1), al))
     p = case[f"{g}pres"]
     gam = 1 + 1 / gm
     K = gam * (p + pim / (gam * gm))
-    M = K + 4 * G / 3
+    M = K + 4 * Ca_inv / 3
     return {
         "rho": rho,
         "p": p,
@@ -50,9 +50,9 @@ def state(case, i):
         "v0": case.get(f"{g}vel(2)", 0.0),
         "K": K,
         "M": M,
-        "G": G,
+        "Ca_inv": Ca_inv,
         "cL": math.sqrt(M / rho),
-        "cS": math.sqrt(G / rho),
+        "cS": math.sqrt(Ca_inv / rho),
     }
 
 
@@ -92,7 +92,7 @@ def check(d, case_args):
         for side, S, a_, b_ in (("left", L, xl, x0), ("right", R, x0, xr)):
             ds = ss - (sL if side == "left" else sR)
             rows.append((f"p* {side}", plateau(x, v["pres"], a_, b_), S["p"] - S["K"] / S["M"] * ds, abs(ds)))
-            rows.append((f"tau_xx* {side}", plateau(x, v["tau1"], a_, b_), S["txx"] + 4 * S["G"] / 3 / S["M"] * ds, abs(ds)))
+            rows.append((f"tau_xx* {side}", plateau(x, v["tau1"], a_, b_), S["txx"] + 4 * S["Ca_inv"] / 3 / S["M"] * ds, abs(ds)))
         for name, m, e, scale in rows:
             errs.append((m - e) / scale)
             print(f"  {name:14s} MFC {m:+.6e}  linear {e:+.6e}  error / jump {(m - e) / scale:+.2e}")
