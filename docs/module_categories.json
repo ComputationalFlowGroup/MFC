@@ -114,7 +114,8 @@
             "m_amr_restart",
             "m_amr_restart_io",
             "m_amr_registers",
-            "m_phase_timing"
+            "m_phase_timing",
+            "m_root_finding"
         ]
     },
     {

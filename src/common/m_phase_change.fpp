@@ -209,7 +209,7 @@ contains
         real(wp), intent(in)                                :: rhoe
         real(wp), intent(out)                               :: TS
         real(wp)                                            :: gp, gpp, hp, pO, mCP, mQ  !< variables for the Newton Solver
-        real(wp)                                            :: p_infpT_sum
+        real(wp)                                            :: p_infpT_sum, pS_floor
         integer                                             :: i, ns                     !< generic loop iterators
         ! auxiliary variables for the pT-equilibrium solver
         mCP = 0.0_wp; mQ = 0.0_wp; p_infpT_sum = 0._wp
@@ -259,6 +259,13 @@ contains
         ! should be able to be found.
         pS = 1.0e4_wp
 
+        ! Lowest pressure at which the residual is still defined: below it, pS + p_infpT(i) turns negative for the phase with
+        ! the smallest p_infpT, and both gp and hp divide by it. The Newton step below is not bounded in any way, so a single
+        ! large negative correction used to take the iterate straight through this floor and leave the solve working on a
+        ! residual with a sign-flipped term. Same form as the floor in m_pressure_relaxation.
+        pS_floor = -(1.0_wp - 1.e-8_wp)*minval(p_infpT) + 1.e-8_wp
+        pS = max(pS, pS_floor)
+
         ! Newton Solver for the pT-equilibrium
         ns = 0
         ! change this relative error metric. 1.e4_wp is just arbitrary
@@ -287,6 +294,10 @@ contains
 
             ! updating common pressure for the newton solver
             pS = pO + ((1.0_wp - gp)/gpp)/(1.0_wp - (1.0_wp - gp + abs(1.0_wp - gp))/(2.0_wp*gpp)*hp)
+
+            ! Held inside the physical range. Where the step already lands there, which is the normal case, this changes
+            ! nothing; where it does not, the iterate is kept at the floor instead of being carried outside the EOS.
+            pS = max(pS, pS_floor)
         end do
 
         ! common temperature; same closure as f_mixture_temperature in m_eos, written in conservative variables

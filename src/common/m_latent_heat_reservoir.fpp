@@ -22,24 +22,21 @@ module m_latent_heat_reservoir
     use m_derived_types
     use m_global_parameters
     use m_phase_change, only: s_correct_partial_densities, lp, vp
+    use m_root_finding, only: t_bracket, s_bracket_set, s_bracket_newton_step, bracket_step, bracket_dry
 
     implicit none
 
     private; public :: s_latent_heat_reservoir
 
-    !> Newton cap for the saturation temperature. The original declared a cap of 1e8 and never used it, so an unconverged solve span
-    !! forever inside the offload region. A cell that does not converge keeps its incoming temperature as the saturation estimate,
-    !! which leaves the cell unchanged rather than hanging the run.
-    !!
-    !! The cap has to be read together with the under-relaxation below: at tsat_relax = 1e-3 each step takes a thousandth of the
-    !! Newton correction, so convergence needs thousands of iterations and a small cap would silently make every cell fall back on
-    !! its incoming temperature. m_phase_change.fpp's own Newton carries max_iter = 100000 for the same reason. The residual is
-    !! provably concave or convex with a closed-form stationary point, so a bracketed solve would need a handful of steps instead;
-    !! see the note on s_saturation_temperature.
-    integer, parameter :: tsat_max_iter = 100000
+    !> Evaluation cap for the saturation temperature. The original declared a cap of 1e8 and never used it, so an unconverged solve
+    !! spun forever inside the offload region; an under-relaxed Newton at a factor of 1e-3 then needed some 27000 passes to converge
+    !! even where it did. The bracketed solve in s_saturation_temperature reaches machine precision in seven to ten evaluations over
+    !! the whole liquid range of water, so this cap is a backstop and not a working limit.
+    integer, parameter :: tsat_max_iter = 60
 
-    !> Under-relaxation for that solve, as in the original.
-    real(wp), parameter :: tsat_relax = 1.e-3_wp
+    !> Relative width at which the bracket is treated as collapsed. Reached only where the residual tolerance cannot be, which is
+    !! what keeps a cell with an ill-conditioned saturation curve from spending the whole cap on it.
+    real(wp), parameter :: tsat_xtol = 1.e-14_wp
 
     ! Deliberately no GPU_DECLARE: these are Fortran parameters, compile-time constants with no storage to map, and
     ! m_phase_change.fpp declares its own (max_iter, mixM, lp, vp and the rest) the same way.
@@ -161,7 +158,8 @@ contains
 
         real(wp), intent(in)  :: pSat, TIn
         real(wp), intent(out) :: TSat
-        real(wp)              :: FT, dFdT, Tnew
+        type(t_bracket)       :: br
+        real(wp)              :: a, kp, c, FT, dFdT, Tmax
         integer               :: ns
 
         if ((pSat <= 0._wp) .or. (TIn <= 0._wp)) then
@@ -169,35 +167,42 @@ contains
             return
         end if
 
+        ! Fallback for every path that cannot produce a root: the cell keeps its incoming temperature, which leaves it
+        ! unchanged rather than moving it on a number that means nothing.
         TSat = TIn
 
-        ! FT is computed before it is tested, which the original did not do: it entered the loop on
-        ! `abs(FT) > ptgalpha_eps .or. ns == 0` with FT never set, so the first test read an
-        ! uninitialised value. Fortran does not promise to short-circuit .or., so the ns == 0 term
-        ! did not make that safe.
+        ! Gibbs equality along the saturation curve, written as FT(T) = c + (a + kp) T - a T log(T). Only kp depends on the
+        ! pressure, and a and c are material constants. This is the same residual the under-relaxed Newton used, regrouped.
+        a = cvs(lp)*isentrope_n(lp) - cvs(vp)*isentrope_n(vp)
+        kp = -(qvps(lp) - qvps(vp)) + cvs(lp)*(isentrope_n(lp) - 1._wp)*log(pSat + isentrope_B(lp)) - cvs(vp)*(isentrope_n(vp) &
+               & - 1._wp)*log(pSat + isentrope_B(vp))
+        c = qvs(lp) - qvs(vp)
+
+        ! FT'' = -a/T, so for T > 0 the residual is concave when a > 0 and convex when a < 0: one stationary point either way,
+        ! at T = exp(kp/a), with FT monotone below it. FT(0+) = c, so the interval from zero to that point holds exactly one
+        ! root and it is the physical one -- the second root lies beyond the turning point, some thousands of kelvin up. The
+        ! bracket is therefore closed form and needs no search. A phase pair with equal c_p leaves a = 0, no turning point and
+        ! no bracket; that is not a liquid and vapour of one species, and the cell is left alone.
+        if (abs(a) <= verysmall) return
+
+        Tmax = exp(kp/a)
+        if (.not. (Tmax < huge(1._wp))) return
+
+        ! The lower endpoint only has to be positive, so that log() is defined, and small enough that FT is still c there.
+        call s_bracket_set(br, verysmall, Tmax, ptgalpha_eps, tsat_xtol, tsat_max_iter)
+
         $:GPU_LOOP(parallelism='[seq]')
-        do ns = 1, tsat_max_iter
-            FT = TSat*((cvs(lp)*isentrope_n(lp) - cvs(vp)*isentrope_n(vp))*(1._wp - log(TSat)) - (qvps(lp) - qvps(vp)) + cvs(lp) &
-                       & *(isentrope_n(lp) - 1._wp)*log(pSat + isentrope_B(lp)) - cvs(vp)*(isentrope_n(vp) - 1._wp)*log(pSat &
-                       & + isentrope_B(vp))) + qvs(lp) - qvs(vp)
-
-            if (abs(FT) <= ptgalpha_eps) exit
-
-            dFdT = -(cvs(lp)*isentrope_n(lp) - cvs(vp)*isentrope_n(vp))*log(TSat) - (qvps(lp) - qvps(vp)) + cvs(lp) &
-                     & *(isentrope_n(lp) - 1._wp)*log(pSat + isentrope_B(lp)) - cvs(vp)*(isentrope_n(vp) - 1._wp)*log(pSat &
-                     & + isentrope_B(vp))
-
-            ! A vanishing derivative would send the update to infinity; keep the current estimate instead.
-            if (abs(dFdT) <= verysmall) exit
-
-            Tnew = TSat - tsat_relax*FT/dFdT
-
-            ! The residual's log(TSat) needs a positive temperature, and the under-relaxed step can
-            ! in principle overshoot through zero. Stop rather than take the logarithm of a
-            ! non-positive number on the next pass.
-            if (Tnew <= 0._wp) exit
-            TSat = Tnew
+        do ns = 1, tsat_max_iter + 1
+            if (br%state > bracket_step) exit
+            FT = c + (a + kp)*br%x - a*br%x*log(br%x)
+            dFdT = kp - a*log(br%x)
+            call s_bracket_newton_step(br, FT, dFdT)
         end do
+
+        ! A dry bracket means the residual kept one sign across the whole interval, so this pressure has no saturation
+        ! temperature and TSat stays at TIn. Every other outcome leaves br%x inside the bracket, which beats TIn even when the
+        ! cap was reached.
+        if (br%state /= bracket_dry) TSat = br%x
 
     end subroutine s_saturation_temperature
 
