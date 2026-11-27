@@ -8,6 +8,15 @@
 #:set MFC_OMP_PRESENT_ALLOCATABLE = True
 #:include 'macros.fpp'
 
+#! Tangential interface velocity of the viscous work: the central average. The contact-upwinded state switches on sign(s_S), which
+#! is round-off at a no-slip wall face, where the two sides differ by order one across the ghost mirror (#2453).
+#:def VISC_TAN_VEL_SRC()
+    $:GPU_LOOP(parallelism='[seq]')
+    do i = 2, num_dims
+        vel_src_rsx_vf(${SF('')}$, dir_idx(i)) = 5.e-1_wp*(vel_L(dir_idx(i)) + vel_R(dir_idx(i)))
+    end do
+#:enddef
+
 module m_riemann_solver_hllc
 
     use m_derived_types
@@ -85,7 +94,7 @@ contains
             real(wp)                             :: s_L, s_R, s_M, s_P, s_S
             real(wp)                             :: xi_L, xi_R        !< Left and right wave speeds functions
             real(wp)                             :: xi_L_m1, xi_R_m1  !< xi_L/R - 1, computed without cancellation
-            real(wp)                             :: xi_M, xi_P, xi_tan
+            real(wp)                             :: xi_M, xi_P
             real(wp)                             :: xi_MP, xi_PP
             #:if not MFC_CASE_OPTIMIZATION and USING_AMD
                 real(wp), dimension(3) :: R0_L, R0_R
@@ -345,6 +354,8 @@ contains
                                     end if
 
                                     ! follows Einfeldt et al. s_M/P = min/max(0.,s_L/R)
+                                    ! s_M/s_L and s_P/s_R as merges: they are 0/0 at a sonic face (s_L or s_R = 0, reached in single
+                                    ! precision)
                                     s_M = min(0._wp, s_L); s_P = max(0._wp, s_R)
 
                                     ! goes with q_star_L/R = xi_L/R * (variable) xi_L/R = ( ( s_L/R - u_L/R )/(s_L/R - s_star) )
@@ -392,13 +403,13 @@ contains
                                         flux_rsx_vf(${SF('')}$, &
                                                     & eqn_idx%cont%end + dir_idx(i)) = rho_Star*vel_K_Star*(dir_flg(dir_idx(i)) &
                                                     & *vel_K_Star + (1._wp - dir_flg(dir_idx(i)))*(xi_M*vel_L(dir_idx(i)) &
-                                                    & + xi_P*vel_R(dir_idx(i)))) + dir_flg(dir_idx(i))*p_Star + (s_M/s_L) &
-                                                    & *(s_P/s_R)*dir_flg(dir_idx(i))*pcorr
+                                                    & + xi_P*vel_R(dir_idx(i)))) + dir_flg(dir_idx(i))*p_Star + merge(1._wp, &
+                                                    & 0._wp, s_L < 0._wp)*merge(1._wp, 0._wp, s_R > 0._wp)*dir_flg(dir_idx(i))*pcorr
                                     end do
 
                                     ! ENERGY FLUX. f = u*(E-\sigma), q = E, q_star = \xi*E+(s-u)(\rho s_star - \sigma/(s-u))
-                                    flux_rsx_vf(${SF('')}$, &
-                                                & eqn_idx%E) = (E_star + p_Star)*vel_K_Star + (s_M/s_L)*(s_P/s_R)*pcorr*s_S
+                                    flux_rsx_vf(${SF('')}$, eqn_idx%E) = (E_star + p_Star)*vel_K_Star + merge(1._wp, 0._wp, &
+                                                & s_L < 0._wp)*merge(1._wp, 0._wp, s_R > 0._wp)*pcorr*s_S
 
                                     ! VOLUME FRACTION FLUX.
                                     $:GPU_LOOP(parallelism='[seq]')
@@ -408,13 +419,11 @@ contains
                                     end do
 
                                     ! Advection velocity source: interface velocity for volume fraction transport
-                                    $:GPU_LOOP(parallelism='[seq]')
-                                    do i = 1, num_dims
-                                        vel_src_rsx_vf(${SF('')}$, &
-                                                       & dir_idx(i)) = xi_M*(vel_L(dir_idx(i)) + dir_flg(dir_idx(i)) &
-                                                       & *(s_S*(xi_MP*xi_L_m1 + 1) - vel_L(dir_idx(i)))) + xi_P*(vel_R(dir_idx(i)) &
-                                                       & + dir_flg(dir_idx(i))*(s_S*(xi_PP*xi_R_m1 + 1) - vel_R(dir_idx(i))))
-                                    end do
+                                    vel_src_rsx_vf(${SF('')}$, &
+                                                   & dir_idx(1)) = xi_M*(vel_L(dir_idx(1)) + (s_S*(xi_MP*xi_L_m1 + 1) &
+                                                   & - vel_L(dir_idx(1)))) + xi_P*(vel_R(dir_idx(1)) + (s_S*(xi_PP*xi_R_m1 + 1) &
+                                                   & - vel_R(dir_idx(1))))
+                                    $:VISC_TAN_VEL_SRC()
 
                                     ! INTERNAL ENERGIES ADVECTION FLUX. K-th pressure and velocity in preparation for the internal
                                     ! energy flux
@@ -442,9 +451,9 @@ contains
                                         call s_phase_internal_energy(p_K_Star, alpha_K_star, &
                                                                      & alpha_rho_K_star*(1._wp + xi_M*xi_MP*(xi_L - 1._wp) &
                                                                      & + xi_P*xi_PP*(xi_R - 1._wp)), i, e_K_star)
-                                        flux_rsx_vf(${SF('')}$, &
-                                                    & i + eqn_idx%int_en%beg - 1) = e_K_star*vel_K_Star + (s_M/s_L)*(s_P/s_R) &
-                                                    & *pcorr*s_S*(xi_M*qL_prim_rsx_vf(${SF('')}$, &
+                                        flux_rsx_vf(${SF('')}$, i + eqn_idx%int_en%beg - 1) = e_K_star*vel_K_Star + merge(1._wp, &
+                                                    & 0._wp, s_L < 0._wp)*merge(1._wp, 0._wp, &
+                                                    & s_R > 0._wp)*pcorr*s_S*(xi_M*qL_prim_rsx_vf(${SF('')}$, &
                                                     & i + eqn_idx%adv%beg - 1) + xi_P*qR_prim_rsx_vf(${SF(' + 1')}$, &
                                                     & i + eqn_idx%adv%beg - 1))
                                     end do
@@ -716,6 +725,8 @@ contains
                                     end if
 
                                     ! follows Einfeldt et al. s_M/P = min/max(0.,s_L/R)
+                                    ! s_M/s_L and s_P/s_R as merges: they are 0/0 at a sonic face (s_L or s_R = 0, reached in single
+                                    ! precision)
                                     s_M = min(0._wp, s_L); s_P = max(0._wp, s_R)
 
                                     ! goes with q_star_L/R = xi_L/R * (variable) xi_L/R = ( ( s_L/R - u_L/R )/(s_L/R - s_star) )
@@ -773,8 +784,8 @@ contains
                                                     & + dir_flg(dir_idx(i))*(pres_L)) + xi_P*(rho_R*(vel_R(dir_idx(1)) &
                                                     & *vel_R(dir_idx(i)) + s_P*(xi_R*(dir_flg(dir_idx(i))*s_S + (1._wp &
                                                     & - dir_flg(dir_idx(i)))*vel_R(dir_idx(i))) - vel_R(dir_idx(i)))) &
-                                                    & + dir_flg(dir_idx(i))*(pres_R)) + (s_M/s_L)*(s_P/s_R)*dir_flg(dir_idx(i)) &
-                                                    & *pcorr
+                                                    & + dir_flg(dir_idx(i))*(pres_R)) + merge(1._wp, 0._wp, &
+                                                    & s_L < 0._wp)*merge(1._wp, 0._wp, s_R > 0._wp)*dir_flg(dir_idx(i))*pcorr
                                     end do
 
                                     ! Energy flux. f = u*(E+p), q = E, q_star = \xi*E+(s-u)(\rho s_star + p/(s-u))
@@ -783,7 +794,7 @@ contains
                                                 & - vel_L(dir_idx(1)))*(rho_L*s_S + (pres_L)/(s_L - vel_L(dir_idx(1))))) - E_L)) &
                                                 & + xi_P*(vel_R(dir_idx(1))*(E_R + pres_R) + s_P*(xi_R*(E_R + (s_S &
                                                 & - vel_R(dir_idx(1)))*(rho_R*s_S + (pres_R)/(s_R - vel_R(dir_idx(1))))) - E_R)) &
-                                                & + (s_M/s_L)*(s_P/s_R)*pcorr*s_S
+                                                & + merge(1._wp, 0._wp, s_L < 0._wp)*merge(1._wp, 0._wp, s_R > 0._wp)*pcorr*s_S
 
                                     ! Volume fraction flux
                                     $:GPU_LOOP(parallelism='[seq]')
@@ -794,12 +805,10 @@ contains
                                     end do
 
                                     ! Advection velocity source: interface velocity for volume fraction transport
-                                    $:GPU_LOOP(parallelism='[seq]')
-                                    do i = 1, num_dims
-                                        vel_src_rsx_vf(${SF('')}$, &
-                                                       & dir_idx(i)) = xi_M*(vel_L(dir_idx(i)) + dir_flg(dir_idx(i))*s_M*xi_L_m1) &
-                                                       & + xi_P*(vel_R(dir_idx(i)) + dir_flg(dir_idx(i))*s_P*xi_R_m1)
-                                    end do
+                                    vel_src_rsx_vf(${SF('')}$, &
+                                                   & dir_idx(1)) = xi_M*(vel_L(dir_idx(1)) + s_M*xi_L_m1) + xi_P*(vel_R(dir_idx(1) &
+                                                   & ) + s_P*xi_R_m1)
+                                    $:VISC_TAN_VEL_SRC()
 
                                     flux_src_rsx_vf(${SF('')}$, eqn_idx%adv%beg) = vel_src_rsx_vf(${SF('')}$, dir_idx(1))
 
@@ -882,7 +891,7 @@ contains
                             #:set _hllc_s2 = ['pi_inf_R', 'qv_R', 'alpha_L_sum', 'alpha_R_sum', 'E_L', 'E_R', 'MW_L', 'MW_R', &
                                 & 'R_gas_L', 'R_gas_R', 'Cp_L', 'Cp_R', 'Cv_L', 'Cv_R', 'c_sum_Yi_Phi']
                             #:set _hllc_s3 = ['Gamm_L', 'Gamm_R', 'Y_L', 'Y_R', 'H_L', 'H_R', 'qv_avg', 'rho_avg', 'gamma_avg', &
-                                & 'H_avg', 'c_L', 'c_R', 'c_avg', 's_P', 's_M', 'xi_P', 'xi_M', 'xi_tan', 'xi_L']
+                                & 'H_avg', 'c_L', 'c_R', 'c_avg', 's_P', 's_M', 'xi_P', 'xi_M', 'xi_L']
                             #:set _hllc_s4 = ['xi_R', 'xi_L_m1', 'xi_R_m1', 'Ms_L', 'Ms_R', 'pres_SL', 'pres_SR', 's_L', 's_R', &
                                 & 's_S', 'vel_avg_rms', 'pcorr']
                             #:set _hllc_s5 = ['ib_fw', 'fw_o', 'fw_a', 'fw_m', 'lambda_L', 'lambda_R']
@@ -1249,6 +1258,8 @@ contains
                                         end if
 
                                         ! follows Einfeldt et al. s_M/P = min/max(0.,s_L/R)
+                                        ! s_M/s_L and s_P/s_R as merges: they are 0/0 at a sonic face (s_L or s_R = 0, reached in
+                                        ! single precision)
                                         s_M = min(0._wp, s_L); s_P = max(0._wp, s_R)
 
                                         ! goes with q_star_L/R = xi_L/R * (variable) xi_L/R = ( ( s_L/R - u_L/R )/(s_L/R - s_star) )
@@ -1319,7 +1330,8 @@ contains
                                                         & eqn_idx%cont%end + dir_idx(1)) = xi_M*(rho_L*(vel_L(dir_idx(1)) &
                                                         & *vel_L(dir_idx(1)) + s_M*(xi_L*s_S - vel_L(dir_idx(1)))) + pres_tot_L) &
                                                         & + xi_P*(rho_R*(vel_R(dir_idx(1))*vel_R(dir_idx(1)) + s_P*(xi_R*s_S &
-                                                        & - vel_R(dir_idx(1)))) + pres_tot_R) + (s_M/s_L)*(s_P/s_R)*pcorr
+                                                        & - vel_R(dir_idx(1)))) + pres_tot_R) + merge(1._wp, 0._wp, &
+                                                        & s_L < 0._wp)*merge(1._wp, 0._wp, s_R > 0._wp)*pcorr
                                             if (n > 0) then
                                                 flux_rsx_vf(${SF('')}$, &
                                                             & eqn_idx%cont%end + dir_idx(2)) = xi_M*(rho_L*(vel_L(dir_idx(1)) &
@@ -1345,8 +1357,9 @@ contains
                                                         & - u_t2_R*tau_nt2_R + s_P*(xi_R*(E_R + (s_S - vel_R(dir_idx(1))) &
                                                         & *(rho_R*s_S + pres_tot_R/(s_R - vel_R(dir_idx(1)))) + (u_t_R*tau_nt_R &
                                                         & - u_t_star*tau_nt_star)/(s_R - vel_R(dir_idx(1))) + (u_t2_R*tau_nt2_R &
-                                                        & - u_t2_star*tau_nt2_star)/(s_R - vel_R(dir_idx(1)))) - E_R)) + (s_M/s_L) &
-                                                        & *(s_P/s_R)*pcorr*s_S
+                                                        & - u_t2_star*tau_nt2_star)/(s_R - vel_R(dir_idx(1)))) - E_R)) &
+                                                        & + merge(1._wp, 0._wp, s_L < 0._wp)*merge(1._wp, 0._wp, &
+                                                        & s_R > 0._wp)*pcorr*s_S
 
                                             ! Elastic-stress equation fluxes: hypoelasticity only. Hyperelastic stress is slaved
                                             ! algebraically to the current reference map (s_hyperelastic_rmt_stress_update
@@ -1470,8 +1483,9 @@ contains
                                                             & + dir_flg(dir_idx(i))*(pres_L)) + xi_P*(rho_R*(vel_R(dir_idx(1)) &
                                                             & *vel_R(dir_idx(i)) + s_P*(dir_flg(dir_idx(i))*s_R + (1._wp &
                                                             & - dir_flg(dir_idx(i)))*vel_R(dir_idx(i)))*xi_R_m1) &
-                                                            & + dir_flg(dir_idx(i))*(pres_R)) + (s_M/s_L)*(s_P/s_R) &
-                                                            & *dir_flg(dir_idx(i))*pcorr
+                                                            & + dir_flg(dir_idx(i))*(pres_R)) + merge(1._wp, 0._wp, &
+                                                            & s_L < 0._wp)*merge(1._wp, 0._wp, &
+                                                            & s_R > 0._wp)*dir_flg(dir_idx(i))*pcorr
                                             end do
 
                                             ! ENERGY FLUX. f = u*(E-\sigma), q = E, q_star = \xi*E+(s-u)(\rho s_star - \sigma/(s-u))
@@ -1481,7 +1495,8 @@ contains
                                                         & + xi_L*(s_S - vel_L(dir_idx(1)))*(rho_L*s_S + pres_L/(s_L &
                                                         & - vel_L(dir_idx(1)))))) + xi_P*(vel_R(dir_idx(1))*(E_R + pres_R) &
                                                         & + s_P*(E_R*xi_R_m1 + xi_R*(s_S - vel_R(dir_idx(1)))*(rho_R*s_S &
-                                                        & + pres_R/(s_R - vel_R(dir_idx(1)))))) + (s_M/s_L)*(s_P/s_R)*pcorr*s_S
+                                                        & + pres_R/(s_R - vel_R(dir_idx(1)))))) + merge(1._wp, 0._wp, &
+                                                        & s_L < 0._wp)*merge(1._wp, 0._wp, s_R > 0._wp)*pcorr*s_S
                                         #:endif
 
                                         ! LATENT-HEAT RESERVOIR FLUX. U_Lambda = alpha_l*rho_l*Lambda, so it advects
@@ -1508,22 +1523,10 @@ contains
                                         end do
 
                                         ! VOLUME FRACTION SOURCE FLUX.
-                                        $:GPU_LOOP(parallelism='[seq]')
-                                        do i = 1, num_dims
-                                            vel_src_rsx_vf(${SF('')}$, &
-                                                           & dir_idx(i)) = xi_M*(vel_L(dir_idx(i)) + dir_flg(dir_idx(i)) &
-                                                           & *s_M*xi_L_m1) + xi_P*(vel_R(dir_idx(i)) + dir_flg(dir_idx(i)) &
-                                                           & *s_P*xi_R_m1)
-                                        end do
-                                        if (ib_smooth_contact) then
-                                            xi_tan = f_contact_weight(s_S, max(c_L, c_R))
-                                            $:GPU_LOOP(parallelism='[seq]')
-                                            do i = 2, num_dims
-                                                vel_src_rsx_vf(${SF('')}$, &
-                                                               & dir_idx(i)) = xi_tan*vel_L(dir_idx(i)) + (1._wp - xi_tan) &
-                                                               & *vel_R(dir_idx(i))
-                                            end do
-                                        end if
+                                        vel_src_rsx_vf(${SF('')}$, &
+                                                       & dir_idx(1)) = xi_M*(vel_L(dir_idx(1)) + s_M*xi_L_m1) &
+                                                       & + xi_P*(vel_R(dir_idx(1)) + s_P*xi_R_m1)
+                                        $:VISC_TAN_VEL_SRC()
 
                                         ! COLOR FUNCTION FLUX
                                         if (surface_tension) then
@@ -1578,7 +1581,8 @@ contains
                                                 do i = 1, num_dims
                                                     flux_rsx_vf(${SF('')}$, &
                                                                 & eqn_idx%cont%end + i) = dir_flg(i)*(xi_M*pres_L + xi_P*pres_R &
-                                                                & + (s_M/s_L)*(s_P/s_R)*pcorr) + fw_m*ib_wall_src(ibw_u + i &
+                                                                & + merge(1._wp, 0._wp, s_L < 0._wp)*merge(1._wp, 0._wp, &
+                                                                & s_R > 0._wp)*pcorr) + fw_m*ib_wall_src(ibw_u + i &
                                                                 & - 1)%sf(${SF(' + fw_o')}$)
                                                 end do
                                                 flux_rsx_vf(${SF('')}$, eqn_idx%E) = fw_a*ib_wall_src(ibw_e)%sf(${SF(' + fw_o')}$)
@@ -1797,8 +1801,7 @@ contains
                                                        & qR_prim_vf(eqn_idx%mom%beg:eqn_idx%mom%end), &
                                                        & dqR_prim_dx_vf(eqn_idx%mom%beg:eqn_idx%mom%end), &
                                                        & dqR_prim_dy_vf(eqn_idx%mom%beg:eqn_idx%mom%end), &
-                                                       & dqR_prim_dz_vf(eqn_idx%mom%beg:eqn_idx%mom%end), q_prim_vf, norm_dir, &
-                                                       & ix, iy, iz)
+                                                       & dqR_prim_dz_vf(eqn_idx%mom%beg:eqn_idx%mom%end), q_prim_vf, norm_dir)
                 else
                     call s_compute_viscous_source_flux(q_prim_vf(eqn_idx%mom%beg:eqn_idx%mom%end), &
                                                        & dqL_prim_dx_vf(eqn_idx%mom%beg:eqn_idx%mom%end), &
@@ -1807,8 +1810,7 @@ contains
                                                        & q_prim_vf(eqn_idx%mom%beg:eqn_idx%mom%end), &
                                                        & dqR_prim_dx_vf(eqn_idx%mom%beg:eqn_idx%mom%end), &
                                                        & dqR_prim_dy_vf(eqn_idx%mom%beg:eqn_idx%mom%end), &
-                                                       & dqR_prim_dz_vf(eqn_idx%mom%beg:eqn_idx%mom%end), q_prim_vf, norm_dir, &
-                                                       & ix, iy, iz)
+                                                       & dqR_prim_dz_vf(eqn_idx%mom%beg:eqn_idx%mom%end), q_prim_vf, norm_dir)
                 end if
             end if
 

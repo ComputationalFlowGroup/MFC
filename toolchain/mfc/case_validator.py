@@ -213,6 +213,17 @@ PHYSICS_DOCS = {
         "category": "Numerical Schemes",
         "explanation": ("weno_order must be 1, 3, 5, or 7. Grid must have enough cells. Only one of mapped_weno, wenoz, teno can be active."),
     },
+    "check_mpp_lim": {
+        "title": "Volume-Fraction Clipping (mpp_lim)",
+        "category": "Numerical Schemes",
+        "math": r"\alpha_i \leftarrow \min(\max(\alpha_i, 0), 1) \Big/ \textstyle\sum_j \min(\max(\alpha_j, 0), 1)",
+        "explanation": (
+            "mpp_lim clips the volume fractions (and partial densities) where the mixture equation of state is formed, "
+            "and in the 6-equation model also in the conserved state, without changing the energy, so it breaks the "
+            "pressure equilibrium of a moving material interface. A warning is issued when it is on, except with AMR "
+            "(which requires it for num_fluids > 1) and Euler-Euler bubbles (where it selects the multi-component closure)."
+        ),
+    },
     "check_muscl": {
         "title": "MUSCL Reconstruction",
         "category": "Numerical Schemes",
@@ -300,7 +311,7 @@ PHYSICS_DOCS = {
     "check_igr": {
         "title": "Iterative Generalized Riemann (IGR)",
         "category": "Feature Compatibility",
-        "explanation": ("Requires model_eqns = 2. Incompatible with characteristic BCs, bubbles, MHD, and elastic models."),
+        "explanation": ("Requires model_eqns = 2 and a 2D or 3D case. Incompatible with characteristic BCs, bubbles, MHD, and elastic models."),
     },
     "check_non_newtonian": {
         "title": "Non-Newtonian Viscosity (Herschel-Bulkley or Carreau-Yasuda)",
@@ -463,7 +474,7 @@ AMR_VETTED_FLAGS = (
     "ib",
     "ib_second_order_vel",
     "ib_slip_ccst",
-    "ib_smooth_contact",
+    "ib_visc_compact",
     "many_ib_patch_parallelism",
     "patch_ib(*)%slip",
     "igr",
@@ -622,6 +633,8 @@ class CaseValidator:
         if not igr:
             return
 
+        self.prohibit(self.get("n", 0) == 0, "igr requires a 2D or 3D case (n > 0); m_igr has no 1D path")
+
         # m_igr.fpp discards qv (qv_igr), so a nonzero value would be silently dropped from
         # the pressure rather than applied.
         num_fluids = self.get("num_fluids")
@@ -679,6 +692,15 @@ class CaseValidator:
         self.prohibit(int_comp not in [0, 1, 2], "int_comp must be 0 (off), 1 (THINC), or 2 (MTHINC)")
         self.prohibit(int_comp == 2 and n == 0, "int_comp = 2 (MTHINC) requires at least 2D (n > 0)")
         self.prohibit(self.get("face_bound", 0) == 1 and model_eqns != 2, "face_bound = 1 requires model_eqns = 2")
+        if self.get("face_bound", 0) == 2:
+            self.prohibit(model_eqns not in [2, 3], "face_bound = 2 requires model_eqns = 2 or 3")
+            self.prohibit(self.get("chemistry", "F") == "T", "face_bound = 2 does not support chemistry (use face_bound = 1 with chemistry)")
+            for flag in ["bubbles_euler", "mhd", "hypoelasticity", "relativity", "igr", "cont_damage"]:
+                self.prohibit(self.get(flag, "F") == "T", f"face_bound = 2 does not support {flag}")
+            self.prohibit(self._get_recon_type() == 1 and self.get("weno_order", 0) == 1, "face_bound = 2 has no effect with weno_order = 1: first-order faces equal the cell state")
+            state_dependent = {f.value for f in EOS_FAMILIES if f.state_dependent}
+            for i in range(1, (num_fluids or 0) + 1):
+                self.prohibit(self.get(f"fluid_pp({i})%eos") in state_dependent, "face_bound = 2 requires stiffened-gas fluids: its bounds are linear in the volume fractions")
         self.prohibit(int_comp != 0 and num_fluids != 2, "int_comp > 0 requires num_fluids = 2")
         self.prohibit(
             int_comp != 0 and model_eqns == 3,
@@ -1334,8 +1356,6 @@ class CaseValidator:
         ib_wall_order = self.get("ib_wall_order")
         self.prohibit(ib_wall_order is not None and ib_wall_order != 1 and not ib, "ib_wall_order requires ib to be enabled")
         self.prohibit(ib_wall_order == 2 and ib_second_order_vel, "ib_wall_order = 2 replaces the ghost velocity mirror of ib_second_order_vel; use one")
-        self.prohibit(self.get("ib_smooth_contact", "F") == "T" and not (ib and self.get("viscous", "F") == "T"), "ib_smooth_contact requires ib and viscous")
-        self.prohibit(self.get("ib_smooth_contact", "F") == "T" and self.get("riemann_solver", 2) != 2, "ib_smooth_contact requires riemann_solver = 2 (HLLC)")
         self.prohibit(self.get("ib_visc_compact", "F") == "T" and not (ib and self.get("viscous", "F") == "T"), "ib_visc_compact requires ib and viscous")
         self.prohibit(self.get("ib_visc_compact", "F") == "T" and self.get("weno_Re_flux", "F") != "T", "ib_visc_compact requires weno_Re_flux")
         self.prohibit(self.get("ib_visc_compact", "F") == "T" and self.get("cyl_coord", "F") == "T", "ib_visc_compact requires Cartesian coordinates")
@@ -1568,7 +1588,7 @@ class CaseValidator:
         args = []
         for suffix in family.coefficients_args:
             value = self.get(f"fluid_pp({i})%{family.prefix}_{suffix}")
-            args.append((value or 0.0) if suffix in optional else value)
+            args.append(0.0 if value is None and suffix in optional else value)
         return args
 
     def _check_initial_states_inside_eos(self, num_fluids):
@@ -1899,6 +1919,17 @@ class CaseValidator:
         if muscl_eps is not None:
             self.prohibit(muscl_eps < 0, "muscl_eps must be >= 0 (use 0 for textbook limiter behavior)")
 
+    def check_mpp_lim(self):
+        """Advisory (#2476): mpp_lim breaks interface pressure equilibrium. AMR requires it, and with Euler-Euler
+        bubbles it selects the multi-fluid closure, so neither warns."""
+        if self.get("mpp_lim", "F") != "T":
+            return
+        self.warn(
+            self.get("amr", "F") != "T" and self.get("bubbles_euler", "F") != "T",
+            "mpp_lim clips volume fractions to [0, 1] where the mixture equation of state is formed, which breaks pressure "
+            "equilibrium at material interfaces; use it only if the case fails without it (see mpp_lim in docs/documentation/case.md)",
+        )
+
     def check_model_eqns_simulation(self):
         """Checks model equation constraints specific to simulation"""
         model_eqns = self.get("model_eqns")
@@ -2143,10 +2174,8 @@ class CaseValidator:
         # m_time_steppers.fpp but deallocated unconditionally, so heat_conduction + igr would
         # deallocate an unallocated field.
         self.prohibit(heat_conduction and igr, "heat conduction is not supported with igr")
-        # Load-bearing, not cosmetic: with chemistry, m_rhs.fpp allocates the energy flux_src slot
-        # under chemistry and chem_params%diffusion and not viscous, which conduction also allocates
-        # when heat_conduction is on -- the combination double-allocates and aborts in the allocator.
-        # Chemistry also carries its own mixture-averaged conduction, so the physics would double-count.
+        # Chemistry carries its own mixture-averaged conduction (chem_params%diffusion), so adding
+        # Fourier conduction would double-count the heat flux.
         self.prohibit(
             heat_conduction and chemistry,
             "heat conduction is not supported with chemistry: the reacting path already carries mixture-averaged conduction through chem_params%diffusion",
@@ -2500,11 +2529,6 @@ class CaseValidator:
             "amr is incompatible with chem_params%reaction_substeps > 0: the operator-split reaction integrates the coarse "
             "grid once per step, after the fine solution has been folded back, so the refined region would never react",
         )
-        self.prohibit(
-            (self.get("rburn%substeps") or 0) > 0,
-            "amr is incompatible with rburn%substeps > 0: the operator-split burn integrates the coarse grid once per step, "
-            "after the fine solution has been folded back, so the refined region would never burn",
-        )
         for d in ("x", "y", "z"):
             for e in ("beg", "end"):
                 bc = self.get(f"bc_{d}%{e}")
@@ -2587,11 +2611,6 @@ class CaseValidator:
             "amr with mhd is 1D-only " "(the coarse/fine seam is not divergence-preserving for B; in 1D div(B) = 0 by construction)",
         )
         num_dims = 1 + ((self.get("n", 0) or 0) > 0) + ((self.get("p", 0) or 0) > 0)
-        bc_characteristic = any(-12 <= (self.get(f"bc_{d}%{e}") or 0) <= -5 for d in "xyz"[:num_dims] for e in ("beg", "end"))
-        self.prohibit(
-            bc_characteristic,
-            "amr does not support characteristic (CBC) boundary conditions (bc = -5..-12): " "the fine-block advance would apply the boundary treatment at block edges inside the domain",
-        )
         self.prohibit(
             (amr_regrid_int or 0) == 0 and amr_max_level is not None and amr_max_level > 2,
             "static multi-level AMR (amr_regrid_int = 0) nests exactly one level-2 block in block 1, so it supports at most "
@@ -2622,11 +2641,11 @@ class CaseValidator:
             stl = any((self.get(f"patch_ib({i})%geometry")) in (5, 12) for i in range(1, num_ibs + 1))
             self.prohibit(stl, "amr with ib does not support STL-model geometry (not yet validated)")
             moving = any((self.get(f"patch_ib({i})%moving_ibm") or 0) != 0 for i in range(1, num_ibs + 1))
-            # Moving bodies and regrid size blocks from s_amr_body_bbox, which bounds only these geometries
-            bbox_geoms = (2, 3, 8, 9, 10)
+            # Moving bodies and regrid size blocks from s_amr_body_bbox, which bounds every analytic geometry (STL is rejected above)
+            bbox_geoms = (2, 3, 4, 6, 8, 9, 10, 11)
             self.prohibit(
                 any(((self.get(f"patch_ib({i})%moving_ibm") or 0) != 0 or (amr_regrid_int or 0) > 0) and self.get(f"patch_ib({i})%geometry") not in bbox_geoms for i in range(1, num_ibs + 1)),
-                "amr with a moving immersed body or dynamic regrid supports circle/rectangle/sphere/box/cylinder geometry only (the block containment bounding box)",
+                "amr with a moving immersed body or dynamic regrid supports analytic geometries only (the block containment bounding box)",
             )
             # The reacting-surface ghost reconstruction runs per fine block but has no AMR validation
             self.prohibit(
@@ -2669,7 +2688,13 @@ class CaseValidator:
         self.prohibit(amr_snap is not None and amr_snap < 0, "amr_snap must be >= 0")
         self.prohibit(
             (amr_snap or 0) > 0 and amr_buf is not None and amr_snap > amr_buf - 2,
-            "amr_snap must leave two cells of amr_buf (amr_snap <= amr_buf - 2): a snapped box keeps at least that much " "tag padding on every face",
+            "amr_snap must leave two cells of amr_buf (amr_snap <= amr_buf - 2): with one refined level a snapped box keeps at " "least that much tag padding on every face",
+        )
+        # a level >= 2 child is clamped into its parent's inset (amr_cpat_mar), so a snapped child can lag a front out of its block
+        # (2-level Sod: a 1 % shock-speed error that does not converge; validation_amr.md)
+        self.prohibit(
+            (amr_regrid_int or 0) > 0 and (amr_snap or 0) > 0 and (amr_max_level or 1) > 1,
+            "amr_snap > 0 needs amr_max_level = 1 under dynamic regrid: a snapped level-2 box can lag a front out of its block",
         )
         # advisory, not a prohibit: low-CFL cases are legitimately below this worst-case bound
         self.warn(
@@ -2911,10 +2936,10 @@ class CaseValidator:
                 # dir_idx, which is (2,1,3) for a y inflow and (3,1,2) for z -- so requiring only
                 # component 1 would leave the normal velocity of a y or z inflow unchecked.
                 num_dims = 3 if (self.get("p", 0) or 0) > 0 else (2 if (self.get("n", 0) or 0) > 0 else 1)
-                missing = [n for n in (f"bc_{dir}%pres_in",) if self.get(n) is None]
-                missing += [f"bc_{dir}%vel_in({d})" for d in range(1, num_dims + 1) if self.get(f"bc_{dir}%vel_in({d})") is None]
-                missing += [f"bc_{dir}%alpha_rho_in({i})" for i in range(1, num_fluids + 1) if self.get(f"bc_{dir}%alpha_rho_in({i})") is None]
-                missing += [f"bc_{dir}%alpha_in({i})" for i in range(1, num_fluids + 1) if self.get(f"bc_{dir}%alpha_in({i})") is None]
+                required = [f"bc_{dir}%pres_in"]
+                required += [f"bc_{dir}%vel_in({d})" for d in range(1, num_dims + 1)]
+                required += [f"bc_{dir}%{name}({i})" for name in ("alpha_rho_in", "alpha_in") for i in range(1, num_fluids + 1)]
+                missing = [name for name in required if self.get(name) is None]
                 self.prohibit(len(missing) > 0, f"Subsonic Inflow (grcbc_in) needs the full inflow state; missing {', '.join(missing)}")
             if grcbc_out:
                 # Check if EITHER beg OR end is set to -8
@@ -4042,6 +4067,7 @@ class CaseValidator:
         self.check_muscl_simulation()
         self.check_interface_compression()
         self.check_model_eqns_simulation()
+        self.check_mpp_lim()
         self.check_bubbles_euler_simulation()
         self.check_body_forces()
         self.check_mean_pressure_gradient()
@@ -4171,7 +4197,7 @@ class CaseValidator:
 
 # AMR defaults the toolchain derives for a case that leaves them unset. The Fortran defaults stay off on purpose: a
 # default set there bypasses every rule above, so the decision lives here, under the same prohibitions.
-# Regrid hysteresis under dynamic regrid when the tag buffer leaves room (amr_snap <= amr_buf - 2).
+# Regrid hysteresis under dynamic regrid with one refined level when the tag buffer leaves room (amr_snap <= amr_buf - 2).
 SNAP_DEFAULT = 2
 
 

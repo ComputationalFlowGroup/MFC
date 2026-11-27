@@ -520,6 +520,8 @@ contains
                                     s_S = 5.e-1_wp*((vel_L(dir_idx(1)) + vel_R(dir_idx(1))) + (pres_L - pres_R)/(rho_avg*c_avg))
                                 end if
 
+                                ! s_M/s_L and s_P/s_R as merges: they are 0/0 at a sonic face (s_L or s_R = 0, reached in single
+                                ! precision)
                                 s_M = min(0._wp, s_L); s_P = max(0._wp, s_R)
 
                                 xi_M = (5.e-1_wp + sign(5.e-1_wp, s_L)) + (5.e-1_wp - sign(5.e-1_wp, &
@@ -580,8 +582,9 @@ contains
                                                     & *vel_R(dir_idx(i)) + dir_flg(dir_idx(i))*(pres_R - ptilde_R)) &
                                                     & - s_P*(rho_L*vel_L(dir_idx(1))*vel_L(dir_idx(i)) + dir_flg(dir_idx(i)) &
                                                     & *(pres_L - ptilde_L)) + s_M*s_P*(rho_L*vel_L(dir_idx(i)) &
-                                                    & - rho_R*vel_R(dir_idx(i))))/(s_M - s_P) + (s_M/s_L)*(s_P/s_R) &
-                                                    & *pcorr*(vel_R(dir_idx(i)) - vel_L(dir_idx(i)))
+                                                    & - rho_R*vel_R(dir_idx(i))))/(s_M - s_P) + merge(1._wp, 0._wp, &
+                                                    & s_L < 0._wp)*merge(1._wp, 0._wp, &
+                                                    & s_R > 0._wp)*pcorr*(vel_R(dir_idx(i)) - vel_L(dir_idx(i)))
                                     end do
                                 else if (hypoelasticity .or. hyperelasticity) then
                                     ! Same momentum-flux form for both: the stress enters identically regardless of
@@ -604,8 +607,8 @@ contains
                                                     & *vel_R(dir_idx(i)) + dir_flg(dir_idx(i))*pres_R) &
                                                     & - s_P*(rho_L*vel_L(dir_idx(1))*vel_L(dir_idx(i)) + dir_flg(dir_idx(i)) &
                                                     & *pres_L) + s_M*s_P*(rho_L*vel_L(dir_idx(i)) - rho_R*vel_R(dir_idx(i)))) &
-                                                    & /(s_M - s_P) + (s_M/s_L)*(s_P/s_R)*pcorr*(vel_R(dir_idx(i)) &
-                                                    & - vel_L(dir_idx(i)))
+                                                    & /(s_M - s_P) + merge(1._wp, 0._wp, s_L < 0._wp)*merge(1._wp, 0._wp, &
+                                                    & s_R > 0._wp)*pcorr*(vel_R(dir_idx(i)) - vel_L(dir_idx(i)))
                                     end do
                                 end if
 
@@ -630,7 +633,8 @@ contains
                                     flux_rsx_vf(${SF('')}$, &
                                                 & eqn_idx%E) = (s_M*vel_R(dir_idx(1))*(E_R + pres_R - ptilde_R) &
                                                 & - s_P*vel_L(dir_idx(1))*(E_L + pres_L - ptilde_L) + s_M*s_P*(E_L - E_R))/(s_M &
-                                                & - s_P) + (s_M/s_L)*(s_P/s_R)*pcorr*(vel_R_rms - vel_L_rms)/2._wp
+                                                & - s_P) + merge(1._wp, 0._wp, s_L < 0._wp)*merge(1._wp, 0._wp, &
+                                                & s_R > 0._wp)*pcorr*(vel_R_rms - vel_L_rms)/2._wp
                                 else if (hypoelasticity .or. hyperelasticity) then
                                     flux_tau_L = 0._wp; flux_tau_R = 0._wp
                                     $:GPU_LOOP(parallelism='[seq]')
@@ -645,8 +649,8 @@ contains
                                 else
                                     flux_rsx_vf(${SF('')}$, &
                                                 & eqn_idx%E) = (s_M*vel_R(dir_idx(1))*(E_R + pres_R) - s_P*vel_L(dir_idx(1))*(E_L &
-                                                & + pres_L) + s_M*s_P*(E_L - E_R))/(s_M - s_P) + (s_M/s_L)*(s_P/s_R) &
-                                                & *pcorr*(vel_R_rms - vel_L_rms)/2._wp
+                                                & + pres_L) + s_M*s_P*(E_L - E_R))/(s_M - s_P) + merge(1._wp, 0._wp, &
+                                                & s_L < 0._wp)*merge(1._wp, 0._wp, s_R > 0._wp)*pcorr*(vel_R_rms - vel_L_rms)/2._wp
                                 end if
 
                                 ! Elastic Stresses. hyperelasticity does not need a flux here: its stress is slaved
@@ -890,8 +894,7 @@ contains
                                                        & qR_prim_vf(eqn_idx%mom%beg:eqn_idx%mom%end), &
                                                        & dqR_prim_dx_vf(eqn_idx%mom%beg:eqn_idx%mom%end), &
                                                        & dqR_prim_dy_vf(eqn_idx%mom%beg:eqn_idx%mom%end), &
-                                                       & dqR_prim_dz_vf(eqn_idx%mom%beg:eqn_idx%mom%end), q_prim_vf, norm_dir, &
-                                                       & ix, iy, iz)
+                                                       & dqR_prim_dz_vf(eqn_idx%mom%beg:eqn_idx%mom%end), q_prim_vf, norm_dir)
                 else
                     call s_compute_viscous_source_flux(q_prim_vf(eqn_idx%mom%beg:eqn_idx%mom%end), &
                                                        & dqL_prim_dx_vf(eqn_idx%mom%beg:eqn_idx%mom%end), &
@@ -900,8 +903,7 @@ contains
                                                        & q_prim_vf(eqn_idx%mom%beg:eqn_idx%mom%end), &
                                                        & dqR_prim_dx_vf(eqn_idx%mom%beg:eqn_idx%mom%end), &
                                                        & dqR_prim_dy_vf(eqn_idx%mom%beg:eqn_idx%mom%end), &
-                                                       & dqR_prim_dz_vf(eqn_idx%mom%beg:eqn_idx%mom%end), q_prim_vf, norm_dir, &
-                                                       & ix, iy, iz)
+                                                       & dqR_prim_dz_vf(eqn_idx%mom%beg:eqn_idx%mom%end), q_prim_vf, norm_dir)
                 end if
             end if
         #:endif

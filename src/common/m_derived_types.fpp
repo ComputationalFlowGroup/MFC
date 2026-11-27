@@ -113,8 +113,8 @@ module m_derived_types
         real(wp), dimension(num_fluids_max) :: alpha_rho_in, alpha_in
         logical                             :: grcbc_in, grcbc_out, grcbc_vel_out
         !> Smooth start-up of a GRCBC inflow: the inflow velocity is scaled by f(t) = vel_in_frac0 + (1 - vel_in_frac0) (1 + tanh(6
-        !! (t - t0)/tau - 3))/2, so it leaves vel_in_frac0 of its final value at t0 and reaches it after vel_in_ramp. Inactive when
-        !! the ramp duration is zero.
+        !! (t - t0)/tau - 3))/2, so f(t0) ~ vel_in_frac0 and f(t0 + tau) ~ 1 (within 0.25%). Inactive when the ramp duration is
+        !! zero.
         real(wp) :: vel_in_ramp, vel_in_t0, vel_in_frac0
         logical  :: isothermal_in, isothermal_out
         real(wp) :: Twall_in, Twall_out
@@ -429,13 +429,16 @@ module m_derived_types
         real(wp) :: wall_column_len      !< Column length [m]; 0 = 0.15 radius
 
         ! Heterogeneous surface reaction    0 = none    1 = enabled
-        integer :: surface_reaction
-        integer :: moving_ibm  !< 0 for no moving, 1 for moving, 2 for moving on forced path
-        real(wp) :: v_blow  !< Wall-normal surface blowing speed (burning/transpiring IB surface); 0 = impermeable
-        integer :: inj_species  !< Injected species index at a blowing surface (chemistry); 0 = mirror ambient
-        real(wp) :: burn_rate_exp  !< Pressure exponent n in v_blow*(p/p_ref)^n (Vieille's law); 0 = constant blowing
+        integer  :: surface_reaction
+        integer  :: moving_ibm      !< 0 for no moving, 1 for moving, 2 for moving on forced path
+        real(wp) :: v_blow          !< Wall-normal surface blowing speed (burning/transpiring IB surface); 0 = impermeable
+        integer  :: inj_species     !< Injected species index at a blowing surface (chemistry); 0 = mirror ambient
+        real(wp) :: burn_rate_exp   !< Pressure exponent n in v_blow*(p/p_ref)^n (Vieille's law); 0 = constant blowing
         real(wp) :: burn_rate_pref  !< Reference pressure p_ref for the pressure-coupled burn rate; 0 = coupling off
-        real(wp) :: mass, moment  !< mass and moment of inertia of object used to compute forces in 2-way coupling
+        real(wp) :: mass, moment    !< mass and moment of inertia of object used to compute forces in 2-way coupling
+        !> Body-frame second moment about the centroid per unit mass (xx, yy, zz, xy, xz, yz), summed over the body's cells at
+        !! set-up, for a moving body without an analytic moment of inertia
+        real(wp), dimension(6)   :: inertia_b
         real(wp), dimension(1:3) :: force, torque  !< vectors for the computed force and torque values applied to an IB
         !> Last step's gasification rate and face mass out [kg/s], and fluid heat in [W] (ib_heat_wrt; per unit depth in 2D)
         real(wp) :: mdot, mdot_face, qdot

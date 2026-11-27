@@ -308,11 +308,12 @@ module m_global_parameters
     !> @{
     !> @}
 
-    real(wp)                                    :: mytime  !< Current simulation time
+    real(wp)                                    :: mytime  !< Current simulation time (start of the step)
+    real(wp)                                    :: t_rhs   !< Time of the state the current RHS evaluates (its RK stage time)
     type(pres_field), allocatable, dimension(:) :: pb_ts
     type(pres_field), allocatable, dimension(:) :: mv_ts
 
-    $:GPU_DECLARE(create='[mytime, pb_ts, mv_ts]')
+    $:GPU_DECLARE(create='[t_rhs, pb_ts, mv_ts]')
 
     !> @name lagrangian subgrid bubble parameters
     !> lag_params: auto-generated in generated_decls.fpp
@@ -445,6 +446,22 @@ contains
 
     end subroutine s_amr_select_slot
 
+    !> Time at the fraction c of the step of length dt_step that starts at mytime. A fixed dt uses the t_step*dt form a restart
+    !! resumes from (m_start_up), so a restarted run sees bitwise the same times.
+    pure function f_step_time(c, t_step, dt_step) result(t)
+
+        real(wp), intent(in) :: c, dt_step
+        integer, intent(in)  :: t_step
+        real(wp)             :: t
+
+        if (cfl_dt) then
+            t = mytime + c*dt_step
+        else
+            t = (t_step + c)*dt_step
+        end if
+
+    end function f_step_time
+
     !> Assigns default values to the user inputs before reading them in. This enables for an easier consistency check of these
     !! parameters once they are read from the input file.
     impure subroutine s_assign_default_values_to_user_inputs
@@ -509,7 +526,7 @@ contains
         mp_weno = .false.
         weno_avg = .false.
         weno_Re_flux = .false.
-        weno_Re_flux_compact = .false.
+        weno_Re_flux_compact = .true.
         riemann_hypo_ADC = .false.
         ADC_kappa = 1.0_wp
         hll_u_interface = .false.
@@ -712,12 +729,11 @@ contains
         ib_ip_min_dist = 0._wp
         ib_flux_wall = .false.
         ib_slip_ccst = .false.
-        ib_ip_interp = 1
-        ib_wall_order = 1
+        ib_ip_interp = -1  ! auto (s_initialize_ibm_module): 2, or 1 with ib_second_order_vel
+        ib_wall_order = -1  ! auto (s_initialize_ibm_module): 2, or 1 with ib_second_order_vel
         ib_mass_relax = -1
         wall_column_dt_frac = 0.1_wp
-        ib_smooth_contact = .false.
-        ib_visc_compact = .false.
+        ib_visc_compact = .true.
         ib_uncover_fill = .false.
 
         ! Bubble modeling (sim-specific)
@@ -1081,6 +1097,11 @@ contains
                 end do
             end if
         end if
+        ! weno_Re_flux_compact (default T) applies to Cartesian weno_Re_flux runs only
+        weno_Re_flux_compact = weno_Re_flux_compact .and. weno_Re_flux .and. .not. cyl_coord
+        ! ib_visc_compact (default T) applies to Cartesian viscous weno_Re_flux runs with a body: the wide WENO gradient would read
+        ! solid cells past the filled ghost layers, which hold the frozen wall velocity, not the ghost fill (#2041)
+        ib_visc_compact = ib_visc_compact .and. ib .and. viscous .and. weno_Re_flux .and. .not. cyl_coord
         call s_set_visc_dt_cap()
 
         ! Non-Newtonian viscosity (Herschel-Bulkley or Carreau-Yasuda): gather per-fluid parameters into device arrays

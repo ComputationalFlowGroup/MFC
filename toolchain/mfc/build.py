@@ -21,6 +21,12 @@ from .run import input
 from .state import ARG, CFG, gpuConfigOptions
 from .thermochem.fingerprint import generator_fingerprint, mechanism_fingerprint, surface_fingerprint
 
+
+def build_jobs() -> int:
+    """Parallel build jobs: -j if given, else min(core count, 16) so an unset -j does not compile serially."""
+    return ARG("jobs") or min(os.cpu_count() or 1, 16)
+
+
 # Regex to parse build progress
 # Ninja format: [42/156] Building Fortran object ...
 _NINJA_PROGRESS_RE = re.compile(r"^\[(\d+)/(\d+)\]\s+(.*)$")
@@ -473,6 +479,7 @@ class MFCTarget:
             f"-DCMAKE_INSTALL_PREFIX={install_dirpath}",
             f"-DMFC_SINGLE_PRECISION={'ON' if (ARG('single') or ARG('mixed')) else 'OFF'}",
             f"-DMFC_MIXED_PRECISION={'ON' if ARG('mixed') else 'OFF'}",
+            # -flto-partitions of the amdflang offload link (cmake/MFCTargets.cmake) follows -j as given, not the default job count
             f"-DMFC_BUILD_JOBS={ARG('jobs')}",
         ]
 
@@ -533,7 +540,7 @@ class MFCTarget:
             "--target",
             self.name,
             "--parallel",
-            ARG("jobs"),
+            build_jobs(),
             "--config",
             "Debug" if ARG("debug") else "RelDebug" if ARG("reldebug") else "Release",
         ]
@@ -543,7 +550,7 @@ class MFCTarget:
         if verbosity >= 2:
             command.append("--verbose")
 
-        debug(f"Building {self.name} with {ARG('jobs')} parallel jobs")
+        cons.print(f"  [dim]Building {self.name} with -j {build_jobs()}[/dim]")
         debug(f"Build command: {' '.join(str(c) for c in command)}")
 
         if verbosity >= 2:
@@ -640,6 +647,10 @@ def __build_target(target: typing.Union[MFCTarget, str], case: input.MFCInputFil
     if target.isDependency and target.is_installed(case):
         return
 
+    if _interrupted_build(target, case):
+        cons.print(f"  [bold yellow]Reconfiguring[/bold yellow] [magenta]{target.name}[/magenta] from scratch: an earlier build stopped before installing it")
+        delete_directory(target.get_staging_dirpath(case))
+
     # CI's retry clears only the slugs its own build touched (.github/scripts/retry-build.sh).
     slug_log = os.environ.get("MFC_SLUG_LOG")
     if slug_log:
@@ -734,6 +745,17 @@ def cmake_cache_compilers(staging_dirpath: str) -> typing.Dict[str, str]:
 def compiler_mismatches(ours: typing.Dict[str, str], theirs: typing.Dict[str, str]) -> typing.List[str]:
     # Compare resolved paths: module systems often reach one compiler through several symlinks.
     return [lang for lang in ("Fortran", "C", "CXX") if lang in ours and lang in theirs and os.path.realpath(ours[lang]) != os.path.realpath(theirs[lang])]
+
+
+def _interrupted_build(target: MFCTarget, case: input.MFCInputFile) -> bool:
+    """A dependency whose staging directory holds a configure but no install manifest.
+
+    A build stopped before install leaves CMakeCache.txt behind, and CMake keeps the cached
+    compilers whatever FC/CC/CXX now say (or the module default when they are unset), so
+    reconfiguring over it can reuse the old toolchain (#2501). Such a dependency is rebuilt
+    from scratch. Installed dependencies are _stale_dependencies' concern.
+    """
+    return target.isDependency and not target.is_installed(case) and os.path.isfile(os.path.join(target.get_staging_dirpath(case), "CMakeCache.txt"))
 
 
 def _all_dependencies(target: MFCTarget) -> typing.List[MFCTarget]:

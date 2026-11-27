@@ -325,7 +325,10 @@ class TestChemistrySubstepping(ConstraintTestCase):
         self.assertAccepts(params)
 
     def test_accepts_igr_without_substepping(self):
-        self.assertAccepts({**CHEMISTRY, "igr": "T", "chem_params%reaction_substeps": 0})
+        self.assertAccepts({**CHEMISTRY, **BASE_2D, "igr": "T", "chem_params%reaction_substeps": 0})
+
+    def test_rejects_igr_in_1d(self):
+        self.assertRejects({**CHEMISTRY, "igr": "T", "chem_params%reaction_substeps": 0}, "igr requires a 2D or 3D case")
 
 
 class TestChemistryTransportDt(ConstraintTestCase):
@@ -552,6 +555,34 @@ class TestWenoReFluxWithoutAvg(ConstraintTestCase):
         self.assertAccepts({**self.VISCOUS, "weno_Re_flux": "F"})
 
 
+class TestMppLimWarning(unittest.TestCase):
+    """mpp_lim breaks interface pressure equilibrium (#2476): a warning, except where AMR requires it or bubbles use it."""
+
+    MSG = "mpp_lim clips volume fractions"
+
+    def warned(self, params):
+        return any(self.MSG in w for w in CaseValidator(dict(params)).validate("simulation"))
+
+    def test_warns_when_on(self):
+        self.assertTrue(self.warned({**TWO_FLUID, "mpp_lim": "T"}))
+
+    def test_silent_when_off(self):
+        self.assertFalse(self.warned(TWO_FLUID))
+
+    def check_only(self, params):
+        """The rule alone: a full valid AMR or Euler-Euler bubble case needs many unrelated keys."""
+        validator = CaseValidator(dict(params))
+        validator.check_mpp_lim()
+        return any(self.MSG in w for w in validator.warnings)
+
+    def test_silent_with_two_fluid_amr(self):
+        self.assertTrue(self.check_only({**TWO_FLUID, "mpp_lim": "T"}))
+        self.assertFalse(self.check_only({**TWO_FLUID, "mpp_lim": "T", "amr": "T"}))
+
+    def test_silent_with_bubbles_euler(self):
+        self.assertFalse(self.check_only({**TWO_FLUID, "mpp_lim": "T", "bubbles_euler": "T"}))
+
+
 class TestNumLocalIbsMax(ConstraintTestCase):
     """num_local_ibs_max sizes the per-rank IB arrays and must be positive."""
 
@@ -602,6 +633,13 @@ class TestAmrDefaults(unittest.TestCase):
         self.assertNotIn("amr_snap", ml)
         validate_case_constraints(p, "simulation")
 
+    def test_snap_needs_one_level_under_regrid(self):
+        dyn = {**self.AMR, "amr_regrid_int": 4, "amr_buf": 4, "amr_snap": 2}
+        validate_case_constraints(dyn, "simulation")
+        with self.assertRaises(CaseConstraintError):
+            validate_case_constraints({**dyn, "amr_max_level": 2}, "simulation")
+        validate_case_constraints({**dyn, "amr_max_level": 2, "amr_snap": 0}, "simulation")
+
     def test_unsupported_physics_is_prohibited_under_amr(self):
         for k in ("qbmm", "stretch_x", "cyl_coord", "relax"):
             with self.assertRaises(CaseConstraintError, msg=k):
@@ -648,7 +686,7 @@ class TestAmrDefaults(unittest.TestCase):
                 self.assertIn("amr", str(ctx.exception))
 
     def test_ib_gates_under_amr(self):
-        """STL (2D and 3D), reacting and lumped surfaces, ib_surface_wrt, ib_heat_wrt, and geometries the containment bbox cannot bound when moving or regridding."""
+        """STL (2D and 3D), reacting and lumped surfaces, ib_surface_wrt and ib_heat_wrt are rejected; an analytic non-box body may regrid."""
         ib = {**self.AMR, **BASE_2D, "amr": "T", "amr_block_beg(2)": 10, "amr_block_end(2)": 30, "ib": "T", "num_ibs": 1, "fd_order": 2}
         ib.update({"patch_ib(1)%geometry": 2, "patch_ib(1)%x_centroid": 0.5, "patch_ib(1)%y_centroid": 0.5, "patch_ib(1)%radius": 0.1})
         validate_case_constraints(dict(ib), "simulation")
@@ -658,9 +696,9 @@ class TestAmrDefaults(unittest.TestCase):
             ({"chemistry": "T", "cantera_file": "h2o2.yaml", "ib_surface_wrt": "T"}, "ib_surface_wrt"),
             ({"chemistry": "T", "cantera_file": "h2o2.yaml", "ib_heat_wrt": "T"}, "ib_heat_wrt (not yet validated)"),
             ({"patch_ib(1)%thermal_bc": 3, "patch_ib(1)%Twall": 600.0, "patch_ib(1)%rho_solid": 2000.0, "patch_ib(1)%cp_solid": 700.0}, "thermal_bc or surface_reaction"),
-            ({"patch_ib(1)%geometry": 4, "patch_ib(1)%moving_ibm": 1}, "containment bounding box"),
-            ({"patch_ib(1)%geometry": 6, "amr_regrid_int": 2, "amr_tag_eps": 0.01, "amr_buf": 2}, "containment bounding box"),
         ]
+        # analytic non-box bodies are bounded by their marker-drawing radius, so they may move or regrid
+        validate_case_constraints({**ib, "patch_ib(1)%geometry": 6, "patch_ib(1)%length_x": 0.2, "patch_ib(1)%length_y": 0.1, "amr_regrid_int": 2, "amr_tag_eps": 0.01, "amr_buf": 2}, "simulation")
         for mods, msg in rejected:
             with self.assertRaises(CaseConstraintError, msg=str(mods)) as ctx:
                 validate_case_constraints({**ib, **mods}, "simulation")

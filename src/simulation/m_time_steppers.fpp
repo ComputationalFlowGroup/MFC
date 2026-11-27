@@ -36,7 +36,7 @@ module m_time_steppers
     use m_stage_hooks, only: s_stage_hooks_pre_ib, s_stage_hooks_post_ib
     use m_derived_variables
     use m_constants, only: model_eqns_6eq, time_stepper_rk1, time_stepper_rk2, time_stepper_rk3, dflt_T_guess
-    use m_amr_stage, only: s_amr_stage_begin, s_amr_stage_fine, s_amr_step_fold, s_amr_subcycle_fine
+    use m_amr_stage, only: s_amr_stage_begin, s_amr_stage_fine, s_amr_step_fold, s_amr_subcycle_fine, s_amr_burn_fine
     use m_amr_advance, only: s_amr_fine_stage_ib
     use m_amr_registers, only: s_amr_set_rk_table
 
@@ -54,6 +54,7 @@ module m_time_steppers
     integer, private                              :: num_ts  !< Number of time stages in the time-stepping scheme
     integer                                       :: stor    !< storage index
     real(wp), allocatable, dimension(:,:)         :: rk_coef
+    real(wp), allocatable, dimension(:)           :: rk_c    !< stage times as fractions of dt (rk_c(nstage + 1) = 1)
     integer, private                              :: num_probe_ts
     !> Max dt*(species loss rate) of the explicit reaction source over the run
     real(wp), private :: chem_stiff_max = 0._wp
@@ -230,8 +231,10 @@ contains
 
             do i = 1, num_probe_ts
                 do j = 1, sys_size
+                    ! Zeroed: the acceleration probe reads all four levels from the first step, before they hold a state
                     @:ALLOCATE(q_prim_ts1(i)%vf(j)%sf(idwbuff(1)%beg:idwbuff(1)%end, idwbuff(2)%beg:idwbuff(2)%end, &
                                & idwbuff(3)%beg:idwbuff(3)%end))
+                    q_prim_ts1(i)%vf(j)%sf = 0._wp
                 end do
                 @:ACC_SETUP_VFs(q_prim_ts1(i))
             end do
@@ -246,6 +249,7 @@ contains
                 do j = 1, sys_size
                     @:ALLOCATE(q_prim_ts2(i)%vf(j)%sf(idwbuff(1)%beg:idwbuff(1)%end, idwbuff(2)%beg:idwbuff(2)%end, &
                                & idwbuff(3)%beg:idwbuff(3)%end))
+                    q_prim_ts2(i)%vf(j)%sf = 0._wp
                 end do
                 @:ACC_SETUP_VFs(q_prim_ts2(i))
             end do
@@ -501,7 +505,13 @@ contains
                 rk_coef(3,:) = (/2._wp, 1._wp, 2._wp, 3._wp/)
             end if
             $:GPU_UPDATE(device='[rk_coef, stor]')
-            if (amr) call s_amr_set_rk_table(rk_coef)
+            ! Stage times as fractions of dt: stage s evaluates its RHS at rk_c(s) and produces the state at rk_c(s + 1)
+            allocate (rk_c(time_stepper + 1))
+            rk_c(1) = 0._wp
+            do i = 1, time_stepper
+                rk_c(i + 1) = (rk_coef(i, 1)*rk_c(i) + rk_coef(i, 3))/rk_coef(i, 4)
+            end do
+            if (amr) call s_amr_set_rk_table(rk_coef, rk_c)
         end if
 
     end subroutine s_initialize_time_steppers_module
@@ -529,15 +539,15 @@ contains
 
         do s = 1, nstage
             call system_clock(stage_t0)
-            ! mytime is read on the device by the GRCBC inflow ramp, so it has to be current before the RHS that
-            ! reads it, not after. Its GPU_DECLARE only creates device storage and never copies the host value, so
-            ! without this the first RHS of a run reads uninitialised memory and later stages read a stale time.
-            $:GPU_UPDATE(device='[mytime]')
-            ! Dirichlet inflows ramp too; their ghost fill lives in common code, which cannot read mytime
+            ! Explicitly time-dependent terms (sources, forcing, inflow ramps) are evaluated at the stage's own time; the
+            ! step-start time in every stage makes them first order. The GRCBC ramp reads t_rhs on the device.
+            t_rhs = f_step_time(rk_c(s), t_step, dt)
+            $:GPU_UPDATE(device='[t_rhs]')
+            ! Dirichlet inflows ramp too; their ghost fill lives in common code, which cannot read t_rhs
             if (any([bc_x%vel_in_ramp, bc_y%vel_in_ramp, bc_z%vel_in_ramp] > 0._wp)) then
-                bc_vel_ramp = [f_vel_ramp(bc_x%vel_in_ramp, bc_x%vel_in_t0, bc_x%vel_in_frac0, mytime), &
-                                          & f_vel_ramp(bc_y%vel_in_ramp, bc_y%vel_in_t0, bc_y%vel_in_frac0, mytime), &
-                                          & f_vel_ramp(bc_z%vel_in_ramp, bc_z%vel_in_t0, bc_z%vel_in_frac0, mytime)]
+                bc_vel_ramp = [f_vel_ramp(bc_x%vel_in_ramp, bc_x%vel_in_t0, bc_x%vel_in_frac0, t_rhs), &
+                                          & f_vel_ramp(bc_y%vel_in_ramp, bc_y%vel_in_t0, bc_y%vel_in_frac0, t_rhs), &
+                                          & f_vel_ramp(bc_z%vel_in_ramp, bc_z%vel_in_t0, bc_z%vel_in_frac0, t_rhs)]
                 $:GPU_UPDATE(device='[bc_vel_ramp]')
             end if
             call s_amr_stage_begin(q_cons_ts(1)%vf)
@@ -707,6 +717,7 @@ contains
         if (amr_sub_on) call s_amr_subcycle_fine(q_cons_ts(1)%vf, q_cons_ts(stor)%vf, rk_coef, q_T_sf, bc_type, pb_ts(1)%sf, &
             & rhs_pb, mv_ts(1)%sf, rhs_mv, t_step)
         amr_sub_on = .false.
+        if (amr .and. reactive_burn .and. rburn%substeps > 0) call s_amr_burn_fine()
         if (amr) call s_amr_step_fold(q_cons_ts(1)%vf)
 
         if (ib) then
@@ -752,13 +763,10 @@ contains
 
         integer, intent(in) :: stage
 
-        ! Before the first RHS the conservative ghosts are unset; Lagrange refills the primitive ones below
+        ! The interior only: before the first RHS the conservative ghosts are unset (a zero bubble number density
+        ! divides by zero there). The Euler source reads no ghost cell; Lagrange refills the primitive ones below.
 
-        if (bubbles_lagrange) then
-            call s_convert_conservative_to_primitive_variables(q_cons_ts(1)%vf, q_T_sf, q_prim_vf, idwint)
-        else
-            call s_convert_conservative_to_primitive_variables(q_cons_ts(1)%vf, q_T_sf, q_prim_vf, idwbuff)
-        end if
+        call s_convert_conservative_to_primitive_variables(q_cons_ts(1)%vf, q_T_sf, q_prim_vf, idwint)
 
         if (bubbles_euler) then
             call s_compute_bubble_EE_source(q_cons_ts(1)%vf, q_prim_vf, rhs_vf, divu)
@@ -1077,14 +1085,7 @@ contains
 
         if (moving_immersed_boundary_flag) call s_compute_ib_forces()
 
-        if (cfl_dt) then
-            t_stage = mytime + dt
-            if (time_stepper == time_stepper_rk3 .and. s == 2) t_stage = mytime + 0.5_wp*dt
-        else
-            ! The same t_step*dt form a restart evaluates the kinematics at, so a restart sees bitwise the same body
-            t_stage = (t_step + 1)*dt
-            if (time_stepper == time_stepper_rk3 .and. s == 2) t_stage = (t_step + 0.5_wp)*dt
-        end if
+        t_stage = f_step_time(rk_c(s + 1), t_step, dt)
 
         $:GPU_PARALLEL_LOOP(private='[i, gbl_id, vel_new, angular_new]', copyin='[s, t_stage]')
         do i = 1, num_ibs
@@ -1130,7 +1131,7 @@ contains
                     patch_ib(i)%vel = vel_new
                     patch_ib(i)%angular_vel = angular_new
 
-                    ! plug in analytic velocities for 1-way coupling, if it exists
+                    ! analytic velocities for 1-way coupling, at t_stage: the time of the state this stage produces
                     if (patch_ib(i)%moving_ibm == 1) then
                         @:mib_analytical()
                     end if
@@ -1422,6 +1423,7 @@ contains
         @:DEALLOCATE(bc_type)
         if (any(time_stepper == (/1, 2, 3/))) then
             @:DEALLOCATE(rk_coef)
+            deallocate (rk_c)
         end if
 
     end subroutine s_finalize_time_steppers_module

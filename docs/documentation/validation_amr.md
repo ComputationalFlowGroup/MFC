@@ -73,7 +73,7 @@ python3 examples/1D_amr_sod/check_sod.py examples/1D_amr_sod
 python3 examples/2D_amr_conservation/check_conservation.py examples/2D_amr_conservation
 ```
 
-`case.py -N <N> --levels 0` and `--fine` give the uniform grids; `--subcycle` the subcycled AMR runs. Each run needs its own directory (copy `case.py`), since the checker reads the restart files of the case directory. The suite runs `AMR -> 1D -> Example -> Sod two levels` (995DE2F6) and `AMR -> 2D -> Example -> conservation subcycle` (2352E14C).
+The checkers import `mfc.viz`, so run them in MFC's Python environment (`source build/venv/bin/activate` after any `./mfc.sh` command). `case.py -N <N> --levels 0` and `--fine` give the uniform grids; `--subcycle` the subcycled AMR runs. Each run needs its own directory (copy `case.py`), since the checker reads the restart files of the case directory. The suite runs `AMR -> 1D -> Example -> Sod two levels` (995DE2F6) and `AMR -> 2D -> Example -> conservation subcycle` (2352E14C).
 
 ## Smooth flow across block seams {#sec-validation-amr-vortex}
 
@@ -147,7 +147,7 @@ The blocks follow a strong spherical shock through regrids. The self-similar sol
 
 | Item | Value |
 | :--- | :--- |
-| Blast | energy \f$E = 1\f$ in a sphere of radius 0.04 at the center of \f$[-0.6, 0.6]^3\f$; \f$\rho_0 = 1\f$, \f$p_0 = 10^{-3}\f$, \f$\gamma = 1.4\f$, extrapolation boundaries; to \f$t = 0.16\f$ (\f$R = 0.50\f$, shock Mach number about 11) |
+| Blast | energy \f$E = 1\f$ in a sphere of radius 0.04 at the center of \f$[-0.6, 0.6]^3\f$; \f$\rho_0 = 1\f$, \f$p_0 = 10^{-3}\f$, \f$\gamma = 1.4\f$, extrapolation boundaries; to \f$t = 0.16\f$ (\f$R = 0.50\f$, shock Mach number about 33) |
 | Grids | base 96³ and 192³; one 2:1 level, absolute density-jump tags (`amr_tag_abs`, 0.1), `amr_buf = 4`, regrid every 4 steps, lock-step and subcycled; uniform 96³, 192³ and 384³ |
 | Numerics | MUSCL-2 (minmod), HLLC, SSP-RK3, CFL 0.3 (adaptive) |
 | Reference | \f$R = \xi_0 (E t^2/\rho_0)^{1/5}\f$ \cite TaylorBlast1950 \cite Sedov1959 with \f$\xi_0 = 1.0328\f$ for \f$\gamma = 1.4\f$, from the energy integral of the similarity equations (`check_sedov.py` integrates them; \f$\gamma = 5/3\f$ gives 1.1517); post-shock density \f$(\gamma + 1)/(\gamma - 1) = 6\f$ |
@@ -171,8 +171,8 @@ Peak shell-averaged density over \f$\rho_0\f$ at t = 0.16: 3.25 (uniform 96³), 
 
 Limits:
 - **Early times.** The energy sits in a finite sphere (0.04, 3-13 cells) with a staircase surface, which shifts the virtual origin; the first save (t = 0.02, R = 5.4 r0) carries that and the startup transient. The patch stair-step loses 0.9 % of the energy at 96³/192³ and 0.5 % at 384³; the reference uses the measured energy.
-- **Counter-pressure.** \f$p_0 = 10^{-3}\f$ leaves the shock at Mach 11 at the end; the strong-shock solution ignores \f$p_0\f$ (an effect of order \f$1/M^2\f$, about 1 %, not separated from the discretization error here).
-- **Scheme.** WENO5 with `mp_weno = T` went NaN next to the blast at t = 0.004 on a uniform 256³ octant (no AMR), so the check uses MUSCL with minmod. An octant with symmetry walls cannot be refined at the walls (a block must lie `buff_size` cells inside the domain), so the whole sphere is simulated.
+- **Counter-pressure.** \f$p_0 = 10^{-3}\f$ leaves the shock at Mach 33 at the end (\f$\dot R = 0.4 R/t\f$ against \f$c_0 = \sqrt{\gamma p_0/\rho_0}\f$); the strong-shock solution ignores \f$p_0\f$ (an effect of order \f$1/M^2\f$, about 0.1 %, not separated from the discretization error here).
+- **Scheme.** On a uniform 256³ octant (no AMR), WENO5 with `mp_weno = T` goes NaN at t = 0.0024, at the collapsing centre in the reflective corner: WENO5 has no positivity safeguard there (#2502, as in #2469). With `face_bound = 1` or `2` (see [Positivity](validation_positivity.md)) the same run reaches t = 0.02. The check uses MUSCL with minmod. An octant with symmetry walls cannot be refined at the walls (a block must lie `buff_size` cells inside the domain), so the whole sphere is simulated.
 - Save times come from `run_time.inf`, which has four significant digits (0.04 % in R).
 - Only the radius and the peak density are checked; the interior profiles are not compared.
 
@@ -196,7 +196,7 @@ A static AMR block over a body and its near wake must give the drag and shedding
 | :--- | :--- |
 | Body | 2D cylinder, D = 1, no slip, fixed (`patch_ib` geometry 2) |
 | Flow | ideal gas, \f$\gamma\f$ = 1.4, U = 0.2, c = 1 (M = 0.2), Re = 100; a transverse-velocity patch (0.2 U, 2 D x 1 D) behind the body seeds shedding |
-| Domain | [-12 D, 24 D] x [-16 D, 16 D] (3.1 % blockage); Dirichlet inflow (`-17`), extrapolation elsewhere (`-3`; AMR rejects characteristic boundaries) |
+| Domain | [-12 D, 24 D] x [-16 D, 16 D] (3.1 % blockage); Dirichlet inflow (`-17`), extrapolation elsewhere (`-3`) |
 | Grids | uniform 16 and 32 cells/D; AMR: 16 cells/D base and one static 2:1 block over -1.5 D <= x <= 6 D, \|y\| <= 2.5 D (3.3 % of the 32 cells/D grid), lock-step and `amr_subcycle` |
 | Numerics | WENO5-M with `mp_weno`, HLLC, SSP-RK3, `weno_Re_flux`, `fd_order = 2`, fixed \f$\Delta t\f$ at CFL 0.38 on the finest cells (level-0 cells when subcycled), to t = 650 (130 D/U) |
 | Reference | Henderson \cite Henderson1995 (Cd 1.35), Park et al. \cite Park1998 (Cd 1.33, St 0.165), Williamson's fit \cite Williamson1989 (St 0.1643); all incompressible and unconfined |

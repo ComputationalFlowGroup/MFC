@@ -54,9 +54,13 @@ AMR lives in `simulation` (`src/simulation/m_amr*.fpp`); post_process can overla
   refined to `amr_max_level`, so a run cannot fail on it later. Subcycled (`amr_subcycle = T`): each refined level takes two steps per parent step, with ghost
   cells interpolated in time; `dt` is the level-0 step. Needs `time_stepper = 2` or `3`.
 - **Refluxing and restriction.** Fine face fluxes (advective, viscous, diffusive) are accumulated in flux registers and
-  replace the coarse fluxes at coarse/fine faces, so mass, momentum and energy are conserved across the interface. The
-  volume fractions are not refluxed: they are not conserved, and their flux pairs with an \f$\alpha\,\nabla\cdot u\f$
-  source on the same faces. Each covered coarse cell is then set to the average of its fine children.
+  replace the coarse fluxes at coarse/fine faces, so mass, momentum and energy are conserved across the interface. A
+  volume fraction's flux pairs with an \f$\alpha\,\nabla\cdot u\f$ source on the same faces, so the registers also hold
+  the face velocity and the volume fractions' reflux corrects both: uniform \f$\alpha\f$ stays uniform, and a material
+  interface on a block face keeps pressure and velocity equilibrium (HLLC, HLL with `hll_u_interface` and LF, with two or
+  more fluids). The same correction covers the `alt_soundspeed` \f$K\,\nabla\cdot u\f$ term, the 6-equation internal
+  energies' \f$\alpha_k p\,\nabla\cdot u\f$, and HLL Method 1, whose per-fluid interface volume fractions the registers
+  also hold. Each covered coarse cell is then set to the average of its fine children.
 
 ## Conservation and accuracy {#amr-conservation}
 
@@ -84,8 +88,9 @@ last dimension, one solver call per batch; this is why AMR needs a uniform Carte
 `rank_time_wrt = T` prints a per-phase time budget of the AMR step, the block-balance report, and at the end of the run
 the memory each group of AMR arrays holds per rank (`[amr-mem]`: block store, advance scratch, coarse patches, flux
 registers, the fine IB ghost-point park, and the host-side per-slot IB marker copies). Every block's store column is
-sized to the largest block, so it also prints that column's size and, per level, the most blocks any rank held over
-the run, their store, and how much of its column a block's interior fills (min, mean, max).
+sized to the block size cap (`amr_max_grid_size`, or the rank-derived cap) plus ghost layers, so it also prints that column's
+size and, per level, the most blocks any rank held over the run, their store, and how much of its column (ghost layers
+included, so below 1 even at the cap) a block's interior fills (min, mean, max). Each level's row also splits its store into the ghost-layer part and gives its flux registers (one register slot per block), and GPU builds add one line with the device and host totals: every group but the IB marker copies is device-resident and keeps a host mirror.
 
 ## Supported physics {#amr-physics}
 
@@ -105,8 +110,10 @@ Required: `model_eqns = 2` or `3`, `time_stepper = 1`, `2` or `3`, WENO or MUSCL
 | IGR | Single-rank, lock-step; coarse/fine conservation is truncation-order |
 | Synthetic turbulence forcing | Supported; evaluated on each block's own grid |
 | Phase change (`relax`) | Supported; each block is relaxed at the end of the step, then restricted |
+| Condensed-phase burn (`reactive_burn`) | Supported; with `rburn%%substeps > 0` each block takes the split burn at the end of the step, before the fold |
 | Euler-Euler bubbles, QBMM, surface tension | Not supported |
 | Riemann-extrapolation boundaries (`bc = -4`) | Supported, except with `null_weights` |
+| Characteristic boundaries (`bc = -5` to `-12`) | Supported; the coarse grid applies them at the domain boundary (blocks stay `buff_size` cells inside it) |
 | Cylindrical coordinates, stretched grids | Not supported |
 
 ## Parameters {#amr-parameters}
@@ -132,7 +139,7 @@ Full descriptions: @ref case.
 | `amr_subcycle` | F | Subcycle refined levels in time (ratio 2, up to two levels) |
 | `amr_prolong` | 1 | 1: limited linear, 2: quartic (ratio 2) |
 | `amr_place_owner` | F | Owner-aware block placement |
-| `amr_snap` | 0 | Regrid hysteresis, coarse cells (<= `amr_buf - 2`) |
+| `amr_snap` | 0 | Regrid hysteresis, coarse cells (<= `amr_buf - 2`; one refined level only under regrid) |
 | `amr_device_pack` | F | Fused device pack/unpack of the coarse-patch exchange |
 
 ## Example {#amr-example}
@@ -208,14 +215,17 @@ comparable (forces on coarse faces only).
 
 - **Block size.** A block spans at most about half a rank's subdomain per dimension unless `amr_max_grid_size` is set;
   larger features are covered by several blocks. On several ranks, regrid tiles the level-1 boxes smaller (not below 16
-  coarse cells) until there is at least one per rank, so a small refined region still spreads over the ranks.
+  coarse cells) until there is at least one per rank (or per block-pool slot, if `amr_max_blocks` is smaller), so a small
+  refined region still spreads over the ranks; a size that would leave a tile narrower than the ghost layer or overflow the
+  block pool is skipped.
 - **Restart.** `parallel_io` restarts work on any rank count when `amr_max_grid_size` is set; otherwise restart on no
   more ranks than wrote the checkpoint. The serial format needs the rank count that wrote it.
   The file header records `amr_ref_ratio`, `amr_max_level` and the storage precision, which must match (the level count may
   only grow); a missing fine-level file aborts the restart.
 - **Nesting.** A level-2 or deeper block lies inside one block of the level above; regrid builds each block's children
   inside it, a few coarse cells from its edge. Where a feature crosses the seam between two parent blocks, the children
-  on the two sides are joined across it when their extents along it are equal (a feature that crosses it squarely):
+  on the two sides are joined across it when their extents along it are equal (the tag buffer usually makes them so,
+  also for a disc crossing the seam off its centre):
   each is extended to the seam, or, where that would exceed its level's size cap, the gap is filled by a thin block of
   its own. Otherwise a strip that wide on each side of the seam stays at the parent's resolution; so does every seam with
   immersed boundaries, or with `amr_prolong = 2` on a scheme with fewer
@@ -229,5 +239,6 @@ comparable (forces on coarse faces only).
   Step 0 is pre_process's output: level 0 only, with no blocks and no `amr_levels` file, since simulation regrids at
   step 0 but first saves at step `t_step_save`. A run started at step 0 is therefore always a fresh start: it redoes
   the initial regrid and fills the blocks from the patches.
-  The overlay carries density, pressure, velocity and volume fractions only; probes, `run_time_info` and derived
-  post_process fields read level 0, and `sim_data` is rejected.
+  The overlay carries density, pressure, velocity and volume fractions only; probes and derived post_process fields read
+  level 0, `run_time_info` reads the level-0 state but scales its CFL numbers to the finest level covering each cell
+  (its Mie-Gruneisen compression check also reads the fine blocks), and `sim_data` is rejected.

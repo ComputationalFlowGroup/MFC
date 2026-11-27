@@ -13,6 +13,7 @@ module m_amr_stage
     use m_phase_timing
     use m_amr_registers, only: s_amr_apply_reflux, amr_rk_c
     use m_phase_change, only: s_infinite_relaxation_k
+    use m_reactive_burn, only: s_reactive_burn_substep
     use m_hyperelastic, only: s_hyperelastic_refresh_stash
     use m_amr_state, only: amr_scr_prim
     use m_icpp_patches, only: s_apply_icpp_patches
@@ -24,8 +25,10 @@ module m_amr_stage
     implicit none
 
     private
-    public :: s_amr_stage_begin, s_amr_stage_fine, s_amr_step_fold, s_amr_subcycle_fine, s_amr_relax_fine, &
+    public :: s_amr_stage_begin, s_amr_stage_fine, s_amr_step_fold, s_amr_subcycle_fine, s_amr_relax_fine, s_amr_burn_fine, &
         & s_amr_apply_ic_patches, s_amr_fill_levels
+
+    integer, parameter :: fine_op_relax = 1, fine_op_burn = 2  !< cell-local end-of-step operators of s_amr_fine_cell_op
 
     !> Whether patch_icpp was compared with the level-0 initial data, and reproduces it
     logical :: ic_checked = .false., ic_from_patches = .false.
@@ -71,7 +74,7 @@ contains
         call s_amr_fine_stage_advance_batched(s, coefs, bc_type, q_T_sf, pb_in, rhs_pb, mv_in, rhs_mv, t_step)
         call s_phase_tic(PH_REFLUX)
         call s_amr_reflux_faces_wave()
-        call s_amr_apply_reflux(rhs_vf)
+        call s_amr_apply_reflux(rhs_vf, q_cons)
         call s_phase_toc(PH_REFLUX)
         call s_amr_select_slot(1)  ! the next stage's coarse RHS captures creg into slot 1
 
@@ -102,7 +105,7 @@ contains
         $:GPU_UPDATE(device='[dt]')
         call s_phase_tic(PH_REFLUX)
         call s_amr_reflux_faces_wave()
-        call s_amr_apply_reflux(q_new)
+        call s_amr_apply_reflux(q_new, q_old)  ! alpha for the source correction: step start (exact for uniform alpha)
         call s_phase_toc(PH_REFLUX)
         call s_amr_select_slot(1)
 
@@ -131,6 +134,9 @@ contains
             dt = dtl
             $:GPU_UPDATE(device='[dt]')
             do s = 1, size(amr_rk_c)
+                ! this substage's time: fraction th0 + dth*(k + c_s)/2 of the coarse step dtl*2/dth
+                t_rhs = f_step_time(th0 + 0.5_wp*dth*(real(k, wp) + amr_rk_c(s)), t_step, 2._wp*dtl/dth)
+                $:GPU_UPDATE(device='[t_rhs]')
                 call s_amr_fill_sub(lev, q_new, 0.5_wp*(real(k, wp) + amr_rk_c(s)), th0, dth)
                 call s_amr_fine_stage_advance_batched(s, coefs(s,:), bc_type, q_T_sf, pb_in, rhs_pb, mv_in, rhs_mv, t_step)
             end do
@@ -301,25 +307,53 @@ contains
         type(scalar_field), dimension(sys_size), intent(inout)     :: q_cons
         type(scalar_field), intent(inout)                          :: q_T_sf
         type(integer_field), dimension(1:num_dims,1:2), intent(in) :: bc_type
-        integer                                                    :: kk, nb
+
+        call s_amr_fine_cell_op(fine_op_relax, q_T_sf, bc_type)
+        call s_amr_restrict_fold(q_cons)
+
+    end subroutine s_amr_relax_fine
+
+    !> End-of-step operator-split burn (rburn%substeps > 0) on the fine blocks over the full step; the coarse grid's is in
+    !! m_time_steppers. Called before s_amr_step_fold, which restricts the burnt fine cells into the covered coarse cells.
+    impure subroutine s_amr_burn_fine()
+
+        call s_amr_fine_cell_op(fine_op_burn)
+
+    end subroutine s_amr_burn_fine
+
+    !> Apply the cell-local end-of-step operator op to every owned fine block in its own frame (block order is free).
+    !!
+    !! q_T_sf and bc_type are optional because only fine_op_relax needs them, and then only under hyperelasticity, whose stash
+    !! has to be rebuilt in each block's own frame before the phase change reads the elastic energy out of it. The relax
+    !! operator is reached from s_amr_relax_fine alone, which always supplies both.
+    impure subroutine s_amr_fine_cell_op(op, q_T_sf, bc_type)
+
+        integer, intent(in)                                                  :: op
+        type(scalar_field), intent(inout), optional                          :: q_T_sf
+        type(integer_field), dimension(1:num_dims,1:2), intent(in), optional :: bc_type
+        integer                                                              :: kk, nb
 
         call s_amr_refresh_my_blocks()
         nb = amr_bat_n; amr_bat_n = 1  ! one block's extents in the frame, not a batch slab
         do kk = 1, amr_n_my
             call s_amr_select_slot(amr_my_blk(kk))
             call s_amr_fine_enter()
-            if (hyperelasticity) then
-                call s_hyperelastic_refresh_stash(amr_cons_br, amr_scr_prim, q_T_sf, bc_type, idwbuff, .true.)
-                call s_infinite_relaxation_k(amr_cons_br, amr_scr_prim(eqn_idx%elastic_W))
-            else
-                call s_infinite_relaxation_k(amr_cons_br)
-            end if
+            select case (op)
+            case (fine_op_relax)
+                if (hyperelasticity) then
+                    call s_hyperelastic_refresh_stash(amr_cons_br, amr_scr_prim, q_T_sf, bc_type, idwbuff, .true.)
+                    call s_infinite_relaxation_k(amr_cons_br, amr_scr_prim(eqn_idx%elastic_W))
+                else
+                    call s_infinite_relaxation_k(amr_cons_br)
+                end if
+            case (fine_op_burn)
+                call s_reactive_burn_substep(amr_cons_br, dt, idwint)
+            end select
             call s_amr_fine_leave()
         end do
         amr_bat_n = nb
-        call s_amr_restrict_fold(q_cons)
 
-    end subroutine s_amr_relax_fine
+    end subroutine s_amr_fine_cell_op
 
     !> Fresh start: set every owned fine block to the initial condition patches evaluated at its own cell centers, replacing the
     !! data interpolated from level 0, then restrict. Skipped when the patches alone do not reproduce the level-0 data.
@@ -364,7 +398,7 @@ contains
         if (precision == 1) tol = max(tol, 1.e3_wp*real(epsilon(1._sp), wp))
         bad = 1._wp
         if (num_patches > 0) then
-            if (all(patch_icpp(1:num_patches)%hcid == dflt_int) .and. all(patch_icpp(1:num_patches)%geometry /= 21)) then
+            if (all(patch_icpp(1:num_patches)%hcid == dflt_int) .and. all(patch_icpp(1:num_patches)%geometry /= icpp_model)) then
                 call s_initialize_assign_variables_module()
                 bad = 0._wp
                 do i = 1, sys_size

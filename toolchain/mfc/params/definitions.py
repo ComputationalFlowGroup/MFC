@@ -1,7 +1,7 @@
 """
 MFC Parameter Definitions (Compact).
 
-Single file containing all ~3,300 parameter definitions using loops.
+Single file containing all parameter definitions using loops.
 """
 
 import re
@@ -411,10 +411,10 @@ CONSTRAINTS = {
     "num_ibs": {"min": 0},
     "ib_neighborhood_radius": {"min": 0},
     "num_local_ibs_max": {"min": 1},
-    "face_bound": {"choices": [0, 1], "value_labels": {0: "off", 1: "positivity bound on face states"}},
-    "ib_wall_order": {"choices": [1, 2], "value_labels": {1: "default ghost treatment", 2: "two-probe quadratic wall-normal ghost velocity at no-slip walls"}},
+    "face_bound": {"choices": [0, 1, 2], "value_labels": {0: "off", 1: "positivity bound on face states", 2: "Zhang-Shu positivity bound on face states, 5- and 6-equation models"}},
+    "ib_wall_order": {"choices": [1, 2], "value_labels": {1: "wall-value ghost fill", 2: "two-probe quadratic wall-normal ghost velocity at no-slip walls (default)"}},
     "ib_mass_relax": {"min": -1},
-    "ib_ip_interp": {"choices": [1, 2], "value_labels": {1: "inverse-distance weights, 2x2(x2) cells", 2: "triangular-shaped-cloud weights, 3x3(x3) cells"}},
+    "ib_ip_interp": {"choices": [1, 2], "value_labels": {1: "inverse-distance weights, 2x2(x2) cells", 2: "triangular-shaped-cloud weights, 3x3(x3) cells (default)"}},
     "num_source": {"min": 1},
     "num_probes": {"min": 1},
     "nb": {"min": 1},
@@ -744,7 +744,6 @@ def _load():
     _r("ib_wall_order", INT, {"ib"})
     _r("ib_mass_relax", INT, {"ib"})
     _r("wall_column_dt_frac", REAL, {"ib"})
-    _r("ib_smooth_contact", LOG, {"ib", "viscosity"})
     _r("ib_visc_compact", LOG, {"ib", "viscosity"})
     _r("ib_uncover_fill", LOG, {"ib"})
 
@@ -1372,7 +1371,7 @@ _init_registry()
 # When adding a new parameter:
 #   1. Add to definitions.py (type, constraints, etc.) — you are here
 #   2. Add the namelist root variable to NAMELIST_VARS with its target set
-#   3. Re-run cmake to regenerate the .fpp files (cmake reconfigure)
+#   3. Rebuild: the .fpp files are regenerated at build time (cmake/ParamsCodegen.cmake)
 
 NAMELIST_VARS: dict[str, set[str]] = {}
 
@@ -1654,7 +1653,6 @@ _nv(
     "ib_wall_order",
     "ib_mass_relax",
     "wall_column_dt_frac",
-    "ib_smooth_contact",
     "ib_visc_compact",
     "ib_uncover_fill",
     "tau_star",
