@@ -64,8 +64,7 @@ module m_start_up
     use m_amr_restart, only: s_write_amr_restart, s_read_amr_restart
     use m_amr_registers, only: s_initialize_amr_registers, s_finalize_amr_registers
     use m_constants, only: model_eqns_6eq, time_stepper_rk1, time_stepper_rk2, time_stepper_rk3, recon_type_weno, &
-        & use m_constants, only: relax_model_reservoir
-    & recon_type_muscl, ib_state_nfields
+        & recon_type_muscl, ib_state_nfields, coupling_four_way, relax_model_reservoir
 
     implicit none
 
@@ -954,6 +953,9 @@ contains
         if (ib) then
             call s_initialize_ibm_module()
         end if
+        if (collision_model > 0 .and. (ib .or. particle_params%coupling == coupling_four_way)) then
+            call s_initialize_collisions_module()
+        end if
         if (qbmm) call s_initialize_qbmm_module()
 
         if (acoustic_source) then
@@ -1506,6 +1508,9 @@ contains
         if (surface_tension) call s_finalize_surface_tension_module()
         if (bodyForces .or. synthetic_turbulence) call s_finalize_body_forces_module()
         if (ib) call s_finalize_ibm_module()
+        if (collision_model > 0 .and. (ib .or. particle_params%coupling == coupling_four_way)) then
+            call s_finalize_collisions_module()
+        end if
 
         call s_mpi_finalize()
 

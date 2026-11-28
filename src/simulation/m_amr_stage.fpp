@@ -14,6 +14,7 @@ module m_amr_stage
     use m_amr_registers, only: s_amr_apply_reflux, amr_rk_c
     use m_phase_change, only: s_infinite_relaxation_k
     use m_reactive_burn, only: s_reactive_burn_substep
+    use m_chemistry, only: s_chemistry_reaction_substep
     use m_hyperelastic, only: s_hyperelastic_refresh_stash
     use m_amr_state, only: amr_scr_prim
     use m_icpp_patches, only: s_apply_icpp_patches
@@ -25,10 +26,11 @@ module m_amr_stage
     implicit none
 
     private
-    public :: s_amr_stage_begin, s_amr_stage_fine, s_amr_step_fold, s_amr_subcycle_fine, s_amr_relax_fine, s_amr_burn_fine, &
+    public :: s_amr_stage_begin, s_amr_stage_fine, s_amr_step_fold, s_amr_subcycle_fine, s_amr_relax_fine, s_amr_split_fine, &
         & s_amr_apply_ic_patches, s_amr_fill_levels
 
-    integer, parameter :: fine_op_relax = 1, fine_op_burn = 2  !< cell-local end-of-step operators of s_amr_fine_cell_op
+    !> cell-local end-of-step operators of s_amr_fine_cell_op
+    integer, parameter :: fine_op_relax = 1, fine_op_burn = 2, fine_op_chem = 3
 
     !> Whether patch_icpp was compared with the level-0 initial data, and reproduces it
     logical :: ic_checked = .false., ic_from_patches = .false.
@@ -313,23 +315,31 @@ contains
 
     end subroutine s_amr_relax_fine
 
-    !> End-of-step operator-split burn (rburn%substeps > 0) on the fine blocks over the full step; the coarse grid's is in
-    !! m_time_steppers. Called before s_amr_step_fold, which restricts the burnt fine cells into the covered coarse cells.
-    impure subroutine s_amr_burn_fine()
+    !> End-of-step operator splits (chem_params%reaction_substeps > 0, rburn%substeps > 0) on the fine blocks over the full step;
+    !! the coarse grid's are in m_time_steppers. Called before s_amr_step_fold, which restricts the reacted fine cells into the
+    !! covered coarse cells.
+    impure subroutine s_amr_split_fine(q_T_sf)
 
-        call s_amr_fine_cell_op(fine_op_burn)
+        type(scalar_field), intent(inout) :: q_T_sf
 
-    end subroutine s_amr_burn_fine
+        if (chemistry .and. chem_params%reactions .and. chem_params%reaction_substeps > 0) call s_amr_fine_cell_op(fine_op_chem, &
+            & q_T_sf)
+        if (reactive_burn .and. rburn%substeps > 0) call s_amr_fine_cell_op(fine_op_burn)
+
+    end subroutine s_amr_split_fine
 
     !> Apply the cell-local end-of-step operator op to every owned fine block in its own frame (block order is free).
     !!
-    !! q_T_sf and bc_type are optional because only fine_op_relax needs them, and then only under hyperelasticity, whose stash
-    !! has to be rebuilt in each block's own frame before the phase change reads the elastic energy out of it. The relax
-    !! operator is reached from s_amr_relax_fine alone, which always supplies both.
+    !! Both optional arguments are needed by one operator each, and each is supplied by the only caller that reaches it:
+    !! s_amr_split_fine passes q_T_sf for fine_op_chem, and s_amr_relax_fine passes both for fine_op_relax, which needs them
+    !! only under hyperelasticity.
     impure subroutine s_amr_fine_cell_op(op, q_T_sf, bc_type)
 
-        integer, intent(in)                                                  :: op
-        type(scalar_field), intent(inout), optional                          :: q_T_sf
+        integer, intent(in) :: op
+        !> fine_op_chem: the Newton guess (any T converges). fine_op_relax: the stash rebuild, under hyperelasticity.
+        type(scalar_field), intent(inout), optional :: q_T_sf
+        !> fine_op_relax under hyperelasticity: the stash has to be rebuilt in each block's own frame before the phase change
+        !> reads the elastic energy out of it.
         type(integer_field), dimension(1:num_dims,1:2), intent(in), optional :: bc_type
         integer                                                              :: kk, nb
 
@@ -348,6 +358,8 @@ contains
                 end if
             case (fine_op_burn)
                 call s_reactive_burn_substep(amr_cons_br, dt, idwint)
+            case (fine_op_chem)
+                call s_chemistry_reaction_substep(amr_cons_br, q_T_sf, dt, idwint)
             end select
             call s_amr_fine_leave()
         end do
