@@ -413,7 +413,7 @@ contains
                         end do
                         alpha_visc = alpha_visc/max(alpha_visc_sum, sgm_eps)
                     end if
-                    call s_compute_axis_inv_re(grad_x_vf, grad_y_vf, grad_z_vf, alpha_visc, j, k, l, Re_visc)
+                    call s_compute_axis_inv_re(q_prim_vf, grad_x_vf, grad_y_vf, grad_z_vf, alpha_visc, j, k, l, Re_visc)
 
                     ur_r = q_prim_vf(eqn_idx%mom%beg + 1)%sf(j, k, l)/y_cc(k)
                     div_v = grad_x_vf(1)%sf(j, k, l) + grad_y_vf(2)%sf(j, k, l) + ur_r

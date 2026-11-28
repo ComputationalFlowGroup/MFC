@@ -224,6 +224,13 @@ contains
                                 ! Low Mach correction
                                 pcorr = f_low_Mach_pcorr_hll(vel_L_rms, vel_R_rms, c_L, c_R, rho_L, rho_R, s_M, s_P)
 
+                                ! ptilde is the Euler-Euler bubble pressure correction. m_bubbles_EE.fpp computes it into ptil
+                                ! and states there that it is a diagnostic which never feeds back into the solution, and
+                                ! nothing in the repository ever assigns these two locals -- so the bubbles_euler momentum and
+                                ! energy fluxes below were reading uninitialized stack. Zero is what that documented design
+                                ! asks for, and it makes the flux deterministic.
+                                ptilde_L = 0._wp; ptilde_R = 0._wp
+
                                 ! Mass
                                 $:GPU_LOOP(parallelism='[seq]')
                                 do i = 1, eqn_idx%cont%end

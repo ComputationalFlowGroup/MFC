@@ -155,7 +155,9 @@ contains
                     if (num_dims == 3) xi_z = q_prim_vf(eqn_idx%xi%end)%sf(j, k, l)
 
                     ! Graded Ca_inv: default every entry to the static (non-graded) value, then override only the
-                    ! fluids flagged graded_Ca_inv. A no-op when graded = F, since Ca_inv_graded_flag is then all-false.
+                    ! fluids flagged graded_Ca_inv. The graded test below is load-bearing, not a shortcut:
+                    ! s_initialize_graded runs only when graded = T, so Ca_inv_graded_flag is unallocated otherwise and
+                    ! reading it would be a fault, not a false.
                     $:GPU_LOOP(parallelism='[seq]')
                     do i = 1, num_fluids
                         Ca_inv_graded_loc(i) = Ca_invs_hyper(i)
