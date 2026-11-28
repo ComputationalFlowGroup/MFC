@@ -1047,6 +1047,12 @@ class CaseValidator:
                 graded_profile == 3 and (graded_exp is None or graded_scaling is None),
                 f"fluid_pp({i})%graded_profile = 3 (power law) requires graded_exp and graded_scaling to be set",
             )
+            # Both power-law forms divide or multiply by graded_scaling: the radial one in s_grade_Ca_inv divides the radius
+            # by it, so zero is a division by zero that reaches the wave speed and the CFL bound as a NaN.
+            self.prohibit(
+                graded_profile == 3 and graded_scaling is not None and graded_scaling == 0,
+                f"fluid_pp({i})%graded_scaling must be non-zero when graded_profile = 3 (the power law divides by it)",
+            )
 
             if Ca_inv_graded:
                 self.prohibit(not hyperelasticity and not hypoelasticity, f"fluid_pp({i})%graded_Ca_inv requires hyperelasticity or hypoelasticity enabled")

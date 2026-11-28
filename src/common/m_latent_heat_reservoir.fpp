@@ -54,13 +54,15 @@ contains
         real(wp) :: Tl, el, ev, Lambda          !< liquid temperature, phasic internal energies, reservoir
         real(wp) :: TSat, LSat, el_Sat          !< saturation temperature, latent heat, saturation energy
         real(wp) :: dE, alpha_sum
+        real(wp) :: mass_v, mass_l, mass_t      !< Phasic masses of the pooling step, which mixes the energy by mass
         integer :: j, k, l
 
         $:GPU_PARALLEL_LOOP(collapse=3, private='[j, k, l, rM, MCT, pS, alphal, alphav, rhol, rhov, Tl, el, ev, Lambda, TSat, &
-                            & LSat, el_Sat, dE, alpha_sum]')
-        do j = 0, m
+                            & LSat, el_Sat, dE, alpha_sum, mass_v, mass_l, mass_t]')
+        ! l, k, j so the contiguous index of sf(j, k, l) is innermost, as every other cell kernel in the code orders it.
+        do l = 0, p
             do k = 0, n
-                do l = 0, p
+                do j = 0, m
                     alphal = q_cons_vf(lp + eqn_idx%adv%beg - 1)%sf(j, k, l)
                     alphav = q_cons_vf(vp + eqn_idx%adv%beg - 1)%sf(j, k, l)
 
@@ -73,10 +75,15 @@ contains
 
                         pS = q_prim_vf(eqn_idx%E)%sf(j, k, l)
 
-                        rhol = q_cons_vf(lp + eqn_idx%cont%beg - 1)%sf(j, k, l)/alphal
-                        ! The original divided by alphav unguarded, which is a division by zero in an all-liquid
-                        ! cell -- exactly the cell this routine is for.
-                        rhov = q_cons_vf(vp + eqn_idx%cont%beg - 1)%sf(j, k, l)/max(alphav, verysmall)
+                        ! Both phasic densities are floored, and both floors are load-bearing. s_correct_partial_densities
+                        ! above sets BOTH partial densities to zero when their sum comes out negative, so the liquid
+                        ! density it leaves behind can be zero even though alphal passed the test above -- and Tl, el and
+                        ! Lambda all divide by it. On the vapor side the division is by rhov, which is zero in an
+                        ! all-liquid cell, exactly the cell this routine exists for: guarding alphav alone, as the first
+                        ! version did, moved the division by zero from one line to the next. A floored rhov keeps ev
+                        ! finite and contributes nothing, since the pooling below weights it by its own vanishing mass.
+                        rhol = max(q_cons_vf(lp + eqn_idx%cont%beg - 1)%sf(j, k, l)/alphal, verysmall)
+                        rhov = max(q_cons_vf(vp + eqn_idx%cont%beg - 1)%sf(j, k, l)/max(alphav, verysmall), verysmall)
 
                         Tl = (pS + isentrope_B(lp))*isentrope_n(lp)/cvs(lp)/rhol
                         el = (pS*isentrope_n(lp) + isentrope_B(lp))/rhol + qvs(lp)
@@ -107,9 +114,17 @@ contains
                         if (Lambda >= LSat) then
                             ! The reservoir has reached the latent heat: the liquid converts, and its internal energy
                             ! plus the whole reservoir is pooled into the vapor.
+                            ! Mass-weighted, not volume-weighted. A specific internal energy mixes by mass: pooling it by
+                            ! volume fraction instead loses energy whenever both phases are present, because the product
+                            ! alpha_sum*rho_mix*e_mix is then not the sum of the two alpha*rho*e it replaces. With two equal
+                            ! half-volumes at rho 1 and 2 carrying e 10 and 20, the volume-weighted form returned 22.5
+                            ! against the 25 that went in.
                             alpha_sum = max(alphav + alphal, verysmall)
-                            rhov = (alphav*rhov + alphal*rhol)/alpha_sum
-                            ev = (alphav*ev + alphal*(el + Lambda))/alpha_sum
+                            mass_v = alphav*rhov
+                            mass_l = alphal*rhol
+                            mass_t = max(mass_v + mass_l, verysmall)
+                            ev = (mass_v*ev + mass_l*(el + Lambda))/mass_t
+                            rhov = mass_t/alpha_sum
                             alphav = alphav + alphal
                             rhol = 0._wp
                             el = 0._wp

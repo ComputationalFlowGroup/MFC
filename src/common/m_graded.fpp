@@ -165,7 +165,12 @@ contains
         Ca_inv_init = Ca_inv_init_arr(fluid_idx)
         Ca_inv_end = Ca_inv_end_arr(fluid_idx)
 
-        if (graded_profile_arr(fluid_idx) == 3) then
+        ! The radial power law needs a centre, and graded_center_loc_{x,y,z} are only validated for graded_type = 2. Carried
+        ! over from the source branch without that test, a Cartesian case (graded_type = 1) with graded_profile = 3 passed
+        ! validation and then measured its radius from dflt_real = -1e6 in every direction. Cartesian grading falls through to
+        ! the projection path below, where f_calc_profile has its own power-law ramp -- which is what s_grade_Re does for every
+        ! profile, this one included.
+        if (graded_profile_arr(fluid_idx) == 3 .and. graded_type_arr(fluid_idx) == 2) then
             ! Power law: Ca_inv = Ca_inv_init * (r/graded_scaling)^graded_exp
             dx = xi_x - graded_center_arr(1, fluid_idx)
             dy = xi_y - graded_center_arr(2, fluid_idx)

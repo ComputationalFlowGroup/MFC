@@ -1171,7 +1171,11 @@ contains
             wenojs = .not. (mapped_weno .or. wenoz .or. teno)
         #:endif
 
-        if (hypoelasticity .or. mhd .or. probe_wrt .or. ib .or. euler_lagrange) then
+        ! hyperelasticity belongs here as much as hypoelasticity does: m_hyperelastic.fpp recovers the deformation gradient
+        ! from the reference map with a finite-difference stencil of half-width fd_number, sizes fd_coeff_*_hyper from it, and
+        ! derives its ghost margin from it. The validator already demands fd_order for exactly that reason. Left off this list,
+        ! a case with hyperelasticity but no hypoelasticity, IB, probe or MHD reached that module with fd_number undefined.
+        if (hypoelasticity .or. hyperelasticity .or. mhd .or. probe_wrt .or. ib .or. euler_lagrange) then
             fd_number = max(1, fd_order/2)
         end if
 
