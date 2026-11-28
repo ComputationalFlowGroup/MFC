@@ -281,8 +281,8 @@ PHYSICS_DOCS = {
         "category": "Feature Compatibility",
         "explanation": (
             "Both hyperelasticity and graded require rmt = T: the reference map (xi) that both are built on is only "
-            "advected when rmt is enabled. Currently requires the HLL Riemann solver (riemann_solver = 1): xi is not "
-            "yet advected under HLLC or HLLD."
+            "advected when rmt is enabled. Requires the HLL (1) or HLLC (2) Riemann solver: HLLD and LF carry no "
+            "advective flux for xi."
         ),
     },
     "check_hyperelasticity": {
@@ -952,8 +952,8 @@ class CaseValidator:
 
         riemann_solver = self.get("riemann_solver")
         self.prohibit(
-            riemann_solver is not None and riemann_solver != 1,
-            "rmt currently requires the HLL Riemann solver (riemann_solver = 1); the reference map is not yet advected under HLLC or HLLD",
+            riemann_solver is not None and riemann_solver not in (1, 2),
+            "rmt requires the HLL (1) or HLLC (2) Riemann solver; HLLD and LF carry no advective flux for the reference map, " "so xi would stay at its initial value while the material moved",
         )
 
         for name in self._characteristic_bcs():

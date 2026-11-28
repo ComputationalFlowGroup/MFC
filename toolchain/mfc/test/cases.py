@@ -2383,6 +2383,231 @@ def list_cases() -> typing.List[TestCaseBuilder]:
             if len(dimInfo[0]) >= 3:
                 stack.pop()
 
+    # Tier 1 of the hyperelasticity/graded test plan: one capability per generator, so a failure names the
+    # capability that broke. Dimension sweeps only where the code branches on num_dims; options that are scalar in
+    # character (wave speed estimate, Riemann solver, ramp shape) are carried by 1D alone.
+    def elastic_solid_mods(Ca_inv=1.0e05):
+        # The stiffened-gas solid alter_hypoelasticity uses, with its three-patch pressure jump. Shared so the
+        # elastic cases below differ only in the capability under test.
+        return {
+            "num_fluids": 1,
+            "fd_order": 4,
+            "fluid_pp(1)%gamma": 0.3,
+            "fluid_pp(1)%eos": "stiffened_gas",
+            "fluid_pp(1)%pi_inf": 7.8e05,
+            "fluid_pp(1)%Ca_inv": Ca_inv,
+            "patch_icpp(1)%pres": 1.0e06,
+            "patch_icpp(1)%alpha_rho(1)": 1000.0e00,
+            "patch_icpp(2)%pres": 1.0e05,
+            "patch_icpp(2)%alpha_rho(1)": 1000.0e00,
+            "patch_icpp(3)%pres": 5.0e05,
+            "patch_icpp(3)%alpha_rho(1)": 1000.0e00,
+        }
+
+    def alter_rmt(dimInfo):
+        # The reference map on its own: xi advects with the material and nothing reads it. Isolates the transport
+        # from hyperelasticity and from grading, which are both built on it.
+        mods = elastic_solid_mods()
+        del mods["fluid_pp(1)%Ca_inv"]
+        del mods["fd_order"]
+        stack.push("Reference Map", {"rmt": "T", "riemann_solver": 1, **mods})
+        cases.append(define_case_d(stack, "", {}))
+        stack.pop()
+
+    def alter_hyperelasticity(dimInfo):
+        ndims = len(dimInfo[0])
+        for hyper_model in [1, 2]:
+            name = "Neo-Hookean" if hyper_model == 1 else "Mooney-Rivlin"
+            stack.push(
+                f"Hyperelasticity -> {name}",
+                {
+                    "hyperelasticity": "T",
+                    "rmt": "T",
+                    "model_eqns": 2,
+                    "hyper_model": hyper_model,
+                    "riemann_solver": 1,
+                    **elastic_solid_mods(),
+                    # Mooney-Rivlin's second constant. Nonzero, so the C2 terms of the stress and of the direct
+                    # wave speed are actually exercised rather than collapsing to Neo-Hookean.
+                    **({"fluid_pp(1)%Ca_inv_2": 2.5e04} if hyper_model == 2 else {}),
+                },
+            )
+            # The tensor path has hand-written num_dims branches, so the core case sweeps every dimension.
+            cases.append(define_case_d(stack, "", {}))
+            if ndims == 1:
+                # HLLC carries its own hyperelastic branch; 1D is enough to reach it.
+                cases.append(define_case_d(stack, "HLLC", {"riemann_solver": 2}))
+                if hyper_model == 1:
+                    # The pressure-based estimate shares a_L/a_R with the direct one, so one case covers it.
+                    cases.append(define_case_d(stack, "wave_speeds=2", {"wave_speeds": 2}))
+            stack.pop()
+
+    def alter_graded_Ca_inv(dimInfo):
+        ndims = len(dimInfo[0])
+        if ndims == 3:
+            return
+        # Graded on hypoelasticity, not hyperelasticity: that isolates the ramp from the finite-strain machinery,
+        # so a failure here is the grading. HLL only -- no other solver carries the graded overrides to the
+        # interface state, which is why check_graded refuses them.
+        stack.push(
+            "Graded Ca_inv",
+            {
+                "graded": "T",
+                "rmt": "T",
+                "hypoelasticity": "T",
+                "riemann_solver": 1,
+                **elastic_solid_mods(),
+                "fluid_pp(1)%graded_Ca_inv": "T",
+                "fluid_pp(1)%graded_Ca_inv_init": 5.0e04,
+                "fluid_pp(1)%graded_Ca_inv_end": 2.0e05,
+            },
+        )
+        if ndims == 1:
+            # Cartesian projection, one case per ramp shape.
+            for profile, pname in [(1, "linear"), (2, "sinusoidal"), (3, "power law")]:
+                cases.append(
+                    define_case_d(
+                        stack,
+                        f"Cartesian -> {pname}",
+                        {
+                            "fluid_pp(1)%graded_type": 1,
+                            "fluid_pp(1)%graded_profile": profile,
+                            "fluid_pp(1)%graded_beg_loc_x": 0.25,
+                            "fluid_pp(1)%graded_end_loc_x": 0.75,
+                            **({"fluid_pp(1)%graded_pf_coeff": 1.0, "fluid_pp(1)%graded_exp": 2.0, "fluid_pp(1)%graded_scaling": 1.0} if profile == 3 else {}),
+                        },
+                    )
+                )
+        else:
+            # The radial branch of s_grade_Ca_inv, which needs a centre and so needs at least two dimensions.
+            cases.append(
+                define_case_d(
+                    stack,
+                    "radial -> power law",
+                    {
+                        "fluid_pp(1)%graded_type": 2,
+                        "fluid_pp(1)%graded_profile": 3,
+                        "fluid_pp(1)%graded_center_loc_x": 0.5,
+                        "fluid_pp(1)%graded_center_loc_y": 0.5,
+                        "fluid_pp(1)%graded_r_beg": 0.1,
+                        "fluid_pp(1)%graded_r_end": 0.4,
+                        "fluid_pp(1)%graded_pf_coeff": 1.0,
+                        "fluid_pp(1)%graded_exp": 2.0,
+                        "fluid_pp(1)%graded_scaling": 0.4,
+                    },
+                )
+            )
+        stack.pop()
+
+    def alter_graded_Re(dimInfo):
+        ndims = len(dimInfo[0])
+        if ndims == 3:
+            return
+        mods = elastic_solid_mods()
+        del mods["fluid_pp(1)%Ca_inv"]
+        # Grading the Reynolds number needs no elastic model at all, only viscous and the reference map.
+        stack.push(
+            "Graded Re",
+            {
+                "graded": "T",
+                "rmt": "T",
+                "viscous": "T",
+                "riemann_solver": 1,
+                **mods,
+                "fluid_pp(1)%Re(1)": 50,
+                "fluid_pp(1)%graded_Re": "T",
+                "fluid_pp(1)%graded_type": 1,
+                "fluid_pp(1)%graded_profile": 1,
+                "fluid_pp(1)%graded_Re_init(1)": 25.0,
+                "fluid_pp(1)%graded_Re_end(1)": 100.0,
+                "fluid_pp(1)%graded_Re_init(2)": 25.0,
+                "fluid_pp(1)%graded_Re_end(2)": 100.0,
+                "fluid_pp(1)%graded_beg_loc_x": 0.25,
+                "fluid_pp(1)%graded_end_loc_x": 0.75,
+                **({"fluid_pp(1)%graded_beg_loc_y": 0.25, "fluid_pp(1)%graded_end_loc_y": 0.75} if ndims == 2 else {}),
+            },
+        )
+        cases.append(define_case_d(stack, "", {}))
+        stack.pop()
+
+    def alter_latent_heat_reservoir(dimInfo):
+        if len(dimInfo[0]) != 1:
+            return
+        # relax_model = 7 needs the 6-equation model for the per-phase internal energies it moves energy through,
+        # which is also what makes it mutually exclusive with hyperelasticity. Water and its vapor, the same pair
+        # alter_phasechange uses.
+        stack.push(
+            "Latent Heat Reservoir",
+            {
+                "relax": "T",
+                "relax_model": 7,
+                "model_eqns": 3,
+                "num_fluids": 2,
+                # HLLC, not HLL: relax_model = 7 needs model_eqns = 3, and the 6-equation model requires HLLC
+                # everywhere, so the reservoir's own "HLL or HLLC" allowance can only ever resolve to HLLC.
+                "riemann_solver": 2,
+                "palpha_eps": 1e-02,
+                "ptgalpha_eps": 1e-02,
+                "fluid_pp(1)%gamma": 0.7409,
+                "fluid_pp(1)%eos": "stiffened_gas",
+                "fluid_pp(1)%pi_inf": 1.7409e09,
+                "fluid_pp(1)%cv": 1816,
+                "fluid_pp(1)%qv": -1167000,
+                "fluid_pp(1)%qvp": 0.0,
+                "fluid_pp(2)%gamma": 2.3266,
+                "fluid_pp(2)%eos": "ideal_gas",
+                "fluid_pp(2)%cv": 1040,
+                "fluid_pp(2)%qv": 2030000,
+                "fluid_pp(2)%qvp": -23400,
+                "patch_icpp(1)%pres": 4.3755e05,
+                "patch_icpp(1)%alpha(1)": 8.7149e-06,
+                "patch_icpp(1)%alpha_rho(1)": 9.6457e02 * 8.7149e-06,
+                "patch_icpp(1)%alpha(2)": 1 - 8.7149e-06,
+                "patch_icpp(1)%alpha_rho(2)": 2.3132 * (1 - 8.7149e-06),
+                "patch_icpp(2)%pres": 9.6602e04,
+                "patch_icpp(2)%alpha(1)": 3.6749e-05,
+                "patch_icpp(2)%alpha_rho(1)": 1.0957e03 * 3.6749e-05,
+                "patch_icpp(2)%alpha(2)": 1 - 3.6749e-05,
+                "patch_icpp(2)%alpha_rho(2)": 0.5803 * (1 - 3.6749e-05),
+                "patch_icpp(3)%pres": 9.6602e04,
+                "patch_icpp(3)%alpha(1)": 3.6749e-05,
+                "patch_icpp(3)%alpha_rho(1)": 1.0957e03 * 3.6749e-05,
+                "patch_icpp(3)%alpha(2)": 1 - 3.6749e-05,
+                "patch_icpp(3)%alpha_rho(2)": 0.5803 * (1 - 3.6749e-05),
+                "patch_icpp(1)%vel(1)": 606.15,
+                "patch_icpp(2)%vel(1)": 10.0,
+                "patch_icpp(3)%vel(1)": 10.0,
+            },
+        )
+        cases.append(define_case_d(stack, "", {}))
+        stack.pop()
+
+    def alter_carreau_yasuda(dimInfo):
+        if len(dimInfo[0]) != 1:
+            return
+        mods = elastic_solid_mods()
+        del mods["fluid_pp(1)%Ca_inv"]
+        del mods["fd_order"]
+        # cy_muinf below cy_mu0, so the shear-thinning branch is the one that runs rather than the constant limit.
+        stack.push(
+            "Carreau-Yasuda",
+            {
+                "viscous": "T",
+                "riemann_solver": 1,
+                **mods,
+                "fluid_pp(1)%Re(1)": 50,
+                "fluid_pp(1)%non_newtonian": "T",
+                "fluid_pp(1)%non_newtonian_model": 2,
+                "fluid_pp(1)%cy_mu0": 1.0e-01,
+                "fluid_pp(1)%cy_muinf": 1.0e-03,
+                "fluid_pp(1)%cy_lambda": 1.0e-02,
+                "fluid_pp(1)%cy_a": 2.0,
+                "fluid_pp(1)%cy_n": 0.5,
+            },
+        )
+        cases.append(define_case_d(stack, "", {}))
+        stack.pop()
+
     def alter_hypoelasticity(dimInfo):
         # Hypoelasticity checks
         for num_fluids in [1, 2]:
@@ -4084,6 +4309,12 @@ def list_cases() -> typing.List[TestCaseBuilder]:
             alter_acoustic_src(dimInfo)
             alter_bubbles(dimInfo)
             alter_hypoelasticity(dimInfo)
+            alter_rmt(dimInfo)
+            alter_hyperelasticity(dimInfo)
+            alter_graded_Ca_inv(dimInfo)
+            alter_graded_Re(dimInfo)
+            alter_latent_heat_reservoir(dimInfo)
+            alter_carreau_yasuda(dimInfo)
             alter_phasechange(dimInfo)
             alter_viscosity(dimInfo)
             alter_elliptic_smoothing()
