@@ -190,6 +190,7 @@ MPI topology is automatically optimized to maximize the parallel efficiency for 
 | `hcid` *             | Integer | N/A                   | Hard coded patch id                                          |
 | `cf_val` *           | Real    | Supported             | Surface tension color function value                         |
 | `model_id`           | Integer | Not Supported         | Index into the `stl_models` array (geometry 21)              |
+| `airfoil_id`         | Integer | Not Supported         | Index into the `ib_airfoil` array (geometry 22)              |
 | `sph_har_coeff(l,m)` | Real    | Not Supported         | Spherical-harmonic surface coefficient (geometry 14)         |
 | `r0` *               | Real    | Not Supported         | Euler-Euler bubbles: initial radius, as a multiple `r0/bub_pp%%R0ref` of each bin's equilibrium radius |
 | `v0` *               | Real    | Not Supported         | Euler-Euler bubbles: initial bubble-wall velocity (the mean, with QBMM) |
@@ -352,6 +353,8 @@ These physical parameters must be consistent with fluid material's parameters de
 
 - `model_id` selects the STL/OBJ model for a geometry-21 patch by indexing into the `stl_models` array. The model file, scaling, and translation, and the inside/outside threshold, are configured on that `stl_models` entry (see the `stl_models` section below); a cell is marked inside the model using a winding-number test.
 
+- `airfoil_id` selects the NACA airfoil for a geometry-22 patch by indexing into the `ib_airfoil` array, the same parameters an airfoil immersed boundary (geometry 4 or 11) reads. The patch is unrotated: the leading edge is at `[x,y]_centroid`, the chord runs along +x and, in 3D, the span `length_z` is centred on `z_centroid`. Not supported with `amr`.
+
 #### Elliptic Smoothing
 
 Initial conditions in which not all patches support the `patch_icpp(j)%%smoothen` parameter can still be smoothed by applying iterations of the heat equation to the initial condition.
@@ -493,7 +496,7 @@ Additional details on this specification can be found in [NACA airfoil](https://
 
 - `coefficient_of_restitution` is a number from 0 (exclusive) to 1 (inclusive) describing how elastic IB collisions are. 0 is for perfectly inelastic collisions while 1 is for perfectly elastic collisions.
 
-- `collision_model` is an integer to select the collision model being used for IB collisions. Using 0 disables collisions and collision checking. 1 enables the soft-sphere collision model, where all IBs must be circles or sphere and those IBs can collide with each other as well as walls.
+- `collision_model` is an integer to select the collision model being used for IB collisions. Using 0 disables collisions and collision checking. 1 enables the soft-sphere collision model, where all IBs must be circles or sphere and those IBs can collide with each other as well as walls. Walls are the slip and no-slip domain faces (`-15`, `-16`) and the reflective faces (`-2`). A reflective face is a symmetry plane: the body meets its mirror image, whose linear spring-dashpot contact gives the same normal force as the wall contact (half the effective mass, twice the overlap and twice the closing speed) and no tangential slip, so that face is frictionless (`coefficient_of_friction` and torque do not apply there). With `cyl_coord`, the reflective `bc_y%%beg` is the axis and is not a wall. Four-way Euler-Lagrange particles get mirror-image halo particles at reflective faces instead.
 
 - `collision_time` is approximately the amount of simulation time used to resolve collisions. This is handled by modifying the spring constant used to apply collision forces.
 
@@ -1758,6 +1761,7 @@ This boundary condition can be used for subsonic inflow (`bc_[x,y,z]%[beg,end]` 
 | 19   | 3D Varcircle            | 3     | Y      | Requires `[x,y,z]_centroid`, `length_z`, `radius`, and `epsilon` (thickness) |
 | 20   | 2D Taylor-Green Vortex  | 2     | N      | Requires `[x,y]_centroid`, `length_x`, `length_y`, `vel(1)`, and `vel(2)` |
 | 21   | Model                   | 2 & 3 | Y      | Imports a Model (STL/OBJ). Requires `model_id`. |
+| 22   | NACA airfoil            | 2 & 3 | N      | Requires `[x,y]_centroid` (leading edge) and `airfoil_id`; in 3D also `z_centroid` and `length_z` (span). The shape of IB geometry 4 and 11, unrotated. |
 
 The patch types supported by the MFC are listed in table [Patch Types](#patch-types).
 This includes types exclusive to one-, two-, and three-dimensional problems.
@@ -1784,9 +1788,14 @@ Boundary is at polar angle \f$\theta = \mathrm{atan2}(y - y_{\mathrm{centroid}},
 | 2    | 2D Circle          | 2      |                                                   |
 | 3    | 2D Rectangle       | 2      |                                                   |
 | 4    | 2D Airfoil         | 2      |                                                   |
+| 5    | 2D Model (STL/OBJ) | 2      | Requires `model_id`.                              |
+| 6    | 2D Ellipse         | 2      | `length_[x,y]` are the full axes.                 |
 | 8    | 3D Sphere          | 3      |                                                   |
+| 9    | 3D Cuboid          | 3      |                                                   |
 | 10   | 3D Cylinder        | 3      | `length_x` sets the axial length of the cylinder, whose axis is x; use `angles` for other orientations. |
 | 11   | 3D Airfoil         | 3      |                                                   |
+| 12   | 3D Model (STL/OBJ) | 3      | Requires `model_id`.                              |
+| 13   | 3D Ellipsoid       | 3      | `length_[x,y,z]` are the full axes; orient it with `angles`. The moment of inertia of a moving ellipsoid is summed over its cells. |
 
 ### Acoustic Supports {#acoustic-supports}
 

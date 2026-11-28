@@ -1087,6 +1087,16 @@ def list_cases() -> typing.List[TestCaseBuilder]:
         stack.pop()
         stack.pop()
 
+    def alter_icpp_airfoil():
+        # NACA airfoil initial-condition patch (geometry 22) laid over the three base patches; its leading edge is off the cell
+        # centres and its camber breaks the mirror symmetry about the chord
+        airfoil = {"num_patches": 4, "patch_icpp(4)%geometry": 22, "patch_icpp(4)%airfoil_id": 1, "patch_icpp(4)%x_centroid": 0.2137}
+        airfoil.update({"patch_icpp(4)%y_centroid": 0.4912, "patch_icpp(4)%pres": 0.8, "patch_icpp(4)%alpha_rho(1)": 0.3, "patch_icpp(4)%alpha(1)": 1.0})
+        airfoil.update({"patch_icpp(4)%vel(1)": 0.05, "patch_icpp(4)%vel(2)": 0.0})
+        airfoil.update({"ib_airfoil(1)%c": 0.6, "ib_airfoil(1)%t": 0.15, "ib_airfoil(1)%p": 0.4, "ib_airfoil(1)%m": 0.02})
+        airfoil.update({f"patch_icpp(4)%alter_patch({i})": "T" for i in (1, 2, 3)})
+        cases.append(define_case_d(stack, "ICPP Airfoil", airfoil))
+
     def alter_3d():
         stack.push(
             "Cylindrical",
@@ -1397,6 +1407,13 @@ def list_cases() -> typing.List[TestCaseBuilder]:
                             },
                         )
                     )
+
+            if not slip and not viscous and num_fluids == 1 and len(dimInfo[0]) == 3:
+                # Ellipsoid (geometry 13): unequal axes, tilted about all three axes, centroid off the grid's symmetry planes
+                ellipsoid = {"patch_ib(1)%geometry": 13, "patch_ib(1)%x_centroid": 0.4987, "patch_ib(1)%y_centroid": 0.5031, "patch_ib(1)%z_centroid": 0.5012}
+                ellipsoid.update({"patch_ib(1)%length_x": 0.26, "patch_ib(1)%length_y": 0.18, "patch_ib(1)%length_z": 0.14})
+                ellipsoid.update({"patch_ib(1)%angles(1)": 0.31, "patch_ib(1)%angles(2)": -0.22, "patch_ib(1)%angles(3)": 0.47})
+                cases.append(define_case_d(stack, "Ellipsoid", ellipsoid))
 
             if not slip and not viscous and num_fluids == 1 and len(dimInfo[0]) >= 2:
                 # The default TSC image points read ghost cells, which the inverse-distance weights (ib_ip_interp = 1, the opt-out)
@@ -1934,6 +1951,12 @@ def list_cases() -> typing.List[TestCaseBuilder]:
             # force flips sign every step with magnitude mu*|F_n|; with it the slide dies out.
             wall_slide = friction_box(10.0, [(5.0 + ox, 0.45, 1.0e-4, -0.1)], 60, 3.0e-4, 0.3, **{"bc_y%beg": -15, "bc_y%end": -15})
             cases.append(define_case_d(stack, "IBM -> Collision -> Friction slip regularisation at a wall", wall_slide, override_tol=1e-10, override_tol_single=fric_single))
+            if num_fluids == 1:
+                # A circle hitting the reflective face y = 0 at an angle meets its mirror image: a frictionless wall, so mu = 0.3 must
+                # not slow the slide. On 2 ranks the 7 x 14 box splits along y and only the lower rank holds the face.
+                mirror = friction_box(14.0, [(3.5 + ox, 0.6237, 0.05, -0.1)], 80, 0.0, 0.3, **{"x_domain%end": 7.0, "m": 27, "bc_y%beg": -2, "bc_y%end": -2, "ib_force_wrt": "T"})
+                for ppn in (1, 2):
+                    cases.append(define_case_d(stack, ["IBM -> Collision -> Reflective boundary", f"{ppn} MPI Ranks"], mirror, ppn=ppn))
             if num_fluids == 1:
                 # The seam pair on 1 rank and transposed along y (#2432): ib_mass_relax gave a cell within reach of both shells to the
                 # first marker of the x-inner scan, so the two differed by 7.6e-3. The Convergence check asserts the transpose.
@@ -4051,6 +4074,7 @@ def list_cases() -> typing.List[TestCaseBuilder]:
             alter_num_fluids(dimInfo)
             if len(dimInfo[0]) == 2:
                 alter_2d()
+                alter_icpp_airfoil()
             if len(dimInfo[0]) == 3:
                 alter_3d()
             alter_lag_bubbles(dimInfo)
@@ -4268,6 +4292,8 @@ def list_cases() -> typing.List[TestCaseBuilder]:
                 "2D_ibm_plane_poiseuille",
                 # Registered below at 12 cells per radius: at the 25-cell cap the gap holds about 4 cells
                 "2D_ibm_conduction_annulus",
+                # The annulus deck again, for its order study (order_study.py); the annulus registration covers it
+                "2D_ibm_accuracy_limits",
                 # Registered below at 16 cells per diameter, where the body is resolved
                 "2D_ibm_cylinder_drag_nu",
                 # Registered below at their own sizes: the 25-cell cap would leave the bodies unresolved (12 cylinders need about 96 cells)
@@ -5141,7 +5167,8 @@ def list_cases() -> typing.List[TestCaseBuilder]:
     # on round-off. Against goldens generated on the current master, the CI lanes agree to 1e-14 absolute on the fields and 5e-9
     # relative on the contact force (1e-9 on tiny entries), so 1e-6 leaves two orders of margin and still fails a one-step shift of the
     # contact (order 1e-2). Regenerate the goldens whenever a default in the moving-body numerics changes.
-    for label, args in (("Normal", []), ("Sliding Friction", ["--angle", "50", "--e", "0.98", "--mu", "0.092"])):
+    # Reflective: the 50 degree impact against a symmetry face, which is frictionless, so mu = 0.092 leaves v_t unchanged.
+    for label, args in (("Normal", []), ("Sliding Friction", ["--angle", "50", "--e", "0.98", "--mu", "0.092"]), ("Reflective", ["--wall-bc", "-2", "--angle", "50", "--e", "0.98", "--mu", "0.092"])):
         cases.append(define_case_f(f"3D -> IBM -> Wall Collision -> {label}", "examples/3D_mibm_wall_collision/case.py", args=args, mods={"parallel_io": "F"}, override_tol=1e-6))
 
     # Wall-normal ghost velocity (ib_wall_order = 2) at viscous no-slip walls whose exact solutions are known: a rotating inner circle with
