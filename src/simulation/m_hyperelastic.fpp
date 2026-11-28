@@ -342,7 +342,11 @@ contains
     !> Refresh the stash against the state q_cons_vf holds now, for a consumer that runs outside the RHS. The stash is recomputed
     !! every RHS call, so after a completed time step it describes the last RHS stage, not the updated state. This repeats the
     !! sequence s_compute_rhs uses -- convert, fill the primitive buffers the reference-map gradient stencil reads, then the stress
-    !! update -- and adds no new state of its own.
+    !! update -- and introduces no state of its own.
+    !!
+    !! q_cons_vf is intent(inout), not intent(in): the stress update's last step writes the conservative Cauchy stress back as
+    !! rho times the primitive stress it has just recomputed, so the conserved array does not fall out of step with the stash.
+    !! Every caller holds that array writably and hands it straight on to s_infinite_relaxation_k, which is itself inout.
     !! @param skip_bc Suppress the buffer fill. An AMR fine block takes .true.: its ghosts come from the coarse level
     !!   through amr_cons_br, not from this frame's boundary conditions or MPI faces, and s_populate_variables_buffers
     !!   would act on the block frame as though it were the domain. Those ghosts are one update old, so the block's
@@ -350,7 +354,7 @@ contains
     !!   buffered extent there, so the ghosts come from the block's own register rather than from shared scratch.
     impure subroutine s_hyperelastic_refresh_stash(q_cons_vf, q_prim_vf, q_T_sf, bc_type, ibounds, skip_bc, pb_in, mv_in)
 
-        type(scalar_field), dimension(sys_size), intent(in)                                                  :: q_cons_vf
+        type(scalar_field), dimension(sys_size), intent(inout)                                               :: q_cons_vf
         type(scalar_field), dimension(sys_size), intent(inout)                                               :: q_prim_vf
         type(scalar_field), intent(inout)                                                                    :: q_T_sf
         type(integer_field), dimension(1:num_dims,1:2), intent(in)                                           :: bc_type
